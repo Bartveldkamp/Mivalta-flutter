@@ -1,12 +1,12 @@
-// V10.1 Flutter perf spike (Day 1).
+// MiValta spike entry. Day 1 owns the on-device V10.1 chat loop
+// (llama_cpp_dart + GGUF download + sha256-gated load); Day 2 layers
+// the rust-engine bridge on top (flutter_rust_bridge → libgatc_ffi /
+// libmivalta_rust_bridge → gatc_ffi::hello_uniffi). They are
+// orthogonal — the engine bridge boots in parallel with the model
+// download, and its result lands as an additional status line above
+// the V10.1 UI without blocking Run.
 //
-// Single screen: TextField → Run button → streamed token output, with two
-// latency labels (TTFT, Total) read from the llama_cpp_dart
-// `GenerationEvent` stream. First launch downloads the V10.1 GGUF from
-// the model host and verifies its sha256 before letting the engine load
-// it. Network is locked to that one host via res/xml/network_security_config.xml.
-//
-// See docs/V10_1_FLUTTER_PERF_SPIKE.md for the why and the acceptance bar.
+// See docs/V10_1_FLUTTER_PERF_SPIKE.md and docs/DAY2_RUST_BRIDGE.md.
 
 import 'dart:async';
 import 'dart:io';
@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'rust_engine.dart';
 
 const String _modelUrl =
     'http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf';
@@ -64,10 +66,18 @@ class _SpikeHomeState extends State<SpikeHome> {
   LlamaEngine? _engine;
   String? _modelPath;
 
+  // Day 2 rust-engine bridge state — independent of the V10.1 model
+  // path. `_engineHello` is `null` while the bridge is still booting,
+  // an error string if `RustLib.init()` failed, or the engine's
+  // canonical smoke-test reply (`"hello"`) once the round-trip
+  // succeeded.
+  String? _engineHello;
+
   @override
   void initState() {
     super.initState();
     unawaited(_bootstrapModel());
+    unawaited(_bootstrapEngineBridge());
   }
 
   @override
@@ -75,6 +85,18 @@ class _SpikeHomeState extends State<SpikeHome> {
     _controller.dispose();
     unawaited(_engine?.dispose());
     super.dispose();
+  }
+
+  Future<void> _bootstrapEngineBridge() async {
+    try {
+      final binding = await RustEngineBinding.bootstrap();
+      final reply = await binding.hello();
+      if (!mounted) return;
+      setState(() => _engineHello = reply);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _engineHello = 'error: $e');
+    }
   }
 
   Future<void> _bootstrapModel() async {
@@ -227,6 +249,11 @@ class _SpikeHomeState extends State<SpikeHome> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Day 2 status line — rendered above the V10.1 status so
+            // the rust-engine bridge result is visible regardless of
+            // model-download state.
+            Text('Engine hello: ${_engineHello ?? '(loading)'}'),
+            const SizedBox(height: 4),
             Text('Status: ${_stage.name} — $_statusDetail'),
             const SizedBox(height: 12),
             TextField(
