@@ -146,9 +146,13 @@ class _ReadinessBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasEngineError = data.error != null;
+    // Local non-null capture before the closure — matches the Day-3
+    // `_run()` snapshot pattern and removes the `!` operator entirely.
+    // The closure now reasons about its own `err` binding, not the
+    // mutable State field.
+    final err = data.error;
     Widget engineDependent(Widget child) =>
-        hasEngineError ? _ErrorRow(message: data.error!) : child;
+        err != null ? _ErrorRow(message: err) : child;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
