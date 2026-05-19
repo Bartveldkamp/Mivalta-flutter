@@ -16,13 +16,18 @@ android {
 
     defaultConfig {
         applicationId = "com.mivalta.mivalta_flutter"
-        // llama-cpp-dart.aar requires minSdk 26 (Android 8.0).
+        // llama-cpp-dart.aar (Day 1) requires minSdk 26 (Android 8.0);
+        // the rust-engine bridge .so files (Day 2) were built with
+        // cargo-ndk --platform 21, so 26 is the binding constraint.
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // V10.1 spike is arm64-v8a only — matches the AAR's jniLibs.
+        // arm64-v8a is the only ABI shipped — Day-1 llama_cpp_dart AAR
+        // ships jniLibs/arm64-v8a/lib*.so, and Day-2 rust-bridge .so
+        // files (libgatc_ffi.so + libmivalta_rust_bridge.so) under
+        // src/main/jniLibs/arm64-v8a/ match. No other ABI has native libs.
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
