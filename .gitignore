@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Day-2 Rust shim crate — build artifacts only.
+/rust/target/
