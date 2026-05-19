@@ -1,8 +1,8 @@
-// Smoke test for the V10.1 perf spike home screen.
-//
-// The model bootstrap (path_provider + http + sha256) starts in initState
-// and runs asynchronously off the first frame, so this test only inspects
-// the initial widget tree to keep it offline and deterministic.
+// Smoke test for the merged spike home screen — covers both the
+// Day-1 V10.1 chat UI (model bootstrap → TextField → Run → latency
+// labels) and the Day-2 rust-engine bridge status line. Neither the
+// V10.1 model bootstrap nor `RustLib.init()` works on the host test
+// harness, so this test only inspects the initial widget tree.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,11 +11,15 @@ import 'package:mivalta_flutter/main.dart';
 
 void main() {
   testWidgets(
-    'SpikeHome renders default prompt, Run button, and latency labels',
+    'SpikeHome renders Day-1 chat UI and Day-2 engine-hello status',
     (WidgetTester tester) async {
       await tester.pumpWidget(const PerfSpikeApp());
-      // Render one frame only — bootstrap is still in flight, do not settle.
+      // Render one frame only — both bootstraps are in flight, do
+      // not settle (native libraries are not loadable in the host
+      // harness).
       await tester.pump();
+
+      // --- Day-1 assertions ---------------------------------------
 
       // Default prompt text appears in the TextField's editing controller.
       final textFinder = find.byType(TextField);
@@ -23,8 +27,8 @@ void main() {
       final field = tester.widget<TextField>(textFinder);
       expect(field.controller?.text, 'Should I train today?');
 
-      // Run button exists and starts disabled while the model is still being
-      // checked (stage = checking → canRun = false).
+      // Run button exists and starts disabled while the model is
+      // still being checked (stage = checking → canRun = false).
       final runFinder = find.widgetWithText(ElevatedButton, 'Run');
       expect(runFinder, findsOneWidget);
       expect(tester.widget<ElevatedButton>(runFinder).onPressed, isNull);
@@ -32,6 +36,16 @@ void main() {
       // Two latency labels render placeholders before any run completes.
       expect(find.text('TTFT: - ms'), findsOneWidget);
       expect(find.text('Total: - ms'), findsOneWidget);
+
+      // --- Day-2 assertion ----------------------------------------
+
+      // The rust-engine bridge result line is present. On the host
+      // test harness `RustLib.init()` errors synchronously (no
+      // libmivalta_rust_bridge.so loadable), so the line either
+      // shows the `(loading)` placeholder or an `error: ...` string
+      // by the first pump — both are valid initial states. The same
+      // widget displays `Engine hello: hello` on device.
+      expect(find.textContaining('Engine hello: '), findsOneWidget);
     },
   );
 }
