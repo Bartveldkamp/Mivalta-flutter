@@ -18,6 +18,7 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'rust_engine.dart';
+import 'smoketest_screen.dart';
 
 const String _modelUrl =
     'http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf';
@@ -265,9 +266,27 @@ class _SpikeHomeState extends State<SpikeHome> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: canRun ? _runOnce : null,
-              child: Text(_running ? 'Running...' : 'Run'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: canRun ? _runOnce : null,
+                    child: Text(_running ? 'Running...' : 'Run'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SmoketestScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.science_outlined),
+                    label: const Text('Smoketest'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Row(
