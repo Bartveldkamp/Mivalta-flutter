@@ -1,121 +1,269 @@
+// V10.1 Flutter perf spike (Day 1).
+//
+// Single screen: TextField → Run button → streamed token output, with two
+// latency labels (TTFT, Total) read from the llama_cpp_dart
+// `GenerationEvent` stream. First launch downloads the V10.1 GGUF from
+// the model host and verifies its sha256 before letting the engine load
+// it. Network is locked to that one host via res/xml/network_security_config.xml.
+//
+// See docs/V10_1_FLUTTER_PERF_SPIKE.md for the why and the acceptance bar.
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:llama_cpp_dart/llama_cpp_dart.dart';
+import 'package:path_provider/path_provider.dart';
+
+const String _modelUrl =
+    'http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf';
+const String _modelFile = 'josi-v10-1-q4_k_m.gguf';
+const String _modelSha256 =
+    '8bb9f19deb49990fb6e5a22028624786c850f4ae0eefde8f30d99463c40adfdb';
+const int _expectedBytes = 1107408608;
+const String _defaultPrompt = 'Should I train today?';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const PerfSpikeApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PerfSpikeApp extends StatelessWidget {
+  const PerfSpikeApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return const MaterialApp(
+      title: 'MiValta V10.1 Spike',
+      home: SpikeHome(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+enum _ModelStage { checking, downloading, verifying, ready, error }
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class SpikeHome extends StatefulWidget {
+  const SpikeHome({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SpikeHome> createState() => _SpikeHomeState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SpikeHomeState extends State<SpikeHome> {
+  final TextEditingController _controller =
+      TextEditingController(text: _defaultPrompt);
 
-  void _incrementCounter() {
+  _ModelStage _stage = _ModelStage.checking;
+  String _statusDetail = 'Locating model...';
+  String _output = '';
+  int? _ttftMs;
+  int? _totalMs;
+  bool _running = false;
+
+  LlamaEngine? _engine;
+  String? _modelPath;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_bootstrapModel());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    unawaited(_engine?.dispose());
+    super.dispose();
+  }
+
+  Future<void> _bootstrapModel() async {
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      final file = File('${supportDir.path}/$_modelFile');
+      _modelPath = file.path;
+
+      if (await file.exists() && await file.length() == _expectedBytes) {
+        setState(() {
+          _stage = _ModelStage.verifying;
+          _statusDetail = 'Verifying SHA-256 of cached model...';
+        });
+        if (await _sha256Of(file) == _modelSha256) {
+          setState(() {
+            _stage = _ModelStage.ready;
+            _statusDetail = 'Model verified at ${file.path}';
+          });
+          return;
+        }
+        // Cached file is the right size but wrong hash — delete and re-download.
+        await file.delete();
+      }
+
+      setState(() {
+        _stage = _ModelStage.downloading;
+        _statusDetail =
+            'Downloading V10.1 GGUF (~${(_expectedBytes / (1024 * 1024)).toStringAsFixed(0)} MB)...';
+      });
+      await _downloadModel(file);
+
+      setState(() {
+        _stage = _ModelStage.verifying;
+        _statusDetail = 'Verifying SHA-256 of downloaded model...';
+      });
+      final actual = await _sha256Of(file);
+      if (actual != _modelSha256) {
+        // LOCKED: refuse to load a model whose hash does not match the
+        // expected V10.1 artifact — see CLAUDE.md rule 6.
+        await file.delete();
+        setState(() {
+          _stage = _ModelStage.error;
+          _statusDetail =
+              'SHA-256 mismatch. Expected $_modelSha256, got $actual';
+        });
+        return;
+      }
+
+      setState(() {
+        _stage = _ModelStage.ready;
+        _statusDetail = 'Model verified at ${file.path}';
+      });
+    } catch (e) {
+      setState(() {
+        _stage = _ModelStage.error;
+        _statusDetail = 'Model bootstrap failed: $e';
+      });
+    }
+  }
+
+  Future<void> _downloadModel(File target) async {
+    final req = http.Request('GET', Uri.parse(_modelUrl));
+    final res = await http.Client().send(req);
+    if (res.statusCode != 200) {
+      throw HttpException('HTTP ${res.statusCode} from $_modelUrl');
+    }
+    final sink = target.openWrite();
+    try {
+      await res.stream.pipe(sink);
+    } finally {
+      await sink.close();
+    }
+  }
+
+  Future<String> _sha256Of(File file) async {
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString();
+  }
+
+  Future<LlamaEngine> _ensureEngine() async {
+    final cached = _engine;
+    if (cached != null) return cached;
+    final path = _modelPath;
+    if (path == null) {
+      throw StateError('Model path unset before engine bootstrap.');
+    }
+    // On Android the AAR's jniLibs are unpacked next to the app's
+    // native libs, so basename resolution finds libllama.so.
+    final engine = await LlamaEngine.spawn(
+      libraryPath: 'libllama.so',
+      modelParams: ModelParams(path: path),
+      contextParams: const ContextParams(nCtx: 2048),
+    );
+    _engine = engine;
+    return engine;
+  }
+
+  Future<void> _runOnce() async {
+    if (_running || _stage != _ModelStage.ready) return;
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _running = true;
+      _output = '';
+      _ttftMs = null;
+      _totalMs = null;
     });
+    final stopwatch = Stopwatch()..start();
+    try {
+      final engine = await _ensureEngine();
+      final session = await engine.createSession();
+      try {
+        final buf = StringBuffer();
+        await for (final event in session.generate(
+          prompt: _controller.text,
+          addSpecial: true,
+          maxTokens: 256,
+        )) {
+          switch (event) {
+            case TokenEvent():
+              _ttftMs ??= stopwatch.elapsedMilliseconds;
+              buf.write(event.text);
+              setState(() => _output = buf.toString());
+            case ShiftEvent():
+              break;
+            case DoneEvent():
+              if (event.trailingText.isNotEmpty) {
+                buf.write(event.trailingText);
+              }
+              setState(() => _output = buf.toString());
+          }
+        }
+        setState(() => _totalMs = stopwatch.elapsedMilliseconds);
+      } finally {
+        await session.dispose();
+      }
+    } catch (e) {
+      setState(() => _output = 'Generation failed: $e');
+    } finally {
+      stopwatch.stop();
+      setState(() => _running = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final canRun = _stage == _ModelStage.ready && !_running;
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      appBar: AppBar(title: const Text('MiValta V10.1 Spike')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Text('Status: ${_stage.name} — $_statusDetail'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                labelText: 'Prompt',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: canRun ? _runOnce : null,
+              child: Text(_running ? 'Running...' : 'Run'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('TTFT: ${_ttftMs?.toString() ?? '-'} ms'),
+                ),
+                Expanded(
+                  child: Text('Total: ${_totalMs?.toString() ?? '-'} ms'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Output:'),
+            Expanded(
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  _output.isEmpty ? '(no output yet)' : _output,
+                ),
+              ),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
