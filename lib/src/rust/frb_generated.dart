@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1676899362;
+  int get rustContentHash => -1135132544;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -95,6 +95,13 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiVaultSnapshot({required EnginesHandle handle});
 
   Future<String> crateApiViterbiFatigueState({required EnginesHandle handle});
+
+  Future<void> crateApiWriteMinimalBiometric({
+    required EnginesHandle handle,
+    required String source,
+    required String isoDate,
+    required int restingHr,
+  });
 
   Future<String> crateApiZoneCapWithAdvisories({required EnginesHandle handle});
 
@@ -344,6 +351,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiWriteMinimalBiometric({
+    required EnginesHandle handle,
+    required String source,
+    required String isoDate,
+    required int restingHr,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(source, serializer);
+          sse_encode_String(isoDate, serializer);
+          sse_encode_i_32(restingHr, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiWriteMinimalBiometricConstMeta,
+        argValues: [handle, source, isoDate, restingHr],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWriteMinimalBiometricConstMeta =>
+      const TaskConstMeta(
+        debugName: "write_minimal_biometric",
+        argNames: ["handle", "source", "isoDate", "restingHr"],
+      );
+
+  @override
   Future<String> crateApiZoneCapWithAdvisories({
     required EnginesHandle handle,
   }) {
@@ -358,7 +407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -436,9 +485,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return BridgeError_StateError(dco_decode_String(raw[1]));
       case 5:
         return BridgeError_RoundTripFailed(dco_decode_String(raw[1]));
+      case 6:
+        return BridgeError_InvalidDate(dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -531,9 +588,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         var var_field0 = sse_decode_String(deserializer);
         return BridgeError_RoundTripFailed(var_field0);
+      case 6:
+        var var_field0 = sse_decode_String(deserializer);
+        return BridgeError_InvalidDate(var_field0);
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -558,12 +624,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -638,7 +698,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BridgeError_RoundTripFailed(field0: final field0):
         sse_encode_i_32(5, serializer);
         sse_encode_String(field0, serializer);
+      case BridgeError_InvalidDate(field0: final field0):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(field0, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
   }
 
   @protected
@@ -666,12 +735,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
   }
 
   @protected

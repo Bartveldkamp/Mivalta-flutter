@@ -21,6 +21,12 @@ pub enum BridgeError {
     InputError(String),
     StateError(String),
     RoundTripFailed(String),
+    /// Day-7: ISO-8601 date string couldn't be parsed at the shim
+    /// before reaching the engine. Distinct from `InputError` so the
+    /// debug exerciser (and future writes) can surface a precise
+    /// "your date is malformed" toast instead of the generic JSON
+    /// schema rejection text.
+    InvalidDate(String),
 }
 
 impl std::fmt::Display for BridgeError {
@@ -32,6 +38,7 @@ impl std::fmt::Display for BridgeError {
             BridgeError::InputError(m) => write!(f, "input error: {m}"),
             BridgeError::StateError(m) => write!(f, "state error: {m}"),
             BridgeError::RoundTripFailed(m) => write!(f, "round-trip failed: {m}"),
+            BridgeError::InvalidDate(m) => write!(f, "invalid date: {m}"),
         }
     }
 }
@@ -146,5 +153,34 @@ pub fn last_observation_source_tier(handle: &EnginesHandle) -> Result<String, Br
     handle
         .vault
         .last_observation_source_tier()
+        .map_err(Into::into)
+}
+
+/// Day-7: minimal biometric write for the hardware-verification debug
+/// swatch exerciser. Composes a minimal VaultBiometric JSON with
+/// `date`, `source`, and a placeholder `resting_hr` so the next
+/// `last_observation_source_tier` call returns the matching tier and
+/// the readiness screen's section (e) picks up the LOCKED swatch.
+///
+/// `iso_date` must parse as `YYYY-MM-DD`; on failure the shim emits
+/// `BridgeError::InvalidDate` *before* touching the vault. The
+/// physiological value is a placeholder — production writes will
+/// carry real metrics.
+pub fn write_minimal_biometric(
+    handle: &EnginesHandle,
+    source: String,
+    iso_date: String,
+    resting_hr: i32,
+) -> Result<(), BridgeError> {
+    chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+        .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+    let payload = serde_json::json!({
+        "date": iso_date,
+        "source": source,
+        "resting_hr": resting_hr,
+    });
+    handle
+        .vault
+        .write_biometric(payload.to_string())
         .map_err(Into::into)
 }
