@@ -20,6 +20,13 @@ flutter_rust_bridge = "=2.12.0"
 # target/ directory.
 gatc-ffi = { path = "../../mivalta-rust-engine/crates/gatc-ffi" }
 
+# Day 3 needs JSON munging at the shim boundary (composing a
+# SuggesterContext from engine state) and a "today" date for that
+# context. Versions chosen to match what gatc-ffi already resolves to
+# in the workspace; cargo will dedupe.
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
 [profile.release]
 opt-level = 3
 lto = "thin"
