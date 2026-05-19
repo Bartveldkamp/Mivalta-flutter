@@ -1,0 +1,111 @@
+name: Adversarial Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (for retroactive runs)'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check for ANTHROPIC_API_KEY secret
+        id: check_key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY not set; skipping adversarial review (no error, founder uses manual reviewer pattern)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve PR context (dispatch path)
+        id: dispatch_ctx
+        if: github.event_name == 'workflow_dispatch' && steps.check_key.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ inputs.pr_number }}
+          HEAD_SHA=$(gh pr view $PR --repo ${{ github.repository }} --json headRefOid -q '.headRefOid')
+          BASE_REF=$(gh pr view $PR --repo ${{ github.repository }} --json baseRefName -q '.baseRefName')
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR head
+        if: steps.check_key.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || steps.dispatch_ctx.outputs.head_sha }}
+
+      - name: Resolve base ref
+        id: refs
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          BASE="${{ github.event.pull_request.base.ref || steps.dispatch_ctx.outputs.base_ref }}"
+          if [ -z "$BASE" ]; then BASE=main; fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch base
+        if: steps.check_key.outputs.skip == 'false'
+        run: git fetch origin ${{ steps.refs.outputs.base }} --depth=500
+
+      - name: Generate diff
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          git diff origin/${{ steps.refs.outputs.base }}...HEAD > /tmp/pr.diff
+          BYTES=$(wc -c < /tmp/pr.diff)
+          echo "Diff size: $BYTES bytes"
+          if [ "$BYTES" -gt 409600 ]; then
+            head -c 409600 /tmp/pr.diff > /tmp/pr.diff.trunc
+            echo "\n\n[diff truncated at 400 KB by review workflow]" >> /tmp/pr.diff.trunc
+            mv /tmp/pr.diff.trunc /tmp/pr.diff
+          fi
+
+      - name: Set up Python
+        if: steps.check_key.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Anthropic SDK
+        if: steps.check_key.outputs.skip == 'false'
+        run: python -m pip install --upgrade 'anthropic>=0.40'
+
+      - name: Run adversarial review
+        if: steps.check_key.outputs.skip == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python .github/scripts/claude_review.py < /tmp/pr.diff > /tmp/review.md
+          echo "=== Review output ==="
+          cat /tmp/review.md
+
+      - name: Determine PR number for comment
+        id: prnum
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            echo "n=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "n=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post review as PR comment
+        if: steps.check_key.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ steps.prnum.outputs.n }} --body-file /tmp/review.md --repo ${{ github.repository }}
