@@ -47,6 +47,11 @@ dependencies:
   crypto: ^3.0.6
   http: ^1.2.2
 
+  # Day 2: rust-engine binding via flutter_rust_bridge.
+  # Pinned to match the exact `flutter_rust_bridge` version in
+  # rust/Cargo.toml so the codec is symmetric on both sides.
+  flutter_rust_bridge: 2.12.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
