@@ -29,12 +29,21 @@ class _SmoketestScreenState extends State<SmoketestScreen> {
   _Results? _r;
 
   Future<void> _run() async {
-    setState(() { _running = true; _r = _Results(); });
+    // Capture a local non-null snapshot of the result accumulator before
+    // any await — across the multiple await points below, `_r` is
+    // nullable on the State and could be reassigned. Operating on a
+    // local `r` closes the reentrancy window the Day-3 review flagged.
+    final r = _Results();
+    setState(() {
+      _running = true;
+      _r = r;
+    });
 
     final profileJson = CanonicalSeed.vaultProfileJson();
     try {
       final binding = await RustEngineBinding.bootstrap();
-      final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
+      final tablesJson =
+          await rootBundle.loadString('assets/compiled_tables.json');
       final support = await getApplicationSupportDirectory();
       final vaultDir = Directory('${support.path}/day3-vault');
       if (!await vaultDir.exists()) await vaultDir.create(recursive: true);
@@ -43,19 +52,19 @@ class _SmoketestScreenState extends State<SmoketestScreen> {
         tablesJson: tablesJson,
         vaultPath: vaultDir.path,
       );
-      _r!.readiness = await binding.readinessScore(handle);
-      _r!.fatigueState = await binding.viterbiFatigueState(handle);
-      _r!.zoneCap = await binding.zoneCapWithAdvisories(handle);
-      _r!.workout = await binding.recommendWorkout(handle);
-      _r!.vault = await binding.vaultSnapshot(handle);
+      r.readiness = await binding.readinessScore(handle);
+      r.fatigueState = await binding.viterbiFatigueState(handle);
+      r.zoneCap = await binding.zoneCapWithAdvisories(handle);
+      r.workout = await binding.recommendWorkout(handle);
+      r.vault = await binding.vaultSnapshot(handle);
     } catch (e) {
-      _r!.engineError = '${e.runtimeType}: $e';
+      r.engineError = '${e.runtimeType}: $e';
     }
 
     try {
-      _r!.llmReply = await _runLlm();
+      r.llmReply = await _runLlm();
     } catch (e) {
-      _r!.llmError = '${e.runtimeType}: $e';
+      r.llmError = '${e.runtimeType}: $e';
     }
 
     if (!mounted) return;
