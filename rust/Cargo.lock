@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "gatc-advisor"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-knowledge",
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "gatc-cp"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "gatc-mmp",
  "serde",
@@ -796,7 +796,7 @@ dependencies = [
 [[package]]
 name = "gatc-decoupling"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "serde",
  "serde_json",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "gatc-ffi"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-advisor",
@@ -836,7 +836,7 @@ dependencies = [
 [[package]]
 name = "gatc-guardrails"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "gatc-types",
  "lazy_static",
@@ -849,7 +849,7 @@ dependencies = [
 [[package]]
 name = "gatc-josi"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-guardrails",
@@ -869,7 +869,7 @@ dependencies = [
 [[package]]
 name = "gatc-knowledge"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "gatc-types",
  "log",
@@ -882,7 +882,7 @@ dependencies = [
 [[package]]
 name = "gatc-mmp"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "serde",
@@ -893,7 +893,7 @@ dependencies = [
 [[package]]
 name = "gatc-narrative"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-planner",
@@ -908,7 +908,7 @@ dependencies = [
 [[package]]
 name = "gatc-normalizer"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-types",
@@ -920,7 +920,7 @@ dependencies = [
 [[package]]
 name = "gatc-planner"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-guardrails",
@@ -938,7 +938,7 @@ dependencies = [
 [[package]]
 name = "gatc-postprocess"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-cp",
@@ -953,7 +953,7 @@ dependencies = [
 [[package]]
 name = "gatc-replan"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-planner",
@@ -966,7 +966,7 @@ dependencies = [
 [[package]]
 name = "gatc-types"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "serde",
@@ -976,7 +976,7 @@ dependencies = [
 [[package]]
 name = "gatc-vault"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -998,7 +998,7 @@ dependencies = [
 [[package]]
 name = "gatc-viterbi"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "chrono",
  "gatc-types",
@@ -1009,7 +1009,7 @@ dependencies = [
 [[package]]
 name = "gatc-wbal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=d8b14704cca881e62c6f9d38f01b8b0e6a4c186e#d8b14704cca881e62c6f9d38f01b8b0e6a4c186e"
+source = "git+ssh://git@github.com/Bartveldkamp/mivalta-rust-engine?rev=627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403#627b8eb1d05ec2f2f4e77fe7eaf4eeaae1bd8403"
 dependencies = [
  "serde",
  "serde_json",

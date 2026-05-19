@@ -8,6 +8,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../copy/f1.dart';
+
 /// The four canonical data-source tiers. Strings match the JSON
 /// serialisation `serde` produces for `DataSourceTier` on the
 /// rust-engine side (PascalCase variant name).
@@ -74,7 +76,9 @@ class SourceTierIndicator extends StatelessWidget {
     final theme = Theme.of(context);
     final t = tier;
     if (t == null) {
-      return Text(_f1NoDataCopy, style: theme.textTheme.bodyLarge);
+      // Single source of truth: lib/copy/f1.dart. `source_tier_test.dart`
+      // asserts both render paths reach kF1NoDataCopy.
+      return Text(kF1NoDataCopy, style: theme.textTheme.bodyLarge);
     }
     return Row(
       children: [
@@ -93,9 +97,3 @@ class SourceTierIndicator extends StatelessWidget {
     );
   }
 }
-
-// Indirection so the theme component doesn't import lib/copy/f1.dart
-// (avoids a circular layering: theme is below copy in dependency
-// order). The string is the same LOCKED text — both definitions
-// must match; `source_tier_test.dart` asserts the equality.
-const String _f1NoDataCopy = 'We need more data to predict recovery.';

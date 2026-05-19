@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
 
 void main() {
@@ -59,6 +60,32 @@ void main() {
       expect(sourceTierFromEngine('Medical (A)'), isNull); // label, not variant
       expect(sourceTierFromEngine(0), isNull);
       expect(sourceTierFromEngine(<String, Object?>{}), isNull);
+    });
+  });
+
+  group('F1 no-data copy — single source of truth', () {
+    // Regression guard against the Day-5 review BLOCKER: the F1
+    // no-data string used to be duplicated as a private const in
+    // theme/source_tier.dart. Day-6 dedup'd it to import
+    // kF1NoDataCopy from copy/f1.dart. If anyone re-introduces a
+    // duplicate, this test catches it by asserting the no-data
+    // render path of SourceTierIndicator(tier: null) finds the
+    // EXACT kF1NoDataCopy const — not a parallel constant that
+    // happens to have the same value today.
+    testWidgets(
+      'SourceTierIndicator(tier: null) renders kF1NoDataCopy from copy/f1.dart',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: SourceTierIndicator(tier: null)),
+          ),
+        );
+        expect(find.text(kF1NoDataCopy), findsOneWidget);
+      },
+    );
+
+    test('kF1NoDataCopy is the LOCKED verbatim string from CLAUDE.md', () {
+      expect(kF1NoDataCopy, 'We need more data to predict recovery.');
     });
   });
 }
