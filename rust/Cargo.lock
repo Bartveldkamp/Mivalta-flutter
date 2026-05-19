@@ -1312,8 +1312,10 @@ dependencies = [
 name = "mivalta-rust-bridge"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "flutter_rust_bridge",
  "gatc-ffi",
+ "serde_json",
 ]
 
 [[package]]
