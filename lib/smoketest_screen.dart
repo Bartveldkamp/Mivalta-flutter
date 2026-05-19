@@ -119,10 +119,10 @@ class _SmoketestScreenState extends State<SmoketestScreen> {
     ),
   );
 
-  Widget _err(String msg) => Row(
+  Widget _err(BuildContext context, String msg) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Icon(Icons.error, color: Colors.red),
+      Icon(Icons.error, color: Theme.of(context).colorScheme.error),
       const SizedBox(width: 8),
       Expanded(child: SelectableText(msg)),
     ],
@@ -167,7 +167,7 @@ class _SmoketestScreenState extends State<SmoketestScreen> {
             r == null
                 ? const [Text('(tap Run smoketest)')]
                 : r.engineError != null
-                    ? [_err(r.engineError!)]
+                    ? [_err(context, r.engineError!)]
                     : [
                       _kv('readiness_score', r.readiness),
                       _kv('viterbi_fatigue_state', r.fatigueState),
@@ -183,7 +183,7 @@ class _SmoketestScreenState extends State<SmoketestScreen> {
             if (r == null)
               const Text('(tap Run smoketest)')
             else if (r.llmError != null)
-              _err(r.llmError!)
+              _err(context, r.llmError!)
             else
               SelectableText(r.llmReply ?? ''),
           ]),
