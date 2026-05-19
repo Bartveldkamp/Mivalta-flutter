@@ -52,9 +52,18 @@ dependencies:
   # rust/Cargo.toml so the codec is symmetric on both sides.
   flutter_rust_bridge: 2.12.0
 
+  # Day 3: FRB-generated BridgeError variants are emitted as
+  # freezed sealed classes; the annotation lives at runtime.
+  freezed_annotation: ^2.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # FRB codegen emits freezed-style sealed classes for the
+  # BridgeError variants (Day 3). Generation-time only.
+  freezed: ^2.5.0
+  build_runner: ^2.4.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -73,6 +82,13 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Day-3 real-data round trip: the compiled knowledge tables that
+  # `AdvisorEngine::new` needs at construction time. Copied verbatim
+  # from mivalta-rust-engine/compiled_tables.json — not regenerated
+  # here.
+  assets:
+    - assets/compiled_tables.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

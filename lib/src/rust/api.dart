@@ -5,9 +5,92 @@
 
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'api.freezed.dart';
 
-/// Returns the string the engine produces for its canonical
-/// UniFFI smoke-test, `gatc_ffi::hello_uniffi()`. Today this is the
-/// literal `"hello"`. Used by the Day-2 Flutter spike to prove the
-/// `flutter_rust_bridge` → shim → gatc-ffi call chain is live.
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `from`
+
+/// Day-2 smoke test — kept so the existing main.dart engine-hello
+/// status line stays green after Day 3 lands.
 Future<String> engineHello() => RustLib.instance.api.crateApiEngineHello();
+
+/// Construct the three engines from the canonical seed JSON +
+/// compiled tables + a writable vault path (created at first use).
+Future<EnginesHandle> constructEngines({
+  required String athleteProfileJson,
+  required String tablesJson,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiConstructEngines(
+  athleteProfileJson: athleteProfileJson,
+  tablesJson: tablesJson,
+  vaultPath: vaultPath,
+);
+
+/// Wraps `ViterbiEngine::readiness_score()` — JSON
+/// `{"score": i32, "advisories": PendingAdvisories}` rendered as-is.
+Future<String> readinessScore({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadinessScore(handle: handle);
+
+/// Wraps `ViterbiEngine::get_readiness()` — full snapshot JSON
+/// including `fatigue_state` and the rest. The Dart side renders the
+/// snapshot as-is; the brief asked specifically for the fatigue-state
+/// signal and gatc-ffi exposes it through this snapshot, not as a
+/// standalone scalar.
+Future<String> viterbiFatigueState({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiViterbiFatigueState(handle: handle);
+
+/// Wraps `ViterbiEngine::zone_cap_with_advisories()` —
+/// `{"zone": "Z8|Z5|Z2|REST", "advisories": ...}` rendered as-is.
+Future<String> zoneCapWithAdvisories({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiZoneCapWithAdvisories(handle: handle);
+
+/// Wraps `AdvisorEngine::suggest_workouts(context_json)`. The
+/// `SuggesterContext` is composed in this shim from (a) the
+/// engine-bound profile and (b) live `readiness_score` output —
+/// no per-call user input (no mood / equipment / terrain form
+/// surface in the Day-3 spike UI), so those fields use the same
+/// defaults `SuggesterContext::default()` declares upstream.
+/// The PR body lists every field that uses a default.
+Future<String> recommendWorkout({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiRecommendWorkout(handle: handle);
+
+/// Wraps `VaultEngine::read_default_profile()` — round-trips the
+/// profile through the on-device vault. With a fresh vault, this is
+/// the seed profile read back, proving the write→read path is live.
+Future<String> vaultSnapshot({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiVaultSnapshot(handle: handle);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>>
+abstract class EnginesHandle implements RustOpaqueInterface {}
+
+@freezed
+sealed class BridgeError with _$BridgeError implements FrbException {
+  const BridgeError._();
+
+  /// Native lib failed to load (typically a packaging or platform-
+  /// gate problem). Used by the Dart facade when the platform isn't
+  /// Android; the Rust side never emits this variant itself.
+  const factory BridgeError.libraryNotLoaded() = BridgeError_LibraryNotLoaded;
+
+  /// One of the gatc-ffi engine constructors rejected the inputs
+  /// (bad profile JSON, bad tables, unwritable vault path).
+  const factory BridgeError.engineConstructionFailed(String field0) =
+      BridgeError_EngineConstructionFailed;
+
+  /// gatc-ffi `BridgeError::Vault` — vault DB I/O, missing rows,
+  /// migration drift.
+  const factory BridgeError.vaultError(String field0) = BridgeError_VaultError;
+
+  /// gatc-ffi `BridgeError::Input` — JSON parse or schema rejection.
+  const factory BridgeError.inputError(String field0) = BridgeError_InputError;
+
+  /// gatc-ffi `BridgeError::State` — engine in an inconsistent
+  /// state (also catches Policy / Consistency variants because
+  /// those are also "engine-state" class errors at the boundary).
+  const factory BridgeError.stateError(String field0) = BridgeError_StateError;
+
+  /// gatc-ffi `BridgeError::General`, or any unexpected runtime
+  /// error inside this shim itself.
+  const factory BridgeError.roundTripFailed(String field0) =
+      BridgeError_RoundTripFailed;
+}
