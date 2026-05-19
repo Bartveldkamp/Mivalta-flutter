@@ -18,7 +18,7 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'rust_engine.dart';
-import 'smoketest_screen.dart';
+import 'screens/readiness_screen.dart';
 
 const String _modelUrl =
     'http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf';
@@ -279,11 +279,11 @@ class _SpikeHomeState extends State<SpikeHome> {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const SmoketestScreen(),
+                        builder: (_) => const ReadinessScreen(),
                       ),
                     ),
-                    icon: const Icon(Icons.science_outlined),
-                    label: const Text('Smoketest'),
+                    icon: const Icon(Icons.favorite_outline),
+                    label: const Text('Readiness'),
                   ),
                 ),
               ],
