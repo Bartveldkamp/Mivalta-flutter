@@ -38,6 +38,11 @@ class _ReadinessData {
   String? workoutZone;
   bool insufficientData = false;
   String? error;
+  // Day-5: parsed SourceTier from VaultEngine.last_observation_source_tier.
+  // null ⇒ engine returned JSON null (no observations yet) ⇒ section
+  // renders the F1 no-data copy. Some(tier) ⇒ section renders the
+  // single LOCKED swatch for that tier.
+  SourceTier? sourceTier;
 }
 
 class ReadinessScreen extends StatefulWidget {
@@ -106,6 +111,13 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
           d.workoutZone = first['zone']?.toString();
         }
       }
+
+      // Day-5: source tier of the most recent biometric. Raw JSON is
+      // either a PascalCase variant string ("Medical" / "Device" /
+      // "Partial" / "Manual") or `null` — see
+      // VaultEngine::last_observation_source_tier in rust-engine.
+      final tierJson = await binding.lastObservationSourceTier(handle);
+      d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
     } catch (e) {
       d.error = '${e.runtimeType}: $e';
     }
@@ -134,9 +146,13 @@ class _ReadinessBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasEngineError = data.error != null;
+    // Local non-null capture before the closure — matches the Day-3
+    // `_run()` snapshot pattern and removes the `!` operator entirely.
+    // The closure now reasons about its own `err` binding, not the
+    // mutable State field.
+    final err = data.error;
     Widget engineDependent(Widget child) =>
-        hasEngineError ? _ErrorRow(message: data.error!) : child;
+        err != null ? _ErrorRow(message: err) : child;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -204,13 +220,9 @@ class _ReadinessBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        // Legend is engine-independent — renders even when the
-        // bootstrap fails. The brief's section (e) requires showing
-        // the LOCKED color tokens; they're useful for the test
-        // harness whether or not the engine is reachable.
         _Section(
           label: 'Data source tier',
-          body: const _SourceTierLegend(),
+          body: engineDependent(SourceTierIndicator(tier: data.sourceTier)),
         ),
       ],
     );
@@ -257,43 +269,6 @@ class _AdvisoryBullet extends StatelessWidget {
   }
 }
 
-class _SourceTierLegend extends StatelessWidget {
-  const _SourceTierLegend();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final tier in SourceTier.values)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: kSourceTierColor[tier],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(kSourceTierLabel[tier] ?? tier.name),
-              ],
-            ),
-          ),
-        const SizedBox(height: 8),
-        Text(
-          'Engine does not yet report which tier applies to the current '
-          'state (see Day-4 PR ESCALATE note).',
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-}
 
 class _ErrorRow extends StatelessWidget {
   const _ErrorRow({required this.message});

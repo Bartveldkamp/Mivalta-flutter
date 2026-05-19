@@ -1,0 +1,132 @@
+name: Smoke build
+
+# Reproducibility gate. Runs on every PR and every push to main.
+# Verifies that a fresh checkout:
+#   1. Resolves the gatc-ffi git-rev pin (requires `RUST_ENGINE_DEPLOY_KEY`
+#      secret — SSH read-only deploy key on mivalta-rust-engine).
+#   2. Cross-compiles the rust shim for aarch64-linux-android.
+#   3. Passes flutter analyze + flutter test on the host.
+#   4. Builds a debug arm64 APK with libmivalta_rust_bridge.so packed.
+#
+# The workflow needs SSH auth because mivalta-rust-engine is private;
+# the deploy key must be created on rust-engine (Settings → Deploy keys
+# → Add deploy key, read-only) with its private half stored as the
+# `RUST_ENGINE_DEPLOY_KEY` secret here. If the secret is unset the
+# workflow no-ops with a clear notice (mirrors the claude-review.yml
+# skip-on-missing-key pattern from Day 1).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANDROID_NDK_HOME: ${{ github.workspace }}/ndk
+    steps:
+      - name: Check for RUST_ENGINE_DEPLOY_KEY secret
+        id: check_key
+        env:
+          KEY: ${{ secrets.RUST_ENGINE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::notice::RUST_ENGINE_DEPLOY_KEY not set — skipping smoke build (rust-engine is private; need SSH deploy key on this repo's secrets)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.check_key.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Set up SSH for rust-engine git dep
+        if: steps.check_key.outputs.skip == 'false'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.RUST_ENGINE_DEPLOY_KEY }}
+
+      - name: Set up Java 17
+        if: steps.check_key.outputs.skip == 'false'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        if: steps.check_key.outputs.skip == 'false'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.44.0'
+
+      - name: Set up Rust + Android target
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          rustup target add aarch64-linux-android
+          cargo install --locked cargo-ndk || true
+
+      - name: Set up Android NDK 28
+        if: steps.check_key.outputs.skip == 'false'
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r28
+          local-cache: true
+
+      - name: flutter pub get
+        if: steps.check_key.outputs.skip == 'false'
+        run: flutter pub get
+
+      - name: Cargo build (verifies git-rev pin resolves)
+        if: steps.check_key.outputs.skip == 'false'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          cd rust
+          cargo ndk --target arm64-v8a --platform 21 -- check --release
+
+      - name: flutter analyze
+        if: steps.check_key.outputs.skip == 'false'
+        run: flutter analyze
+
+      - name: flutter test
+        if: steps.check_key.outputs.skip == 'false'
+        run: flutter test
+
+      - name: Build debug APK + drop shim .so into jniLibs
+        if: steps.check_key.outputs.skip == 'false'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          cd rust
+          cargo ndk --target arm64-v8a --platform 21 \
+            --output-dir ../android/app/src/main/jniLibs \
+            -- build --release
+          # Drop the side-effect libgatc_ffi-<hash>.so from the git-dep
+          # build — only libmivalta_rust_bridge.so is loaded at runtime.
+          rm -f ../android/app/src/main/jniLibs/arm64-v8a/libgatc_ffi*.so
+          cd ..
+          flutter build apk --debug --target-platform android-arm64
+
+      - name: Assert APK contains the expected native libs
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          APK=build/app/outputs/flutter-apk/app-debug.apk
+          test -f "$APK" || { echo "APK missing at $APK"; exit 1; }
+          unzip -l "$APK" | grep -q 'lib/arm64-v8a/libmivalta_rust_bridge\.so' \
+            || { echo "::error::libmivalta_rust_bridge.so missing from APK"; exit 1; }
+          for so in libllama libggml libggml-base libggml-cpu libmtmd; do
+            unzip -l "$APK" | grep -q "lib/arm64-v8a/${so}\.so" \
+              || { echo "::error::${so}.so missing from APK"; exit 1; }
+          done
+          unzip -l "$APK" | grep -q 'assets/flutter_assets/assets/compiled_tables\.json' \
+            || { echo "::error::compiled_tables.json missing from APK"; exit 1; }
+          echo "APK packaging: OK"

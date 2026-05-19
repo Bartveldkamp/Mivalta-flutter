@@ -8,6 +8,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../copy/f1.dart';
+
 /// The four canonical data-source tiers. Strings match the JSON
 /// serialisation `serde` produces for `DataSourceTier` on the
 /// rust-engine side (PascalCase variant name).
@@ -38,3 +40,60 @@ const Map<SourceTier, String> kSourceTierLabel = <SourceTier, String>{
   SourceTier.partial: 'Partial (C)',
   SourceTier.manual: 'Manual (D)',
 };
+
+/// Map an engine-emitted JSON variant string (`"Medical"`, `"Device"`,
+/// `"Partial"`, `"Manual"`) onto the enum value, or `null` when the
+/// string isn't a known variant. The shim emits exactly these four
+/// PascalCase variants when a biometric exists; any other shape
+/// (`null`, a number, a typo) returns `null` so the caller can
+/// fall through to the F1 no-data path without trusting a stranger.
+SourceTier? sourceTierFromEngine(Object? raw) {
+  if (raw is! String) return null;
+  switch (raw) {
+    case 'Medical':
+      return SourceTier.medical;
+    case 'Device':
+      return SourceTier.device;
+    case 'Partial':
+      return SourceTier.partial;
+    case 'Manual':
+      return SourceTier.manual;
+  }
+  return null;
+}
+
+/// Renders either a single LOCKED-token swatch + tier label (when
+/// the engine returned a known variant) or the F1 no-data copy
+/// (when the engine returned `null`). Public so tests can exercise
+/// the two branches directly without driving the full readiness
+/// screen.
+class SourceTierIndicator extends StatelessWidget {
+  const SourceTierIndicator({super.key, required this.tier});
+  final SourceTier? tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final t = tier;
+    if (t == null) {
+      // Single source of truth: lib/copy/f1.dart. `source_tier_test.dart`
+      // asserts both render paths reach kF1NoDataCopy.
+      return Text(kF1NoDataCopy, style: theme.textTheme.bodyLarge);
+    }
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: kSourceTierColor[t],
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(kSourceTierLabel[t] ?? t.name,
+            style: theme.textTheme.titleMedium),
+      ],
+    );
+  }
+}
