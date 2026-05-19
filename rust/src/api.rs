@@ -136,3 +136,15 @@ pub fn recommend_workout(handle: &EnginesHandle) -> Result<String, BridgeError> 
 pub fn vault_snapshot(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle.vault.read_default_profile().map_err(Into::into)
 }
+
+/// `VaultEngine::last_observation_source_tier()` — JSON `"Medical"` /
+/// `"Device"` / `"Partial"` / `"Manual"` for the most recent biometric
+/// observation on disk, or JSON `null` if the vault has no biometric
+/// rows yet. Dart parses with `jsonDecode`; a `null` decoded value is
+/// the engine's "insufficient data" signal for the SourceTier swatch.
+pub fn last_observation_source_tier(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .last_observation_source_tier()
+        .map_err(Into::into)
+}

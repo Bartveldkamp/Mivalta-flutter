@@ -13,12 +13,22 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Path dependency on the read-only sibling repo. rust-engine declares
-# gatc-ffi as crate-type = ["cdylib", "rlib"] — Cargo uses the rlib
-# here, so the engine's object code is statically linked into our
-# cdylib. No edits to rust-engine; only artifacts produced in its
-# target/ directory.
-gatc-ffi = { path = "../../mivalta-rust-engine/crates/gatc-ffi" }
+# Git-rev pin (Day-5 — closes Day-2 review WARNING 2). The pinned
+# revision is mivalta-rust-engine's claude/day5-source-tier-binding
+# branch tip (d8b1470d), which adds VaultEngine.last_observation_source_tier.
+# When that PR merges to rust-engine main, the SHA remains valid;
+# update only on a rust-engine bump.
+#
+# SSH URL because mivalta-rust-engine is currently a private repo;
+# HTTPS clones need an unattended token. SSH lets local dev (Hetzner
+# box, founder laptop) and CI (deploy key on rust-engine paired with
+# `SSH_PRIVATE_KEY` secret here) share one transport.
+#
+# Local-dev override: to point at a working tree on disk instead of
+# refetching from git, set the local patch in `.cargo/config.toml`
+# at the repo root (see README — `[patch."ssh://git@github.com/..."]`
+# survives `cargo update` because patches live outside the lock file).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "d8b14704cca881e62c6f9d38f01b8b0e6a4c186e" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
