@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Config for the V10.1 perf spike.
+  Pattern modelled on mivalta-android-client/app/src/main/res/xml/network_security_config.xml:
+  default-deny cleartext, allow exactly one host over HTTP for the
+  one-time GGUF download from the model host.
+-->
+<network-security-config>
+    <!-- Default: HTTPS only. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Model host only — one-time GGUF download on first launch.
+         Server is HTTP (matches the native client's model host). -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">144.76.62.249</domain>
+    </domain-config>
+</network-security-config>

@@ -1,9 +1,8 @@
-// This is a basic Flutter widget test.
+// Smoke test for the V10.1 perf spike home screen.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// The model bootstrap (path_provider + http + sha256) starts in initState
+// and runs asynchronously off the first frame, so this test only inspects
+// the initial widget tree to keep it offline and deterministic.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,20 +10,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets(
+    'SpikeHome renders default prompt, Run button, and latency labels',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const PerfSpikeApp());
+      // Render one frame only — bootstrap is still in flight, do not settle.
+      await tester.pump();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Default prompt text appears in the TextField's editing controller.
+      final textFinder = find.byType(TextField);
+      expect(textFinder, findsOneWidget);
+      final field = tester.widget<TextField>(textFinder);
+      expect(field.controller?.text, 'Should I train today?');
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      // Run button exists and starts disabled while the model is still being
+      // checked (stage = checking → canRun = false).
+      final runFinder = find.widgetWithText(ElevatedButton, 'Run');
+      expect(runFinder, findsOneWidget);
+      expect(tester.widget<ElevatedButton>(runFinder).onPressed, isNull);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+      // Two latency labels render placeholders before any run completes.
+      expect(find.text('TTFT: - ms'), findsOneWidget);
+      expect(find.text('Total: - ms'), findsOneWidget);
+    },
+  );
 }
