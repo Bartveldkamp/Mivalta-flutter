@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required: one-time GGUF download from the model host (HTTP).
+         network_security_config restricts cleartext to 144.76.62.249 only. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="mivalta_flutter"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
