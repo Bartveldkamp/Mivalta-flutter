@@ -32,7 +32,8 @@ import 'package:mivalta_flutter/src/rust/api.dart'
         BridgeError_VaultError,
         BridgeError_InputError,
         BridgeError_StateError,
-        BridgeError_RoundTripFailed;
+        BridgeError_RoundTripFailed,
+        BridgeError_InvalidDate;
 
 void main() {
   group('RustEngineBinding.bootstrap()', () {
@@ -90,6 +91,12 @@ void main() {
       expect((e as BridgeError_RoundTripFailed).field0, 'serde drift');
     });
 
+    test('InvalidDate (Day-7) carries a String payload', () {
+      const e = BridgeError.invalidDate('2026-13-99: bad month');
+      expect(e, isA<BridgeError_InvalidDate>());
+      expect((e as BridgeError_InvalidDate).field0, '2026-13-99: bad month');
+    });
+
     test('switch on BridgeError is exhaustive', () {
       // The compiler enforces exhaustiveness for sealed classes;
       // exercising every branch here is the regression check.
@@ -107,6 +114,8 @@ void main() {
             return 'state';
           case BridgeError_RoundTripFailed():
             return 'roundtrip';
+          case BridgeError_InvalidDate():
+            return 'invaliddate';
         }
       }
 
@@ -116,6 +125,7 @@ void main() {
       expect(tag(const BridgeError.inputError('x')), 'input');
       expect(tag(const BridgeError.stateError('x')), 'state');
       expect(tag(const BridgeError.roundTripFailed('x')), 'roundtrip');
+      expect(tag(const BridgeError.invalidDate('x')), 'invaliddate');
     });
   });
 }

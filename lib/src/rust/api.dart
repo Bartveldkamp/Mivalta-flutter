@@ -61,6 +61,28 @@ Future<String> vaultSnapshot({required EnginesHandle handle}) =>
 Future<String> lastObservationSourceTier({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiLastObservationSourceTier(handle: handle);
 
+/// Day-7: minimal biometric write for the hardware-verification debug
+/// swatch exerciser. Composes a minimal VaultBiometric JSON with
+/// `date`, `source`, and a placeholder `resting_hr` so the next
+/// `last_observation_source_tier` call returns the matching tier and
+/// the readiness screen's section (e) picks up the LOCKED swatch.
+///
+/// `iso_date` must parse as `YYYY-MM-DD`; on failure the shim emits
+/// `BridgeError::InvalidDate` *before* touching the vault. The
+/// physiological value is a placeholder — production writes will
+/// carry real metrics.
+Future<void> writeMinimalBiometric({
+  required EnginesHandle handle,
+  required String source,
+  required String isoDate,
+  required int restingHr,
+}) => RustLib.instance.api.crateApiWriteMinimalBiometric(
+  handle: handle,
+  source: source,
+  isoDate: isoDate,
+  restingHr: restingHr,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>>
 abstract class EnginesHandle implements RustOpaqueInterface {}
 
@@ -76,4 +98,12 @@ sealed class BridgeError with _$BridgeError implements FrbException {
   const factory BridgeError.stateError(String field0) = BridgeError_StateError;
   const factory BridgeError.roundTripFailed(String field0) =
       BridgeError_RoundTripFailed;
+
+  /// Day-7: ISO-8601 date string couldn't be parsed at the shim
+  /// before reaching the engine. Distinct from `InputError` so the
+  /// debug exerciser (and future writes) can surface a precise
+  /// "your date is malformed" toast instead of the generic JSON
+  /// schema rejection text.
+  const factory BridgeError.invalidDate(String field0) =
+      BridgeError_InvalidDate;
 }

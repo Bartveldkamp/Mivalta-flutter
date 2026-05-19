@@ -25,6 +25,7 @@ mixin _$BridgeError {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
@@ -34,6 +35,7 @@ mixin _$BridgeError {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
@@ -43,6 +45,7 @@ mixin _$BridgeError {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -56,6 +59,7 @@ mixin _$BridgeError {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
@@ -66,6 +70,7 @@ mixin _$BridgeError {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
@@ -76,6 +81,7 @@ mixin _$BridgeError {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 }
@@ -152,6 +158,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return libraryNotLoaded();
   }
@@ -165,6 +172,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return libraryNotLoaded?.call();
   }
@@ -178,6 +186,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (libraryNotLoaded != null) {
@@ -198,6 +207,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return libraryNotLoaded(this);
   }
@@ -212,6 +222,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return libraryNotLoaded?.call(this);
   }
@@ -226,6 +237,7 @@ class _$BridgeError_LibraryNotLoadedImpl extends BridgeError_LibraryNotLoaded {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (libraryNotLoaded != null) {
@@ -327,6 +339,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return engineConstructionFailed(field0);
   }
@@ -340,6 +353,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return engineConstructionFailed?.call(field0);
   }
@@ -353,6 +367,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (engineConstructionFailed != null) {
@@ -373,6 +388,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return engineConstructionFailed(this);
   }
@@ -387,6 +403,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return engineConstructionFailed?.call(this);
   }
@@ -401,6 +418,7 @@ class _$BridgeError_EngineConstructionFailedImpl
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (engineConstructionFailed != null) {
@@ -506,6 +524,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return vaultError(field0);
   }
@@ -519,6 +538,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return vaultError?.call(field0);
   }
@@ -532,6 +552,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (vaultError != null) {
@@ -552,6 +573,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return vaultError(this);
   }
@@ -566,6 +588,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return vaultError?.call(this);
   }
@@ -580,6 +603,7 @@ class _$BridgeError_VaultErrorImpl extends BridgeError_VaultError {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (vaultError != null) {
@@ -683,6 +707,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return inputError(field0);
   }
@@ -696,6 +721,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return inputError?.call(field0);
   }
@@ -709,6 +735,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (inputError != null) {
@@ -729,6 +756,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return inputError(this);
   }
@@ -743,6 +771,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return inputError?.call(this);
   }
@@ -757,6 +786,7 @@ class _$BridgeError_InputErrorImpl extends BridgeError_InputError {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (inputError != null) {
@@ -860,6 +890,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return stateError(field0);
   }
@@ -873,6 +904,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return stateError?.call(field0);
   }
@@ -886,6 +918,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (stateError != null) {
@@ -906,6 +939,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return stateError(this);
   }
@@ -920,6 +954,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return stateError?.call(this);
   }
@@ -934,6 +969,7 @@ class _$BridgeError_StateErrorImpl extends BridgeError_StateError {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (stateError != null) {
@@ -1036,6 +1072,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     required TResult Function(String field0) inputError,
     required TResult Function(String field0) stateError,
     required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
   }) {
     return roundTripFailed(field0);
   }
@@ -1049,6 +1086,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     TResult? Function(String field0)? inputError,
     TResult? Function(String field0)? stateError,
     TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
   }) {
     return roundTripFailed?.call(field0);
   }
@@ -1062,6 +1100,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     TResult Function(String field0)? inputError,
     TResult Function(String field0)? stateError,
     TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
     required TResult orElse(),
   }) {
     if (roundTripFailed != null) {
@@ -1082,6 +1121,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     required TResult Function(BridgeError_StateError value) stateError,
     required TResult Function(BridgeError_RoundTripFailed value)
     roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
   }) {
     return roundTripFailed(this);
   }
@@ -1096,6 +1136,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     TResult? Function(BridgeError_InputError value)? inputError,
     TResult? Function(BridgeError_StateError value)? stateError,
     TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
   }) {
     return roundTripFailed?.call(this);
   }
@@ -1110,6 +1151,7 @@ class _$BridgeError_RoundTripFailedImpl extends BridgeError_RoundTripFailed {
     TResult Function(BridgeError_InputError value)? inputError,
     TResult Function(BridgeError_StateError value)? stateError,
     TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
     required TResult orElse(),
   }) {
     if (roundTripFailed != null) {
@@ -1130,5 +1172,187 @@ abstract class BridgeError_RoundTripFailed extends BridgeError {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$BridgeError_RoundTripFailedImplCopyWith<_$BridgeError_RoundTripFailedImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$BridgeError_InvalidDateImplCopyWith<$Res> {
+  factory _$$BridgeError_InvalidDateImplCopyWith(
+    _$BridgeError_InvalidDateImpl value,
+    $Res Function(_$BridgeError_InvalidDateImpl) then,
+  ) = __$$BridgeError_InvalidDateImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$BridgeError_InvalidDateImplCopyWithImpl<$Res>
+    extends _$BridgeErrorCopyWithImpl<$Res, _$BridgeError_InvalidDateImpl>
+    implements _$$BridgeError_InvalidDateImplCopyWith<$Res> {
+  __$$BridgeError_InvalidDateImplCopyWithImpl(
+    _$BridgeError_InvalidDateImpl _value,
+    $Res Function(_$BridgeError_InvalidDateImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of BridgeError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? field0 = null}) {
+    return _then(
+      _$BridgeError_InvalidDateImpl(
+        null == field0
+            ? _value.field0
+            : field0 // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$BridgeError_InvalidDateImpl extends BridgeError_InvalidDate {
+  const _$BridgeError_InvalidDateImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'BridgeError.invalidDate(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$BridgeError_InvalidDateImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  /// Create a copy of BridgeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$BridgeError_InvalidDateImplCopyWith<_$BridgeError_InvalidDateImpl>
+  get copyWith =>
+      __$$BridgeError_InvalidDateImplCopyWithImpl<
+        _$BridgeError_InvalidDateImpl
+      >(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() libraryNotLoaded,
+    required TResult Function(String field0) engineConstructionFailed,
+    required TResult Function(String field0) vaultError,
+    required TResult Function(String field0) inputError,
+    required TResult Function(String field0) stateError,
+    required TResult Function(String field0) roundTripFailed,
+    required TResult Function(String field0) invalidDate,
+  }) {
+    return invalidDate(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? libraryNotLoaded,
+    TResult? Function(String field0)? engineConstructionFailed,
+    TResult? Function(String field0)? vaultError,
+    TResult? Function(String field0)? inputError,
+    TResult? Function(String field0)? stateError,
+    TResult? Function(String field0)? roundTripFailed,
+    TResult? Function(String field0)? invalidDate,
+  }) {
+    return invalidDate?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? libraryNotLoaded,
+    TResult Function(String field0)? engineConstructionFailed,
+    TResult Function(String field0)? vaultError,
+    TResult Function(String field0)? inputError,
+    TResult Function(String field0)? stateError,
+    TResult Function(String field0)? roundTripFailed,
+    TResult Function(String field0)? invalidDate,
+    required TResult orElse(),
+  }) {
+    if (invalidDate != null) {
+      return invalidDate(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(BridgeError_LibraryNotLoaded value)
+    libraryNotLoaded,
+    required TResult Function(BridgeError_EngineConstructionFailed value)
+    engineConstructionFailed,
+    required TResult Function(BridgeError_VaultError value) vaultError,
+    required TResult Function(BridgeError_InputError value) inputError,
+    required TResult Function(BridgeError_StateError value) stateError,
+    required TResult Function(BridgeError_RoundTripFailed value)
+    roundTripFailed,
+    required TResult Function(BridgeError_InvalidDate value) invalidDate,
+  }) {
+    return invalidDate(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(BridgeError_LibraryNotLoaded value)? libraryNotLoaded,
+    TResult? Function(BridgeError_EngineConstructionFailed value)?
+    engineConstructionFailed,
+    TResult? Function(BridgeError_VaultError value)? vaultError,
+    TResult? Function(BridgeError_InputError value)? inputError,
+    TResult? Function(BridgeError_StateError value)? stateError,
+    TResult? Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult? Function(BridgeError_InvalidDate value)? invalidDate,
+  }) {
+    return invalidDate?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(BridgeError_LibraryNotLoaded value)? libraryNotLoaded,
+    TResult Function(BridgeError_EngineConstructionFailed value)?
+    engineConstructionFailed,
+    TResult Function(BridgeError_VaultError value)? vaultError,
+    TResult Function(BridgeError_InputError value)? inputError,
+    TResult Function(BridgeError_StateError value)? stateError,
+    TResult Function(BridgeError_RoundTripFailed value)? roundTripFailed,
+    TResult Function(BridgeError_InvalidDate value)? invalidDate,
+    required TResult orElse(),
+  }) {
+    if (invalidDate != null) {
+      return invalidDate(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class BridgeError_InvalidDate extends BridgeError {
+  const factory BridgeError_InvalidDate(final String field0) =
+      _$BridgeError_InvalidDateImpl;
+  const BridgeError_InvalidDate._() : super._();
+
+  String get field0;
+
+  /// Create a copy of BridgeError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$BridgeError_InvalidDateImplCopyWith<_$BridgeError_InvalidDateImpl>
   get copyWith => throw _privateConstructorUsedError;
 }

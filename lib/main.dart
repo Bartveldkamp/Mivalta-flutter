@@ -17,7 +17,12 @@ import 'package:http/http.dart' as http;
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+
+import 'hw_telemetry.dart';
 import 'rust_engine.dart';
+import 'screens/debug_swatch_exerciser.dart';
 import 'screens/readiness_screen.dart';
 
 const String _modelUrl =
@@ -67,6 +72,12 @@ class _SpikeHomeState extends State<SpikeHome> {
   LlamaEngine? _engine;
   String? _modelPath;
 
+  // Day-7 hardware-verification telemetry. Filled after each Run.
+  int? _peakPssKb;
+  String _deviceModel = '';
+  String _osRelease = '';
+  String _apkSha = '';
+
   // Day 2 rust-engine bridge state — independent of the V10.1 model
   // path. `_engineHello` is `null` while the bridge is still booting,
   // an error string if `RustLib.init()` failed, or the engine's
@@ -79,6 +90,21 @@ class _SpikeHomeState extends State<SpikeHome> {
     super.initState();
     unawaited(_bootstrapModel());
     unawaited(_bootstrapEngineBridge());
+    unawaited(_bootstrapTelemetry());
+  }
+
+  Future<void> _bootstrapTelemetry() async {
+    final results = await Future.wait([
+      HwTelemetry.deviceModel(),
+      HwTelemetry.osRelease(),
+      HwTelemetry.apkSha256(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _deviceModel = results[0];
+      _osRelease = results[1];
+      _apkSha = results[2];
+    });
   }
 
   @override
@@ -203,35 +229,42 @@ class _SpikeHomeState extends State<SpikeHome> {
       _ttftMs = null;
       _totalMs = null;
     });
+    setState(() => _peakPssKb = null);
     final stopwatch = Stopwatch()..start();
     try {
       final engine = await _ensureEngine();
-      final session = await engine.createSession();
-      try {
-        final buf = StringBuffer();
-        await for (final event in session.generate(
-          prompt: _controller.text,
-          addSpecial: true,
-          maxTokens: 256,
-        )) {
-          switch (event) {
-            case TokenEvent():
-              _ttftMs ??= stopwatch.elapsedMilliseconds;
-              buf.write(event.text);
-              setState(() => _output = buf.toString());
-            case ShiftEvent():
-              break;
-            case DoneEvent():
-              if (event.trailingText.isNotEmpty) {
-                buf.write(event.trailingText);
-              }
-              setState(() => _output = buf.toString());
+      // Day-7: wrap the generate stream in HwTelemetry.peakPssDuring
+      // so the platform channel polls PSS every 250ms across the run.
+      final telemetry = await HwTelemetry.peakPssDuring(() async {
+        final session = await engine.createSession();
+        try {
+          final buf = StringBuffer();
+          await for (final event in session.generate(
+            prompt: _controller.text,
+            addSpecial: true,
+            maxTokens: 256,
+          )) {
+            switch (event) {
+              case TokenEvent():
+                _ttftMs ??= stopwatch.elapsedMilliseconds;
+                buf.write(event.text);
+                setState(() => _output = buf.toString());
+              case ShiftEvent():
+                break;
+              case DoneEvent():
+                if (event.trailingText.isNotEmpty) {
+                  buf.write(event.trailingText);
+                }
+                setState(() => _output = buf.toString());
+            }
           }
+          setState(() => _totalMs = stopwatch.elapsedMilliseconds);
+          return null;
+        } finally {
+          await session.dispose();
         }
-        setState(() => _totalMs = stopwatch.elapsedMilliseconds);
-      } finally {
-        await session.dispose();
-      }
+      });
+      setState(() => _peakPssKb = telemetry.peakPssKb);
     } catch (e) {
       setState(() => _output = 'Generation failed: $e');
     } finally {
@@ -240,11 +273,55 @@ class _SpikeHomeState extends State<SpikeHome> {
     }
   }
 
+  /// Six-line copyable telemetry block, formatted to paste verbatim
+  /// into docs/spike/HARDWARE_VERIFICATION_RESULTS.md.
+  String _telemetryBlock() {
+    String ms(int? v) => v?.toString() ?? '—';
+    String kb(int? v) => (v == null || v < 0) ? '—' : v.toString();
+    final shaShort =
+        _apkSha.length >= 12 ? _apkSha.substring(0, 12) : (_apkSha.isEmpty ? '—' : _apkSha);
+    final deviceLine = (_deviceModel.isEmpty && _osRelease.isEmpty)
+        ? 'Device: —'
+        : 'Device: $_deviceModel / Android $_osRelease';
+    return 'TTFT:   ${ms(_ttftMs)} ms\n'
+        'Total:  ${ms(_totalMs)} ms\n'
+        'Peak:   ${kb(_peakPssKb)} KB PSS\n'
+        'Model:  josi-v10-1-q4_k_m.gguf\n'
+        '$deviceLine\n'
+        'Build:  $shaShort';
+  }
+
+  Future<void> _copyTelemetry() async {
+    await Clipboard.setData(ClipboardData(text: _telemetryBlock()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Telemetry copied to clipboard'),
+        duration: Duration(milliseconds: 800),
+      ),
+    );
+  }
+
+  void _openDebugExerciser() {
+    if (!isDebugExerciserAvailable) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const DebugSwatchExerciser()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final canRun = _stage == _ModelStage.ready && !_running;
     return Scaffold(
-      appBar: AppBar(title: const Text('MiValta V10.1 Spike')),
+      appBar: AppBar(
+        // Day-7: long-press the title to open the SourceTier debug
+        // exerciser. kDebugMode-gated so production builds never
+        // expose the entry point even if a tester finds it.
+        title: GestureDetector(
+          onLongPress: kDebugMode ? _openDebugExerciser : null,
+          child: const Text('MiValta V10.1 Spike'),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -305,6 +382,35 @@ class _SpikeHomeState extends State<SpikeHome> {
               child: SingleChildScrollView(
                 child: SelectableText(
                   _output.isEmpty ? '(no output yet)' : _output,
+                ),
+              ),
+            ),
+            // Day-7 hardware-verification telemetry block. Tap to copy
+            // — the formatted text is the verbatim shape the results
+            // doc expects (TTFT / Total / Peak / Model / Device / Build).
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _copyTelemetry,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        _telemetryBlock(),
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 12),
+                      ),
+                    ),
+                    const Icon(Icons.copy, size: 16),
+                  ],
                 ),
               ),
             ),

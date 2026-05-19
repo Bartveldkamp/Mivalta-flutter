@@ -88,4 +88,22 @@ class RustEngineBinding {
   /// biometric rows yet. Callers parse with `jsonDecode`.
   Future<String> lastObservationSourceTier(EnginesHandle handle) =>
       rust_api.lastObservationSourceTier(handle: handle);
+
+  /// Day-7: minimal biometric write for the hardware-verification
+  /// debug swatch exerciser. Writes `source` + ISO date +
+  /// placeholder `restingHr`, so the next
+  /// [lastObservationSourceTier] call returns the matching tier.
+  /// Throws `BridgeError.invalidDate` if [isoDate] doesn't parse.
+  Future<void> writeMinimalBiometric({
+    required EnginesHandle handle,
+    required String source,
+    required String isoDate,
+    int restingHr = 60,
+  }) =>
+      rust_api.writeMinimalBiometric(
+        handle: handle,
+        source: source,
+        isoDate: isoDate,
+        restingHr: restingHr,
+      );
 }
