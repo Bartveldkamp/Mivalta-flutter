@@ -38,4 +38,27 @@ void main() {
       expect(kSourceTierLabel[SourceTier.manual], 'Manual (D)');
     });
   });
+
+  group('sourceTierFromEngine', () {
+    test('maps each PascalCase engine variant to the enum', () {
+      expect(sourceTierFromEngine('Medical'), SourceTier.medical);
+      expect(sourceTierFromEngine('Device'), SourceTier.device);
+      expect(sourceTierFromEngine('Partial'), SourceTier.partial);
+      expect(sourceTierFromEngine('Manual'), SourceTier.manual);
+    });
+
+    test('returns null for the engine null sentinel', () {
+      // VaultEngine::last_observation_source_tier emits JSON null
+      // when no biometric exists; jsonDecode produces Dart null.
+      expect(sourceTierFromEngine(null), isNull);
+    });
+
+    test('returns null for unknown strings or wrong types', () {
+      expect(sourceTierFromEngine(''), isNull);
+      expect(sourceTierFromEngine('medical'), isNull); // wrong case
+      expect(sourceTierFromEngine('Medical (A)'), isNull); // label, not variant
+      expect(sourceTierFromEngine(0), isNull);
+      expect(sourceTierFromEngine(<String, Object?>{}), isNull);
+    });
+  });
 }

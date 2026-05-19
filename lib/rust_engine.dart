@@ -81,4 +81,11 @@ class RustEngineBinding {
   /// through the on-device encrypted vault.
   Future<String> vaultSnapshot(EnginesHandle handle) =>
       rust_api.vaultSnapshot(handle: handle);
+
+  /// `VaultEngine::last_observation_source_tier()` — JSON `"Medical"`,
+  /// `"Device"`, `"Partial"`, or `"Manual"` for the most recent
+  /// biometric observation; JSON `null` if the vault has no
+  /// biometric rows yet. Callers parse with `jsonDecode`.
+  Future<String> lastObservationSourceTier(EnginesHandle handle) =>
+      rust_api.lastObservationSourceTier(handle: handle);
 }

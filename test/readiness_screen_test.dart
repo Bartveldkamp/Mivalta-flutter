@@ -1,8 +1,9 @@
-// Day-4 widget tests for the readiness screen. The FFI path is gated
-// on Platform.isAndroid; on the host harness the bootstrap call
-// throws UnsupportedError immediately, so we exercise the
-// error-rendered scaffold and the F1 / SourceTier surfaces that
-// don't depend on a live engine.
+// Day-5 widget tests for the readiness screen + the new
+// SourceTierIndicator. The FFI path is gated on Platform.isAndroid;
+// on the host harness `RustEngineBinding.bootstrap()` throws
+// UnsupportedError immediately, so the screen-level test exercises
+// the error-rendered scaffold. The indicator's two branches
+// (swatch / no-data copy) are exercised by mounting it directly.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,8 +14,8 @@ import 'package:mivalta_flutter/theme/source_tier.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen renders the five section labels and surfaces the '
-    'host bootstrap error inline',
+    'ReadinessScreen renders the five section labels; engine-dependent '
+    'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
       // Initial frame shows the spinner; pump the microtask queue so
@@ -27,13 +28,11 @@ void main() {
       expect(find.text('Readiness'), findsWidgets);
 
       // The host harness can't load the .so, so the bootstrap throws
-      // UnsupportedError before any section data is set. Each of the
-      // four engine-dependent sections renders its own inline
-      // _ErrorRow with the theme's error color (Day-3 review WARNING
-      // followup: Colors.red was swapped for ColorScheme.error). The
-      // fifth section (SourceTier legend) is engine-independent and
-      // renders regardless.
-      expect(find.textContaining('UnsupportedError'), findsNWidgets(4));
+      // UnsupportedError before any section data is set. ALL FIVE
+      // sections are engine-dependent now (Day-5 dropped the legend
+      // placeholder in (e)), so each renders its own inline _ErrorRow
+      // with ColorScheme.error.
+      expect(find.textContaining('UnsupportedError'), findsNWidgets(5));
 
       // All five section labels render even on error.
       expect(find.text('READINESS SCORE', skipOffstage: false),
@@ -48,54 +47,79 @@ void main() {
     },
   );
 
-  testWidgets(
-    'F1 no-data copy renders the locked verbatim string when the '
-    'screen falls into the insufficient-data branch',
-    (WidgetTester tester) async {
-      // The locked string is the only way the no-data branch reads —
-      // covers the "string lives in lib/copy/f1.dart, no inline copy"
-      // contract. The actual branch fires on device when
-      // advisories.last_observation_at is null; the test asserts the
-      // constant is the verbatim CLAUDE.md text.
-      expect(kF1NoDataCopy, 'We need more data to predict recovery.');
-    },
-  );
+  testWidgets('F1 no-data copy locked constant survives literally', (t) async {
+    // CLAUDE.md flags any paraphrase as a finding; this guards the
+    // string at lib/copy/f1.dart.
+    expect(kF1NoDataCopy, 'We need more data to predict recovery.');
+  });
 
-  testWidgets(
-    'SourceTier legend uses the const color map (no hex literals at '
-    'call sites)',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
-
-      // Each tier label rendered by the legend reads from
-      // kSourceTierLabel, so finding the labels by their map values
-      // proves the map is the source of truth.
-      for (final tier in SourceTier.values) {
-        expect(
-          find.text(kSourceTierLabel[tier]!, skipOffstage: false),
-          findsOneWidget,
-          reason: '$tier label missing from legend',
+  group('SourceTierIndicator', () {
+    testWidgets(
+      'engine returned null → renders the F1 no-data copy, no swatch',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: SourceTierIndicator(tier: null)),
+          ),
         );
-      }
 
-      // Each swatch is a Container whose decoration's color is the
-      // map's projection. Walk the tree and confirm at least one
-      // Container per tier uses the projected color.
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final usedColors = containers
-          .map((c) => (c.decoration as BoxDecoration?)?.color)
-          .whereType<Color>()
-          .toSet();
-      for (final tier in SourceTier.values) {
-        expect(
-          usedColors.contains(kSourceTierColor[tier]),
-          isTrue,
-          reason: '${tier.name} swatch color absent from rendered tree',
-        );
-      }
-    },
-  );
+        expect(find.text(kF1NoDataCopy), findsOneWidget);
+
+        // No swatch Container should have a SourceTier color when
+        // the engine returned null.
+        final containers = tester.widgetList<Container>(find.byType(Container));
+        final swatchColors = containers
+            .map((c) => (c.decoration as BoxDecoration?)?.color)
+            .whereType<Color>()
+            .toSet();
+        for (final tier in SourceTier.values) {
+          expect(
+            swatchColors.contains(kSourceTierColor[tier]),
+            isFalse,
+            reason: '${tier.name} swatch must NOT render in no-data branch',
+          );
+        }
+      },
+    );
+
+    for (final tier in SourceTier.values) {
+      testWidgets(
+        'engine returned ${tier.name} → renders the matching swatch + label',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(body: SourceTierIndicator(tier: tier)),
+            ),
+          );
+
+          // Label from the const map.
+          expect(find.text(kSourceTierLabel[tier]!), findsOneWidget);
+
+          // Swatch uses the LOCKED hex via kSourceTierColor — no
+          // hex literals at call sites.
+          final containers =
+              tester.widgetList<Container>(find.byType(Container));
+          final swatchColors = containers
+              .map((c) => (c.decoration as BoxDecoration?)?.color)
+              .whereType<Color>()
+              .toSet();
+          expect(
+            swatchColors.contains(kSourceTierColor[tier]),
+            isTrue,
+            reason: '${tier.name} swatch color must come from kSourceTierColor',
+          );
+          // Other tiers' colors must NOT appear (single-swatch contract).
+          for (final other in SourceTier.values) {
+            if (other == tier) continue;
+            expect(
+              swatchColors.contains(kSourceTierColor[other]),
+              isFalse,
+              reason:
+                  '${other.name} swatch must NOT render when tier=${tier.name}',
+            );
+          }
+        },
+      );
+    }
+  });
 }
