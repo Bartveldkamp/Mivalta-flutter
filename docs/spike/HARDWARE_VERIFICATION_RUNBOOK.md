@@ -86,9 +86,11 @@
 - `Run` button stays disabled → model still downloading or verifying.
   The status line names the stage; wait it out (sha256 verify on a
   cached 1.03 GB file is ~5 s on the Edge 60).
-- Telemetry shows `Peak: — KB PSS` → platform channel didn't return.
-  Likely the `RUST_ENGINE_DEPLOY_KEY` secret was set up but the APK
-  was built from a stale `.so`. Rebuild on Hetzner, scp again.
+- Telemetry shows `Peak: — KB PSS` → the `com.mivalta.flutter/hw_telemetry`
+  platform channel didn't respond. Confirm `MainActivity.kt` registers
+  the `MethodChannel` in `configureFlutterEngine` and handles the
+  `pssKb` call; the em-dash placeholder is what the Dart side renders
+  when the channel returns null or throws.
 - Debug exerciser doesn't appear on long-press → the APK was built
   with `--release` instead of `--debug`. The brief specifies
   `flutter build apk --debug` for this milestone.

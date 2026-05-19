@@ -29,6 +29,11 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "com.mivalta.flutter/hw_telemetry"
     }
 
+    // APK identity is immutable for the lifetime of this process; hash
+    // once at startup so repeated channel calls are O(1) instead of
+    // re-reading a ~50MB file each time.
+    private val apkSha256: String by lazy { readApkSha256() }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -37,16 +42,13 @@ class MainActivity : FlutterActivity() {
                     "pssKb" -> result.success(readPssKb())
                     "deviceModel" -> result.success(Build.MODEL ?: "unknown")
                     "osRelease" -> result.success(Build.VERSION.RELEASE ?: "unknown")
-                    "apkSha256" -> result.success(readApkSha256())
+                    "apkSha256" -> result.success(apkSha256)
                     else -> result.notImplemented()
                 }
             }
     }
 
     private fun readApkSha256(): String {
-        // Hash the running APK file once per call. The result matches
-        // `sha256sum app-debug.apk` on Hetzner, so the founder's
-        // results doc lines up with the build artifact identity.
         return try {
             val path = applicationInfo.sourceDir
             val md = MessageDigest.getInstance("SHA-256")
