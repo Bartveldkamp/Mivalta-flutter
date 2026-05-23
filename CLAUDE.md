@@ -163,3 +163,16 @@ docs: Update V10_1_FLUTTER_PERF_SPIKE.md with device run results
 ### Scope discipline
 
 Changes to `lib/main.dart` entry, FFI binding layers, or any code that crosses the Dart↔Rust boundary require pausing and surfacing the proposed change before editing — the V10.1 LLM path and the rust-engine binding are load-bearing for the whole product.
+
+---
+
+## Related Repos
+
+Cross-repo decisions and context: see [`docs/DECISIONS.md`](https://github.com/Bartveldkamp/mivalta-rust-engine/blob/main/docs/DECISIONS.md) in mivalta-rust-engine.
+
+| Repo | Role | Language | Link |
+|------|------|----------|------|
+| mivalta-rust-engine | Privacy-first AI fitness coaching engine, ships to mobile via FFI | Rust | [GitHub](https://github.com/Bartveldkamp/mivalta-rust-engine) |
+| mivalta-science-engine | Training pipeline, Josi LoRA fine-tuning, V10/V11 messenger | Python | [GitHub](https://github.com/Bartveldkamp/mivalta-science-engine) |
+| mivalta-android-client | Native Android app, consumes UniFFI Kotlin bindings + jniLibs | Kotlin/Compose | [GitHub](https://github.com/Bartveldkamp/mivalta-android-client) |
+| mivalta-flutter-test-ui | Flutter test/scratch harness | Flutter | [GitHub](https://github.com/Bartveldkamp/mivalta-flutter-test-ui) |
