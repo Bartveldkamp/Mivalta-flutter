@@ -8,65 +8,15 @@ Guidance for Claude Code when working with this repository.
 - READ-ONLY sibling repos on Hetzner box: mivalta-rust-engine,
   mivalta-science-engine, mivalta-android-client. Reference patterns only.
 
-## Working with Claude — Three Rules
+## Working Rules
 
-Codified after the 2026-05-17 cross-repo-sync session. Apply to every Claude session working on any MiValta repo.
+**Rule 1 — Mac Claude Code executes by default.** Anything that touches the filesystem (creating files, editing code, running tests, building) goes through Claude Code on Bart's Mac (M4, Alta). Mac is the primary executor for all day-to-day work across the 4 active MiValta repos.
 
-### Rule 1 — Hetzner Claude executes
+**Rule 2 — Hetzner Claude is the GPU specialist on standby.** Hetzner (144.76.62.249) is activated only when work requires GPU (model fine-tuning, large oracle eval runs) or sustained heavy compute exceeding Mac capacity. When activated, Hetzner Claude operates on a brief-driven contract — receives sealed briefs, executes within scope, coordinates back via GitHub PRs. Hetzner does not maintain a parallel autonomous chat session.
 
-Anything that touches a filesystem (cargo, git, file edits, tests, builds, conflict resolution, training runs, GGUF exports, Android cross-compile) goes through Hetzner Claude over SSH. Web Claude does NOT write long shell scripts for the founder to copy-paste into a terminal. If a task needs hands, it needs Hetzner.
+**Rule 3 — Web Claude orchestrates via GitHub MCP.** The web/app Claude (this seat) coordinates strategy, drafts briefs, reads architectural state via GitHub MCP, and reviews bot outputs adversarially. Web Claude does not have filesystem access. All cross-session continuity happens via versioned documents in repos (DECISIONS.md, ARCHITECTURE_OVERVIEW.md, W1_ORACLE_PLAN.md, CLAUDE.md, REVIEWER.md), not via chat memory.
 
-Hetzner is at `144.76.62.249`. Use tmux for resilience to SSH drops:
-
-```
-ssh root@144.76.62.249
-tmux attach -t mivalta || tmux new -s mivalta
-cd ~/mivalta-rust-engine
-claude --resume     # or just `claude`
-```
-
-Hetzner has the full Rust toolchain (1.95.0 + Android targets), Android NDK r26d, V10/V11 training environment (Qwen3, llama.cpp), and 32+ GB RAM.
-
-### Rule 2 — Web Claude orchestrates via GitHub MCP
-
-Anything that touches GitHub (opening PRs, reading PR/commit/run state, monitoring workflows, cross-repo coordination, posting review replies) goes through web Claude via the GitHub MCP server. Hetzner Claude does NOT ask the founder to "check the Actions tab" — web Claude checks it directly.
-
-Web Claude has full MCP access to:
-- `Bartveldkamp/mivalta-rust-engine`
-- `Bartveldkamp/mivalta-science-engine`
-- `Bartveldkamp/mivalta-android-client`
-- `Bartveldkamp/Mivalta-flutter`
-
-### Rule 3 — Zero guessing
-
-If either Claude does not know something, READ it before acting:
-
-- Don't assume a SHA → query commits via MCP or `git rev-parse`
-- Don't assume a table count → `cargo run -p gatc-export` and read the actual number
-- Don't assume a line number → grep or Read the file
-- Don't assume what `main` contains → fetch first, then check
-- Don't write "should be around line N" → find the exact line first
-
-### Division of labor
-
-| Layer | Owns |
-|---|---|
-| **Hetzner Claude** | Shell, cargo, git, file edits, conflict resolution, test/lint runs, building bindings, training runs |
-| **Web Claude** (GitHub MCP) | Reading repo/PR/run state, opening PRs with strategic context, monitoring workflows, cross-repo coordination, drafting briefs for Hetzner |
-| **Founder** | Merge decisions, strategic direction, sport-science judgment, branding, commercial decisions |
-
-### Anti-patterns banned
-
-- "Paste this script into your terminal" → use Hetzner Claude instead
-- "Should be around line N" → grep first, then act
-- "Expected X, got Y" without verifying → read the real number
-- "Try this, if it fails paste the error" → only when no other diagnostic path
-
-### Why this exists
-
-The 2026-05-17 cross-repo-sync session burned ~4 hours of founder time in a copy-paste loop because web Claude was guessing what the shell would output instead of reading what it actually output. The breakthrough was Hetzner Claude doing 3 cherry-picks autonomously in 21 minutes with senior-level judgment (caught Batch A contamination in PR #134's base, surgically removed it without prompting). 10x faster AND higher quality than the copy-paste loop.
-
-Codifying so neither future Claude nor future founder drifts back.
+**Rule 4 — Zero guessing.** If any Claude session does not know something with certainty, READ the source-of-truth before acting. GitHub UI for repo state. Source files for code state. Branch protection settings via API for gate state. Claude Code summary reports are useful but not authoritative — verify before acting on "all clean" claims.
 
 ---
 
