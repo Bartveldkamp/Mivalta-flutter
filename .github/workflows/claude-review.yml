@@ -19,21 +19,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check for ANTHROPIC_API_KEY secret
-        id: check_key
+      - name: Verify API key is configured
         env:
-          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          if [ -z "$KEY" ]; then
-            echo "::notice::ANTHROPIC_API_KEY not set; skipping adversarial review (no error, founder uses manual reviewer pattern)."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not configured. Per DECISIONS.md Entry G (in rust-engine), review cannot run silently — this gate fails loudly. Configure the secret in repo settings → Secrets → Actions, or update branch protection if review is intentionally disabled."
+            exit 1
           fi
+          echo "ANTHROPIC_API_KEY configured — proceeding to review"
 
       - name: Resolve PR context (dispatch path)
         id: dispatch_ctx
-        if: github.event_name == 'workflow_dispatch' && steps.check_key.outputs.skip == 'false'
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -44,7 +42,6 @@ jobs:
           echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
 
       - name: Checkout PR head
-        if: steps.check_key.outputs.skip == 'false'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -52,18 +49,15 @@ jobs:
 
       - name: Resolve base ref
         id: refs
-        if: steps.check_key.outputs.skip == 'false'
         run: |
           BASE="${{ github.event.pull_request.base.ref || steps.dispatch_ctx.outputs.base_ref }}"
           if [ -z "$BASE" ]; then BASE=main; fi
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Fetch base
-        if: steps.check_key.outputs.skip == 'false'
         run: git fetch origin ${{ steps.refs.outputs.base }} --depth=500
 
       - name: Generate diff
-        if: steps.check_key.outputs.skip == 'false'
         run: |
           git diff origin/${{ steps.refs.outputs.base }}...HEAD > /tmp/pr.diff
           BYTES=$(wc -c < /tmp/pr.diff)
@@ -75,17 +69,14 @@ jobs:
           fi
 
       - name: Set up Python
-        if: steps.check_key.outputs.skip == 'false'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install Anthropic SDK
-        if: steps.check_key.outputs.skip == 'false'
         run: python -m pip install --upgrade 'anthropic>=0.40'
 
       - name: Run adversarial review
-        if: steps.check_key.outputs.skip == 'false'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -95,7 +86,6 @@ jobs:
 
       - name: Determine PR number for comment
         id: prnum
-        if: steps.check_key.outputs.skip == 'false'
         run: |
           if [ -n "${{ github.event.pull_request.number }}" ]; then
             echo "n=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
@@ -104,7 +94,6 @@ jobs:
           fi
 
       - name: Post review as PR comment
-        if: steps.check_key.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
