@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1135132544;
+  int get rustContentHash => 563171549;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -76,21 +76,79 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<String> crateApiBuildSourceOverview({
+    required EnginesHandle handle,
+    required String sourcesJson,
+  });
+
+  Future<String> crateApiClassifySource({
+    required EnginesHandle handle,
+    required String source,
+  });
+
   Future<EnginesHandle> crateApiConstructEngines({
     required String athleteProfileJson,
     required String tablesJson,
     required String vaultPath,
   });
 
+  Future<EnginesHandle> crateApiConstructEnginesFresh({
+    required String athleteProfileJson,
+    required String tablesJson,
+    required String vaultPath,
+  });
+
+  Future<EnginesHandle> crateApiConstructEnginesFromState({
+    required String athleteProfileJson,
+    required String tablesJson,
+    required String vaultPath,
+    required String viterbiStateJson,
+  });
+
   Future<String> crateApiEngineHello();
+
+  Future<String> crateApiGetContextWidget({required EnginesHandle handle});
+
+  Future<String> crateApiGetDashboard({required EnginesHandle handle});
+
+  Future<String> crateApiGetSessionWidget({required EnginesHandle handle});
+
+  Future<String> crateApiGetStateWidget({required EnginesHandle handle});
+
+  Future<bool> crateApiHasPersistedState({
+    required String athleteProfileJson,
+    required String vaultPath,
+  });
 
   Future<String> crateApiLastObservationSourceTier({
     required EnginesHandle handle,
   });
 
+  Future<String> crateApiNormalizeObservation({
+    required EnginesHandle handle,
+    required String vendor,
+    required String json,
+  });
+
+  Future<String?> crateApiReadPersistedState({
+    required String athleteProfileJson,
+    required String vaultPath,
+  });
+
+  Future<String> crateApiReadReadinessHistory({
+    required EnginesHandle handle,
+    required int days,
+  });
+
+  Future<String> crateApiReadViterbiState({required EnginesHandle handle});
+
+  Future<String> crateApiReadinessIndicator({required EnginesHandle handle});
+
   Future<String> crateApiReadinessScore({required EnginesHandle handle});
 
   Future<String> crateApiRecommendWorkout({required EnginesHandle handle});
+
+  Future<String> crateApiSaveState({required EnginesHandle handle});
 
   Future<String> crateApiVaultSnapshot({required EnginesHandle handle});
 
@@ -101,6 +159,11 @@ abstract class RustLibApi extends BaseApi {
     required String source,
     required String isoDate,
     required int restingHr,
+  });
+
+  Future<void> crateApiWriteViterbiState({
+    required EnginesHandle handle,
+    required String stateJson,
   });
 
   Future<String> crateApiZoneCapWithAdvisories({required EnginesHandle handle});
@@ -124,6 +187,81 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<String> crateApiBuildSourceOverview({
+    required EnginesHandle handle,
+    required String sourcesJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(sourcesJson, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiBuildSourceOverviewConstMeta,
+        argValues: [handle, sourcesJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBuildSourceOverviewConstMeta =>
+      const TaskConstMeta(
+        debugName: "build_source_overview",
+        argNames: ["handle", "sourcesJson"],
+      );
+
+  @override
+  Future<String> crateApiClassifySource({
+    required EnginesHandle handle,
+    required String source,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(source, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiClassifySourceConstMeta,
+        argValues: [handle, source],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiClassifySourceConstMeta => const TaskConstMeta(
+    debugName: "classify_source",
+    argNames: ["handle", "source"],
+  );
+
+  @override
   Future<EnginesHandle> crateApiConstructEngines({
     required String athleteProfileJson,
     required String tablesJson,
@@ -139,7 +277,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 3,
             port: port_,
           );
         },
@@ -161,6 +299,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<EnginesHandle> crateApiConstructEnginesFresh({
+    required String athleteProfileJson,
+    required String tablesJson,
+    required String vaultPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(athleteProfileJson, serializer);
+          sse_encode_String(tablesJson, serializer);
+          sse_encode_String(vaultPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiConstructEnginesFreshConstMeta,
+        argValues: [athleteProfileJson, tablesJson, vaultPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConstructEnginesFreshConstMeta =>
+      const TaskConstMeta(
+        debugName: "construct_engines_fresh",
+        argNames: ["athleteProfileJson", "tablesJson", "vaultPath"],
+      );
+
+  @override
+  Future<EnginesHandle> crateApiConstructEnginesFromState({
+    required String athleteProfileJson,
+    required String tablesJson,
+    required String vaultPath,
+    required String viterbiStateJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(athleteProfileJson, serializer);
+          sse_encode_String(tablesJson, serializer);
+          sse_encode_String(vaultPath, serializer);
+          sse_encode_String(viterbiStateJson, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiConstructEnginesFromStateConstMeta,
+        argValues: [
+          athleteProfileJson,
+          tablesJson,
+          vaultPath,
+          viterbiStateJson,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConstructEnginesFromStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "construct_engines_from_state",
+        argNames: [
+          "athleteProfileJson",
+          "tablesJson",
+          "vaultPath",
+          "viterbiStateJson",
+        ],
+      );
+
+  @override
   Future<String> crateApiEngineHello() {
     return handler.executeNormal(
       NormalTask(
@@ -169,7 +395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 6,
             port: port_,
           );
         },
@@ -188,6 +414,168 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "engine_hello", argNames: []);
 
   @override
+  Future<String> crateApiGetContextWidget({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiGetContextWidgetConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetContextWidgetConstMeta => const TaskConstMeta(
+    debugName: "get_context_widget",
+    argNames: ["handle"],
+  );
+
+  @override
+  Future<String> crateApiGetDashboard({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiGetDashboardConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetDashboardConstMeta =>
+      const TaskConstMeta(debugName: "get_dashboard", argNames: ["handle"]);
+
+  @override
+  Future<String> crateApiGetSessionWidget({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiGetSessionWidgetConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetSessionWidgetConstMeta => const TaskConstMeta(
+    debugName: "get_session_widget",
+    argNames: ["handle"],
+  );
+
+  @override
+  Future<String> crateApiGetStateWidget({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiGetStateWidgetConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetStateWidgetConstMeta =>
+      const TaskConstMeta(debugName: "get_state_widget", argNames: ["handle"]);
+
+  @override
+  Future<bool> crateApiHasPersistedState({
+    required String athleteProfileJson,
+    required String vaultPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(athleteProfileJson, serializer);
+          sse_encode_String(vaultPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiHasPersistedStateConstMeta,
+        argValues: [athleteProfileJson, vaultPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHasPersistedStateConstMeta => const TaskConstMeta(
+    debugName: "has_persisted_state",
+    argNames: ["athleteProfileJson", "vaultPath"],
+  );
+
+  @override
   Future<String> crateApiLastObservationSourceTier({
     required EnginesHandle handle,
   }) {
@@ -202,7 +590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 12,
             port: port_,
           );
         },
@@ -224,6 +612,184 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiNormalizeObservation({
+    required EnginesHandle handle,
+    required String vendor,
+    required String json,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(vendor, serializer);
+          sse_encode_String(json, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiNormalizeObservationConstMeta,
+        argValues: [handle, vendor, json],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiNormalizeObservationConstMeta =>
+      const TaskConstMeta(
+        debugName: "normalize_observation",
+        argNames: ["handle", "vendor", "json"],
+      );
+
+  @override
+  Future<String?> crateApiReadPersistedState({
+    required String athleteProfileJson,
+    required String vaultPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(athleteProfileJson, serializer);
+          sse_encode_String(vaultPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiReadPersistedStateConstMeta,
+        argValues: [athleteProfileJson, vaultPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReadPersistedStateConstMeta => const TaskConstMeta(
+    debugName: "read_persisted_state",
+    argNames: ["athleteProfileJson", "vaultPath"],
+  );
+
+  @override
+  Future<String> crateApiReadReadinessHistory({
+    required EnginesHandle handle,
+    required int days,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_i_32(days, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiReadReadinessHistoryConstMeta,
+        argValues: [handle, days],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReadReadinessHistoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "read_readiness_history",
+        argNames: ["handle", "days"],
+      );
+
+  @override
+  Future<String> crateApiReadViterbiState({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiReadViterbiStateConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReadViterbiStateConstMeta => const TaskConstMeta(
+    debugName: "read_viterbi_state",
+    argNames: ["handle"],
+  );
+
+  @override
+  Future<String> crateApiReadinessIndicator({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiReadinessIndicatorConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReadinessIndicatorConstMeta => const TaskConstMeta(
+    debugName: "readiness_indicator",
+    argNames: ["handle"],
+  );
+
+  @override
   Future<String> crateApiReadinessScore({required EnginesHandle handle}) {
     return handler.executeNormal(
       NormalTask(
@@ -236,7 +802,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 18,
             port: port_,
           );
         },
@@ -267,7 +833,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 19,
             port: port_,
           );
         },
@@ -286,6 +852,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "recommend_workout", argNames: ["handle"]);
 
   @override
+  Future<String> crateApiSaveState({required EnginesHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSaveStateConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveStateConstMeta =>
+      const TaskConstMeta(debugName: "save_state", argNames: ["handle"]);
+
+  @override
   Future<String> crateApiVaultSnapshot({required EnginesHandle handle}) {
     return handler.executeNormal(
       NormalTask(
@@ -298,7 +895,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 21,
             port: port_,
           );
         },
@@ -329,7 +926,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 22,
             port: port_,
           );
         },
@@ -371,7 +968,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 23,
             port: port_,
           );
         },
@@ -393,6 +990,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiWriteViterbiState({
+    required EnginesHandle handle,
+    required String stateJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(stateJson, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiWriteViterbiStateConstMeta,
+        argValues: [handle, stateJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWriteViterbiStateConstMeta => const TaskConstMeta(
+    debugName: "write_viterbi_state",
+    argNames: ["handle", "stateJson"],
+  );
+
+  @override
   Future<String> crateApiZoneCapWithAdvisories({
     required EnginesHandle handle,
   }) {
@@ -407,7 +1041,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 25,
             port: port_,
           );
         },
@@ -470,6 +1104,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
   BridgeError dco_decode_bridge_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -502,6 +1142,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
   }
 
   @protected
@@ -566,6 +1212,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
   BridgeError sse_decode_bridge_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -610,6 +1262,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
@@ -624,12 +1287,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
   }
 
   @protected
@@ -678,6 +1335,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
   void sse_encode_bridge_error(BridgeError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
@@ -721,6 +1384,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
@@ -735,12 +1408,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }
 

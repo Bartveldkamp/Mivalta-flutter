@@ -22,30 +22,48 @@ Guidance for Claude Code when working with this repository.
 
 ## What This Is
 
-MiValta's forward-direction Flutter frontend. Replaces
-`mivalta-android-client` over ~2-4 months. The Day 1-3 spike validates
-V10.1 (`llama_cpp_dart`) and the rust-engine binding path
-(`flutter_rust_bridge`) before any UI work begins.
+MiValta's production Flutter frontend. Replaces `mivalta-android-client` over
+~2-4 months.
 
-**Core principle**: on-device first. The Rust engine DECIDES. Flutter
-DISPLAYS. The LLM (V10.1) is the messenger, not the coach.
+**Core principle**: on-device first. The Rust engine DECIDES. Flutter DISPLAYS.
+The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi phase (PR-F).
+
+## Current milestone
+
+**MVP-1** — see `docs/MVP1_BUILD_BRIEF.md` for the full scope.
+
+- Engine DECIDES, Flutter DISPLAYS. No thresholds/math/fallback in Dart.
+- Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
+- Headline: `readiness_indicator()` — the 4-axis readiness blend.
+- Continuity: persisted ViterbiEngine state survives app restarts.
+- V10.1 LLM spike: retained as kDebugMode-only route for grounded-Josi phase.
+- No cloud round-trips; on-device only.
+
+### Engine pin
+
+`rust/Cargo.toml` pins `gatc-ffi` to revision `4dab6cb` (engine_registry v2.18).
 
 ## Repository Structure
 
 ```
 Mivalta-flutter/
-├── lib/                # Dart source (spike: single-screen main.dart)
-├── android/            # Android-only target for the spike
+├── lib/                # Dart source
+│   ├── main.dart       # Entry point — routes to ReadinessScreen
+│   ├── rust_engine.dart # Dart facade over FRB bindings
+│   ├── screens/        # UI screens (readiness, debug exerciser)
+│   ├── theme/          # LOCKED design tokens (SourceTier swatches)
+│   └── src/rust/       # Auto-generated FRB bindings (do not edit)
+├── rust/               # Rust shim bridging flutter_rust_bridge ↔ gatc-ffi
+│   ├── Cargo.toml      # gatc-ffi git-rev pin
+│   └── src/api.rs      # Shim bindings — one gatc_ffi::* call per fn
+├── android/            # Android target
 ├── test/               # flutter_test
-├── docs/               # Investigation + design notes
+├── docs/               # MVP build briefs
 ├── .github/            # CI workflows (adversarial review)
 ├── .claude/            # REVIEWER.md system prompt
 ├── pubspec.yaml        # Dart package manifest
 └── pubspec.lock
 ```
-
-Single-module for the spike; multi-module (Compose-equivalent
-`feature/` + `core/` split) deferred until after V10.1 sign-off.
 
 ## Build and Test
 
@@ -53,30 +71,28 @@ Single-module for the spike; multi-module (Compose-equivalent
 flutter pub get                                          # Resolve deps
 flutter analyze                                          # Static analysis
 flutter test                                             # Run unit/widget tests
-flutter build apk --debug --target-platform android-arm64  # Spike build
+flutter build apk --debug --target-platform android-arm64  # Debug build
 flutter run                                              # Launch on attached device
 ```
 
 ## How Flutter consumes the engine
 
-- **V10.1 LLM via `llama_cpp_dart`** (Day 1 spike). Model:
-  `http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf` (sha256
-  `8bb9f19deb49990fb6e5a22028624786c850f4ae0eefde8f30d99463c40adfdb`).
-  Off-thread `LlamaEngine` worker isolate, streaming
-  `GenerationEvent` for TTFT + total-time measurement.
-- **Rust engine binding via `flutter_rust_bridge`** (Day 2+). UniFFI
-  bindings in `mivalta-rust-engine` are Kotlin/Swift today; Dart
-  binding via `flutter_rust_bridge` is the next spike target after
-  V10.1 signs off.
-- **F-VA1 PendingAdvisories** surface at the FFI boundary — Flutter
-  consumes the JSON variants of the 5 state-gating scalars; it does
-  not compute them.
+- **Rust engine binding via `flutter_rust_bridge`** (MVP-1). UniFFI bindings
+  in `mivalta-rust-engine` are compiled into `libmivalta_rust_bridge.so` via
+  the `rust/` shim crate. Every shim function is one `gatc_ffi::*` call →
+  raw JSON string. No UniFFI record types cross the FRB boundary.
+- **V10.1 LLM via `llama_cpp_dart`** — deferred to grounded-Josi phase (PR-F).
+  The llama_cpp_dart dep is retained but the V10SpikeScreen is kDebugMode-only.
+- **Continuity**: ViterbiEngine state is persisted to the vault on every
+  state-changing operation and restored on subsequent launches. The app
+  MUST call `constructEnginesFromState()` when persisted state exists, or
+  `constructEnginesFresh()` + `saveState()` + `writeViterbiState()` on first run.
 
 ## Architecture Rules (STRICTLY ENFORCED)
 
 1. **No engine logic in Dart.** Computation stays in Rust.
-2. **FFI is pure transport.** `flutter_rust_bridge` serializes typed
-   data only; llama.cpp pointers stay within their binding scope.
+2. **FFI is pure transport.** `rust/src/api.rs` binds one `gatc_ffi::*` method
+   per function; it adds no engine logic. Returns raw JSON strings.
 3. **Dart is display only.** Widgets map engine output to UI state.
    No thresholds, math, or fallback logic.
 4. **Source tier color tokens are locked**: Medical `#2BD974`, Device
@@ -84,7 +100,7 @@ flutter run                                              # Launch on attached de
    token; never hardcode hex.
 5. **F1 no-data copy is locked verbatim**: "We need more data to
    predict recovery." Do not paraphrase, do not soften.
-6. **No cloud round-trips in the V10.1 LLM path.** On-device only.
+6. **No cloud round-trips in the LLM path.** On-device only.
    Model download from `http://144.76.62.249/models/*` is the only
    HTTP exception, and only on first launch.
 7. **No dead code.** Every new public Dart symbol has a call site
@@ -94,25 +110,28 @@ flutter run                                              # Launch on attached de
 
 ## Key Entry Points
 
-- `lib/main.dart` — spike screen entry point (single-screen V10.1
-  perf measurement).
-- `LlamaEngine` worker isolate — future home of llama_cpp_dart
-  binding behind a thin Dart-side facade.
-- `flutter_rust_bridge` generated FFI module — future home of
-  rust-engine binding (Day 2+).
+- `lib/main.dart` — production entry point → ReadinessScreen.
+- `lib/screens/readiness_screen.dart` — three-zone PULL home, driven by engine.
+- `lib/rust_engine.dart` — Dart facade over FRB bindings.
+- `rust/src/api.rs` — shim bindings (one gatc_ffi::* call per fn).
+- `lib/screens/debug_swatch_exerciser.dart` — kDebugMode-only SourceTier tester.
+- `V10SpikeScreen` (main.dart) — kDebugMode-only V10.1 LLM screen.
 
 ## Commit Convention
 
 ```
-feat(flutter): Add LlamaEngine isolate wrapper
-fix(flutter): Guard against null Generation event on stream close
-test(flutter): Add widget test for spike-screen latency labels
-docs: Update V10_1_FLUTTER_PERF_SPIKE.md with device run results
+feat(flutter): Add readiness_indicator binding
+fix(flutter): Guard against null advisories in readiness screen
+test(flutter): Add continuity round-trip test
+docs: Update MVP1_BUILD_BRIEF.md with PR-A scope
 ```
 
 ### Scope discipline
 
-Changes to `lib/main.dart` entry, FFI binding layers, or any code that crosses the Dart↔Rust boundary require pausing and surfacing the proposed change before editing — the V10.1 LLM path and the rust-engine binding are load-bearing for the whole product.
+Changes to `rust/src/api.rs` (shim), `lib/rust_engine.dart` (facade), or any
+code that crosses the Dart↔Rust boundary require pausing and surfacing the
+proposed change before editing — the FFI layer is load-bearing for the whole
+product.
 
 ---
 

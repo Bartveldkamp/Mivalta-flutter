@@ -1,4 +1,4 @@
-// Day-5 widget tests for the readiness screen + the new
+// MVP-1 widget tests for the readiness screen + the new
 // SourceTierIndicator. The FFI path is gated on Platform.isAndroid;
 // on the host harness `RustEngineBinding.bootstrap()` throws
 // UnsupportedError immediately, so the screen-level test exercises
@@ -14,7 +14,7 @@ import 'package:mivalta_flutter/theme/source_tier.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen renders the five section labels; engine-dependent '
+    'ReadinessScreen renders the six section labels; engine-dependent '
     'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
@@ -28,14 +28,16 @@ void main() {
       expect(find.text('Readiness'), findsWidgets);
 
       // The host harness can't load the .so, so the bootstrap throws
-      // UnsupportedError before any section data is set. ALL FIVE
-      // sections are engine-dependent now (Day-5 dropped the legend
-      // placeholder in (e)), so each renders its own inline _ErrorRow
+      // UnsupportedError before any section data is set. ALL SIX
+      // sections are engine-dependent now (MVP-1 added the 4-axis blend
+      // headline), so each renders its own inline _ErrorRow
       // with ColorScheme.error.
-      expect(find.textContaining('UnsupportedError'), findsNWidgets(5));
+      expect(find.textContaining('UnsupportedError'), findsNWidgets(6));
 
-      // All five section labels render even on error.
-      expect(find.text('READINESS SCORE', skipOffstage: false),
+      // All six section labels render even on error.
+      expect(find.text('READINESS (4-AXIS BLEND)', skipOffstage: false),
+          findsOneWidget);
+      expect(find.text('READINESS SCORE (LEGACY)', skipOffstage: false),
           findsOneWidget);
       expect(find.text('FATIGUE STATE', skipOffstage: false), findsOneWidget);
       expect(find.text('ZONE CAP + ADVISORIES', skipOffstage: false),

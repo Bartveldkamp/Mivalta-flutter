@@ -1,4 +1,4 @@
-// Day-7 widget test for the SourceTier debug exerciser. FFI calls are
+// MVP-1 widget test for the SourceTier debug exerciser. FFI calls are
 // Android-gated; this test exercises the screen scaffold (4 source
 // buttons + Clear vault) and the kDebugSwatchSources contract that
 // pairs each LOCKED tier with the source identifier rust-engine's
@@ -66,7 +66,7 @@ void main() {
       }
       expect(
         find.widgetWithText(
-            OutlinedButton, 'Clear vault (day7-vault dir)',
+            OutlinedButton, 'Clear vault (mivalta-vault dir)',
             skipOffstage: false),
         findsOneWidget,
       );

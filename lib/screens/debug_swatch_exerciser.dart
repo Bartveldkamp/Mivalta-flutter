@@ -1,12 +1,13 @@
-// Day-7 hardware-verification debug screen. Build-flavour-only entry
+// MVP-1 hardware-verification debug screen. Build-flavour-only entry
 // point (kDebugMode-gated from main.dart). The founder taps the four
 // source buttons in sequence during the phone session; each writes a
 // minimal biometric with the matching source identifier, then routes
-// back to the readiness screen so section (e) renders the correct
+// back to the readiness screen so section (f) renders the correct
 // LOCKED swatch as empirical proof the engine wiring is live.
 //
-// "Clear vault" wipes the day7-vault directory so the founder can
+// "Clear vault" wipes the mivalta-vault directory so the founder can
 // re-run all four paths from a clean state without uninstalling the APK.
+// This also clears persisted ViterbiEngine state (continuity reset).
 //
 // No new business logic — just a thin debug harness over already-bound
 // FRB methods.
@@ -47,7 +48,8 @@ class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
 
   Future<Directory> _vaultDir() async {
     final support = await getApplicationSupportDirectory();
-    return Directory('${support.path}/day7-vault');
+    // MVP-1: shared persistent vault path across all screens
+    return Directory('${support.path}/mivalta-vault');
   }
 
   Future<void> _writeAndRoute(SourceTier tier) async {
@@ -94,7 +96,7 @@ class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
     if (_busy) return;
     setState(() {
       _busy = true;
-      _status = 'Clearing day7-vault…';
+      _status = 'Clearing mivalta-vault…';
     });
     try {
       final dir = await _vaultDir();
@@ -146,7 +148,7 @@ class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _clearVault,
               icon: const Icon(Icons.delete_sweep_outlined),
-              label: const Text('Clear vault (day7-vault dir)'),
+              label: const Text('Clear vault (mivalta-vault dir)'),
             ),
           ],
         ),

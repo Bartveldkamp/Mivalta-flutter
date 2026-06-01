@@ -1,8 +1,8 @@
-// Smoke test for the merged spike home screen — covers both the
-// Day-1 V10.1 chat UI (model bootstrap → TextField → Run → latency
-// labels) and the Day-2 rust-engine bridge status line. Neither the
-// V10.1 model bootstrap nor `RustLib.init()` works on the host test
-// harness, so this test only inspects the initial widget tree.
+// MVP-1 smoke test for the ReadinessScreen — the default home.
+//
+// Engine bindings are Android-only (FRB + libmivalta_rust_bridge.so), so
+// this test only verifies the widget tree structure on the host harness.
+// The engine-connected behaviour is tested via integration tests on device.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,41 +11,39 @@ import 'package:mivalta_flutter/main.dart';
 
 void main() {
   testWidgets(
-    'SpikeHome renders Day-1 chat UI and Day-2 engine-hello status',
+    'MivaltaApp renders ReadinessScreen as default home',
     (WidgetTester tester) async {
-      await tester.pumpWidget(const PerfSpikeApp());
-      // Render one frame only — both bootstraps are in flight, do
-      // not settle (native libraries are not loadable in the host
-      // harness).
+      await tester.pumpWidget(const MivaltaApp());
+      // Render one frame only — engine bootstrap is in flight, do not
+      // settle (native libraries are not loadable in the host harness).
       await tester.pump();
 
-      // --- Day-1 assertions ---------------------------------------
+      // App bar shows 'Readiness' title
+      expect(find.text('Readiness'), findsOneWidget);
 
-      // Default prompt text appears in the TextField's editing controller.
-      final textFinder = find.byType(TextField);
-      expect(textFinder, findsOneWidget);
-      final field = tester.widget<TextField>(textFinder);
-      expect(field.controller?.text, 'Should I train today?');
+      // Either loading indicator OR error is shown (on host harness,
+      // bootstrap fails synchronously so error surfaces immediately)
+      final hasLoader = find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
+      final hasError = find.textContaining('UnsupportedError').evaluate().isNotEmpty;
+      expect(hasLoader || hasError, isTrue,
+          reason: 'Should show either loading indicator or error');
+    },
+  );
 
-      // Run button exists and starts disabled while the model is
-      // still being checked (stage = checking → canRun = false).
-      final runFinder = find.widgetWithText(ElevatedButton, 'Run');
-      expect(runFinder, findsOneWidget);
-      expect(tester.widget<ElevatedButton>(runFinder).onPressed, isNull);
+  testWidgets(
+    'V10SpikeScreen route exists and is navigable',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MivaltaApp());
+      await tester.pump();
 
-      // Two latency labels render placeholders before any run completes.
-      expect(find.text('TTFT: - ms'), findsOneWidget);
-      expect(find.text('Total: - ms'), findsOneWidget);
+      // Navigate to V10 spike screen via named route
+      final NavigatorState navigator = tester.state(find.byType(Navigator));
+      navigator.pushNamed('/v10-spike');
+      await tester.pumpAndSettle();
 
-      // --- Day-2 assertion ----------------------------------------
-
-      // The rust-engine bridge result line is present. On the host
-      // test harness `RustLib.init()` errors synchronously (no
-      // libmivalta_rust_bridge.so loadable), so the line either
-      // shows the `(loading)` placeholder or an `error: ...` string
-      // by the first pump — both are valid initial states. The same
-      // widget displays `Engine hello: hello` on device.
-      expect(find.textContaining('Engine hello: '), findsOneWidget);
+      // V10SpikeScreen should render the model status and prompt input
+      expect(find.text('V10.1 LLM Debug (spike)'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
     },
   );
 }

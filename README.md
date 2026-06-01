@@ -1,8 +1,23 @@
 # Mivalta-flutter
 
-Forward-direction Flutter frontend for MiValta. Replaces the
+Production Flutter frontend for MiValta. Replaces the
 `mivalta-android-client` Kotlin app. See `CLAUDE.md` for the
 architecture rules.
+
+## Current milestone
+
+**MVP-1** — see `docs/MVP1_BUILD_BRIEF.md` for the full scope.
+
+- Engine DECIDES, Flutter DISPLAYS. No thresholds/math/fallback in Dart.
+- Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
+- Headline: `readiness_indicator()` — the 4-axis readiness blend.
+- Continuity: persisted ViterbiEngine state survives app restarts.
+- V10.1 LLM spike: retained as kDebugMode-only route for grounded-Josi phase (PR-F).
+- No cloud round-trips; on-device only.
+
+### Engine pin
+
+`rust/Cargo.toml` pins `gatc-ffi` to revision `4dab6cb` (engine_registry v2.18).
 
 ## Quick start (Hetzner / founder laptop)
 
@@ -12,7 +27,7 @@ Prerequisites:
 - `cargo-ndk` (`cargo install cargo-ndk`).
 - Android NDK 28 (e.g. `/opt/android-sdk/ndk/28.2.13676358`).
 - SSH access to `Bartveldkamp/mivalta-rust-engine` (private repo —
-  the Day-5 git-rev pin in `rust/Cargo.toml` clones over SSH).
+  the git-rev pin in `rust/Cargo.toml` clones over SSH).
 
 ```bash
 git clone git@github.com:Bartveldkamp/Mivalta-flutter.git
@@ -27,7 +42,7 @@ cargo ndk --target arm64-v8a --platform 21 \
   --output-dir ../android/app/src/main/jniLibs -- build --release
 cd ..
 
-# Day-5: drop the side-effect libgatc_ffi-<hash>.so left behind by
+# Drop the side-effect libgatc_ffi-<hash>.so left behind by
 # Cargo's git-dep layout. Only libmivalta_rust_bridge.so is loaded
 # at runtime; gatc-ffi is statically linked into it via rlib.
 rm -f android/app/src/main/jniLibs/arm64-v8a/libgatc_ffi*.so
@@ -78,12 +93,13 @@ Steps performed:
    stack (`libllama.so` + `libggml*.so` + `libmtmd.so`) and
    `assets/flutter_assets/assets/compiled_tables.json` are packed.
 
-## Day log
+## MVP-1 build sequence
 
-| Day | PR | Summary |
-|---|---|---|
-| 1 | #1 | Bootstrap + V10.1 LLM consumption path |
-| 2 | #2 | rust-engine binding via `flutter_rust_bridge` |
-| 3 | #5 | Real-data round-trip — profile + rust-engine + V10.1 |
-| 4 | (pending) | F1 readiness UI + SourceTier tokens |
-| 5 | (this) | Real SourceTier swatch + git-rev pin + smoke-build CI |
+| PR | Scope |
+|---|---|
+| **PR-A** | Re-pin shim, regenerate FRB, bind no-LLM surface, wire continuity |
+| **PR-B** | Theme + three-zone home |
+| **PR-C** | Readiness detail (4 axes, trend, source tier, altitude/travel) |
+| **PR-D** | Advisor surface + SuggesterContext picker |
+| **PR-E** | Connectivity: BLE + Garmin + Polar transport |
+| **PR-F** | Grounded Josi + on-device LLM messenger (later step) |
