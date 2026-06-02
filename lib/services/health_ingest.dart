@@ -15,11 +15,21 @@
 //   "resting_heart_rate": 58,
 //   "hrv_rmssd": 45.0,
 //   "oxygen_saturation": 0.97,
-//   "sleep_hours": 7.5,
 //   "sleep_stages": [ { "stage": 5, "startTime": "...", "endTime": "..." } ],
 //   "steps": 8200,
-//   "exercise": { ... }  // Deferred — exerciseType impedance mismatch
 // }
+// Sleep stage codes: 1=Awake, 4=Light, 5=Deep, 6=REM
+//
+// HealthKit JSON schema (from gatc-normalizer/src/healthkit.rs):
+// {
+//   "date": "2026-06-15",
+//   "resting_heart_rate": { "value": 58.0, "unit": "count/min" },
+//   "hrv_sdnn": { "value": 42.5, "unit": "ms" },
+//   "oxygen_saturation": { "value": 0.97, "unit": "%" },
+//   "sleep_samples": [ { "value": 4, "startDate": "...", "endDate": "..." } ]
+// }
+// Sleep sample values: 0=InBed, 1=AsleepUnspecified, 2=Awake, 3=AsleepCore(light),
+//                      4=AsleepDeep, 5=AsleepREM
 
 import 'dart:convert';
 import 'dart:io' show Platform;
@@ -78,24 +88,48 @@ class HealthIngestService {
 
   /// The health data types we request read permission for.
   ///
-  /// For Android Health Connect, we request RMSSD (not SDNN) because that's
-  /// what Health Connect's HeartRateVariabilityRmssdRecord provides.
-  /// SDNN is reserved for the iOS HealthKit path (PR-E.2).
-  static const List<HealthDataType> _readTypes = [
-    HealthDataType.HEART_RATE,
-    HealthDataType.RESTING_HEART_RATE,
-    // Health Connect provides RMSSD, not SDNN
-    HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
-    // Individual sleep stage records — Rust aggregates these
-    HealthDataType.SLEEP_AWAKE,
-    HealthDataType.SLEEP_DEEP,
-    HealthDataType.SLEEP_LIGHT,
-    HealthDataType.SLEEP_REM,
-    // SpO2
-    HealthDataType.BLOOD_OXYGEN,
-    // Steps (informational, not critical for readiness)
-    HealthDataType.STEPS,
-  ];
+  /// Platform-specific HRV:
+  /// - Android Health Connect: RMSSD (HeartRateVariabilityRmssdRecord)
+  /// - iOS HealthKit: SDNN (HKQuantityTypeIdentifierHeartRateVariabilitySDNN)
+  ///
+  /// The Flutter health plugin exposes platform-specific HRV via separate types.
+  static List<HealthDataType> get _readTypes {
+    final types = <HealthDataType>[
+      HealthDataType.HEART_RATE,
+      HealthDataType.RESTING_HEART_RATE,
+      // SpO2
+      HealthDataType.BLOOD_OXYGEN,
+      // Steps (informational, not critical for readiness)
+      HealthDataType.STEPS,
+    ];
+
+    if (Platform.isAndroid) {
+      // Android Health Connect: RMSSD
+      types.add(HealthDataType.HEART_RATE_VARIABILITY_RMSSD);
+      // Individual sleep stage records (stage codes 1=Awake, 4=Light, 5=Deep, 6=REM)
+      types.addAll([
+        HealthDataType.SLEEP_AWAKE,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_REM,
+      ]);
+    } else if (Platform.isIOS) {
+      // iOS HealthKit: SDNN
+      types.add(HealthDataType.HEART_RATE_VARIABILITY_SDNN);
+      // HealthKit sleep categories (value codes 0=InBed, 1=Unspecified, 2=Awake,
+      // 3=Core/Light, 4=Deep, 5=REM)
+      types.addAll([
+        HealthDataType.SLEEP_IN_BED,
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_AWAKE,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_REM,
+      ]);
+    }
+
+    return types;
+  }
 
   /// Request health data permissions from the platform.
   /// Returns true if permissions were granted, false otherwise.
@@ -256,7 +290,7 @@ class HealthIngestService {
   /// Map platform health records to the Rust normalizer's expected JSON.
   ///
   /// ZERO-FABRICATION: This method only shuttles raw values. It does NOT:
-  /// - Transform HRV (the value is RMSSD from Health Connect)
+  /// - Transform HRV (value is RMSSD on Android, SDNN on iOS)
   /// - Clamp bounds (Rust normalizer does that)
   /// - Aggregate sleep stages (Rust normalizer does that)
   /// - Synthesize missing fields (if no data, we send null)
@@ -268,48 +302,48 @@ class HealthIngestService {
     String date,
     List<HealthDataPoint> records,
   ) {
-    // Extract values by type — raw, no transforms
+    return Platform.isIOS
+        ? _mapToHealthKitJson(date, records)
+        : _mapToHealthConnectJson(date, records);
+  }
+
+  /// Map Health Connect (Android) records to the normalizer JSON.
+  /// Schema: health_connect.rs
+  (String, bool)? _mapToHealthConnectJson(
+    String date,
+    List<HealthDataPoint> records,
+  ) {
     double? restingHr;
     double? hrvRmssd;
     double? oxygenSaturation;
     double? steps;
-
-    // Sleep stages — emit as array for Rust to aggregate
     final sleepStages = <Map<String, dynamic>>[];
 
     for (final record in records) {
       switch (record.type) {
         case HealthDataType.RESTING_HEART_RATE:
           final value = _extractNumericValue(record);
-          if (value != null) {
-            restingHr ??= value;
-          }
+          if (value != null) restingHr ??= value;
           break;
 
         case HealthDataType.HEART_RATE_VARIABILITY_RMSSD:
           final value = _extractNumericValue(record);
-          if (value != null) {
-            // Raw RMSSD from Health Connect — Rust knows this is RMSSD
-            hrvRmssd ??= value;
-          }
+          if (value != null) hrvRmssd ??= value;
           break;
 
         case HealthDataType.BLOOD_OXYGEN:
           final value = _extractNumericValue(record);
           if (value != null) {
-            // Normalize to 0-1 fraction if > 1 (some devices report 0-100)
             oxygenSaturation ??= value > 1 ? value / 100.0 : value;
           }
           break;
 
         case HealthDataType.STEPS:
           final value = _extractNumericValue(record);
-          if (value != null) {
-            steps = (steps ?? 0) + value;
-          }
+          if (value != null) steps = (steps ?? 0) + value;
           break;
 
-        // Sleep stages — emit individual records for Rust aggregation
+        // Health Connect sleep stages (stage codes 1=Awake, 4=Light, 5=Deep, 6=REM)
         case HealthDataType.SLEEP_AWAKE:
         case HealthDataType.SLEEP_DEEP:
         case HealthDataType.SLEEP_LIGHT:
@@ -329,7 +363,6 @@ class HealthIngestService {
       }
     }
 
-    // If we have no data at all, return null
     if (restingHr == null &&
         hrvRmssd == null &&
         sleepStages.isEmpty &&
@@ -338,13 +371,10 @@ class HealthIngestService {
       return null;
     }
 
-    // Check if we have real biometric content (drives readiness)
     final hasBiometrics =
         restingHr != null || hrvRmssd != null || sleepStages.isNotEmpty;
 
-    // Build the vendor-specific JSON for the normalizer
     // Key names match health_connect.rs schema exactly
-    // ignore: use_null_aware_elements (Dart 3.7 syntax not applicable here)
     final payload = <String, dynamic>{
       'date': date,
       if (restingHr != null) 'resting_heart_rate': restingHr.round(),
@@ -352,9 +382,118 @@ class HealthIngestService {
       if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
       if (sleepStages.isNotEmpty) 'sleep_stages': sleepStages,
       if (steps != null) 'steps': steps.round(),
-      // Exercise deferred — exerciseType impedance mismatch:
-      // Engine expects raw HC integer codes, Flutter plugin exposes enum.
-      // Biometrics (RHR/HRV/sleep) drive readiness — land those first.
+    };
+
+    return (jsonEncode(payload), hasBiometrics);
+  }
+
+  /// Map HealthKit (iOS) records to the normalizer JSON.
+  /// Schema: healthkit.rs
+  (String, bool)? _mapToHealthKitJson(
+    String date,
+    List<HealthDataPoint> records,
+  ) {
+    double? restingHr;
+    double? hrvSdnn;
+    double? oxygenSaturation;
+    double? steps;
+    final sleepSamples = <Map<String, dynamic>>[];
+
+    for (final record in records) {
+      switch (record.type) {
+        case HealthDataType.RESTING_HEART_RATE:
+          final value = _extractNumericValue(record);
+          if (value != null) restingHr ??= value;
+          break;
+
+        // iOS HealthKit provides SDNN, not RMSSD
+        case HealthDataType.HEART_RATE_VARIABILITY_SDNN:
+          final value = _extractNumericValue(record);
+          if (value != null) hrvSdnn ??= value;
+          break;
+
+        case HealthDataType.BLOOD_OXYGEN:
+          final value = _extractNumericValue(record);
+          if (value != null) {
+            oxygenSaturation ??= value > 1 ? value / 100.0 : value;
+          }
+          break;
+
+        case HealthDataType.STEPS:
+          final value = _extractNumericValue(record);
+          if (value != null) steps = (steps ?? 0) + value;
+          break;
+
+        // HealthKit sleep categories (value codes per healthkit.rs):
+        // 0=InBed, 1=AsleepUnspecified, 2=Awake, 3=AsleepCore, 4=AsleepDeep, 5=AsleepREM
+        case HealthDataType.SLEEP_IN_BED:
+          sleepSamples.add({
+            'value': 0, // InBed
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+        case HealthDataType.SLEEP_ASLEEP:
+          sleepSamples.add({
+            'value': 1, // AsleepUnspecified
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+        case HealthDataType.SLEEP_AWAKE:
+          sleepSamples.add({
+            'value': 2, // Awake
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+        case HealthDataType.SLEEP_LIGHT:
+          sleepSamples.add({
+            'value': 3, // AsleepCore (light sleep)
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+        case HealthDataType.SLEEP_DEEP:
+          sleepSamples.add({
+            'value': 4, // AsleepDeep
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+        case HealthDataType.SLEEP_REM:
+          sleepSamples.add({
+            'value': 5, // AsleepREM
+            'startDate': _formatRfc3339(record.dateFrom),
+            'endDate': _formatRfc3339(record.dateTo),
+          });
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    if (restingHr == null &&
+        hrvSdnn == null &&
+        sleepSamples.isEmpty &&
+        oxygenSaturation == null &&
+        steps == null) {
+      return null;
+    }
+
+    final hasBiometrics =
+        restingHr != null || hrvSdnn != null || sleepSamples.isNotEmpty;
+
+    // Key names match healthkit.rs schema exactly
+    // The normalizer supports both wrapped { "value": X } and direct numeric
+    final payload = <String, dynamic>{
+      'date': date,
+      if (restingHr != null) 'resting_heart_rate': restingHr,
+      if (hrvSdnn != null) 'hrv_sdnn': hrvSdnn,
+      if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
+      if (sleepSamples.isNotEmpty) 'sleep_samples': sleepSamples,
+      if (steps != null) 'steps': steps.round(),
     };
 
     return (jsonEncode(payload), hasBiometrics);
