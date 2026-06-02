@@ -1,27 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- =========================================================================
-         PR-I: PERMISSIONS AUDIT — each permission documented with justification.
+         PR-J: PERMISSIONS AUDIT — each permission documented with justification.
 
          MiValta is a privacy-first fitness coaching app. All data stays on-device
          in an encrypted vault (SQLCipher). No cloud sync, no third-party analytics.
 
          PERMISSION CATEGORIES:
-         1. NETWORK: One-time model download only (no ongoing connectivity required)
-         2. HEALTH: Read-only access to Health Connect biometrics
-         3. FOREGROUND SERVICE: Required for Health Connect on Android 14+
+         1. HEALTH: Read-only access to Health Connect biometrics
+         2. FOREGROUND SERVICE: Required for Health Connect on Android 14+
+
+         NETWORK: NONE. MiValta does not request INTERNET permission. The app
+         cannot connect to any server. All computation happens on-device. When
+         the conversational AI ships (model W), it will be delivered via Play
+         Asset Delivery — no runtime network access needed.
          ========================================================================= -->
-
-    <!-- =======================================================================
-         NETWORK — INTERNET
-
-         WHY NEEDED: One-time GGUF model download on first launch.
-         - Downloads josi-v10-1-q4_k_m.gguf (~1GB) from model host
-         - Model is cached locally after download; no ongoing network needed
-         - Restricted to specific host via network_security_config.xml
-
-         DATA SAFETY: No user data is ever transmitted. Network is download-only.
-         ======================================================================= -->
-    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- =======================================================================
          HEALTH CONNECT — READ PERMISSIONS
@@ -61,8 +53,7 @@
     <application
         android:label="MiValta"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"

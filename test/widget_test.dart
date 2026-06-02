@@ -29,21 +29,4 @@ void main() {
           reason: 'Should show either loading indicator or error');
     },
   );
-
-  testWidgets(
-    'V10SpikeScreen route exists and is navigable',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const MivaltaApp());
-      await tester.pump();
-
-      // Navigate to V10 spike screen via named route
-      final NavigatorState navigator = tester.state(find.byType(Navigator));
-      navigator.pushNamed('/v10-spike');
-      await tester.pumpAndSettle();
-
-      // V10SpikeScreen should render the model status and prompt input
-      expect(find.text('V10.1 LLM Debug (spike)'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
-    },
-  );
 }
