@@ -1,13 +1,39 @@
+// PR-I: Release hardening — signing, R8/minify, ProGuard rules for native bindings.
+//
+// SIGNING:
+// - Debug builds use the default debug keystore (auto-generated).
+// - Release builds read from key.properties (gitignored, never committed).
+// - If key.properties doesn't exist, release falls back to debug signing
+//   (for CI builds that just verify the pipeline compiles).
+//
+// NATIVE BINDINGS:
+// - Rust FFI (libgatc_ffi.so, libmivalta_rust_bridge.so) loaded via System.loadLibrary
+// - llama.cpp AAR (libs/llama-cpp-dart.aar) loaded via System.loadLibrary
+// - Health plugin uses reflection for Health Connect APIs
+// - All require ProGuard keep rules to prevent R8 from stripping JNI entry points.
+
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Load key.properties if it exists (for release signing).
+// File is gitignored — each dev/CI creates their own.
+val keyPropertiesFile = rootProject.file("key.properties")
+val keyProperties = Properties()
+if (keyPropertiesFile.exists()) {
+    keyProperties.load(FileInputStream(keyPropertiesFile))
+}
+
 android {
+    // namespace is for R class generation, can differ from applicationId.
+    // Keep aligned with package in AndroidManifest.xml and MainActivity location.
     namespace = "com.mivalta.mivalta_flutter"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 35
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -15,28 +41,71 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mivalta.mivalta_flutter"
-        // llama-cpp-dart.aar (Day 1) requires minSdk 26 (Android 8.0);
-        // the rust-engine bridge .so files (Day 2) were built with
-        // cargo-ndk --platform 21, so 26 is the binding constraint.
+        // PR-I: Finalized app identity for Play Store.
+        // applicationId must never change after first upload — it's the stable identifier.
+        applicationId = "com.mivalta.app"
+
+        // SDK levels:
+        // - minSdk 26: required by llama-cpp-dart AAR (Android 8.0+)
+        // - targetSdk 35: current Play Store requirement (Android 15)
         minSdk = 26
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
+
+        // Version: read from pubspec.yaml via Flutter plugin.
+        // Bump version in pubspec.yaml, not here.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // arm64-v8a is the only ABI shipped — Day-1 llama_cpp_dart AAR
-        // ships jniLibs/arm64-v8a/lib*.so, and Day-2 rust-bridge .so
-        // files (libgatc_ffi.so + libmivalta_rust_bridge.so) under
-        // src/main/jniLibs/arm64-v8a/ match. No other ABI has native libs.
+        // ABI filter: arm64-v8a only.
+        // - llama-cpp-dart AAR ships arm64-v8a only
+        // - Rust FFI .so files built for arm64-v8a only
+        // Adding other ABIs would cause missing native lib crashes.
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
 
+    signingConfigs {
+        // Release signing config — reads from key.properties.
+        // If key.properties doesn't exist, returns null and release falls back to debug.
+        create("release") {
+            val storePath = keyProperties.getProperty("storeFile")
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            // Debug builds: no minification, fast iteration.
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+
         release {
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // PR-I: R8/minify enabled for release.
+            // Reduces APK size and enables whole-program optimization.
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            // ProGuard rules: keep JNI entry points for native bindings.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
+            // Signing: use release keystore if available, else fall back to debug.
+            // This allows CI to build unsigned/debug-signed release APKs for testing.
+            val releaseConfig = signingConfigs.findByName("release")
+            signingConfig = if (releaseConfig?.storeFile != null) {
+                releaseConfig
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
