@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 563171549;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 262648725;
 
 // Section: executor
 
@@ -650,6 +650,122 @@ fn wire__crate__api__normalize_observation_impl(
         },
     )
 }
+fn wire__crate__api__process_manual_observation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "process_manual_observation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_iso_date = <String>::sse_decode(&mut deserializer);
+            let api_resting_hr = <Option<f64>>::sse_decode(&mut deserializer);
+            let api_hrv_rmssd = <Option<f64>>::sse_decode(&mut deserializer);
+            let api_sleep_hours = <Option<f64>>::sse_decode(&mut deserializer);
+            let api_rpe = <Option<i32>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::BridgeError>((move || {
+                    let mut api_handle_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_handle,
+                                0,
+                                false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_handle_guard = api_handle_guard.unwrap();
+                    let output_ok = crate::api::process_manual_observation(
+                        &*api_handle_guard,
+                        api_iso_date,
+                        api_resting_hr,
+                        api_hrv_rmssd,
+                        api_sleep_hours,
+                        api_rpe,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__process_observation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "process_observation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_observation_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::BridgeError>((move || {
+                    let mut api_handle_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_handle,
+                                0,
+                                false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_handle_guard = api_handle_guard.unwrap();
+                    let output_ok =
+                        crate::api::process_observation(&*api_handle_guard, api_observation_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__read_persisted_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -916,6 +1032,9 @@ fn wire__crate__api__recommend_workout_impl(
             let api_handle = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>,
             >>::sse_decode(&mut deserializer);
+            let api_mood = <Option<String>>::sse_decode(&mut deserializer);
+            let api_equipment = <Option<String>>::sse_decode(&mut deserializer);
+            let api_terrain = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::BridgeError>((move || {
@@ -935,7 +1054,12 @@ fn wire__crate__api__recommend_workout_impl(
                         }
                     }
                     let api_handle_guard = api_handle_guard.unwrap();
-                    let output_ok = crate::api::recommend_workout(&*api_handle_guard)?;
+                    let output_ok = crate::api::recommend_workout(
+                        &*api_handle_guard,
+                        api_mood,
+                        api_equipment,
+                        api_terrain,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -1341,6 +1465,13 @@ impl SseDecode for crate::api::BridgeError {
     }
 }
 
+impl SseDecode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1365,6 +1496,28 @@ impl SseDecode for Option<String> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<i32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<i32>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -1414,18 +1567,20 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__last_observation_source_tier_impl(port, ptr, rust_vec_len, data_len)
         }
         13 => wire__crate__api__normalize_observation_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__read_persisted_state_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__read_readiness_history_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__read_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__readiness_indicator_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__readiness_score_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__recommend_workout_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__save_state_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__vault_snapshot_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__viterbi_fatigue_state_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__write_minimal_biometric_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__write_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__zone_cap_with_advisories_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__process_manual_observation_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__process_observation_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__read_persisted_state_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__read_readiness_history_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__read_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__readiness_indicator_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__readiness_score_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__recommend_workout_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__save_state_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__vault_snapshot_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__viterbi_fatigue_state_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__write_minimal_biometric_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__write_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__zone_cap_with_advisories_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1565,6 +1720,13 @@ impl SseEncode for crate::api::BridgeError {
     }
 }
 
+impl SseEncode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1588,6 +1750,26 @@ impl SseEncode for Option<String> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <f64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<i32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <i32>::sse_encode(value, serializer);
         }
     }
 }

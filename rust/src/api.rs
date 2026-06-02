@@ -13,6 +13,9 @@
 use flutter_rust_bridge::frb;
 use std::sync::Arc;
 
+// PR-D: Import UniversalObservation for process_manual_observation helper
+use gatc_viterbi::{DataTier, LoadMethod, UniversalObservation};
+
 /// Typed bridge error; FRB emits one Dart subclass per variant.
 /// Maps gatc-ffi's six variants (Vault/Input/State/Policy/
 /// Consistency/General per rust-engine CLAUDE.md) onto this set —
@@ -236,15 +239,104 @@ pub fn save_state(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle.viterbi.save_state().map_err(Into::into)
 }
 
+/// `ViterbiEngine::process_observation(observation_json)` — feed a
+/// UniversalObservation (JSON) to the HMM. Returns the updated assessment
+/// JSON including fatigue_state, readiness_level, confidence, etc.
+///
+/// Use this for vendor-normalized observations (from [normalizeObservation]).
+/// For manual entry, prefer [processManualObservation] which builds the
+/// typed observation in Rust with proper defaults.
+pub fn process_observation(
+    handle: &EnginesHandle,
+    observation_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .viterbi
+        .process_observation(observation_json)
+        .map_err(Into::into)
+}
+
+/// Build and process a manual observation entry in Rust.
+///
+/// This helper constructs a typed [UniversalObservation] with `source="manual"`
+/// and `tier=Minimal`, then processes it through the HMM. Keeps JSON hand-building
+/// out of Dart and ensures honest provenance.
+///
+/// `iso_date` must parse as `YYYY-MM-DD`; returns [BridgeError::InvalidDate] if not.
+/// All biometric fields are optional; pass `None` for fields the user didn't enter.
+pub fn process_manual_observation(
+    handle: &EnginesHandle,
+    iso_date: String,
+    resting_hr: Option<f64>,
+    hrv_rmssd: Option<f64>,
+    sleep_hours: Option<f64>,
+    rpe: Option<i32>,
+) -> Result<String, BridgeError> {
+    // Validate the date first
+    let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+        .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+
+    // Build the observation with manual source and minimal tier
+    // (manual entry is the lowest-fidelity data source)
+    let obs = UniversalObservation {
+        timestamp: chrono::Utc::now(),
+        date: iso_date,
+        source: "manual".to_string(),
+        tier: DataTier::Minimal,
+        load_method: LoadMethod::SessionRpe, // Manual entry uses session RPE
+        load_score: 0.0,      // Not calculated from manual entry
+        recovery_score: 0.0,  // Will be computed by HMM
+        readiness_score: 0.0, // Will be computed by HMM
+        hrv: None,
+        hrv_rmssd,
+        resting_hr,
+        sleep_hours,
+        sleep_quality: None,
+        wellness: None,
+        activity_minutes: None,
+        activity_avg_hr: None,
+        activity_calories: None,
+        activity_type: None,
+        rpe_actual: rpe,
+        workout_duration_min: None,
+        workout_intensity: None,
+        calories_burned: None,
+        sick: None,
+        sex: None,
+        cycle_day: None,
+        hr_recovery_1min: None,
+        body_temperature_deviation_c: None,
+        aerobic_decoupling_pct: None,
+        user_note: None,
+        altitude_m: None,
+        utc_offset_minutes: None,
+    };
+
+    // Serialize to JSON and process
+    let obs_json = serde_json::to_string(&obs)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("serialize observation: {e}")))?;
+    handle
+        .viterbi
+        .process_observation(obs_json)
+        .map_err(Into::into)
+}
+
 // =============================================================================
 // ADVISOR ENGINE — workout suggestions (A/B/C options)
 // =============================================================================
 
 /// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
-/// from (a) the engine-bound profile and (b) live `readiness_score` —
-/// no per-call user input (no mood/equipment/terrain form in the
-/// MVP-1 UI), so those fields use defaults — see PR body.
-pub fn recommend_workout(handle: &EnginesHandle) -> Result<String, BridgeError> {
+/// from (a) the engine-bound profile and (b) live `readiness_score`.
+///
+/// Optional parameters allow the UI to pass user-selected mood, equipment,
+/// and terrain. When `None`, defaults to `"normal"` for mood and `null`
+/// for equipment/terrain (engine interprets as "any").
+pub fn recommend_workout(
+    handle: &EnginesHandle,
+    mood: Option<String>,
+    equipment: Option<String>,
+    terrain: Option<String>,
+) -> Result<String, BridgeError> {
     let profile: serde_json::Value = serde_json::from_str(&handle.profile_json)
         .map_err(|e| BridgeError::InputError(format!("profile re-parse: {e}")))?;
     let readiness_str = handle.viterbi.readiness_score().map_err(BridgeError::from)?;
@@ -254,13 +346,23 @@ pub fn recommend_workout(handle: &EnginesHandle) -> Result<String, BridgeError> 
     let readiness_level = if score >= 75 { "high" } else if score >= 40 { "medium" } else { "low" };
     let s = |k: &str, d: &str| profile.get(k).and_then(|v| v.as_str()).unwrap_or(d).to_string();
     let i = |k: &str, d: i64| profile.get(k).and_then(|v| v.as_i64()).unwrap_or(d) as i32;
+
+    // Build equipment/terrain as JSON values: string if provided, null otherwise
+    let equipment_val = equipment
+        .map(|e| serde_json::Value::String(e))
+        .unwrap_or(serde_json::Value::Null);
+    let terrain_val = terrain
+        .map(|t| serde_json::Value::String(t))
+        .unwrap_or(serde_json::Value::Null);
+
     let ctx = serde_json::json!({
         "athlete_id": s("athlete_id", "smoketest-user"),
         "date": chrono::Local::now().naive_local().date().format("%Y-%m-%d").to_string(),
         "duration_minutes": i("available_minutes_per_day", 60),
         "sport": s("sport", "cycling"),
-        "mood": "normal", "goal": s("goal_type", "general_fitness"),
-        "equipment": serde_json::Value::Null, "terrain": serde_json::Value::Null,
+        "mood": mood.unwrap_or_else(|| "normal".to_string()),
+        "goal": s("goal_type", "general_fitness"),
+        "equipment": equipment_val, "terrain": terrain_val,
         "readiness_level": readiness_level, "readiness_score": score,
         "state": "Recovered", "confidence": "medium", "warm_up_period": false,
         "level": s("level", "intermediate"), "age": i("age", 30),
@@ -451,5 +553,192 @@ pub fn read_persisted_state(
         Ok(None)
     } else {
         Ok(Some(state_json))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test profile JSON for round-trip tests (matches AthleteProfile struct)
+    fn test_profile() -> String {
+        serde_json::json!({
+            "athlete_id": "test-user-001",
+            "age": 35,
+            "sex": "male",
+            "level": "intermediate",
+            "goal_type": "general_fitness",
+            "sport": "cycling",
+            "weekly_hours": 6.0,
+            "training_years": 4,
+            "goal_class": "endurance",
+            "recent_activity": "trained",
+            "threshold_hr": 165,
+            "ftp_watts": 250,
+            "threshold_pace_sec_km": null,
+            "power_profile": null,
+            "meso_length": 21,
+            "meso_train_days": [0, 1, 2, 3, 4],
+            "meso_off_days": [5, 6],
+            "meso_minutes": 360,
+            "availability": {}
+        }).to_string()
+    }
+
+    /// Construct a minimal test handle with just ViterbiEngine (no AdvisorEngine)
+    /// to avoid tables schema dependency.
+    fn construct_viterbi_only_handle(
+        profile_json: String,
+        vault_path: String,
+    ) -> Result<(Arc<gatc_ffi::ViterbiEngine>, String), BridgeError> {
+        let athlete_id = extract_athlete_id(&profile_json)?;
+        let viterbi = gatc_ffi::ViterbiEngine::new(profile_json.clone())
+            .map_err(|e| BridgeError::EngineConstructionFailed(format!("viterbi: {e}")))?;
+        Ok((viterbi, athlete_id))
+    }
+
+    /// Process a manual observation using just the ViterbiEngine
+    fn process_manual_with_viterbi(
+        viterbi: &Arc<gatc_ffi::ViterbiEngine>,
+        iso_date: String,
+        resting_hr: Option<f64>,
+        hrv_rmssd: Option<f64>,
+        sleep_hours: Option<f64>,
+        rpe: Option<i32>,
+    ) -> Result<String, BridgeError> {
+        // Validate the date first
+        let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+            .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+
+        let obs = UniversalObservation {
+            timestamp: chrono::Utc::now(),
+            date: iso_date,
+            source: "manual".to_string(),
+            tier: DataTier::Minimal,
+            load_method: LoadMethod::SessionRpe,
+            load_score: 0.0,
+            recovery_score: 0.0,
+            readiness_score: 0.0,
+            hrv: None,
+            hrv_rmssd,
+            resting_hr,
+            sleep_hours,
+            sleep_quality: None,
+            wellness: None,
+            activity_minutes: None,
+            activity_avg_hr: None,
+            activity_calories: None,
+            activity_type: None,
+            rpe_actual: rpe,
+            workout_duration_min: None,
+            workout_intensity: None,
+            calories_burned: None,
+            sick: None,
+            sex: None,
+            cycle_day: None,
+            hr_recovery_1min: None,
+            body_temperature_deviation_c: None,
+            aerobic_decoupling_pct: None,
+            user_note: None,
+            altitude_m: None,
+            utc_offset_minutes: None,
+        };
+
+        let obs_json = serde_json::to_string(&obs)
+            .map_err(|e| BridgeError::RoundTripFailed(format!("serialize: {e}")))?;
+        viterbi.process_observation(obs_json).map_err(Into::into)
+    }
+
+    #[test]
+    fn process_manual_observation_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let (viterbi, _athlete_id) = construct_viterbi_only_handle(
+            test_profile(),
+            vault_path,
+        ).expect("viterbi should construct");
+
+        // Act: process a manual observation
+        let result = process_manual_with_viterbi(
+            &viterbi,
+            "2026-06-02".to_string(),
+            Some(55.0),
+            Some(42.0),
+            Some(7.5),
+            Some(6),
+        );
+
+        // Assert: observation processed without error
+        assert!(result.is_ok(), "process_manual_observation failed: {:?}", result.err());
+
+        // Assert: result contains expected fields
+        let json: serde_json::Value = serde_json::from_str(&result.unwrap())
+            .expect("result should be valid JSON");
+
+        // The HMM returns state in snapshot.state
+        let snapshot = json.get("snapshot").expect("result should have snapshot");
+        assert!(snapshot.get("state").is_some(),
+            "snapshot should contain state, got: {json}");
+        assert!(snapshot.get("score").is_some(),
+            "snapshot should contain score, got: {json}");
+    }
+
+    #[test]
+    fn process_manual_observation_invalid_date_returns_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let (viterbi, _) = construct_viterbi_only_handle(
+            test_profile(),
+            vault_path,
+        ).expect("viterbi should construct");
+
+        // Bad date format
+        let result = process_manual_with_viterbi(
+            &viterbi,
+            "not-a-date".to_string(),
+            Some(55.0),
+            None, None, None,
+        );
+
+        assert!(matches!(result, Err(BridgeError::InvalidDate(_))),
+            "expected InvalidDate error, got: {:?}", result);
+    }
+
+    #[test]
+    fn process_manual_observation_moves_readiness_off_initial_state() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let (viterbi, _) = construct_viterbi_only_handle(
+            test_profile(),
+            vault_path,
+        ).expect("viterbi should construct");
+
+        // Feed a manual observation
+        let result = process_manual_with_viterbi(
+            &viterbi,
+            "2026-06-02".to_string(),
+            Some(52.0), Some(45.0), Some(8.0), None,
+        ).expect("process_manual_observation");
+
+        // Parse the result
+        let result_json: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let snapshot = result_json.get("snapshot").expect("should have snapshot");
+        let score = snapshot.get("score").and_then(|v| v.as_i64());
+
+        // The engine should have processed the observation and produced a score
+        assert!(score.is_some(), "after feeding observation, snapshot should have a score");
+
+        // Score should be reasonable (0-100 range)
+        let score_val = score.unwrap();
+        assert!(score_val >= 0 && score_val <= 100,
+            "score should be in 0-100 range, got: {score_val}");
+
+        // Check state is set
+        let state = snapshot.get("state").and_then(|v| v.as_str());
+        assert!(state.is_some(), "snapshot should have state");
+        assert!(!state.unwrap().is_empty(), "state should not be empty");
     }
 }
