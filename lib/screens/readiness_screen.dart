@@ -3,9 +3,9 @@
 // no fallback logic in Dart.
 //
 // Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
-//   Zone 1 — State (hero): ReadinessRing + getStateWidget prose + fatigue badge
-//   Zone 2 — Today: getSessionWidget + zone cap chip + recommended workout
-//   Zone 3 — Context: getContextWidget + sparkline + source tier swatch
+//   Zone 1 — State (hero): ReadinessRing + state_recommendation prose + fatigue badge
+//   Zone 2 — Today: SessionWidget fields (workout_title, zone, target, focus_cue, rationale)
+//   Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier swatch
 //
 // On insufficient data (no observations yet → advisories.last_observation_at
 // == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
@@ -41,22 +41,36 @@ String _humanizeFatigueState(String? state) {
 
 class _HomeData {
   // Zone 1 — State (hero)
-  int? readinessScore;       // FIXED: from indicator['score'], rounded
-  String? readinessLevel;    // indicator['level'] verbatim
-  double? confidence;        // indicator['confidence']
-  String? stateWidgetProse;  // getStateWidget() verbatim
-  String? fatigueState;      // viterbiFatigueState().state
+  int? readinessScore;           // from indicator['score'], rounded
+  String? readinessLevel;        // indicator['level'] verbatim
+  double? confidence;            // indicator['confidence']
+  String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
+  String? confidenceAdvisory;    // FIXED: stateWidget['confidence_advisory']
+  String? fatigueState;          // viterbiFatigueState().state
 
-  // Zone 2 — Today
-  String? sessionWidgetProse; // getSessionWidget() verbatim
-  String? zoneCap;            // zoneCapWithAdvisories().zone
-  String? workoutTitle;       // recommendWorkout()[0].title
-  String? workoutZone;        // recommendWorkout()[0].zone
+  // Zone 2 — Today (from SessionWidget)
+  String? workoutTitle;          // sessionWidget['workout_title']
+  int? durationMin;              // sessionWidget['duration_min']
+  String? sessionZone;           // sessionWidget['zone']
+  int? targetWatts;              // sessionWidget['target_watts']
+  String? targetPaceMss;         // sessionWidget['target_pace_mss']
+  String? focusCue;              // sessionWidget['focus_cue']
+  String? rationaleProse;        // sessionWidget['rationale_prose']
+  String? zoneCap;               // zoneCapWithAdvisories().zone
 
-  // Zone 3 — Context
-  String? contextWidgetProse; // getContextWidget() verbatim
-  List<double> historyScores = const []; // readReadinessHistory sparkline
-  SourceTier? sourceTier;     // lastObservationSourceTier()
+  // Zone 3 — Context (from ContextWidget)
+  double? acwr;                  // contextWidget['acwr']
+  String? acwrZone;              // contextWidget['acwr_zone']
+  String? acwrRecommendation;    // contextWidget['acwr_recommendation']
+  double? monotony;              // contextWidget['monotony']
+  double? strain;                // contextWidget['strain']
+  String? monotonyZone;          // contextWidget['monotony_zone']
+  String? monotonyRecommendation;// contextWidget['monotony_recommendation']
+  String? lastWorkout;           // contextWidget['last_workout']
+  List<String> reactiveAlerts = const [];    // contextWidget['reactive_alerts']
+  List<String> patternAdvisories = const []; // contextWidget['pattern_advisories']
+  List<double> historyScores = const [];     // FIXED: readReadinessHistory['readiness_score']
+  SourceTier? sourceTier;        // lastObservationSourceTier()
 
   // State
   bool insufficientData = false;
@@ -126,11 +140,10 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
 
       // ---------- Zone 1: State (hero) ----------
 
-      // FIXED (PR-B): readiness_indicator — the 4-axis blend headline
-      // The hero number is 'score' (a float), NOT 'blend'.
+      // readiness_indicator — the 4-axis blend headline
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      final num? score = indicator['score'] as num?; // FIXED: was 'blend' as int?
+      final num? score = indicator['score'] as num?;
       d.readinessScore = score?.round();
       d.readinessLevel = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
@@ -143,11 +156,12 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         d.insufficientData = advisoriesObj['last_observation_at'] == null;
       }
 
-      // State widget prose (verbatim)
+      // StateWidget — FIXED: use real field names from engine schema
       final stateWidgetJson = await binding.getStateWidget(handle);
       final stateWidget = jsonDecode(stateWidgetJson);
       if (stateWidget is Map) {
-        d.stateWidgetProse = stateWidget['prose']?.toString();
+        d.stateRecommendation = stateWidget['state_recommendation']?.toString();
+        d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
       }
 
       // Fatigue state badge
@@ -157,11 +171,17 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
 
       // ---------- Zone 2: Today ----------
 
-      // Session widget prose (verbatim)
+      // SessionWidget — FIXED: use real field names from engine schema
       final sessionWidgetJson = await binding.getSessionWidget(handle);
       final sessionWidget = jsonDecode(sessionWidgetJson);
       if (sessionWidget is Map) {
-        d.sessionWidgetProse = sessionWidget['prose']?.toString();
+        d.workoutTitle = sessionWidget['workout_title']?.toString();
+        d.durationMin = sessionWidget['duration_min'] as int?;
+        d.sessionZone = sessionWidget['zone']?.toString();
+        d.targetWatts = sessionWidget['target_watts'] as int?;
+        d.targetPaceMss = sessionWidget['target_pace_mss']?.toString();
+        d.focusCue = sessionWidget['focus_cue']?.toString();
+        d.rationaleProse = sessionWidget['rationale_prose']?.toString();
       }
 
       // Zone cap
@@ -169,34 +189,40 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       final zone = jsonDecode(zoneJson) as Map<String, dynamic>;
       d.zoneCap = zone['zone']?.toString();
 
-      // Recommended workout
-      final workoutsJson = await binding.recommendWorkout(handle);
-      final workouts = jsonDecode(workoutsJson);
-      if (workouts is List && workouts.isNotEmpty) {
-        final first = workouts.first;
-        if (first is Map) {
-          d.workoutTitle = first['title']?.toString();
-          d.workoutZone = first['zone']?.toString();
-        }
-      }
-
       // ---------- Zone 3: Context ----------
 
-      // Context widget prose (verbatim)
+      // ContextWidget — FIXED: use real field names from engine schema
       final contextWidgetJson = await binding.getContextWidget(handle);
       final contextWidget = jsonDecode(contextWidgetJson);
       if (contextWidget is Map) {
-        d.contextWidgetProse = contextWidget['prose']?.toString();
+        d.acwr = (contextWidget['acwr'] as num?)?.toDouble();
+        d.acwrZone = contextWidget['acwr_zone']?.toString();
+        d.acwrRecommendation = contextWidget['acwr_recommendation']?.toString();
+        d.monotony = (contextWidget['monotony'] as num?)?.toDouble();
+        d.strain = (contextWidget['strain'] as num?)?.toDouble();
+        d.monotonyZone = contextWidget['monotony_zone']?.toString();
+        d.monotonyRecommendation = contextWidget['monotony_recommendation']?.toString();
+        d.lastWorkout = contextWidget['last_workout']?.toString();
+
+        final alerts = contextWidget['reactive_alerts'];
+        if (alerts is List) {
+          d.reactiveAlerts = alerts.map((e) => e.toString()).toList();
+        }
+        final advisories = contextWidget['pattern_advisories'];
+        if (advisories is List) {
+          d.patternAdvisories = advisories.map((e) => e.toString()).toList();
+        }
       }
 
       // Readiness history sparkline (14 days)
+      // FIXED: use 'readiness_score' not 'score'
       final historyJson = await binding.readReadinessHistory(handle, days: 14);
       final history = jsonDecode(historyJson);
       if (history is List) {
         d.historyScores = history
             .map((e) {
               if (e is Map) {
-                final s = e['score'];
+                final s = e['readiness_score']; // FIXED: was 'score'
                 if (s is num) return s.toDouble();
               }
               return null;
@@ -321,7 +347,7 @@ class _ThreeZoneHome extends StatelessWidget {
   }
 }
 
-/// Zone 1 — State (hero): ReadinessRing + prose + fatigue badge
+/// Zone 1 — State (hero): ReadinessRing + state_recommendation + fatigue badge
 class _Zone1State extends StatelessWidget {
   const _Zone1State({required this.data, required this.textTheme});
   final _HomeData data;
@@ -342,16 +368,31 @@ class _Zone1State extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // State widget prose (verbatim)
-        if (data.stateWidgetProse != null && data.stateWidgetProse!.isNotEmpty)
+        // State recommendation prose (verbatim from engine)
+        if (data.stateRecommendation != null &&
+            data.stateRecommendation!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              data.stateWidgetProse!,
+              data.stateRecommendation!,
               style: textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
           ),
+
+        // Confidence advisory (honest-confidence, shown when non-null)
+        if (data.confidenceAdvisory != null &&
+            data.confidenceAdvisory!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              data.confidenceAdvisory!,
+              style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
 
         // Fatigue state badge
@@ -382,7 +423,7 @@ class _Zone1State extends StatelessWidget {
   }
 }
 
-/// Zone 2 — Today: session prose + zone cap chip + recommended workout
+/// Zone 2 — Today: SessionWidget fields + zone cap
 class _Zone2Today extends StatelessWidget {
   const _Zone2Today({required this.data, required this.textTheme});
   final _HomeData data;
@@ -405,21 +446,12 @@ class _Zone2Today extends StatelessWidget {
         // Zone cap chip
         if (data.zoneCap != null)
           _Badge(
-            label: 'Today: up to ${data.zoneCap}',
+            label: 'Up to ${data.zoneCap}',
             color: Colors.white24,
           ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
-        // Session widget prose (verbatim)
-        if (data.sessionWidgetProse != null &&
-            data.sessionWidgetProse!.isNotEmpty)
-          Text(
-            data.sessionWidgetProse!,
-            style: textTheme.bodyMedium,
-          ),
-        const SizedBox(height: 12),
-
-        // Recommended workout
+        // Workout card (from SessionWidget real fields)
         if (data.workoutTitle != null)
           Container(
             padding: const EdgeInsets.all(16),
@@ -427,28 +459,74 @@ class _Zone2Today extends StatelessWidget {
               color: Colors.white10,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.fitness_center, color: Colors.white70),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                // Title + duration
+                Row(
+                  children: [
+                    const Icon(Icons.fitness_center, color: Colors.white70),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
                         data.workoutTitle!,
                         style: textTheme.titleMedium,
                       ),
-                      if (data.workoutZone != null)
-                        Text(
-                          'Intensity: ${data.workoutZone}',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.white54,
-                          ),
+                    ),
+                    if (data.durationMin != null)
+                      Text(
+                        '${data.durationMin} min',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: Colors.white54,
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+
+                // Zone + target
+                Row(
+                  children: [
+                    if (data.sessionZone != null)
+                      _Badge(label: data.sessionZone!, color: Colors.white38),
+                    const SizedBox(width: 8),
+                    if (data.targetWatts != null)
+                      Text(
+                        '${data.targetWatts}W',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    else if (data.targetPaceMss != null)
+                      Text(
+                        data.targetPaceMss!,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+
+                // Focus cue
+                if (data.focusCue != null && data.focusCue!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    data.focusCue!,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+
+                // Rationale prose (the "why")
+                if (data.rationaleProse != null &&
+                    data.rationaleProse!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    data.rationaleProse!,
+                    style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                  ),
+                ],
               ],
             ),
           ),
@@ -457,7 +535,7 @@ class _Zone2Today extends StatelessWidget {
   }
 }
 
-/// Zone 3 — Context: context prose + sparkline + source tier
+/// Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier
 class _Zone3Context extends StatelessWidget {
   const _Zone3Context({required this.data, required this.textTheme});
   final _HomeData data;
@@ -483,15 +561,114 @@ class _Zone3Context extends StatelessWidget {
             height: 40,
             child: _Sparkline(scores: data.historyScores),
           ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
-        // Context widget prose (verbatim)
-        if (data.contextWidgetProse != null &&
-            data.contextWidgetProse!.isNotEmpty)
-          Text(
-            data.contextWidgetProse!,
-            style: textTheme.bodyMedium,
+        // ACWR block
+        if (data.acwr != null) ...[
+          _MetricRow(
+            label: 'ACWR',
+            value: data.acwr!.toStringAsFixed(2),
+            zone: data.acwrZone,
+            textTheme: textTheme,
           ),
+          if (data.acwrRecommendation != null &&
+              data.acwrRecommendation!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                data.acwrRecommendation!,
+                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              ),
+            ),
+        ],
+
+        // Monotony + Strain block
+        if (data.monotony != null || data.strain != null) ...[
+          Row(
+            children: [
+              if (data.monotony != null)
+                Expanded(
+                  child: _MetricRow(
+                    label: 'Monotony',
+                    value: data.monotony!.toStringAsFixed(2),
+                    zone: data.monotonyZone,
+                    textTheme: textTheme,
+                  ),
+                ),
+              if (data.strain != null)
+                Expanded(
+                  child: _MetricRow(
+                    label: 'Strain',
+                    value: data.strain!.toStringAsFixed(0),
+                    zone: null,
+                    textTheme: textTheme,
+                  ),
+                ),
+            ],
+          ),
+          if (data.monotonyRecommendation != null &&
+              data.monotonyRecommendation!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                data.monotonyRecommendation!,
+                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              ),
+            ),
+        ],
+
+        // Last workout
+        if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Last: ${data.lastWorkout}',
+            style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+          ),
+        ],
+
+        // Reactive alerts (verbatim list)
+        if (data.reactiveAlerts.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          for (final alert in data.reactiveAlerts)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber,
+                      size: 16, color: Color(0xFFE8C547)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(alert, style: textTheme.bodySmall),
+                  ),
+                ],
+              ),
+            ),
+        ],
+
+        // Pattern advisories (verbatim list)
+        if (data.patternAdvisories.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          for (final advisory in data.patternAdvisories)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 16, color: Colors.white54),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      advisory,
+                      style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+
         const SizedBox(height: 12),
 
         // Source tier swatch
@@ -512,6 +689,56 @@ class _Zone3Context extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Metric row for ACWR/monotony/strain display
+class _MetricRow extends StatelessWidget {
+  const _MetricRow({
+    required this.label,
+    required this.value,
+    required this.zone,
+    required this.textTheme,
+  });
+  final String label;
+  final String value;
+  final String? zone;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+        ),
+        Text(
+          value,
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (zone != null) ...[
+          const SizedBox(width: 8),
+          _Badge(label: zone!, color: _zoneColor(zone)),
+        ],
+      ],
+    );
+  }
+
+  Color _zoneColor(String? zone) {
+    switch (zone?.toLowerCase()) {
+      case 'optimal':
+      case 'green':
+        return const Color(0xFF2BD974);
+      case 'caution':
+      case 'yellow':
+        return const Color(0xFFE8C547);
+      case 'danger':
+      case 'red':
+        return const Color(0xFFE5484D);
+      default:
+        return Colors.white38;
+    }
   }
 }
 

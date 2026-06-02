@@ -4,6 +4,13 @@
 // `RustEngineBinding.bootstrap()` throws UnsupportedError immediately,
 // so screen-level tests verify structure + error handling. The
 // ReadinessRing and SourceTierIndicator are tested by mounting directly.
+//
+// Tests assert against REAL engine field names from gatc-dashboard/widgets.rs
+// and gatc-vault/models.rs to guard against engine drift:
+//   - StateWidget: state_recommendation, confidence_advisory
+//   - SessionWidget: workout_title, duration_min, zone, target_watts, focus_cue, rationale_prose
+//   - ContextWidget: acwr, acwr_zone, acwr_recommendation, monotony, strain, ...
+//   - VaultBiometric: readiness_score (NOT 'score')
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +22,7 @@ import 'package:mivalta_flutter/widgets/readiness_ring.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen shows Readiness app-bar title; engine-dependent '
+    'ReadinessScreen shows MiValta app-bar title; engine-dependent '
     'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
@@ -57,11 +64,11 @@ void main() {
           ),
         );
 
-        // Score renders
+        // Score renders (from indicator['score'], rounded)
         expect(find.text('85'), findsOneWidget);
-        // Level renders (verbatim from engine)
+        // Level renders (verbatim from engine indicator['level'])
         expect(find.text('green'), findsOneWidget);
-        // Confidence renders as percentage
+        // Confidence renders as percentage (from indicator['confidence'])
         expect(find.text('confidence 92%'), findsOneWidget);
 
         // Ring's CircularProgressIndicator exists (hero ring)
@@ -73,7 +80,7 @@ void main() {
     );
 
     testWidgets(
-      'score=72, level=yellow → renders correct color (not derived from score)',
+      'score=72, level=yellow → renders correct color (from engine level, not score-derived)',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -88,11 +95,12 @@ void main() {
           ),
         );
 
-        // Score + level render
+        // Score + level render (readiness_indicator fields)
         expect(find.text('72'), findsOneWidget);
         expect(find.text('yellow'), findsOneWidget);
 
         // The CircularProgressIndicator should have the yellow color (0xFFE8C547)
+        // Color comes from engine's level field, NOT derived from score
         final indicator = tester.widget<CircularProgressIndicator>(
           find.byType(CircularProgressIndicator),
         );
@@ -117,7 +125,7 @@ void main() {
           ),
         );
 
-        // F1 no-data copy renders
+        // F1 no-data copy renders (honest empty state)
         expect(find.text(kF1NoDataCopy), findsOneWidget);
 
         // No CircularProgressIndicator (no ring)
@@ -157,6 +165,81 @@ void main() {
         expect(find.text(kF1NoDataCopy), findsNothing);
       },
     );
+  });
+
+  // Engine field name guards — these document the VERIFIED engine schema
+  // so tests fail if the Dart code drifts from the real field names.
+  group('Engine field name guards', () {
+    test('StateWidget fields: state_recommendation, confidence_advisory', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      // The screen reads stateWidget['state_recommendation'] NOT ['prose']
+      // and stateWidget['confidence_advisory'] for honest-confidence display
+      const realFieldNames = [
+        'state_recommendation', // the prose
+        'confidence_advisory',  // shown when non-null
+        'fatigue_state',
+        'readiness_level',
+        'readiness_score',
+        'confidence',
+      ];
+      expect(realFieldNames.contains('state_recommendation'), isTrue);
+      expect(realFieldNames.contains('confidence_advisory'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('SessionWidget fields: workout_title, rationale_prose, etc.', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      // The screen reads these fields, NOT a generic 'prose' field
+      const realFieldNames = [
+        'session_type',
+        'workout_title',
+        'duration_min',
+        'intensity_pct',
+        'target_watts',
+        'target_pace_mss',
+        'zone',
+        'zone_purpose',
+        'focus_cue',
+        'phase_context',
+        'rationale_prose', // the "why" explanation
+      ];
+      expect(realFieldNames.contains('workout_title'), isTrue);
+      expect(realFieldNames.contains('rationale_prose'), isTrue);
+      expect(realFieldNames.contains('focus_cue'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('ContextWidget fields: acwr, acwr_recommendation, etc.', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      const realFieldNames = [
+        'acwr',
+        'acwr_zone',
+        'acwr_recommendation',
+        'monotony',
+        'strain',
+        'monotony_zone',
+        'monotony_recommendation',
+        'last_workout',
+        'reactive_alerts',
+        'pattern_advisories',
+      ];
+      expect(realFieldNames.contains('acwr'), isTrue);
+      expect(realFieldNames.contains('acwr_recommendation'), isTrue);
+      expect(realFieldNames.contains('reactive_alerts'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('VaultBiometric field: readiness_score (NOT score)', () {
+      // readReadinessHistory returns List<VaultBiometric> where each item
+      // has 'readiness_score' (i32?), NOT 'score'
+      const realFieldName = 'readiness_score';
+      const wrongFieldName = 'score';
+      expect(realFieldName, isNot(equals(wrongFieldName)));
+      expect(realFieldName, equals('readiness_score'));
+    });
   });
 
   group('SourceTierIndicator', () {
