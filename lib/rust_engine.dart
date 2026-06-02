@@ -331,6 +331,41 @@ class RustEngineBinding {
       );
 
   // ===========================================================================
+  // PR-H: VAULT-BASED PROFILE STORAGE — profile now lives in encrypted vault
+  // ===========================================================================
+  //
+  // Bootstrap approach: persist only athlete_id (a random UUID — not personal
+  // data) in a tiny plaintext pointer; store the full profile (age/sex/FTP/
+  // anchors) in the encrypted vault.
+
+  /// Read the athlete profile from the encrypted vault using just the athlete_id.
+  ///
+  /// Returns `null` if no profile exists in the vault (first run scenario).
+  /// Use this on app launch to retrieve the profile without needing the full
+  /// profile JSON first.
+  Future<String?> readProfileFromVault({
+    required String athleteId,
+    required String vaultPath,
+  }) =>
+      rust_api.readProfileFromVault(
+        athleteId: athleteId,
+        vaultPath: vaultPath,
+      );
+
+  /// Write the athlete profile to the encrypted vault.
+  ///
+  /// Use this after onboarding to persist the full profile before engines
+  /// are constructed. After engines are available, use [writeProfile] instead.
+  Future<void> writeProfileToVault({
+    required String athleteProfileJson,
+    required String vaultPath,
+  }) =>
+      rust_api.writeProfileToVault(
+        athleteProfileJson: athleteProfileJson,
+        vaultPath: vaultPath,
+      );
+
+  // ===========================================================================
   // PR-G: SETTINGS & DATA CONTROL — profile updates, export, erasure
   // ===========================================================================
   //
