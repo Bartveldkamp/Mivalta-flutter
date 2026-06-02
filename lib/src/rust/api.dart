@@ -377,6 +377,42 @@ Future<String?> readPersistedState({
   vaultPath: vaultPath,
 );
 
+/// Read the athlete profile from the encrypted vault using just the athlete_id.
+///
+/// Bootstrap approach: the Dart side persists only the athlete_id (a random UUID)
+/// in plaintext; the full profile (age/sex/FTP/anchors) lives in the encrypted
+/// vault. On app launch, Dart calls this function with just the athlete_id to
+/// retrieve the full profile JSON.
+///
+/// Returns `None` if no profile exists in the vault (first run scenario).
+/// Returns `Some(profile_json)` if a profile was found.
+///
+/// The bootstrap profile used internally has placeholder values for all fields
+/// except athlete_id — these placeholders are never used because `read_default_profile`
+/// reads from the vault DB, not from the construction-time profile.
+Future<String?> readProfileFromVault({
+  required String athleteId,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiReadProfileFromVault(
+  athleteId: athleteId,
+  vaultPath: vaultPath,
+);
+
+/// Write the athlete profile to the encrypted vault.
+///
+/// Use this after onboarding to persist the full profile. The profile is
+/// encrypted at rest (AES-256-GCM via SQLCipher).
+///
+/// This is a standalone function for first-run bootstrap — after engines are
+/// constructed, use `write_profile(handle, json)` instead.
+Future<void> writeProfileToVault({
+  required String athleteProfileJson,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiWriteProfileToVault(
+  athleteProfileJson: athleteProfileJson,
+  vaultPath: vaultPath,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>>
 abstract class EnginesHandle implements RustOpaqueInterface {}
 

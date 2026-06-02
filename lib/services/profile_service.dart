@@ -1,7 +1,16 @@
 // PR-F: Profile persistence service.
+// PR-H: Moved profile into encrypted vault.
 //
-// Saves and loads the user's AthleteProfile JSON to persistent storage.
-// The profile is stored as a JSON file in the app's support directory.
+// Bootstrap approach: persist only the athlete_id (a random UUID — not personal
+// data) in a tiny plaintext pointer file; store the full profile (age/sex/FTP/
+// anchors) in the encrypted vault (SQLCipher).
+//
+// MIGRATION: Pre-PR-H installations have the full profile in plaintext
+// `athlete_profile.json`. On first load, we migrate to vault-based storage:
+// 1. Read the old plaintext profile
+// 2. Write it to the encrypted vault
+// 3. Create the pointer file with just athlete_id
+// 4. Delete the old plaintext file
 //
 // ZERO-FABRICATION: If the user doesn't know their FTP/threshold, we persist
 // null — not a fabricated number. The engine already handles absent anchors
@@ -13,43 +22,157 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../src/rust/api.dart' as rust_api;
+import '../src/rust/frb_generated.dart';
+
 /// Service for persisting and loading the user's athlete profile.
+///
+/// PR-H: Profile storage is now split:
+/// - Pointer file (`athlete_pointer.json`): contains only athlete_id (plaintext, ~40 bytes)
+/// - Vault DB: contains full profile (encrypted with SQLCipher)
 class ProfileService {
   ProfileService._();
 
-  static const _profileFileName = 'athlete_profile.json';
+  static const _pointerFileName = 'athlete_pointer.json';
+  static const _legacyProfileFileName = 'athlete_profile.json';
 
-  /// Check if a persisted profile exists.
+  /// Check if a persisted profile exists (either pointer or legacy file).
   static Future<bool> hasPersistedProfile() async {
-    final file = await _profileFile();
-    return file.exists();
+    final pointer = await _pointerFile();
+    if (await pointer.exists()) return true;
+    // Check for legacy pre-PR-H plaintext profile
+    final legacy = await _legacyProfileFile();
+    return legacy.exists();
   }
 
-  /// Load the persisted profile JSON.
+  /// Load the profile JSON using the appropriate method.
+  ///
+  /// Handles both:
+  /// - New pointer+vault approach (PR-H): reads athlete_id from pointer,
+  ///   then full profile from encrypted vault
+  /// - Legacy plaintext approach (pre-PR-H): reads directly from file,
+  ///   then migrates to vault on next save
+  ///
+  /// Requires RustLib to be initialized for vault reads.
   /// Returns null if no profile exists.
   static Future<String?> loadProfile() async {
-    final file = await _profileFile();
-    if (!await file.exists()) return null;
-    return file.readAsString();
+    final support = await getApplicationSupportDirectory();
+    final vaultPath = support.path;
+
+    // First check for pointer file (PR-H approach)
+    final pointer = await _pointerFile();
+    if (await pointer.exists()) {
+      final pointerJson = await pointer.readAsString();
+      final athleteId = _extractAthleteId(pointerJson);
+      if (athleteId != null) {
+        // Ensure RustLib is initialized
+        await RustLib.init();
+        // Read from vault
+        final profile = await rust_api.readProfileFromVault(
+          athleteId: athleteId,
+          vaultPath: vaultPath,
+        );
+        return profile;
+      }
+    }
+
+    // Check for legacy plaintext profile (pre-PR-H)
+    final legacy = await _legacyProfileFile();
+    if (await legacy.exists()) {
+      return legacy.readAsString();
+    }
+
+    return null;
   }
 
-  /// Save the profile JSON to persistent storage.
+  /// Save the profile JSON to the encrypted vault.
+  ///
+  /// Creates/updates the pointer file and writes the full profile to vault.
+  /// If a legacy plaintext file exists, deletes it after successful vault write.
+  ///
+  /// Requires RustLib to be initialized.
   static Future<void> saveProfile(String profileJson) async {
-    final file = await _profileFile();
-    await file.writeAsString(profileJson);
-  }
+    final support = await getApplicationSupportDirectory();
+    final vaultPath = support.path;
 
-  /// Delete the persisted profile (for testing or reset flows).
-  static Future<void> deleteProfile() async {
-    final file = await _profileFile();
-    if (await file.exists()) {
-      await file.delete();
+    // Ensure RustLib is initialized
+    await RustLib.init();
+
+    // Write to vault
+    await rust_api.writeProfileToVault(
+      athleteProfileJson: profileJson,
+      vaultPath: vaultPath,
+    );
+
+    // Extract athlete_id and write pointer file
+    final athleteId = _extractAthleteId(profileJson);
+    if (athleteId != null) {
+      final pointer = await _pointerFile();
+      await pointer.writeAsString(jsonEncode({'athlete_id': athleteId}));
+    }
+
+    // Remove legacy plaintext file if it exists (migration cleanup)
+    final legacy = await _legacyProfileFile();
+    if (await legacy.exists()) {
+      await legacy.delete();
     }
   }
 
-  static Future<File> _profileFile() async {
+  /// Delete all profile data (for testing or full reset).
+  ///
+  /// Removes both pointer file and any legacy plaintext file.
+  /// Note: This does NOT erase the vault — use `clearAllUserData` for that.
+  static Future<void> deleteProfile() async {
+    final pointer = await _pointerFile();
+    if (await pointer.exists()) {
+      await pointer.delete();
+    }
+    final legacy = await _legacyProfileFile();
+    if (await legacy.exists()) {
+      await legacy.delete();
+    }
+  }
+
+  /// Get the vault path for engine construction.
+  static Future<String> getVaultPath() async {
     final support = await getApplicationSupportDirectory();
-    return File('${support.path}/$_profileFileName');
+    return support.path;
+  }
+
+  /// Read the athlete_id from the pointer file (if exists).
+  /// Returns null if no pointer file exists.
+  static Future<String?> getAthleteId() async {
+    final pointer = await _pointerFile();
+    if (!await pointer.exists()) {
+      // Check legacy file for athlete_id
+      final legacy = await _legacyProfileFile();
+      if (await legacy.exists()) {
+        final profileJson = await legacy.readAsString();
+        return _extractAthleteId(profileJson);
+      }
+      return null;
+    }
+    final pointerJson = await pointer.readAsString();
+    return _extractAthleteId(pointerJson);
+  }
+
+  static String? _extractAthleteId(String json) {
+    try {
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      return decoded['athlete_id'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<File> _pointerFile() async {
+    final support = await getApplicationSupportDirectory();
+    return File('${support.path}/$_pointerFileName');
+  }
+
+  static Future<File> _legacyProfileFile() async {
+    final support = await getApplicationSupportDirectory();
+    return File('${support.path}/$_legacyProfileFileName');
   }
 }
 

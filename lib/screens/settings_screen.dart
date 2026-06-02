@@ -306,21 +306,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(color: MivaltaColors.textSecondary),
           )
         else ...[
+          // PR-H: Fixed field access to match build_source_overview contract.
+          // Output is {"primary_sources": {"hrv": "...", "sleep": "...", ...}}
           _DataSourceRow(
             metric: 'HRV',
-            source: _sourceOverview?['hrv_source'] as String?,
+            source: (_sourceOverview?['primary_sources'] as Map?)?['hrv'] as String?,
           ),
           _DataSourceRow(
             metric: 'Sleep',
-            source: _sourceOverview?['sleep_source'] as String?,
+            source: (_sourceOverview?['primary_sources'] as Map?)?['sleep'] as String?,
           ),
           _DataSourceRow(
             metric: 'Resting HR',
-            source: _sourceOverview?['rhr_source'] as String?,
+            source: (_sourceOverview?['primary_sources'] as Map?)?['resting_hr'] as String?,
           ),
           _DataSourceRow(
             metric: 'Activity',
-            source: _sourceOverview?['activity_source'] as String?,
+            source: (_sourceOverview?['primary_sources'] as Map?)?['activity'] as String?,
           ),
         ],
       ],
