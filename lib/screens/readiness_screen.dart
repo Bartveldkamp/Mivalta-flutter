@@ -13,6 +13,9 @@
 //
 // **Continuity**: Uses a PERSISTENT vault path (mivalta-vault) and restores
 // the ViterbiEngine from persisted state on subsequent launches.
+//
+// **PR-F**: Now accepts profileJson as a constructor parameter (from onboarding
+// or loaded from persistence) instead of using the hardcoded canonical_seed.
 
 import 'dart:convert';
 import 'dart:io';
@@ -22,7 +25,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
-import '../canonical_seed.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
 import '../theme/source_tier.dart';
@@ -42,6 +44,33 @@ String _humanizeFatigueState(String? state) {
     RegExp(r'([a-z])([A-Z])'),
     (m) => '${m[1]} ${m[2]!.toLowerCase()}',
   );
+}
+
+/// PR-F: Fallback profile if none provided (should not happen in production).
+/// This is a minimal profile that satisfies the engine's required fields.
+/// In practice, onboarding always provides a profile before ReadinessScreen.
+String _fallbackProfile() {
+  return jsonEncode({
+    'athlete_id': 'fallback-user',
+    'age': 30,
+    'sex': 'male',
+    'level': 'intermediate',
+    'goal_type': 'general_fitness',
+    'goal_class': 'stay_fit',
+    'sport': 'cycling',
+    'weekly_hours': 5.0,
+    'training_years': 1,
+    'recent_activity': 'trained',
+    'threshold_hr': null,
+    'ftp_watts': null,
+    'threshold_pace_sec_km': null,
+    'power_profile': null,
+    'meso_length': 21,
+    'meso_train_days': [0, 1, 2, 3, 4],
+    'meso_off_days': [5, 6],
+    'meso_minutes': 300,
+    'availability': <String, int>{},
+  });
 }
 
 class _HomeData {
@@ -83,7 +112,13 @@ class _HomeData {
 }
 
 class ReadinessScreen extends StatefulWidget {
-  const ReadinessScreen({super.key});
+  /// PR-F: Accept profileJson from onboarding or persistence.
+  /// The profile is used to construct engines — no longer uses canonical_seed.
+  const ReadinessScreen({super.key, this.profileJson});
+
+  /// The athlete profile JSON. If null, falls back to a minimal default
+  /// (should not happen in production — onboarding always provides a profile).
+  final String? profileJson;
 
   @override
   State<ReadinessScreen> createState() => _ReadinessScreenState();
@@ -125,7 +160,9 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       final vaultDir = Directory('${support.path}/mivalta-vault');
       if (!await vaultDir.exists()) await vaultDir.create(recursive: true);
 
-      final profileJson = CanonicalSeed.vaultProfileJson();
+      // PR-F: Use the provided profile JSON (from onboarding or persistence)
+      // instead of the hardcoded canonical_seed.
+      final profileJson = widget.profileJson ?? _fallbackProfile();
 
       // Continuity: check for persisted state and restore if it exists
       final persistedState = await binding.readPersistedState(

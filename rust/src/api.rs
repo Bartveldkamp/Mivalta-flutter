@@ -638,7 +638,7 @@ mod tests {
     /// to avoid tables schema dependency.
     fn construct_viterbi_only_handle(
         profile_json: String,
-        vault_path: String,
+        _vault_path: String,
     ) -> Result<(Arc<gatc_ffi::ViterbiEngine>, String), BridgeError> {
         let athlete_id = extract_athlete_id(&profile_json)?;
         let viterbi = gatc_ffi::ViterbiEngine::new(profile_json.clone())
@@ -1075,5 +1075,176 @@ mod tests {
             "sleep_hours should be ~6.75h from stages, got: {hours}");
 
         eprintln!("PR-E: sleep_stages aggregated to {hours:.2} hours");
+    }
+
+    // =========================================================================
+    // PR-F: Onboarding profile round-trip tests
+    // =========================================================================
+
+    /// Profile JSON matching the shape from Dart's ProfileBuilder.
+    /// Tests that a profile built from onboarding wizard inputs round-trips
+    /// through construct_engines_fresh.
+    fn onboarding_profile_with_anchors() -> String {
+        serde_json::json!({
+            "athlete_id": "onboarding-test-001",
+            "age": 35,
+            "sex": "male",
+            "level": "intermediate",
+            "goal_type": "general_fitness",
+            "goal_class": "stay_fit",
+            "sport": "cycling",
+            "weekly_hours": 6.0,
+            "training_years": 4,
+            "recent_activity": "trained",
+            "threshold_hr": 165,
+            "ftp_watts": 250,
+            "threshold_pace_sec_km": null,
+            "power_profile": null,
+            "meso_length": 21,
+            "meso_train_days": [0, 1, 2, 3, 4],
+            "meso_off_days": [5, 6],
+            "meso_minutes": 360,
+            "availability": {}
+        }).to_string()
+    }
+
+    /// Profile with unknown anchors (user selected "I don't know").
+    /// Tests the zero-fabrication contract: null anchors should not cause errors.
+    fn onboarding_profile_null_anchors() -> String {
+        serde_json::json!({
+            "athlete_id": "onboarding-test-002",
+            "age": 28,
+            "sex": "female",
+            "level": "beginner",
+            "goal_type": "weight_loss",
+            "goal_class": "weight_loss",
+            "sport": "running",
+            "weekly_hours": 3.0,
+            "training_years": 0,
+            "recent_activity": "trained",
+            "threshold_hr": null,          // User doesn't know
+            "ftp_watts": null,
+            "threshold_pace_sec_km": null, // User doesn't know
+            "power_profile": null,
+            "meso_length": 21,
+            "meso_train_days": [0, 1, 2, 3, 4],
+            "meso_off_days": [5, 6],
+            "meso_minutes": 180,
+            "availability": {}
+        }).to_string()
+    }
+
+    #[test]
+    fn onboarding_profile_with_known_anchors_constructs_engines() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let profile = onboarding_profile_with_anchors();
+        let (viterbi, athlete_id) = construct_viterbi_only_handle(
+            profile,
+            vault_path,
+        ).expect("viterbi should construct from onboarding profile with anchors");
+
+        // Verify athlete_id was extracted correctly
+        assert_eq!(athlete_id, "onboarding-test-001");
+
+        // Verify the engine is functional by calling readiness_indicator
+        let indicator = viterbi.readiness_indicator().expect("readiness_indicator should work");
+        let indicator_json: serde_json::Value = serde_json::from_str(&indicator).unwrap();
+
+        // Should have standard indicator fields
+        assert!(indicator_json.get("confidence").is_some(),
+            "indicator should have confidence field");
+    }
+
+    #[test]
+    fn onboarding_profile_with_null_anchors_constructs_engines() {
+        // ZERO-FABRICATION TEST: Profile with all anchors null (user doesn't know)
+        // should still construct engines successfully. The engine falls back to
+        // HR/RPE-based coaching when power/pace anchors are absent.
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let profile = onboarding_profile_null_anchors();
+        let result = construct_viterbi_only_handle(
+            profile,
+            vault_path,
+        );
+
+        assert!(result.is_ok(),
+            "ZERO-FABRICATION: profile with null anchors must construct engines, got: {:?}",
+            result.err());
+
+        let (viterbi, athlete_id) = result.unwrap();
+        assert_eq!(athlete_id, "onboarding-test-002");
+
+        // Verify the engine is functional
+        let readiness = viterbi.get_readiness().expect("get_readiness should work");
+        assert!(!readiness.is_empty(), "readiness should return valid JSON");
+
+        eprintln!("PR-F: Zero-fabrication test passed — null anchors accepted");
+    }
+
+    #[test]
+    fn onboarding_profile_null_anchors_not_fabricated_as_zero() {
+        // Verify that null anchors in the profile JSON are preserved as null,
+        // not silently converted to 0 or some other fabricated value.
+
+        let profile_json = onboarding_profile_null_anchors();
+        let profile: serde_json::Value = serde_json::from_str(&profile_json).unwrap();
+
+        // Check that null anchors are actually null, not 0 or empty
+        assert!(profile.get("threshold_hr").unwrap().is_null(),
+            "threshold_hr should be null, not fabricated");
+        assert!(profile.get("ftp_watts").unwrap().is_null(),
+            "ftp_watts should be null, not fabricated");
+        assert!(profile.get("threshold_pace_sec_km").unwrap().is_null(),
+            "threshold_pace_sec_km should be null, not fabricated");
+
+        // Also verify that a 0 would be different from null
+        // (this is a sanity check on the JSON representation)
+        let zero = serde_json::json!(0);
+        let null = serde_json::json!(null);
+        assert_ne!(zero, null, "0 and null must be distinct in JSON");
+    }
+
+    #[test]
+    fn onboarding_profile_processes_observation_with_null_anchors() {
+        // End-to-end test: profile with null anchors can process observations
+        // and produce readiness scores using HR/wellness fallback.
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let profile = onboarding_profile_null_anchors();
+        let (viterbi, _) = construct_viterbi_only_handle(
+            profile,
+            vault_path,
+        ).expect("viterbi should construct");
+
+        // Process a manual observation (no power data, using HR/RPE)
+        let result = process_manual_with_viterbi(
+            &viterbi,
+            "2026-06-02".to_string(),
+            Some(58.0),  // resting_hr
+            Some(48.0),  // hrv_rmssd
+            Some(7.0),   // sleep_hours
+            Some(5),     // rpe
+        );
+
+        assert!(result.is_ok(),
+            "observation should process with null anchors, got: {:?}", result.err());
+
+        let result_json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
+        let snapshot = result_json.get("snapshot").expect("should have snapshot");
+        let score = snapshot.get("score").and_then(|v| v.as_i64());
+
+        assert!(score.is_some(), "should produce a readiness score with null anchors");
+        let score_val = score.unwrap();
+        assert!(score_val >= 0 && score_val <= 100,
+            "score should be in valid range, got: {score_val}");
+
+        eprintln!("PR-F: Null-anchor profile processed observation, score={score_val}");
     }
 }

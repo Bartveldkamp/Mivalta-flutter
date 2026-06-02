@@ -65,6 +65,9 @@ dependencies:
   # normalizer — no physiology transforms in Dart.
   health: ^11.1.0
 
+  # PR-F: UUID generation for stable athlete_id in profile.
+  uuid: ^4.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
