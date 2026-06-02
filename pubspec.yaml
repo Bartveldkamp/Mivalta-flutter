@@ -87,6 +87,54 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # PR-I: Release hardening — icon and splash generation.
+  # Run: dart run flutter_launcher_icons
+  # Run: dart run flutter_native_splash:create
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.4
+
+# =============================================================================
+# PR-I: LAUNCHER ICON CONFIGURATION
+#
+# PLACEHOLDER: Using Flutter's default adaptive icon colors until final brand
+# art lands in the design pass. Replace android_adaptive_* paths when ready.
+#
+# To regenerate icons after adding brand assets:
+#   dart run flutter_launcher_icons
+# =============================================================================
+flutter_launcher_icons:
+  android: true
+  ios: true
+  # PLACEHOLDER: No logo asset yet — using solid color adaptive icon.
+  # Replace with: image_path: "assets/icon/app_icon.png" (1024x1024 recommended)
+  remove_alpha_ios: true
+  # Adaptive icon for Android 8.0+
+  adaptive_icon_background: "#1E3A5F"  # MiValta navy (placeholder)
+  # adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  # Fallback for older Android
+  # image_path_android: "assets/icon/app_icon_android.png"
+  # image_path_ios: "assets/icon/app_icon_ios.png"
+
+# =============================================================================
+# PR-I: NATIVE SPLASH SCREEN CONFIGURATION
+#
+# PLACEHOLDER: Using solid color splash until final brand art lands.
+# Replace image paths when brand assets are ready.
+#
+# To regenerate splash:
+#   dart run flutter_native_splash:create
+# =============================================================================
+flutter_native_splash:
+  color: "#1E3A5F"  # MiValta navy (placeholder)
+  # image: "assets/splash/splash_logo.png"  # Add when brand art ready
+  # branding: "assets/splash/branding.png"  # Optional "Powered by" image
+  android: true
+  ios: true
+  android_12:
+    color: "#1E3A5F"
+    # image: "assets/splash/splash_logo_android12.png"
+    # icon_background_color: "#1E3A5F"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

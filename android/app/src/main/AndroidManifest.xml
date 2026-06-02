@@ -1,21 +1,43 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Required: one-time GGUF download from the model host (HTTP).
-         network_security_config restricts cleartext to 144.76.62.249 only. -->
+    <!-- =========================================================================
+         PR-I: PERMISSIONS AUDIT — each permission documented with justification.
+
+         MiValta is a privacy-first fitness coaching app. All data stays on-device
+         in an encrypted vault (SQLCipher). No cloud sync, no third-party analytics.
+
+         PERMISSION CATEGORIES:
+         1. NETWORK: One-time model download only (no ongoing connectivity required)
+         2. HEALTH: Read-only access to Health Connect biometrics
+         3. FOREGROUND SERVICE: Required for Health Connect on Android 14+
+         ========================================================================= -->
+
+    <!-- =======================================================================
+         NETWORK — INTERNET
+
+         WHY NEEDED: One-time GGUF model download on first launch.
+         - Downloads josi-v10-1-q4_k_m.gguf (~1GB) from model host
+         - Model is cached locally after download; no ongoing network needed
+         - Restricted to specific host via network_security_config.xml
+
+         DATA SAFETY: No user data is ever transmitted. Network is download-only.
+         ======================================================================= -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- PR-E: Health Connect read permissions for biometric data.
-         These are the data types we read from Health Connect to feed to the
-         Rust normalizer. No write permissions — MiValta is read-only.
+    <!-- =======================================================================
+         HEALTH CONNECT — READ PERMISSIONS
 
-         Current ingestion (biometrics drive readiness):
-           - Resting heart rate
-           - HRV (RMSSD)
-           - Sleep stages
-           - Oxygen saturation
-           - Steps
+         WHY NEEDED: MiValta reads biometrics to calculate readiness/fatigue.
+         - Resting HR: cardiovascular recovery indicator
+         - HRV (RMSSD): autonomic nervous system balance
+         - Sleep stages: recovery quality assessment
+         - Oxygen saturation: supplementary recovery metric
+         - Steps: activity volume estimation
 
-         Deferred (exerciseType impedance mismatch — needs engine PR):
-           - Exercise / workout sessions -->
+         READ-ONLY: MiValta never writes to Health Connect.
+
+         DATA FLOW: Health Connect → Rust normalizer → encrypted vault (on-device).
+         No data leaves the device.
+         ======================================================================= -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
@@ -23,12 +45,21 @@
     <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
 
-    <!-- PR-E: Required for Health Connect on Android 14+ -->
+    <!-- =======================================================================
+         FOREGROUND SERVICE — HEALTH
+
+         WHY NEEDED: Android 14+ requires foreground service for Health Connect.
+         - Allows background sync of health data when app is not in foreground
+         - Required by the `health` Flutter plugin
+
+         NO PERSISTENT SERVICE: App does not run a persistent background service.
+         Health sync happens when user opens the app.
+         ======================================================================= -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
     <application
-        android:label="mivalta_flutter"
+        android:label="MiValta"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config">
@@ -54,7 +85,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- PR-E: Health Connect permission rationale activity.
+            <!-- Health Connect: permission rationale activity.
                  Allows Health Connect settings to launch the app when user
                  reviews permissions. -->
             <intent-filter>
@@ -65,7 +96,7 @@
                 android:resource="@array/health_permissions" />
         </activity>
 
-        <!-- PR-E: Health Connect permission rationale activity alias for Android 14+ -->
+        <!-- Health Connect: permission rationale activity alias for Android 14+ -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"

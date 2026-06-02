@@ -55,3 +55,10 @@ app.*.map.json
 # Rust-built iOS binaries (build from source via scripts/build_ios_xcframework.sh)
 /ios/Frameworks/**/*.a
 /ios/Frameworks/**/MivaltaRustBridge.xcframework/
+
+# Android signing secrets — NEVER commit. Keystores and the properties file
+# that holds their passwords stay local only (see docs/RELEASE_CHECKLIST.md).
+/android/key.properties
+**/key.properties
+*.jks
+*.keystore
