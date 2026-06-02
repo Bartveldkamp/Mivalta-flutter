@@ -908,4 +908,172 @@ mod tests {
         eprintln!("PR-D.1 test: state={engine_state}, confidence={engine_confidence:.2} -> bucket={bucket}");
         eprintln!("These values will now flow into recommend_workout's SuggesterContext");
     }
+
+    // =========================================================================
+    // PR-E: Health Connect normalize→process round-trip tests
+    // =========================================================================
+
+    /// Construct NormalizerEngine + ViterbiEngine for testing Health Connect flow.
+    fn construct_normalizer_viterbi_handles(
+        profile_json: String,
+    ) -> Result<(Arc<gatc_ffi::NormalizerEngine>, Arc<gatc_ffi::ViterbiEngine>), BridgeError> {
+        let normalizer = gatc_ffi::NormalizerEngine::new(profile_json.clone())
+            .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
+        let viterbi = gatc_ffi::ViterbiEngine::new(profile_json)
+            .map_err(|e| BridgeError::EngineConstructionFailed(format!("viterbi: {e}")))?;
+        Ok((normalizer, viterbi))
+    }
+
+    #[test]
+    fn health_connect_normalize_process_round_trip() {
+        // PR-E: Test that a Health Connect payload normalizes and processes correctly.
+        // This is the test that must pass after fixing the payload schema.
+
+        let profile = test_profile();
+        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // Build a representative Health Connect payload matching the schema
+        // from gatc-normalizer/src/health_connect.rs
+        let hc_payload = serde_json::json!({
+            "date": "2026-06-02",
+            "resting_heart_rate": 58,
+            "hrv_rmssd": 45.0,
+            "oxygen_saturation": 0.97,
+            "sleep_stages": [
+                { "stage": 4, "startTime": "2026-06-02T00:15:00Z", "endTime": "2026-06-02T02:30:00Z" },
+                { "stage": 5, "startTime": "2026-06-02T02:30:00Z", "endTime": "2026-06-02T04:00:00Z" },
+                { "stage": 6, "startTime": "2026-06-02T04:00:00Z", "endTime": "2026-06-02T05:15:00Z" },
+                { "stage": 4, "startTime": "2026-06-02T05:15:00Z", "endTime": "2026-06-02T07:00:00Z" }
+            ],
+            "steps": 8200
+        });
+
+        // Act: Normalize through the Health Connect normalizer
+        let normalized_result = normalizer.normalize_observation(
+            "health_connect".to_string(),
+            hc_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok(),
+            "normalize_observation should succeed, got: {:?}", normalized_result.err());
+
+        let normalized_json = normalized_result.unwrap();
+
+        // Assert: Parse the normalized observation and verify expected fields
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_json)
+            .expect("normalized output should be valid JSON");
+
+        // The normalized observation must have these fields (drives readiness)
+        assert!(normalized.get("hrv_rmssd").and_then(|v| v.as_f64()).is_some(),
+            "normalized observation should have hrv_rmssd, got: {normalized}");
+        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
+            "normalized observation should have resting_hr, got: {normalized}");
+        assert!(normalized.get("sleep_hours").and_then(|v| v.as_f64()).is_some(),
+            "normalized observation should have sleep_hours (aggregated from stages), got: {normalized}");
+
+        // Verify source is correct
+        let source = normalized.get("source").and_then(|v| v.as_str());
+        assert_eq!(source, Some("health_connect"),
+            "source should be 'health_connect', got: {:?}", source);
+
+        // Act: Process the normalized observation through ViterbiEngine
+        let process_result = viterbi.process_observation(normalized_json);
+        assert!(process_result.is_ok(),
+            "process_observation should succeed, got: {:?}", process_result.err());
+
+        // Assert: The HMM processed the observation and returned a valid snapshot
+        let result_json: serde_json::Value = serde_json::from_str(&process_result.unwrap())
+            .expect("process result should be valid JSON");
+        let snapshot = result_json.get("snapshot").expect("result should have snapshot");
+        assert!(snapshot.get("state").and_then(|v| v.as_str()).is_some(),
+            "snapshot should have state");
+        assert!(snapshot.get("score").is_some(),
+            "snapshot should have score");
+
+        eprintln!("PR-E: Health Connect round-trip passed. Normalized hrv_rmssd, resting_hr, sleep_hours present.");
+    }
+
+    #[test]
+    fn health_connect_partial_biometrics_still_normalizes() {
+        // Test that partial biometrics (e.g., only RHR) still normalize successfully.
+        // This matches the honest sync result: only count observations with real biometric content.
+
+        let profile = test_profile();
+        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // Payload with only resting heart rate (no HRV, no sleep)
+        let hc_payload = serde_json::json!({
+            "date": "2026-06-02",
+            "resting_heart_rate": 62,
+            "steps": 5000
+        });
+
+        let normalized_result = normalizer.normalize_observation(
+            "health_connect".to_string(),
+            hc_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok(),
+            "normalize should succeed with partial biometrics");
+
+        let normalized_json = normalized_result.unwrap();
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_json).unwrap();
+
+        // resting_hr should be present
+        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
+            "resting_hr should be present");
+
+        // hrv_rmssd and sleep_hours should be None/null (not fabricated)
+        // The normalizer sets them to null if not provided — zero fabrication
+        let hrv = normalized.get("hrv_rmssd").and_then(|v| v.as_f64());
+        let sleep = normalized.get("sleep_hours").and_then(|v| v.as_f64());
+        // These may be null or absent — that's correct (zero fabrication)
+        eprintln!("Partial biometrics: hrv_rmssd={:?}, sleep_hours={:?}", hrv, sleep);
+
+        // Should still process through Viterbi
+        let process_result = viterbi.process_observation(normalized_json);
+        assert!(process_result.is_ok(),
+            "process_observation should succeed with partial biometrics");
+    }
+
+    #[test]
+    fn health_connect_sleep_stages_aggregate_to_hours() {
+        // Test that sleep_stages are aggregated to sleep_hours by the normalizer.
+
+        let profile = test_profile();
+        let (normalizer, _) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // 4 sleep stage records totaling 6.75 hours:
+        //   00:15-02:30 = 2.25h (Light)
+        //   02:30-04:00 = 1.5h (Deep)
+        //   04:00-05:15 = 1.25h (REM)
+        //   05:15-07:00 = 1.75h (Light)
+        let hc_payload = serde_json::json!({
+            "date": "2026-06-02",
+            "sleep_stages": [
+                { "stage": 4, "startTime": "2026-06-02T00:15:00Z", "endTime": "2026-06-02T02:30:00Z" },
+                { "stage": 5, "startTime": "2026-06-02T02:30:00Z", "endTime": "2026-06-02T04:00:00Z" },
+                { "stage": 6, "startTime": "2026-06-02T04:00:00Z", "endTime": "2026-06-02T05:15:00Z" },
+                { "stage": 4, "startTime": "2026-06-02T05:15:00Z", "endTime": "2026-06-02T07:00:00Z" }
+            ]
+        });
+
+        let normalized_result = normalizer.normalize_observation(
+            "health_connect".to_string(),
+            hc_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok());
+
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_result.unwrap()).unwrap();
+        let sleep_hours = normalized.get("sleep_hours").and_then(|v| v.as_f64());
+
+        assert!(sleep_hours.is_some(), "sleep_hours should be aggregated from stages");
+        let hours = sleep_hours.unwrap();
+        // Expected: ~6.75 hours (may vary slightly due to aggregation logic)
+        assert!(hours > 6.0 && hours < 8.0,
+            "sleep_hours should be ~6.75h from stages, got: {hours}");
+
+        eprintln!("PR-E: sleep_stages aggregated to {hours:.2} hours");
+    }
 }

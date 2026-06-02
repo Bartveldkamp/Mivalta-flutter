@@ -13,16 +13,13 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Git-rev pin (MVP-1 — re-pinned to rust-engine main @ engine_registry v2.18).
-# 4dab6cb is the current main, bringing in:
-#   - ViterbiEngine::readiness_indicator() — 4-axis readiness blend headline
-#   - DashboardEngine — purpose-built Tier-2.5 display assembler for the
-#     three-zone PULL home (get_dashboard / get_state_widget /
-#     get_session_widget / get_context_widget)
-#   - NormalizerEngine — 8-vendor normalizer (normalize_observation,
-#     classify_source, build_source_overview)
-#   - VaultEngine::read_readiness_history() — trend series for dashboard
-#   - ViterbiEngine::from_persisted_state() — restore saved HMM on launch
+# Git-rev pin (PR-E — re-pinned to rust-engine main @ d79fbd3).
+# d79fbd3 brings in:
+#   - feat(normalizer): Health Connect normalizer (PR #203)
+#   - feat(vault): encrypted audit ledger at rest (PR #200)
+#   - docs(uiux): v1.3 canonical + screen inventory (PR #201, #202)
+#   - All previous: readiness_indicator, DashboardEngine, NormalizerEngine,
+#     read_readiness_history, from_persisted_state
 #
 # SSH URL because rust-engine is a private repo; CI uses the
 # `RUST_ENGINE_DEPLOY_KEY` secret paired with the deploy key on
@@ -32,9 +29,10 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "d79fbd3" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
+# PR-E: also needed for normalizer integration
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "d79fbd3" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
