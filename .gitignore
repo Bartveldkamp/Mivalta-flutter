@@ -46,3 +46,8 @@ app.*.map.json
 
 # Day-2 Rust shim crate — build artifacts only.
 /rust/target/
+
+# iOS build artifacts
+/ios/build/
+/ios/Pods/
+/ios/.symlinks/
