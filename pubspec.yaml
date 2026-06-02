@@ -68,6 +68,9 @@ dependencies:
   # PR-F: UUID generation for stable athlete_id in profile.
   uuid: ^4.5.1
 
+  # PR-G: Share exported files via platform share sheet.
+  share_plus: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
