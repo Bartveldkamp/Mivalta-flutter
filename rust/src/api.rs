@@ -1247,4 +1247,170 @@ mod tests {
 
         eprintln!("PR-F: Null-anchor profile processed observation, score={score_val}");
     }
+
+    // =========================================================================
+    // PR-E2: Apple HealthKit normalize→process round-trip tests
+    // =========================================================================
+
+    #[test]
+    fn apple_healthkit_normalize_process_round_trip() {
+        // PR-E2: Test that a HealthKit payload normalizes and processes correctly.
+        // This validates the Dart → Rust HealthKit data path.
+        //
+        // Key differences from Health Connect:
+        // - HRV: iOS uses SDNN (not RMSSD)
+        // - Sleep: Uses value codes 0-5 (not stage codes 1,4,5,6)
+        // - Keys: hrv_sdnn, sleep_samples (not hrv_rmssd, sleep_stages)
+
+        let profile = test_profile();
+        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // Build a HealthKit payload matching the schema from healthkit.rs.
+        // Uses numeric value codes for sleep_samples per healthkit.rs:
+        //   0=InBed, 1=AsleepUnspecified, 2=Awake, 3=AsleepCore, 4=AsleepDeep, 5=AsleepREM
+        let healthkit_payload = serde_json::json!({
+            "date": "2026-06-15",
+            "resting_heart_rate": 58.0,
+            "hrv_sdnn": 42.5,
+            "oxygen_saturation": 0.97,
+            "sleep_samples": [
+                { "value": 0, "startDate": "2026-06-15T22:00:00Z", "endDate": "2026-06-15T22:30:00Z" },
+                { "value": 3, "startDate": "2026-06-15T22:30:00Z", "endDate": "2026-06-16T00:30:00Z" },
+                { "value": 4, "startDate": "2026-06-16T00:30:00Z", "endDate": "2026-06-16T02:00:00Z" },
+                { "value": 5, "startDate": "2026-06-16T02:00:00Z", "endDate": "2026-06-16T03:30:00Z" },
+                { "value": 3, "startDate": "2026-06-16T03:30:00Z", "endDate": "2026-06-16T06:00:00Z" }
+            ]
+        });
+
+        // Act: Normalize through the "apple" vendor path
+        let normalized_result = normalizer.normalize_observation(
+            "apple".to_string(),
+            healthkit_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok(),
+            "apple normalize_observation should succeed, got: {:?}", normalized_result.err());
+
+        let normalized_json = normalized_result.unwrap();
+
+        // Assert: Parse the normalized observation and verify expected fields
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_json)
+            .expect("normalized output should be valid JSON");
+
+        // resting_hr must be present and correct
+        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
+            "resting_hr must be present, got: {normalized}");
+        let resting_hr = normalized["resting_hr"].as_f64().unwrap();
+        assert!((resting_hr - 58.0).abs() < 0.1,
+            "resting_hr should be 58, got: {resting_hr}");
+
+        // HRV should land (the normalizer may store SDNN or convert to hrv field)
+        assert!(normalized.get("hrv").is_some() || normalized.get("hrv_rmssd").is_some(),
+            "HRV must be present (hrv or hrv_rmssd), got: {normalized}");
+
+        // sleep_hours must be present (aggregated from sleep_samples)
+        assert!(normalized.get("sleep_hours").and_then(|v| v.as_f64()).is_some(),
+            "sleep_hours must be aggregated from sleep_samples, got: {normalized}");
+
+        // Source must be "apple_health"
+        let source = normalized.get("source").and_then(|v| v.as_str());
+        assert_eq!(source, Some("apple_health"),
+            "source should be 'apple_health', got: {:?}", source);
+
+        // Act: Process the normalized observation through ViterbiEngine
+        let process_result = viterbi.process_observation(normalized_json);
+        assert!(process_result.is_ok(),
+            "process_observation should succeed, got: {:?}", process_result.err());
+
+        // Assert: The HMM processed the observation and returned a valid snapshot
+        let result_json: serde_json::Value = serde_json::from_str(&process_result.unwrap())
+            .expect("process result should be valid JSON");
+        let snapshot = result_json.get("snapshot").expect("result should have snapshot");
+        assert!(snapshot.get("state").and_then(|v| v.as_str()).is_some(),
+            "snapshot should have state");
+        assert!(snapshot.get("score").is_some(),
+            "snapshot should have score");
+
+        eprintln!("PR-E2: Apple HealthKit round-trip passed. SDNN, resting_hr, sleep_samples processed.");
+    }
+
+    #[test]
+    fn apple_healthkit_partial_biometrics_still_normalizes() {
+        // Test that partial biometrics from HealthKit (e.g., only RHR) normalize successfully.
+
+        let profile = test_profile();
+        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // Payload with only resting heart rate (no HRV, no sleep)
+        let healthkit_payload = serde_json::json!({
+            "date": "2026-06-15",
+            "resting_heart_rate": 62.0
+        });
+
+        let normalized_result = normalizer.normalize_observation(
+            "apple".to_string(),
+            healthkit_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok(),
+            "normalize should succeed with partial biometrics");
+
+        let normalized_json = normalized_result.unwrap();
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_json).unwrap();
+
+        // resting_hr should be present
+        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
+            "resting_hr should be present");
+
+        // Should still process through Viterbi
+        let process_result = viterbi.process_observation(normalized_json);
+        assert!(process_result.is_ok(),
+            "process_observation should succeed with partial biometrics");
+
+        eprintln!("PR-E2: Apple HealthKit partial biometrics test passed.");
+    }
+
+    #[test]
+    fn apple_healthkit_sleep_samples_aggregate_to_hours() {
+        // Test that HealthKit sleep_samples are aggregated to sleep_hours.
+
+        let profile = test_profile();
+        let (normalizer, _) = construct_normalizer_viterbi_handles(profile)
+            .expect("engines should construct");
+
+        // Sleep samples totaling ~7.5 hours:
+        //   22:00-22:30 = 0.5h (InBed)
+        //   22:30-00:30 = 2.0h (AsleepCore)
+        //   00:30-02:00 = 1.5h (AsleepDeep)
+        //   02:00-03:30 = 1.5h (AsleepREM)
+        //   03:30-06:00 = 2.5h (AsleepCore)
+        // Actual sleep (excluding InBed): 7.5h
+        let healthkit_payload = serde_json::json!({
+            "date": "2026-06-15",
+            "sleep_samples": [
+                { "value": 0, "startDate": "2026-06-15T22:00:00Z", "endDate": "2026-06-15T22:30:00Z" },
+                { "value": 3, "startDate": "2026-06-15T22:30:00Z", "endDate": "2026-06-16T00:30:00Z" },
+                { "value": 4, "startDate": "2026-06-16T00:30:00Z", "endDate": "2026-06-16T02:00:00Z" },
+                { "value": 5, "startDate": "2026-06-16T02:00:00Z", "endDate": "2026-06-16T03:30:00Z" },
+                { "value": 3, "startDate": "2026-06-16T03:30:00Z", "endDate": "2026-06-16T06:00:00Z" }
+            ]
+        });
+
+        let normalized_result = normalizer.normalize_observation(
+            "apple".to_string(),
+            healthkit_payload.to_string(),
+        );
+        assert!(normalized_result.is_ok());
+
+        let normalized: serde_json::Value = serde_json::from_str(&normalized_result.unwrap()).unwrap();
+        let sleep_hours = normalized.get("sleep_hours").and_then(|v| v.as_f64());
+
+        assert!(sleep_hours.is_some(), "sleep_hours should be aggregated from sleep_samples");
+        let hours = sleep_hours.unwrap();
+        // Expected: ~7.5 hours (may vary slightly due to aggregation logic)
+        assert!(hours > 6.0 && hours < 9.0,
+            "sleep_hours should be ~7.5h from samples, got: {hours}");
+
+        eprintln!("PR-E2: Apple HealthKit sleep_samples aggregated to {hours:.2} hours");
+    }
 }
