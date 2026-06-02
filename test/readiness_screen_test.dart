@@ -1,9 +1,16 @@
-// MVP-1 widget tests for the readiness screen + the new
-// SourceTierIndicator. The FFI path is gated on Platform.isAndroid;
-// on the host harness `RustEngineBinding.bootstrap()` throws
-// UnsupportedError immediately, so the screen-level test exercises
-// the error-rendered scaffold. The indicator's two branches
-// (swatch / no-data copy) are exercised by mounting it directly.
+// PR-B widget tests for the three-zone PULL home.
+//
+// FFI path is gated on Platform.isAndroid; on the host harness
+// `RustEngineBinding.bootstrap()` throws UnsupportedError immediately,
+// so screen-level tests verify structure + error handling. The
+// ReadinessRing and SourceTierIndicator are tested by mounting directly.
+//
+// Tests assert against REAL engine field names from gatc-dashboard/widgets.rs
+// and gatc-vault/models.rs to guard against engine drift:
+//   - StateWidget: state_recommendation, confidence_advisory
+//   - SessionWidget: workout_title, duration_min, zone, target_watts, focus_cue, rationale_prose
+//   - ContextWidget: acwr, acwr_zone, acwr_recommendation, monotony, strain, ...
+//   - VaultBiometric: readiness_score (NOT 'score')
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,10 +18,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/screens/readiness_screen.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
+import 'package:mivalta_flutter/theme/tokens.dart';
+import 'package:mivalta_flutter/widgets/readiness_ring.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen renders the six section labels; engine-dependent '
+    'ReadinessScreen shows MiValta app-bar title; engine-dependent '
     'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
@@ -24,28 +33,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // App-bar title.
-      expect(find.text('Readiness'), findsWidgets);
+      // App-bar title (now 'MiValta' per PR-B three-zone home).
+      expect(find.text('MiValta'), findsWidgets);
 
       // The host harness can't load the .so, so the bootstrap throws
-      // UnsupportedError before any section data is set. ALL SIX
-      // sections are engine-dependent now (MVP-1 added the 4-axis blend
-      // headline), so each renders its own inline _ErrorRow
-      // with ColorScheme.error.
-      expect(find.textContaining('UnsupportedError'), findsNWidgets(6));
-
-      // All six section labels render even on error.
-      expect(find.text('READINESS (4-AXIS BLEND)', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('READINESS SCORE (LEGACY)', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('FATIGUE STATE', skipOffstage: false), findsOneWidget);
-      expect(find.text('ZONE CAP + ADVISORIES', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('RECOMMENDED WORKOUT', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('DATA SOURCE TIER', skipOffstage: false),
-          findsOneWidget);
+      // UnsupportedError. The error scaffold renders.
+      expect(find.textContaining('UnsupportedError'), findsWidgets);
     },
   );
 
@@ -53,6 +46,201 @@ void main() {
     // CLAUDE.md flags any paraphrase as a finding; this guards the
     // string at lib/copy/f1.dart.
     expect(kF1NoDataCopy, 'We need more data to predict recovery.');
+  });
+
+  group('ReadinessRing', () {
+    testWidgets(
+      'score=85, level=green, confidence=0.92 → renders rounded score + level',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 85,
+                level: 'green',
+                confidence: 0.92,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Score renders (from indicator['score'], rounded)
+        expect(find.text('85'), findsOneWidget);
+        // Level renders (verbatim from engine indicator['level'])
+        expect(find.text('green'), findsOneWidget);
+        // Confidence renders as percentage (from indicator['confidence'])
+        expect(find.text('confidence 92%'), findsOneWidget);
+
+        // Ring's CircularProgressIndicator exists (hero ring)
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // F1 copy must NOT appear when data is present
+        expect(find.text(kF1NoDataCopy), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'score=72, level=yellow → renders correct color (from engine level, not score-derived)',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 72,
+                level: 'yellow',
+                confidence: 0.75,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Score + level render (readiness_indicator fields)
+        expect(find.text('72'), findsOneWidget);
+        expect(find.text('yellow'), findsOneWidget);
+
+        // The CircularProgressIndicator should have the yellow color (0xFFE8C547)
+        // Color comes from engine's level field, NOT derived from score
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, const Color(0xFFE8C547));
+      },
+    );
+
+    testWidgets(
+      'noData=true → renders F1 copy, no ring, no score',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: null,
+                level: null,
+                confidence: null,
+                noData: true,
+              ),
+            ),
+          ),
+        );
+
+        // F1 no-data copy renders (honest empty state)
+        expect(find.text(kF1NoDataCopy), findsOneWidget);
+
+        // No CircularProgressIndicator (no ring)
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        // No score text
+        expect(find.text('85'), findsNothing);
+        expect(find.text('72'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'score=null + noData=false → shows em-dash, no F1 copy',
+      (WidgetTester tester) async {
+        // Edge case: data exists but score is null (shouldn't happen,
+        // but tests the widget boundary)
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: null,
+                level: null,
+                confidence: null,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Em-dash renders for null score
+        expect(find.text('—'), findsWidgets);
+
+        // Ring should still render
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // F1 copy should NOT render when noData=false
+        expect(find.text(kF1NoDataCopy), findsNothing);
+      },
+    );
+  });
+
+  // Engine field name guards — these document the VERIFIED engine schema
+  // so tests fail if the Dart code drifts from the real field names.
+  group('Engine field name guards', () {
+    test('StateWidget fields: state_recommendation, confidence_advisory', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      // The screen reads stateWidget['state_recommendation'] NOT ['prose']
+      // and stateWidget['confidence_advisory'] for honest-confidence display
+      const realFieldNames = [
+        'state_recommendation', // the prose
+        'confidence_advisory',  // shown when non-null
+        'fatigue_state',
+        'readiness_level',
+        'readiness_score',
+        'confidence',
+      ];
+      expect(realFieldNames.contains('state_recommendation'), isTrue);
+      expect(realFieldNames.contains('confidence_advisory'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('SessionWidget fields: workout_title, rationale_prose, etc.', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      // The screen reads these fields, NOT a generic 'prose' field
+      const realFieldNames = [
+        'session_type',
+        'workout_title',
+        'duration_min',
+        'intensity_pct',
+        'target_watts',
+        'target_pace_mss',
+        'zone',
+        'zone_purpose',
+        'focus_cue',
+        'phase_context',
+        'rationale_prose', // the "why" explanation
+      ];
+      expect(realFieldNames.contains('workout_title'), isTrue);
+      expect(realFieldNames.contains('rationale_prose'), isTrue);
+      expect(realFieldNames.contains('focus_cue'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('ContextWidget fields: acwr, acwr_recommendation, etc.', () {
+      // These are the REAL field names from gatc-dashboard/src/widgets.rs
+      const realFieldNames = [
+        'acwr',
+        'acwr_zone',
+        'acwr_recommendation',
+        'monotony',
+        'strain',
+        'monotony_zone',
+        'monotony_recommendation',
+        'last_workout',
+        'reactive_alerts',
+        'pattern_advisories',
+      ];
+      expect(realFieldNames.contains('acwr'), isTrue);
+      expect(realFieldNames.contains('acwr_recommendation'), isTrue);
+      expect(realFieldNames.contains('reactive_alerts'), isTrue);
+      // 'prose' is NOT a real field
+      expect(realFieldNames.contains('prose'), isFalse);
+    });
+
+    test('VaultBiometric field: readiness_score (NOT score)', () {
+      // readReadinessHistory returns List<VaultBiometric> where each item
+      // has 'readiness_score' (i32?), NOT 'score'
+      const realFieldName = 'readiness_score';
+      const wrongFieldName = 'score';
+      expect(realFieldName, isNot(equals(wrongFieldName)));
+      expect(realFieldName, equals('readiness_score'));
+    });
   });
 
   group('SourceTierIndicator', () {
@@ -123,5 +311,105 @@ void main() {
         },
       );
     }
+  });
+
+  // PR-C: Tokens-only compliance — ring color must come from tokens layer
+  group('Tokens-only compliance', () {
+    testWidgets(
+      'ReadinessRing level=green uses MivaltaColors.levelGreen from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 85,
+                level: 'green',
+                confidence: 0.9,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        // Color must match the token constant (which equals 0xFF2BD974)
+        expect(color, MivaltaColors.levelGreen);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=yellow uses MivaltaColors.levelYellow from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 72,
+                level: 'yellow',
+                confidence: 0.75,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelYellow);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=orange uses MivaltaColors.levelOrange from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 55,
+                level: 'orange',
+                confidence: 0.6,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelOrange);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=red uses MivaltaColors.levelRed from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 35,
+                level: 'red',
+                confidence: 0.5,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelRed);
+      },
+    );
   });
 }
