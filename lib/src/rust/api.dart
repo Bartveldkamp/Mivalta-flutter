@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`
+// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`, `extract_real_confidence`, `extract_real_state`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `from`
 
 /// Day-2 smoke test — kept so the existing engine-hello status line
@@ -133,7 +133,11 @@ Future<String> processManualObservation({
 );
 
 /// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
-/// from (a) the engine-bound profile and (b) live `readiness_score`.
+/// from (a) the engine-bound profile and (b) live readiness state.
+///
+/// PR-D.1: Now uses real fatigue state and confidence from the ViterbiEngine,
+/// ensuring the advisor sees the athlete's actual condition (Honesty principle:
+/// the engine decides the state; the advisor must use it).
 ///
 /// Optional parameters allow the UI to pass user-selected mood, equipment,
 /// and terrain. When `None`, defaults to `"normal"` for mood and `null`
@@ -211,6 +215,88 @@ Future<void> writeMinimalBiometric({
   isoDate: isoDate,
   restingHr: restingHr,
 );
+
+/// Update the athlete profile across all engines.
+///
+/// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,
+/// and DashboardEngine. The Vault profile is updated via `write_profile`.
+/// Call this when the user edits their profile in Settings.
+Future<void> updateProfile({
+  required EnginesHandle handle,
+  required String athleteProfileJson,
+}) => RustLib.instance.api.crateApiUpdateProfile(
+  handle: handle,
+  athleteProfileJson: athleteProfileJson,
+);
+
+/// Persist the profile to the encrypted vault.
+///
+/// This writes a VaultProfile record to vault.db (SQLCipher-encrypted).
+/// The profile is retrievable via `read_default_profile()`.
+Future<void> writeProfile({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteProfile(handle: handle, json: json);
+
+/// Read the default profile from the vault.
+///
+/// Returns the JSON-serialized VaultProfile, or error if none exists.
+Future<String> readDefaultProfile({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadDefaultProfile(handle: handle);
+
+/// Export the entire vault as an encrypted backup blob.
+///
+/// The blob is passphrase-encrypted (AES-256-GCM) and safe to store anywhere.
+/// Without the passphrase, the data is unrecoverable. By design.
+///
+/// `passphrase` must score ≥50 on strength check or returns InputError.
+/// Returns the raw encrypted bytes — Dart saves to a file via share sheet.
+Future<Uint8List> exportEncryptedVault({
+  required EnginesHandle handle,
+  required String athleteId,
+  required String passphrase,
+}) => RustLib.instance.api.crateApiExportEncryptedVault(
+  handle: handle,
+  athleteId: athleteId,
+  passphrase: passphrase,
+);
+
+/// Export biometric history as CSV.
+///
+/// Returns CSV content as a string (date,resting_hr,hrv_rmssd,...).
+/// `days` controls how many days of history (0 = all).
+/// The Dart side saves this to a file via the platform share sheet.
+Future<String> exportBiometricsCsv({
+  required EnginesHandle handle,
+  required int days,
+}) => RustLib.instance.api.crateApiExportBiometricsCsv(
+  handle: handle,
+  days: days,
+);
+
+/// Permanently erase all user data.
+///
+/// This destroys the vault key → all encrypted data becomes unrecoverable noise.
+/// Also calls `crypto_erase_cache()` to wipe the sealed cache key.
+///
+/// Returns a JSON `ClearAllUserDataReport` documenting what was destroyed
+/// (row counts, bundle counts, etc.) for the confirmation receipt.
+///
+/// **IRREVERSIBLE.** Dart must show a confirm dialog before calling.
+Future<String> clearAllUserData({
+  required EnginesHandle handle,
+  required String athleteId,
+}) => RustLib.instance.api.crateApiClearAllUserData(
+  handle: handle,
+  athleteId: athleteId,
+);
+
+/// Cryptographically erase only the sealed cache key.
+///
+/// After this, any sealed cache backups are unrecoverable noise.
+/// The main vault is unaffected. Use `clear_all_user_data` to wipe everything.
+Future<void> cryptoEraseCache({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiCryptoEraseCache(handle: handle);
 
 /// `DashboardEngine::get_dashboard()` — composite payload (state + session
 /// + context) as JSON. Drives the three-zone PULL home layout.

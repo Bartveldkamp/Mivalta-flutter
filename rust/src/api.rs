@@ -499,6 +499,101 @@ pub fn write_minimal_biometric(
 }
 
 // =============================================================================
+// PR-G: SETTINGS & DATA CONTROL — profile updates, export, erasure
+// =============================================================================
+//
+// These methods implement the Settings screen's data control features:
+// - Profile update (re-binds all engines)
+// - Encrypted vault export (user-owned backup)
+// - Biometrics CSV export (portable, readable)
+// - Full data erasure (crypto-erase, irreversible)
+//
+// Zero-fabrication / no-harvesting invariants:
+// - No network calls
+// - Export writes local file only
+// - Delete is real crypto-erase, not a soft flag
+
+/// Update the athlete profile across all engines.
+///
+/// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,
+/// and DashboardEngine. The Vault profile is updated via `write_profile`.
+/// Call this when the user edits their profile in Settings.
+pub fn update_profile(handle: &EnginesHandle, athlete_profile_json: String) -> Result<(), BridgeError> {
+    // Update all engines that support profile rebinding
+    handle.viterbi.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
+    handle.advisor.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
+    handle.normalizer.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
+    handle.dashboard.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
+    Ok(())
+}
+
+/// Persist the profile to the encrypted vault.
+///
+/// This writes a VaultProfile record to vault.db (SQLCipher-encrypted).
+/// The profile is retrievable via `read_default_profile()`.
+pub fn write_profile(handle: &EnginesHandle, json: String) -> Result<(), BridgeError> {
+    handle.vault.write_profile(json).map_err(Into::into)
+}
+
+/// Read the default profile from the vault.
+///
+/// Returns the JSON-serialized VaultProfile, or error if none exists.
+pub fn read_default_profile(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.vault.read_default_profile().map_err(Into::into)
+}
+
+/// Export the entire vault as an encrypted backup blob.
+///
+/// The blob is passphrase-encrypted (AES-256-GCM) and safe to store anywhere.
+/// Without the passphrase, the data is unrecoverable. By design.
+///
+/// `passphrase` must score ≥50 on strength check or returns InputError.
+/// Returns the raw encrypted bytes — Dart saves to a file via share sheet.
+pub fn export_encrypted_vault(
+    handle: &EnginesHandle,
+    athlete_id: String,
+    passphrase: String,
+) -> Result<Vec<u8>, BridgeError> {
+    handle
+        .vault
+        .export_encrypted_vault(athlete_id, passphrase)
+        .map_err(Into::into)
+}
+
+/// Export biometric history as CSV.
+///
+/// Returns CSV content as a string (date,resting_hr,hrv_rmssd,...).
+/// `days` controls how many days of history (0 = all).
+/// The Dart side saves this to a file via the platform share sheet.
+pub fn export_biometrics_csv(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
+    handle.vault.export_biometrics_csv(days).map_err(Into::into)
+}
+
+/// Permanently erase all user data.
+///
+/// This destroys the vault key → all encrypted data becomes unrecoverable noise.
+/// Also calls `crypto_erase_cache()` to wipe the sealed cache key.
+///
+/// Returns a JSON `ClearAllUserDataReport` documenting what was destroyed
+/// (row counts, bundle counts, etc.) for the confirmation receipt.
+///
+/// **IRREVERSIBLE.** Dart must show a confirm dialog before calling.
+pub fn clear_all_user_data(handle: &EnginesHandle, athlete_id: String) -> Result<String, BridgeError> {
+    // First erase the cache layer
+    handle.vault.crypto_erase_cache().map_err(BridgeError::from)?;
+    // Then clear the vault (which also destroys the vault key)
+    handle.vault.clear_all_user_data(athlete_id).map_err(Into::into)
+}
+
+/// Cryptographically erase only the sealed cache key.
+///
+/// After this, any sealed cache backups are unrecoverable noise.
+/// The main vault is unaffected. Use `clear_all_user_data` to wipe everything.
+pub fn crypto_erase_cache(handle: &EnginesHandle) -> Result<(), BridgeError> {
+    handle.vault.crypto_erase_cache().map_err(Into::into)
+}
+
+// =============================================================================
 // DASHBOARD ENGINE — three-zone PULL home widgets
 // =============================================================================
 
@@ -1511,5 +1606,80 @@ mod tests {
         eprintln!("PR-E2b: iOS vault profile round-trip test passed");
         eprintln!("  - Profile written to SQLCipher-encrypted vault");
         eprintln!("  - Profile read back successfully");
+    }
+
+    // =========================================================================
+    // PR-G: Data erasure test
+    // =========================================================================
+    //
+    // Mirrors gatc-vault/src/keyed_conn.rs::erasing_vault_key_makes_data_unrecoverable.
+    // Verifies that clear_all_user_data destroys the vault key, making all
+    // previously-written data unrecoverable.
+
+    #[test]
+    fn clear_all_user_data_makes_vault_unreadable() {
+        // PR-G: Write data, erase everything, verify data is gone.
+        // This is the critical privacy invariant: delete means delete.
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let profile = test_profile();
+        let athlete_id = "test-user-001".to_string();
+
+        // Step 1: Create vault and write biometric data
+        {
+            let vault = gatc_ffi::VaultEngine::new(profile.clone(), vault_path.clone())
+                .expect("VaultEngine should construct");
+
+            // Write profile to make the athlete "active" in the vault
+            // (required by clear_all_user_data's policy check)
+            vault.write_profile(profile.clone())
+                .expect("write_profile should succeed");
+
+            // Write some biometric data
+            let payload = serde_json::json!({
+                "date": "2026-06-02",
+                "source": "erasure_test_marker",
+                "resting_hr": 55,
+                "hrv_rmssd": 42.0,
+            });
+            vault.write_biometric(payload.to_string())
+                .expect("write_biometric should succeed");
+
+            // Verify data is readable
+            let history = vault.read_biometric_history(30)
+                .expect("read_biometric_history should succeed");
+            assert!(history.contains("erasure_test_marker"),
+                "biometric should be readable before erasure");
+
+            // Step 2: Erase everything
+            let report = vault.clear_all_user_data(athlete_id.clone())
+                .expect("clear_all_user_data should succeed");
+
+            // The report should be valid JSON
+            let report_json: serde_json::Value = serde_json::from_str(&report)
+                .expect("erasure report should be valid JSON");
+            eprintln!("Erasure report: {report_json}");
+        }
+
+        // Step 3: Try to read the vault after erasure
+        // A fresh VaultEngine creates a new key (the old one is destroyed),
+        // so the old data is cryptographically gone.
+        let vault2 = gatc_ffi::VaultEngine::new(profile, vault_path)
+            .expect("VaultEngine should construct with new key");
+
+        let history2 = vault2.read_biometric_history(30)
+            .expect("read_biometric_history should succeed (empty vault)");
+
+        // The old marker should NOT appear — either the vault is empty
+        // or it contains only data written after the new key was generated.
+        assert!(!history2.contains("erasure_test_marker"),
+            "old biometric data must be gone after clear_all_user_data");
+
+        eprintln!("PR-G: Data erasure test passed");
+        eprintln!("  - Data written to vault");
+        eprintln!("  - clear_all_user_data called");
+        eprintln!("  - Data is cryptographically unrecoverable");
     }
 }

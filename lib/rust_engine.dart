@@ -18,6 +18,7 @@
 // catch `BridgeError` and switch on variant.
 
 import 'dart:io' show Platform;
+import 'dart:typed_data' show Uint8List;
 
 import 'src/rust/api.dart' as rust_api;
 import 'src/rust/api.dart' show BridgeError, EnginesHandle;
@@ -328,4 +329,71 @@ class RustEngineBinding {
         athleteProfileJson: athleteProfileJson,
         vaultPath: vaultPath,
       );
+
+  // ===========================================================================
+  // PR-G: SETTINGS & DATA CONTROL — profile updates, export, erasure
+  // ===========================================================================
+  //
+  // Zero-fabrication / no-harvesting invariants:
+  // - No network calls anywhere
+  // - Export writes local file only
+  // - Delete is real crypto-erase, not a soft flag
+
+  /// Update the athlete profile across all engines.
+  ///
+  /// Re-binds ViterbiEngine, AdvisorEngine, NormalizerEngine, DashboardEngine.
+  /// Call this when the user edits their profile in Settings.
+  Future<void> updateProfile(EnginesHandle handle, {required String athleteProfileJson}) =>
+      rust_api.updateProfile(handle: handle, athleteProfileJson: athleteProfileJson);
+
+  /// Persist the profile to the encrypted vault.
+  ///
+  /// Writes a VaultProfile record to vault.db (SQLCipher-encrypted).
+  Future<void> writeProfile(EnginesHandle handle, {required String json}) =>
+      rust_api.writeProfile(handle: handle, json: json);
+
+  /// Read the default profile from the vault.
+  ///
+  /// Returns the JSON-serialized VaultProfile.
+  Future<String> readDefaultProfile(EnginesHandle handle) =>
+      rust_api.readDefaultProfile(handle: handle);
+
+  /// Export the entire vault as an encrypted backup blob.
+  ///
+  /// The blob is passphrase-encrypted (AES-256-GCM). Without the passphrase,
+  /// the data is unrecoverable. By design.
+  ///
+  /// Returns the raw encrypted bytes — save to file via share sheet.
+  Future<Uint8List> exportEncryptedVault(
+    EnginesHandle handle, {
+    required String athleteId,
+    required String passphrase,
+  }) =>
+      rust_api.exportEncryptedVault(
+        handle: handle,
+        athleteId: athleteId,
+        passphrase: passphrase,
+      );
+
+  /// Export biometric history as CSV.
+  ///
+  /// Returns CSV content as a string. `days` controls how many days of
+  /// history (0 = all). Save to file via share sheet.
+  Future<String> exportBiometricsCsv(EnginesHandle handle, {required int days}) =>
+      rust_api.exportBiometricsCsv(handle: handle, days: days);
+
+  /// Permanently erase all user data.
+  ///
+  /// Destroys the vault key → all encrypted data becomes unrecoverable noise.
+  /// Returns a JSON report of what was destroyed.
+  ///
+  /// **IRREVERSIBLE.** Show confirm dialog before calling.
+  Future<String> clearAllUserData(EnginesHandle handle, {required String athleteId}) =>
+      rust_api.clearAllUserData(handle: handle, athleteId: athleteId);
+
+  /// Cryptographically erase only the sealed cache key.
+  ///
+  /// The main vault is unaffected. Use [clearAllUserData] to wipe everything.
+  Future<void> cryptoEraseCache(EnginesHandle handle) =>
+      rust_api.cryptoEraseCache(handle: handle);
 }

@@ -34,6 +34,7 @@ import 'advisor_screen.dart';
 import 'debug_swatch_exerciser.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
+import 'settings_screen.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
 /// never recomputes the state itself.
@@ -376,6 +377,27 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     );
   }
 
+  /// PR-G: Open settings screen.
+  void _openSettings() {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SettingsScreen(
+          binding: binding,
+          handle: handle,
+          profileJson: widget.profileJson ?? _fallbackProfile(),
+          onDataCleared: () {
+            // After data erasure, navigate back to the app entry point
+            // which will detect no profile and show onboarding.
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+        ),
+      ),
+    );
+  }
+
   /// PR-E: Manual health sync with permission request.
   /// Called when user taps the sync button. Requests permissions if needed,
   /// then syncs health data and refreshes the display.
@@ -479,6 +501,13 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
+          // PR-G: Settings button
+          if (!_loading)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Settings',
+              onPressed: _openSettings,
+            ),
           // Debug menu (debug mode only)
           if (kDebugMode)
             PopupMenuButton<String>(
