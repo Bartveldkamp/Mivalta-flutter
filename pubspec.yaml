@@ -59,6 +59,12 @@ dependencies:
   # PR-D: Date formatting for manual entry screen.
   intl: ^0.19.0
 
+  # PR-E: Health Connect (Android) + HealthKit (iOS) integration.
+  # Cross-platform plugin for reading biometrics and activity from
+  # the platform health stores. Dart shuttles raw JSON to the Rust
+  # normalizer — no physiology transforms in Dart.
+  health: ^11.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

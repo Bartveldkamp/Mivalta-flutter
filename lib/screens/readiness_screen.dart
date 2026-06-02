@@ -24,6 +24,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../canonical_seed.dart';
 import '../rust_engine.dart';
+import '../services/health_ingest.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/readiness_ring.dart';
@@ -91,10 +92,14 @@ class ReadinessScreen extends StatefulWidget {
 class _ReadinessScreenState extends State<ReadinessScreen> {
   _HomeData _data = _HomeData();
   bool _loading = true;
+  bool _syncing = false;
 
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
   RustEngineBinding? _binding;
+
+  // PR-E: Health ingest service for auto-sync
+  HealthIngestService? _healthService;
 
   @override
   void initState() {
@@ -148,6 +153,24 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         await binding.writeViterbiState(localHandle, stateJson: stateJson);
       }
       final handle = localHandle; // local alias for cleaner code below
+
+      // PR-E: Attempt health data auto-sync on launch (Android only for now).
+      // Permission-denied or no-data is NOT an error — we just continue with
+      // whatever state the engine already has. Zero-fabrication: if we can't
+      // get real data, we don't pretend to have any.
+      if (Platform.isAndroid) {
+        final healthService = HealthIngestService(
+          binding: binding,
+          handle: handle,
+        );
+        _healthService = healthService;
+
+        final syncResult = await healthService.syncHealthData(days: 7);
+        if (kDebugMode && syncResult.observationsProcessed > 0) {
+          // ignore: avoid_print
+          print('PR-E: Health sync processed ${syncResult.observationsProcessed} days');
+        }
+      }
 
       // ---------- Zone 1: State (hero) ----------
 
@@ -316,6 +339,84 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     );
   }
 
+  /// PR-E: Manual health sync with permission request.
+  /// Called when user taps the sync button. Requests permissions if needed,
+  /// then syncs health data and refreshes the display.
+  Future<void> _syncHealthData() async {
+    if (!Platform.isAndroid) {
+      // iOS not supported yet (PR-E.2)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Health sync coming to iOS soon')),
+        );
+      }
+      return;
+    }
+
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+
+    setState(() => _syncing = true);
+
+    try {
+      var healthService = _healthService;
+      if (healthService == null) {
+        healthService = HealthIngestService(binding: binding, handle: handle);
+        _healthService = healthService;
+      }
+
+      // Check permissions first
+      final hasPerms = await healthService.hasPermissions();
+      if (!hasPerms) {
+        // Request permissions
+        final granted = await healthService.requestPermissions();
+        if (!granted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Health permissions required for auto-sync'),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // Sync health data
+      final result = await healthService.syncHealthData(days: 7);
+
+      if (mounted) {
+        if (result.success && result.observationsProcessed > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Synced ${result.observationsProcessed} days of health data'),
+            ),
+          );
+          // Refresh display with new data
+          setState(() => _loading = true);
+          _fetch();
+        } else if (result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No new health data to sync')),
+          );
+        } else if (result.permissionDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Health permissions not granted')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Sync failed: ${result.error ?? "unknown error"}')),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _syncing = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -324,32 +425,48 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
         title: const Text('MiValta'),
-        actions: kDebugMode
-            ? [
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.bug_report),
-                  tooltip: 'Debug tools',
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'swatch':
-                        _openDebugExerciser();
-                      case 'v10':
-                        _openV10Spike();
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'swatch',
-                      child: Text('SourceTier exerciser'),
+        actions: [
+          // PR-E: Health sync button (Android only for now)
+          if (Platform.isAndroid && !_loading)
+            _syncing
+                ? const Padding(
+                    padding: EdgeInsets.all(MivaltaSpace.x4),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    PopupMenuItem(
-                      value: 'v10',
-                      child: Text('V10.1 LLM spike'),
-                    ),
-                  ],
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Sync health data',
+                    onPressed: _syncHealthData,
+                  ),
+          // Debug menu (debug mode only)
+          if (kDebugMode)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.bug_report),
+              tooltip: 'Debug tools',
+              onSelected: (value) {
+                switch (value) {
+                  case 'swatch':
+                    _openDebugExerciser();
+                  case 'v10':
+                    _openV10Spike();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'swatch',
+                  child: Text('SourceTier exerciser'),
                 ),
-              ]
-            : null,
+                PopupMenuItem(
+                  value: 'v10',
+                  child: Text('V10.1 LLM spike'),
+                ),
+              ],
+            ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
