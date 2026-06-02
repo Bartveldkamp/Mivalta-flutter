@@ -25,8 +25,10 @@ import 'package:path_provider/path_provider.dart';
 import '../canonical_seed.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
+import '../theme/tokens.dart';
 import '../widgets/readiness_ring.dart';
 import 'debug_swatch_exerciser.dart';
+import 'readiness_detail_screen.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
 /// never recomputes the state itself.
@@ -88,6 +90,10 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
   _HomeData _data = _HomeData();
   bool _loading = true;
 
+  // PR-C: Store handle and binding for navigation to detail screen
+  EnginesHandle? _handle;
+  RustEngineBinding? _binding;
+
   @override
   void initState() {
     super.initState();
@@ -99,8 +105,11 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     // multiple awaits with State mutation in between is reentrancy bait
     // unless the work happens against a local capture.
     final d = _HomeData();
+    RustEngineBinding? localBinding;
+    EnginesHandle? localHandle;
     try {
-      final binding = await RustEngineBinding.bootstrap();
+      localBinding = await RustEngineBinding.bootstrap();
+      final binding = localBinding; // local alias for cleaner code below
       final tablesJson =
           await rootBundle.loadString('assets/compiled_tables.json');
       final support = await getApplicationSupportDirectory();
@@ -117,10 +126,9 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         vaultPath: vaultDir.path,
       );
 
-      final EnginesHandle handle;
       if (persistedState != null) {
         // Subsequent launch: restore from persisted state
-        handle = await binding.constructEnginesFromState(
+        localHandle = await binding.constructEnginesFromState(
           athleteProfileJson: profileJson,
           tablesJson: tablesJson,
           vaultPath: vaultDir.path,
@@ -128,15 +136,16 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         );
       } else {
         // First run: construct fresh and persist immediately
-        handle = await binding.constructEnginesFresh(
+        localHandle = await binding.constructEnginesFresh(
           athleteProfileJson: profileJson,
           tablesJson: tablesJson,
           vaultPath: vaultDir.path,
         );
         // Persist immediately so next launch can restore
-        final stateJson = await binding.saveState(handle);
-        await binding.writeViterbiState(handle, stateJson: stateJson);
+        final stateJson = await binding.saveState(localHandle);
+        await binding.writeViterbiState(localHandle, stateJson: stateJson);
       }
+      final handle = localHandle; // local alias for cleaner code below
 
       // ---------- Zone 1: State (hero) ----------
 
@@ -241,7 +250,23 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     setState(() {
       _data = d;
       _loading = false;
+      _handle = localHandle;
+      _binding = localBinding;
     });
+  }
+
+  void _openReadinessDetail() {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReadinessDetailScreen(
+          handle: handle,
+          binding: binding,
+        ),
+      ),
+    );
   }
 
   void _openDebugExerciser() {
@@ -257,10 +282,10 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Dark-first per UI_UX_DIRECTION
+      backgroundColor: MivaltaColors.surfaceBackground, // Dark-first per UI_UX_DIRECTION
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: MivaltaColors.surfaceBackground,
+        foregroundColor: MivaltaColors.textPrimary,
         title: const Text('MiValta'),
         actions: kDebugMode
             ? [
@@ -291,33 +316,32 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _ThreeZoneHome(data: _data),
+          : _ThreeZoneHome(data: _data, onTapRing: _openReadinessDetail),
     );
   }
 }
 
 class _ThreeZoneHome extends StatelessWidget {
-  const _ThreeZoneHome({required this.data});
+  const _ThreeZoneHome({required this.data, required this.onTapRing});
   final _HomeData data;
+  final VoidCallback onTapRing;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textTheme = theme.textTheme.apply(
-      bodyColor: Colors.white,
-      displayColor: Colors.white,
-    );
+    // Theme is wired via mivaltaDarkTheme() in main.dart — no inline color overrides.
+    final textTheme = theme.textTheme;
 
     final err = data.error;
     if (err != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(MivaltaSpace.x5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.error, color: theme.colorScheme.error, size: 48),
-              const SizedBox(height: 16),
+              const SizedBox(height: MivaltaSpace.x4),
               SelectableText(err, style: textTheme.bodyMedium),
             ],
           ),
@@ -326,21 +350,24 @@ class _ThreeZoneHome extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MivaltaSpace.x5,
+        vertical: MivaltaSpace.x4,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ============ ZONE 1: STATE (HERO) ============
-          _Zone1State(data: data, textTheme: textTheme),
-          const SizedBox(height: 32),
+          _Zone1State(data: data, textTheme: textTheme, onTapRing: onTapRing),
+          const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 2: TODAY ============
           _Zone2Today(data: data, textTheme: textTheme),
-          const SizedBox(height: 32),
+          const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 3: CONTEXT ============
           _Zone3Context(data: data, textTheme: textTheme),
-          const SizedBox(height: 24),
+          const SizedBox(height: MivaltaSpace.x5),
         ],
       ),
     );
@@ -349,30 +376,38 @@ class _ThreeZoneHome extends StatelessWidget {
 
 /// Zone 1 — State (hero): ReadinessRing + state_recommendation + fatigue badge
 class _Zone1State extends StatelessWidget {
-  const _Zone1State({required this.data, required this.textTheme});
+  const _Zone1State({
+    required this.data,
+    required this.textTheme,
+    required this.onTapRing,
+  });
   final _HomeData data;
   final TextTheme textTheme;
+  final VoidCallback onTapRing;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Hero ring (or F1 no-data copy)
+        // Hero ring (or F1 no-data copy) — tap to open detail screen
         Center(
-          child: ReadinessRing(
-            score: data.readinessScore,
-            level: data.readinessLevel,
-            confidence: data.confidence,
-            noData: data.insufficientData,
+          child: GestureDetector(
+            onTap: data.insufficientData ? null : onTapRing,
+            child: ReadinessRing(
+              score: data.readinessScore,
+              level: data.readinessLevel,
+              confidence: data.confidence,
+              noData: data.insufficientData,
+            ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: MivaltaSpace.x4),
 
         // State recommendation prose (verbatim from engine)
         if (data.stateRecommendation != null &&
             data.stateRecommendation!.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
             child: Text(
               data.stateRecommendation!,
               style: textTheme.bodyMedium,
@@ -383,43 +418,26 @@ class _Zone1State extends StatelessWidget {
         // Confidence advisory (honest-confidence, shown when non-null)
         if (data.confidenceAdvisory != null &&
             data.confidenceAdvisory!.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: MivaltaSpace.x2),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
             child: Text(
               data.confidenceAdvisory!,
-              style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
               textAlign: TextAlign.center,
             ),
           ),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: MivaltaSpace.x3),
 
-        // Fatigue state badge
+        // Fatigue state badge — color via fatigueStateColor() from tokens.dart
         if (data.fatigueState != null)
           _Badge(
             label: _humanizeFatigueState(data.fatigueState),
-            color: _fatigueStateColor(data.fatigueState),
+            color: fatigueStateColor(data.fatigueState),
           ),
       ],
     );
-  }
-
-  Color _fatigueStateColor(String? state) {
-    switch (state?.toLowerCase()) {
-      case 'recovered':
-        return const Color(0xFF2BD974);
-      case 'productive':
-        return const Color(0xFF00C6A7);
-      case 'accumulated':
-        return const Color(0xFFE8C547);
-      case 'overreached':
-        return const Color(0xFFE6872F);
-      case 'illnessrisk':
-        return const Color(0xFFE5484D);
-      default:
-        return Colors.grey;
-    }
   }
 }
 
@@ -438,26 +456,26 @@ class _Zone2Today extends StatelessWidget {
           'TODAY',
           style: textTheme.labelSmall?.copyWith(
             letterSpacing: 1.2,
-            color: Colors.white54,
+            color: MivaltaColors.textMuted,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: MivaltaSpace.x3),
 
         // Zone cap chip
         if (data.zoneCap != null)
           _Badge(
             label: 'Up to ${data.zoneCap}',
-            color: Colors.white24,
+            color: MivaltaColors.textMuted,
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: MivaltaSpace.x4),
 
         // Workout card (from SessionWidget real fields)
         if (data.workoutTitle != null)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(MivaltaSpace.x4),
             decoration: BoxDecoration(
-              color: Colors.white10,
-              borderRadius: BorderRadius.circular(12),
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.md),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,8 +483,8 @@ class _Zone2Today extends StatelessWidget {
                 // Title + duration
                 Row(
                   children: [
-                    const Icon(Icons.fitness_center, color: Colors.white70),
-                    const SizedBox(width: 12),
+                    Icon(Icons.fitness_center, color: MivaltaColors.textSecondary),
+                    const SizedBox(width: MivaltaSpace.x3),
                     Expanded(
                       child: Text(
                         data.workoutTitle!,
@@ -477,19 +495,19 @@ class _Zone2Today extends StatelessWidget {
                       Text(
                         '${data.durationMin} min',
                         style: textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
+                          color: MivaltaColors.textMuted,
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: MivaltaSpace.x2),
 
                 // Zone + target
                 Row(
                   children: [
                     if (data.sessionZone != null)
-                      _Badge(label: data.sessionZone!, color: Colors.white38),
-                    const SizedBox(width: 8),
+                      _Badge(label: data.sessionZone!, color: MivaltaColors.textMuted),
+                    const SizedBox(width: MivaltaSpace.x2),
                     if (data.targetWatts != null)
                       Text(
                         '${data.targetWatts}W',
@@ -509,7 +527,7 @@ class _Zone2Today extends StatelessWidget {
 
                 // Focus cue
                 if (data.focusCue != null && data.focusCue!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: MivaltaSpace.x3),
                   Text(
                     data.focusCue!,
                     style: textTheme.bodyMedium?.copyWith(
@@ -521,10 +539,10 @@ class _Zone2Today extends StatelessWidget {
                 // Rationale prose (the "why")
                 if (data.rationaleProse != null &&
                     data.rationaleProse!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: MivaltaSpace.x2),
                   Text(
                     data.rationaleProse!,
-                    style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                    style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
                   ),
                 ],
               ],
@@ -550,10 +568,10 @@ class _Zone3Context extends StatelessWidget {
           'CONTEXT',
           style: textTheme.labelSmall?.copyWith(
             letterSpacing: 1.2,
-            color: Colors.white54,
+            color: MivaltaColors.textMuted,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: MivaltaSpace.x3),
 
         // Sparkline (14-day history)
         if (data.historyScores.isNotEmpty)
@@ -561,7 +579,7 @@ class _Zone3Context extends StatelessWidget {
             height: 40,
             child: _Sparkline(scores: data.historyScores),
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: MivaltaSpace.x4),
 
         // ACWR block
         if (data.acwr != null) ...[
@@ -574,10 +592,13 @@ class _Zone3Context extends StatelessWidget {
           if (data.acwrRecommendation != null &&
               data.acwrRecommendation!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              padding: const EdgeInsets.only(
+                top: MivaltaSpace.x1,
+                bottom: MivaltaSpace.x2,
+              ),
               child: Text(
                 data.acwrRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
               ),
             ),
         ],
@@ -609,35 +630,38 @@ class _Zone3Context extends StatelessWidget {
           if (data.monotonyRecommendation != null &&
               data.monotonyRecommendation!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              padding: const EdgeInsets.only(
+                top: MivaltaSpace.x1,
+                bottom: MivaltaSpace.x2,
+              ),
               child: Text(
                 data.monotonyRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
               ),
             ),
         ],
 
         // Last workout
         if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: MivaltaSpace.x2),
           Text(
             'Last: ${data.lastWorkout}',
-            style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+            style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
           ),
         ],
 
         // Reactive alerts (verbatim list)
         if (data.reactiveAlerts.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: MivaltaSpace.x3),
           for (final alert in data.reactiveAlerts)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: MivaltaSpace.x1),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber,
-                      size: 16, color: Color(0xFFE8C547)),
-                  const SizedBox(width: 8),
+                  Icon(Icons.warning_amber,
+                      size: 16, color: MivaltaColors.cautionYellow),
+                  const SizedBox(width: MivaltaSpace.x2),
                   Expanded(
                     child: Text(alert, style: textTheme.bodySmall),
                   ),
@@ -648,20 +672,20 @@ class _Zone3Context extends StatelessWidget {
 
         // Pattern advisories (verbatim list)
         if (data.patternAdvisories.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: MivaltaSpace.x2),
           for (final advisory in data.patternAdvisories)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: MivaltaSpace.x1),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline,
-                      size: 16, color: Colors.white54),
-                  const SizedBox(width: 8),
+                  Icon(Icons.info_outline,
+                      size: 16, color: MivaltaColors.textMuted),
+                  const SizedBox(width: MivaltaSpace.x2),
                   Expanded(
                     child: Text(
                       advisory,
-                      style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                      style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
                     ),
                   ),
                 ],
@@ -669,21 +693,21 @@ class _Zone3Context extends StatelessWidget {
             ),
         ],
 
-        const SizedBox(height: 12),
+        const SizedBox(height: MivaltaSpace.x3),
 
         // Source tier swatch
         Row(
           children: [
             Text(
               'Data source: ',
-              style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
             ),
             if (data.sourceTier != null)
               _SourceTierChip(tier: data.sourceTier!)
             else
               Text(
                 'No data yet',
-                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
               ),
           ],
         ),
@@ -711,33 +735,35 @@ class _MetricRow extends StatelessWidget {
       children: [
         Text(
           '$label: ',
-          style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+          style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
         ),
         Text(
           value,
           style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         if (zone != null) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: MivaltaSpace.x2),
           _Badge(label: zone!, color: _zoneColor(zone)),
         ],
       ],
     );
   }
 
+  /// Zone color from token constants. Maps ACWR/monotony zone strings to the
+  /// appropriate level color. Engine decides the zone; we just render it.
   Color _zoneColor(String? zone) {
     switch (zone?.toLowerCase()) {
       case 'optimal':
       case 'green':
-        return const Color(0xFF2BD974);
+        return MivaltaColors.levelGreen;
       case 'caution':
       case 'yellow':
-        return const Color(0xFFE8C547);
+        return MivaltaColors.levelYellow;
       case 'danger':
       case 'red':
-        return const Color(0xFFE5484D);
+        return MivaltaColors.levelRed;
       default:
-        return Colors.white38;
+        return MivaltaColors.textMuted;
     }
   }
 }
@@ -751,10 +777,13 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MivaltaSpace.x3,
+        vertical: MivaltaSpace.x1 + 2, // 6.0
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MivaltaRadii.lg),
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
@@ -765,7 +794,7 @@ class _Badge extends StatelessWidget {
   }
 }
 
-/// Source tier chip using LOCKED tokens
+/// Source tier chip using LOCKED tokens from source_tier.dart
 class _SourceTierChip extends StatelessWidget {
   const _SourceTierChip({required this.tier});
   final SourceTier tier;
@@ -774,20 +803,23 @@ class _SourceTierChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = kSourceTierColor[tier]!;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MivaltaSpace.x2,
+        vertical: MivaltaSpace.x1,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(MivaltaRadii.sm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: MivaltaSpace.x2,
+            height: MivaltaSpace.x2,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: MivaltaSpace.x1 + 2), // 6.0
           Text(
             kSourceTierLabel[tier]!,
             style: TextStyle(color: color, fontSize: 12),
@@ -823,7 +855,7 @@ class _SparklinePainter extends CustomPainter {
     if (scores.isEmpty) return;
 
     final paint = Paint()
-      ..color = const Color(0xFF2BD974)
+      ..color = MivaltaColors.levelGreen
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

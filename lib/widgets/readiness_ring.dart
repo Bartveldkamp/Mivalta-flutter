@@ -3,10 +3,14 @@
 //
 // The ring color is determined by the engine's LEVEL field, not by
 // re-deriving from the score. Display-only — no thresholds in Dart.
+//
+// PR-C: Migrated to tokens-only (no inline Colors/hex). Color flows through
+// readinessLevelColor() from tokens.dart.
 
 import 'package:flutter/material.dart';
 
 import '../copy/f1.dart';
+import '../theme/tokens.dart';
 
 /// Calm readiness hero. All inputs come verbatim from
 /// ViterbiEngine.readiness_indicator(); this widget renders, never computes.
@@ -24,28 +28,12 @@ class ReadinessRing extends StatelessWidget {
   final double? confidence;
   final bool noData;
 
-  // Color is chosen by the engine's LEVEL, not by the UI re-deriving from score.
-  Color _levelColor(BuildContext ctx) {
-    switch ((level ?? '').toLowerCase()) {
-      case 'green':
-        return const Color(0xFF2BD974);
-      case 'yellow':
-        return const Color(0xFFE8C547);
-      case 'orange':
-        return const Color(0xFFE6872F);
-      case 'red':
-        return const Color(0xFFE5484D);
-      default:
-        return Theme.of(ctx).colorScheme.outline;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (noData) {
       return Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(MivaltaSpace.x5),
         child: Text(
           kF1NoDataCopy, // LOCKED F1 copy
           style: theme.textTheme.titleMedium,
@@ -53,7 +41,8 @@ class ReadinessRing extends StatelessWidget {
         ),
       );
     }
-    final color = _levelColor(context);
+    // Color is chosen by the engine's LEVEL via tokens — never re-derived from score.
+    final color = readinessLevelColor(level);
     return SizedBox(
       width: 220,
       height: 220,

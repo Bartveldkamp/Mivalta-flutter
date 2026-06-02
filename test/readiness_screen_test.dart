@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/screens/readiness_screen.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
+import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/readiness_ring.dart';
 
 void main() {
@@ -310,5 +311,105 @@ void main() {
         },
       );
     }
+  });
+
+  // PR-C: Tokens-only compliance — ring color must come from tokens layer
+  group('Tokens-only compliance', () {
+    testWidgets(
+      'ReadinessRing level=green uses MivaltaColors.levelGreen from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 85,
+                level: 'green',
+                confidence: 0.9,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        // Color must match the token constant (which equals 0xFF2BD974)
+        expect(color, MivaltaColors.levelGreen);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=yellow uses MivaltaColors.levelYellow from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 72,
+                level: 'yellow',
+                confidence: 0.75,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelYellow);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=orange uses MivaltaColors.levelOrange from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 55,
+                level: 'orange',
+                confidence: 0.6,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelOrange);
+      },
+    );
+
+    testWidgets(
+      'ReadinessRing level=red uses MivaltaColors.levelRed from tokens',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 35,
+                level: 'red',
+                confidence: 0.5,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.levelRed);
+      },
+    );
   });
 }
