@@ -1,18 +1,15 @@
-// MVP-1 readiness screen. Display only — every value comes verbatim from
-// engine output via the FRB methods bound in PR-A. No thresholds,
-// no math, no fallback logic in Dart.
+// PR-B: Three-zone PULL home. Display only — every value comes verbatim from
+// engine output via the FRB methods bound in PR-A. No thresholds, no math,
+// no fallback logic in Dart.
 //
-// Six sections, top to bottom:
-//   a. Readiness indicator      — readiness_indicator() — 4-axis blend headline
-//   b. Readiness score          — readiness_score().score (legacy backup)
-//   c. Fatigue state            — get_readiness().state
-//   d. Zone cap + advisories    — zone_cap_with_advisories().zone +
-//                                  readiness_score().advisories.recommendations[]
-//   e. Recommended workout      — recommend_workout()[0].title + zone
-//   f. Data source tier         — legend of the 4 LOCKED SourceTier swatches
+// Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
+//   Zone 1 — State (hero): ReadinessRing + getStateWidget prose + fatigue badge
+//   Zone 2 — Today: getSessionWidget + zone cap chip + recommended workout
+//   Zone 3 — Context: getContextWidget + sparkline + source tier swatch
 //
-// On insufficient data (no observations yet → advisories
-// .last_observation_at == null) the F1 no-data line replaces section a.
+// On insufficient data (no observations yet → advisories.last_observation_at
+// == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
+// show their engine-provided empty prose.
 //
 // **Continuity**: Uses a PERSISTENT vault path (mivalta-vault) and restores
 // the ViterbiEngine from persisted state on subsequent launches.
@@ -26,30 +23,44 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
 import '../canonical_seed.dart';
-import '../copy/f1.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
+import '../widgets/readiness_ring.dart';
 import 'debug_swatch_exerciser.dart';
 
-class _ReadinessData {
-  // MVP-1: readiness_indicator headline (4-axis blend)
-  String? readinessLevel;
-  int? readinessBlend;
-  double? confidence;
+/// Humanize fatigue state for display. Only transforms at the LABEL layer;
+/// never recomputes the state itself.
+String _humanizeFatigueState(String? state) {
+  if (state == null) return '—';
+  // IllnessRisk → Illness risk
+  return state.replaceAllMapped(
+    RegExp(r'([a-z])([A-Z])'),
+    (m) => '${m[1]} ${m[2]!.toLowerCase()}',
+  );
+}
 
-  int? score;
-  String? fatigueState;
-  String? zoneCap;
-  List<String> advisories = const <String>[];
-  String? workoutTitle;
-  String? workoutZone;
+class _HomeData {
+  // Zone 1 — State (hero)
+  int? readinessScore;       // FIXED: from indicator['score'], rounded
+  String? readinessLevel;    // indicator['level'] verbatim
+  double? confidence;        // indicator['confidence']
+  String? stateWidgetProse;  // getStateWidget() verbatim
+  String? fatigueState;      // viterbiFatigueState().state
+
+  // Zone 2 — Today
+  String? sessionWidgetProse; // getSessionWidget() verbatim
+  String? zoneCap;            // zoneCapWithAdvisories().zone
+  String? workoutTitle;       // recommendWorkout()[0].title
+  String? workoutZone;        // recommendWorkout()[0].zone
+
+  // Zone 3 — Context
+  String? contextWidgetProse; // getContextWidget() verbatim
+  List<double> historyScores = const []; // readReadinessHistory sparkline
+  SourceTier? sourceTier;     // lastObservationSourceTier()
+
+  // State
   bool insufficientData = false;
   String? error;
-  // Parsed SourceTier from VaultEngine.last_observation_source_tier.
-  // null ⇒ engine returned JSON null (no observations yet) ⇒ section
-  // renders the F1 no-data copy. Some(tier) ⇒ section renders the
-  // single LOCKED swatch for that tier.
-  SourceTier? sourceTier;
 }
 
 class ReadinessScreen extends StatefulWidget {
@@ -60,7 +71,7 @@ class ReadinessScreen extends StatefulWidget {
 }
 
 class _ReadinessScreenState extends State<ReadinessScreen> {
-  _ReadinessData _data = _ReadinessData();
+  _HomeData _data = _HomeData();
   bool _loading = true;
 
   @override
@@ -73,7 +84,7 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     // Local non-null snapshot, mirroring the Day-3 BLOCKER 2 fix —
     // multiple awaits with State mutation in between is reentrancy bait
     // unless the work happens against a local capture.
-    final d = _ReadinessData();
+    final d = _HomeData();
     try {
       final binding = await RustEngineBinding.bootstrap();
       final tablesJson =
@@ -113,35 +124,52 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         await binding.writeViterbiState(handle, stateJson: stateJson);
       }
 
-      // MVP-1: readiness_indicator — the 4-axis blend headline
+      // ---------- Zone 1: State (hero) ----------
+
+      // FIXED (PR-B): readiness_indicator — the 4-axis blend headline
+      // The hero number is 'score' (a float), NOT 'blend'.
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
+      final num? score = indicator['score'] as num?; // FIXED: was 'blend' as int?
+      d.readinessScore = score?.round();
       d.readinessLevel = indicator['level']?.toString();
-      d.readinessBlend = indicator['blend'] as int?;
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
+      // Check for insufficient data via readinessScore advisories
       final readinessJson = await binding.readinessScore(handle);
       final readiness = jsonDecode(readinessJson) as Map<String, dynamic>;
-      d.score = readiness['score'] as int?;
       final advisoriesObj = readiness['advisories'];
       if (advisoriesObj is Map) {
-        // No observation yet ⇒ insufficient data per the engine's own
-        // "honest empty" contract on PendingAdvisories.
         d.insufficientData = advisoriesObj['last_observation_at'] == null;
-        final recs = advisoriesObj['recommendations'];
-        if (recs is List) {
-          d.advisories = recs.map((e) => e.toString()).toList(growable: false);
-        }
       }
 
+      // State widget prose (verbatim)
+      final stateWidgetJson = await binding.getStateWidget(handle);
+      final stateWidget = jsonDecode(stateWidgetJson);
+      if (stateWidget is Map) {
+        d.stateWidgetProse = stateWidget['prose']?.toString();
+      }
+
+      // Fatigue state badge
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
 
+      // ---------- Zone 2: Today ----------
+
+      // Session widget prose (verbatim)
+      final sessionWidgetJson = await binding.getSessionWidget(handle);
+      final sessionWidget = jsonDecode(sessionWidgetJson);
+      if (sessionWidget is Map) {
+        d.sessionWidgetProse = sessionWidget['prose']?.toString();
+      }
+
+      // Zone cap
       final zoneJson = await binding.zoneCapWithAdvisories(handle);
       final zone = jsonDecode(zoneJson) as Map<String, dynamic>;
       d.zoneCap = zone['zone']?.toString();
 
+      // Recommended workout
       final workoutsJson = await binding.recommendWorkout(handle);
       final workouts = jsonDecode(workoutsJson);
       if (workouts is List && workouts.isNotEmpty) {
@@ -152,10 +180,32 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         }
       }
 
-      // Source tier of the most recent biometric. Raw JSON is
-      // either a PascalCase variant string ("Medical" / "Device" /
-      // "Partial" / "Manual") or `null` — see
-      // VaultEngine::last_observation_source_tier in rust-engine.
+      // ---------- Zone 3: Context ----------
+
+      // Context widget prose (verbatim)
+      final contextWidgetJson = await binding.getContextWidget(handle);
+      final contextWidget = jsonDecode(contextWidgetJson);
+      if (contextWidget is Map) {
+        d.contextWidgetProse = contextWidget['prose']?.toString();
+      }
+
+      // Readiness history sparkline (14 days)
+      final historyJson = await binding.readReadinessHistory(handle, days: 14);
+      final history = jsonDecode(historyJson);
+      if (history is List) {
+        d.historyScores = history
+            .map((e) {
+              if (e is Map) {
+                final s = e['score'];
+                if (s is num) return s.toDouble();
+              }
+              return null;
+            })
+            .whereType<double>()
+            .toList();
+      }
+
+      // Source tier swatch
       final tierJson = await binding.lastObservationSourceTier(handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
     } catch (e) {
@@ -175,16 +225,17 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
   }
 
   void _openV10Spike() {
-    // Import the V10SpikeScreen from main.dart dynamically to avoid
-    // circular imports. For now, we use a lazy import pattern.
     Navigator.of(context).pushNamed('/v10-spike');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Dark-first per UI_UX_DIRECTION
       appBar: AppBar(
-        title: const Text('Readiness'),
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('MiValta'),
         actions: kDebugMode
             ? [
                 PopupMenuButton<String>(
@@ -214,178 +265,362 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _ReadinessBody(data: _data),
+          : _ThreeZoneHome(data: _data),
     );
   }
 }
 
-class _ReadinessBody extends StatelessWidget {
-  const _ReadinessBody({required this.data});
-  final _ReadinessData data;
+class _ThreeZoneHome extends StatelessWidget {
+  const _ThreeZoneHome({required this.data});
+  final _HomeData data;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Local non-null capture before the closure — matches the Day-3
-    // `_run()` snapshot pattern and removes the `!` operator entirely.
-    // The closure now reasons about its own `err` binding, not the
-    // mutable State field.
+    final textTheme = theme.textTheme.apply(
+      bodyColor: Colors.white,
+      displayColor: Colors.white,
+    );
+
     final err = data.error;
-    Widget engineDependent(Widget child) =>
-        err != null ? _ErrorRow(message: err) : child;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // MVP-1: readiness_indicator is the headline (4-axis blend)
-        _Section(
-          label: 'Readiness (4-axis blend)',
-          body: engineDependent(
-            data.insufficientData
-                ? Text(kF1NoDataCopy, style: theme.textTheme.bodyLarge)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText(
-                        data.readinessLevel ?? '—',
-                        style: theme.textTheme.displaySmall,
-                      ),
-                      const SizedBox(height: 4),
-                      SelectableText(
-                        'blend: ${data.readinessBlend ?? '—'} / confidence: ${data.confidence?.toStringAsFixed(2) ?? '—'}',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+    if (err != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error, color: theme.colorScheme.error, size: 48),
+              const SizedBox(height: 16),
+              SelectableText(err, style: textTheme.bodyMedium),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        // Legacy readiness_score (kept for comparison)
-        _Section(
-          label: 'Readiness score (legacy)',
-          body: engineDependent(
-            SelectableText(
-              data.score?.toString() ?? '—',
-              style: theme.textTheme.headlineSmall,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          label: 'Fatigue state',
-          body: engineDependent(
-            SelectableText(
-              data.fatigueState ?? '—',
-              style: theme.textTheme.headlineSmall,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          label: 'Zone cap + advisories',
-          body: engineDependent(
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SelectableText(
-                  data.zoneCap ?? '—',
-                  style: theme.textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                if (data.advisories.isEmpty)
-                  Text('(no advisories yet)',
-                      style: theme.textTheme.bodySmall)
-                else
-                  ...data.advisories
-                      .map((a) => _AdvisoryBullet(text: a)),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          label: 'Recommended workout',
-          body: engineDependent(
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SelectableText(
-                  data.workoutTitle ?? '—',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                SelectableText(
-                  'intensity: ${data.workoutZone ?? '—'}',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          label: 'Data source tier',
-          body: engineDependent(SourceTierIndicator(tier: data.sourceTier)),
-        ),
-      ],
-    );
-  }
-}
+      );
+    }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.label, required this.body});
-  final String label;
-  final Widget body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(label.toUpperCase(),
-            style: theme.textTheme.labelSmall
-                ?.copyWith(letterSpacing: 1.2)),
-        const SizedBox(height: 4),
-        body,
-      ],
-    );
-  }
-}
-
-class _AdvisoryBullet extends StatelessWidget {
-  const _AdvisoryBullet({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('• '),
-          Expanded(child: SelectableText(text)),
+          // ============ ZONE 1: STATE (HERO) ============
+          _Zone1State(data: data, textTheme: textTheme),
+          const SizedBox(height: 32),
+
+          // ============ ZONE 2: TODAY ============
+          _Zone2Today(data: data, textTheme: textTheme),
+          const SizedBox(height: 32),
+
+          // ============ ZONE 3: CONTEXT ============
+          _Zone3Context(data: data, textTheme: textTheme),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 }
 
-
-class _ErrorRow extends StatelessWidget {
-  const _ErrorRow({required this.message});
-  final String message;
+/// Zone 1 — State (hero): ReadinessRing + prose + fatigue badge
+class _Zone1State extends StatelessWidget {
+  const _Zone1State({required this.data, required this.textTheme});
+  final _HomeData data;
+  final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Icon(Icons.error, color: theme.colorScheme.error),
-        const SizedBox(width: 8),
-        Expanded(child: SelectableText(message)),
+        // Hero ring (or F1 no-data copy)
+        Center(
+          child: ReadinessRing(
+            score: data.readinessScore,
+            level: data.readinessLevel,
+            confidence: data.confidence,
+            noData: data.insufficientData,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // State widget prose (verbatim)
+        if (data.stateWidgetProse != null && data.stateWidgetProse!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              data.stateWidgetProse!,
+              style: textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        const SizedBox(height: 12),
+
+        // Fatigue state badge
+        if (data.fatigueState != null)
+          _Badge(
+            label: _humanizeFatigueState(data.fatigueState),
+            color: _fatigueStateColor(data.fatigueState),
+          ),
       ],
     );
   }
+
+  Color _fatigueStateColor(String? state) {
+    switch (state?.toLowerCase()) {
+      case 'recovered':
+        return const Color(0xFF2BD974);
+      case 'productive':
+        return const Color(0xFF00C6A7);
+      case 'accumulated':
+        return const Color(0xFFE8C547);
+      case 'overreached':
+        return const Color(0xFFE6872F);
+      case 'illnessrisk':
+        return const Color(0xFFE5484D);
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+/// Zone 2 — Today: session prose + zone cap chip + recommended workout
+class _Zone2Today extends StatelessWidget {
+  const _Zone2Today({required this.data, required this.textTheme});
+  final _HomeData data;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'TODAY',
+          style: textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.2,
+            color: Colors.white54,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Zone cap chip
+        if (data.zoneCap != null)
+          _Badge(
+            label: 'Today: up to ${data.zoneCap}',
+            color: Colors.white24,
+          ),
+        const SizedBox(height: 12),
+
+        // Session widget prose (verbatim)
+        if (data.sessionWidgetProse != null &&
+            data.sessionWidgetProse!.isNotEmpty)
+          Text(
+            data.sessionWidgetProse!,
+            style: textTheme.bodyMedium,
+          ),
+        const SizedBox(height: 12),
+
+        // Recommended workout
+        if (data.workoutTitle != null)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.fitness_center, color: Colors.white70),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data.workoutTitle!,
+                        style: textTheme.titleMedium,
+                      ),
+                      if (data.workoutZone != null)
+                        Text(
+                          'Intensity: ${data.workoutZone}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white54,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Zone 3 — Context: context prose + sparkline + source tier
+class _Zone3Context extends StatelessWidget {
+  const _Zone3Context({required this.data, required this.textTheme});
+  final _HomeData data;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'CONTEXT',
+          style: textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.2,
+            color: Colors.white54,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Sparkline (14-day history)
+        if (data.historyScores.isNotEmpty)
+          SizedBox(
+            height: 40,
+            child: _Sparkline(scores: data.historyScores),
+          ),
+        const SizedBox(height: 12),
+
+        // Context widget prose (verbatim)
+        if (data.contextWidgetProse != null &&
+            data.contextWidgetProse!.isNotEmpty)
+          Text(
+            data.contextWidgetProse!,
+            style: textTheme.bodyMedium,
+          ),
+        const SizedBox(height: 12),
+
+        // Source tier swatch
+        Row(
+          children: [
+            Text(
+              'Data source: ',
+              style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+            ),
+            if (data.sourceTier != null)
+              _SourceTierChip(tier: data.sourceTier!)
+            else
+              Text(
+                'No data yet',
+                style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Simple badge chip
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}
+
+/// Source tier chip using LOCKED tokens
+class _SourceTierChip extends StatelessWidget {
+  const _SourceTierChip({required this.tier});
+  final SourceTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = kSourceTierColor[tier]!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            kSourceTierLabel[tier]!,
+            style: TextStyle(color: color, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Simple sparkline for readiness history
+class _Sparkline extends StatelessWidget {
+  const _Sparkline({required this.scores});
+  final List<double> scores;
+
+  @override
+  Widget build(BuildContext context) {
+    if (scores.isEmpty) return const SizedBox.shrink();
+
+    return CustomPaint(
+      painter: _SparklinePainter(scores: scores),
+      size: const Size(double.infinity, 40),
+    );
+  }
+}
+
+class _SparklinePainter extends CustomPainter {
+  _SparklinePainter({required this.scores});
+  final List<double> scores;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (scores.isEmpty) return;
+
+    final paint = Paint()
+      ..color = const Color(0xFF2BD974)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final minScore = scores.reduce((a, b) => a < b ? a : b);
+    final maxScore = scores.reduce((a, b) => a > b ? a : b);
+    final range = maxScore - minScore;
+
+    final path = Path();
+    for (var i = 0; i < scores.length; i++) {
+      final x = (i / (scores.length - 1)) * size.width;
+      final normalized = range > 0 ? (scores[i] - minScore) / range : 0.5;
+      final y = size.height - (normalized * size.height * 0.8) - size.height * 0.1;
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

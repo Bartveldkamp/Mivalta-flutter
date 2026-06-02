@@ -18,8 +18,8 @@ void main() {
       // settle (native libraries are not loadable in the host harness).
       await tester.pump();
 
-      // App bar shows 'Readiness' title
-      expect(find.text('Readiness'), findsOneWidget);
+      // App bar shows 'MiValta' title (PR-B three-zone home)
+      expect(find.text('MiValta'), findsOneWidget);
 
       // Either loading indicator OR error is shown (on host harness,
       // bootstrap fails synchronously so error surfaces immediately)

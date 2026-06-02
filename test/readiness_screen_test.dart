@@ -1,9 +1,9 @@
-// MVP-1 widget tests for the readiness screen + the new
-// SourceTierIndicator. The FFI path is gated on Platform.isAndroid;
-// on the host harness `RustEngineBinding.bootstrap()` throws
-// UnsupportedError immediately, so the screen-level test exercises
-// the error-rendered scaffold. The indicator's two branches
-// (swatch / no-data copy) are exercised by mounting it directly.
+// PR-B widget tests for the three-zone PULL home.
+//
+// FFI path is gated on Platform.isAndroid; on the host harness
+// `RustEngineBinding.bootstrap()` throws UnsupportedError immediately,
+// so screen-level tests verify structure + error handling. The
+// ReadinessRing and SourceTierIndicator are tested by mounting directly.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,10 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/screens/readiness_screen.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
+import 'package:mivalta_flutter/widgets/readiness_ring.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen renders the six section labels; engine-dependent '
+    'ReadinessScreen shows Readiness app-bar title; engine-dependent '
     'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
@@ -24,28 +25,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // App-bar title.
-      expect(find.text('Readiness'), findsWidgets);
+      // App-bar title (now 'MiValta' per PR-B three-zone home).
+      expect(find.text('MiValta'), findsWidgets);
 
       // The host harness can't load the .so, so the bootstrap throws
-      // UnsupportedError before any section data is set. ALL SIX
-      // sections are engine-dependent now (MVP-1 added the 4-axis blend
-      // headline), so each renders its own inline _ErrorRow
-      // with ColorScheme.error.
-      expect(find.textContaining('UnsupportedError'), findsNWidgets(6));
-
-      // All six section labels render even on error.
-      expect(find.text('READINESS (4-AXIS BLEND)', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('READINESS SCORE (LEGACY)', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('FATIGUE STATE', skipOffstage: false), findsOneWidget);
-      expect(find.text('ZONE CAP + ADVISORIES', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('RECOMMENDED WORKOUT', skipOffstage: false),
-          findsOneWidget);
-      expect(find.text('DATA SOURCE TIER', skipOffstage: false),
-          findsOneWidget);
+      // UnsupportedError. The error scaffold renders.
+      expect(find.textContaining('UnsupportedError'), findsWidgets);
     },
   );
 
@@ -53,6 +38,125 @@ void main() {
     // CLAUDE.md flags any paraphrase as a finding; this guards the
     // string at lib/copy/f1.dart.
     expect(kF1NoDataCopy, 'We need more data to predict recovery.');
+  });
+
+  group('ReadinessRing', () {
+    testWidgets(
+      'score=85, level=green, confidence=0.92 → renders rounded score + level',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 85,
+                level: 'green',
+                confidence: 0.92,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Score renders
+        expect(find.text('85'), findsOneWidget);
+        // Level renders (verbatim from engine)
+        expect(find.text('green'), findsOneWidget);
+        // Confidence renders as percentage
+        expect(find.text('confidence 92%'), findsOneWidget);
+
+        // Ring's CircularProgressIndicator exists (hero ring)
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // F1 copy must NOT appear when data is present
+        expect(find.text(kF1NoDataCopy), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'score=72, level=yellow → renders correct color (not derived from score)',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: 72,
+                level: 'yellow',
+                confidence: 0.75,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Score + level render
+        expect(find.text('72'), findsOneWidget);
+        expect(find.text('yellow'), findsOneWidget);
+
+        // The CircularProgressIndicator should have the yellow color (0xFFE8C547)
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, const Color(0xFFE8C547));
+      },
+    );
+
+    testWidgets(
+      'noData=true → renders F1 copy, no ring, no score',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: null,
+                level: null,
+                confidence: null,
+                noData: true,
+              ),
+            ),
+          ),
+        );
+
+        // F1 no-data copy renders
+        expect(find.text(kF1NoDataCopy), findsOneWidget);
+
+        // No CircularProgressIndicator (no ring)
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        // No score text
+        expect(find.text('85'), findsNothing);
+        expect(find.text('72'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'score=null + noData=false → shows em-dash, no F1 copy',
+      (WidgetTester tester) async {
+        // Edge case: data exists but score is null (shouldn't happen,
+        // but tests the widget boundary)
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessRing(
+                score: null,
+                level: null,
+                confidence: null,
+                noData: false,
+              ),
+            ),
+          ),
+        );
+
+        // Em-dash renders for null score
+        expect(find.text('—'), findsWidgets);
+
+        // Ring should still render
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // F1 copy should NOT render when noData=false
+        expect(find.text(kF1NoDataCopy), findsNothing);
+      },
+    );
   });
 
   group('SourceTierIndicator', () {
