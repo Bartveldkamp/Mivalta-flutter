@@ -3,18 +3,25 @@
          network_security_config restricts cleartext to 144.76.62.249 only. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- PR-E: Health Connect read permissions for biometric and activity data.
+    <!-- PR-E: Health Connect read permissions for biometric data.
          These are the data types we read from Health Connect to feed to the
-         Rust normalizer. No write permissions — MiValta is read-only. -->
+         Rust normalizer. No write permissions — MiValta is read-only.
+
+         Current ingestion (biometrics drive readiness):
+           - Resting heart rate
+           - HRV (RMSSD)
+           - Sleep stages
+           - Oxygen saturation
+           - Steps
+
+         Deferred (exerciseType impedance mismatch — needs engine PR):
+           - Exercise / workout sessions -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
-    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
-    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 
     <!-- PR-E: Required for Health Connect on Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

@@ -1,13 +1,25 @@
 // PR-E: Health Connect (Android) + HealthKit (iOS) auto-ingest service.
 //
 // ZERO-FABRICATION BOUNDARY: Dart shuttles raw platform data to the Rust
-// normalizer. No physiology transforms, no HRV semantics (RMSSD vs SDNN),
-// no bounds clamping, no sleep-stage aggregation in Dart. The Rust normalizer
-// owns all that — Dart is a pure JSON courier.
+// normalizer. No physiology transforms, no HRV semantics, no bounds clamping,
+// no sleep-stage aggregation in Dart. The Rust normalizer owns all that —
+// Dart is a pure JSON courier.
 //
 // Source strings per the Rust normalizer contract:
 //   - Android Health Connect: "health_connect"
 //   - iOS HealthKit: "apple"
+//
+// Health Connect JSON schema (from gatc-normalizer/src/health_connect.rs):
+// {
+//   "date": "2026-06-15",
+//   "resting_heart_rate": 58,
+//   "hrv_rmssd": 45.0,
+//   "oxygen_saturation": 0.97,
+//   "sleep_hours": 7.5,
+//   "sleep_stages": [ { "stage": 5, "startTime": "...", "endTime": "..." } ],
+//   "steps": 8200,
+//   "exercise": { ... }  // Deferred — exerciseType impedance mismatch
+// }
 
 import 'dart:convert';
 import 'dart:io' show Platform;
@@ -46,9 +58,14 @@ class HealthSyncResult {
 
 /// Service for ingesting health data from platform health stores.
 ///
-/// Reads biometrics and activities from Health Connect (Android) or
-/// HealthKit (iOS), maps them to the Rust normalizer's expected JSON
-/// format, and feeds them into the HMM via process_observation.
+/// Reads biometrics from Health Connect (Android) or HealthKit (iOS), maps
+/// them to the Rust normalizer's expected JSON format, and feeds them into
+/// the HMM via process_observation.
+///
+/// Exercise ingestion is deferred due to exerciseType impedance mismatch:
+/// the engine expects raw Android Health Connect integer codes, but the
+/// Flutter health plugin exposes its own enum. Biometrics (RHR/HRV/sleep)
+/// drive readiness — landing those first.
 class HealthIngestService {
   HealthIngestService({
     required this.binding,
@@ -60,21 +77,24 @@ class HealthIngestService {
   final Health _health;
 
   /// The health data types we request read permission for.
+  ///
+  /// For Android Health Connect, we request RMSSD (not SDNN) because that's
+  /// what Health Connect's HeartRateVariabilityRmssdRecord provides.
+  /// SDNN is reserved for the iOS HealthKit path (PR-E.2).
   static const List<HealthDataType> _readTypes = [
     HealthDataType.HEART_RATE,
     HealthDataType.RESTING_HEART_RATE,
-    HealthDataType.HEART_RATE_VARIABILITY_SDNN,
-    HealthDataType.SLEEP_ASLEEP,
+    // Health Connect provides RMSSD, not SDNN
+    HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
+    // Individual sleep stage records — Rust aggregates these
     HealthDataType.SLEEP_AWAKE,
-    HealthDataType.SLEEP_IN_BED,
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_LIGHT,
     HealthDataType.SLEEP_REM,
+    // SpO2
     HealthDataType.BLOOD_OXYGEN,
-    HealthDataType.WORKOUT,
+    // Steps (informational, not critical for readiness)
     HealthDataType.STEPS,
-    HealthDataType.DISTANCE_DELTA,
-    HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
 
   /// Request health data permissions from the platform.
@@ -127,7 +147,8 @@ class HealthIngestService {
   /// normalizer, and feeds it into the HMM via process_observation.
   ///
   /// Returns a [HealthSyncResult] indicating success/failure and
-  /// the number of observations processed.
+  /// the number of observations processed (only counts days with
+  /// real biometric content: RHR, HRV, or sleep).
   Future<HealthSyncResult> syncHealthData({int days = 7}) async {
     try {
       // Check permissions first
@@ -159,8 +180,10 @@ class HealthIngestService {
         final records = entry.value;
 
         // Map platform records to normalizer JSON
-        final vendorJson = _mapToNormalizerJson(date, records);
-        if (vendorJson == null) continue;
+        final result = _mapToNormalizerJson(date, records);
+        if (result == null) continue;
+
+        final (vendorJson, hasBiometrics) = result;
 
         // Source string per platform
         final source = Platform.isAndroid ? 'health_connect' : 'apple';
@@ -180,7 +203,10 @@ class HealthIngestService {
             observationJson: normalizedJson,
           );
 
-          processed++;
+          // Only count if we had real biometric content (RHR/HRV/sleep)
+          if (hasBiometrics) {
+            processed++;
+          }
         } catch (e) {
           // Skip this observation if normalization fails
           // (e.g., missing required fields)
@@ -222,95 +248,138 @@ class HealthIngestService {
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
   }
 
+  /// Format a DateTime as RFC3339 for sleep_stages.
+  String _formatRfc3339(DateTime dt) {
+    return dt.toUtc().toIso8601String();
+  }
+
   /// Map platform health records to the Rust normalizer's expected JSON.
   ///
   /// ZERO-FABRICATION: This method only shuttles raw values. It does NOT:
-  /// - Transform HRV (RMSSD vs SDNN semantics are in Rust)
+  /// - Transform HRV (the value is RMSSD from Health Connect)
   /// - Clamp bounds (Rust normalizer does that)
   /// - Aggregate sleep stages (Rust normalizer does that)
   /// - Synthesize missing fields (if no data, we send null)
   ///
-  /// Returns null if there's no usable data for the date.
-  String? _mapToNormalizerJson(String date, List<HealthDataPoint> records) {
+  /// Returns null if there's no data for the date.
+  /// Returns (json, hasBiometrics) where hasBiometrics indicates if we had
+  /// real biometric content (RHR/HRV/sleep) that drives readiness.
+  (String, bool)? _mapToNormalizerJson(
+    String date,
+    List<HealthDataPoint> records,
+  ) {
     // Extract values by type — raw, no transforms
     double? restingHr;
-    double? hrvSdnn;
-    double? sleepMinutes;
-    double? spo2;
-    double? activeCalories;
+    double? hrvRmssd;
+    double? oxygenSaturation;
     double? steps;
-    double? distanceM;
-    int? workoutMinutes;
-    String? workoutType;
-    double? avgHrDuringWorkout;
+
+    // Sleep stages — emit as array for Rust to aggregate
+    final sleepStages = <Map<String, dynamic>>[];
 
     for (final record in records) {
-      final value = _extractNumericValue(record);
-      if (value == null) continue;
-
       switch (record.type) {
         case HealthDataType.RESTING_HEART_RATE:
-          restingHr ??= value;
+          final value = _extractNumericValue(record);
+          if (value != null) {
+            restingHr ??= value;
+          }
           break;
-        case HealthDataType.HEART_RATE_VARIABILITY_SDNN:
-          // Pass raw SDNN — Rust normalizer knows this is SDNN not RMSSD
-          hrvSdnn ??= value;
+
+        case HealthDataType.HEART_RATE_VARIABILITY_RMSSD:
+          final value = _extractNumericValue(record);
+          if (value != null) {
+            // Raw RMSSD from Health Connect — Rust knows this is RMSSD
+            hrvRmssd ??= value;
+          }
           break;
-        case HealthDataType.SLEEP_ASLEEP:
-        case HealthDataType.SLEEP_IN_BED:
-          // Sum sleep duration — Rust normalizer will handle stage breakdown
-          sleepMinutes = (sleepMinutes ?? 0) + value;
-          break;
+
         case HealthDataType.BLOOD_OXYGEN:
-          spo2 ??= value;
+          final value = _extractNumericValue(record);
+          if (value != null) {
+            // Normalize to 0-1 fraction if > 1 (some devices report 0-100)
+            oxygenSaturation ??= value > 1 ? value / 100.0 : value;
+          }
           break;
-        case HealthDataType.ACTIVE_ENERGY_BURNED:
-          activeCalories = (activeCalories ?? 0) + value;
-          break;
+
         case HealthDataType.STEPS:
-          steps = (steps ?? 0) + value;
+          final value = _extractNumericValue(record);
+          if (value != null) {
+            steps = (steps ?? 0) + value;
+          }
           break;
-        case HealthDataType.DISTANCE_DELTA:
-          distanceM = (distanceM ?? 0) + value;
+
+        // Sleep stages — emit individual records for Rust aggregation
+        case HealthDataType.SLEEP_AWAKE:
+        case HealthDataType.SLEEP_DEEP:
+        case HealthDataType.SLEEP_LIGHT:
+        case HealthDataType.SLEEP_REM:
+          final stageCode = _sleepStageToHcCode(record.type);
+          if (stageCode != null) {
+            sleepStages.add({
+              'stage': stageCode,
+              'startTime': _formatRfc3339(record.dateFrom),
+              'endTime': _formatRfc3339(record.dateTo),
+            });
+          }
           break;
-        case HealthDataType.WORKOUT:
-          // Workout record — extract duration and type
-          final duration = record.dateTo.difference(record.dateFrom);
-          workoutMinutes = (workoutMinutes ?? 0) + duration.inMinutes;
-          workoutType ??= _extractWorkoutType(record);
-          break;
-        case HealthDataType.HEART_RATE:
-          // Use first HR during workout period as avgHrDuringWorkout
-          avgHrDuringWorkout ??= value;
-          break;
+
         default:
           break;
       }
     }
 
-    // If we have no usable biometric data, return null
-    if (restingHr == null && hrvSdnn == null && sleepMinutes == null) {
+    // If we have no data at all, return null
+    if (restingHr == null &&
+        hrvRmssd == null &&
+        sleepStages.isEmpty &&
+        oxygenSaturation == null &&
+        steps == null) {
       return null;
     }
 
+    // Check if we have real biometric content (drives readiness)
+    final hasBiometrics =
+        restingHr != null || hrvRmssd != null || sleepStages.isNotEmpty;
+
     // Build the vendor-specific JSON for the normalizer
-    // This is the raw platform data — Rust does all transforms
+    // Key names match health_connect.rs schema exactly
     // ignore: use_null_aware_elements (Dart 3.7 syntax not applicable here)
     final payload = <String, dynamic>{
       'date': date,
-      if (restingHr != null) 'resting_hr': restingHr,
-      if (hrvSdnn != null) 'hrv_sdnn': hrvSdnn, // Raw SDNN, not RMSSD
-      if (sleepMinutes != null) 'sleep_minutes': sleepMinutes,
-      if (spo2 != null) 'spo2': spo2,
-      if (activeCalories != null) 'active_calories': activeCalories,
-      if (steps != null) 'steps': steps,
-      if (distanceM != null) 'distance_m': distanceM,
-      if (workoutMinutes != null) 'workout_minutes': workoutMinutes,
-      if (workoutType != null) 'workout_type': workoutType,
-      if (avgHrDuringWorkout != null) 'avg_hr': avgHrDuringWorkout,
+      if (restingHr != null) 'resting_heart_rate': restingHr.round(),
+      if (hrvRmssd != null) 'hrv_rmssd': hrvRmssd,
+      if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
+      if (sleepStages.isNotEmpty) 'sleep_stages': sleepStages,
+      if (steps != null) 'steps': steps.round(),
+      // Exercise deferred — exerciseType impedance mismatch:
+      // Engine expects raw HC integer codes, Flutter plugin exposes enum.
+      // Biometrics (RHR/HRV/sleep) drive readiness — land those first.
     };
 
-    return jsonEncode(payload);
+    return (jsonEncode(payload), hasBiometrics);
+  }
+
+  /// Map Flutter health plugin's sleep stage types to Health Connect codes.
+  ///
+  /// Health Connect sleep stage codes (from SleepSessionRecord):
+  ///   1 = Awake
+  ///   4 = Light
+  ///   5 = Deep
+  ///   6 = REM
+  int? _sleepStageToHcCode(HealthDataType type) {
+    switch (type) {
+      case HealthDataType.SLEEP_AWAKE:
+        return 1; // STAGE_TYPE_AWAKE
+      case HealthDataType.SLEEP_LIGHT:
+        return 4; // STAGE_TYPE_LIGHT
+      case HealthDataType.SLEEP_DEEP:
+        return 5; // STAGE_TYPE_DEEP
+      case HealthDataType.SLEEP_REM:
+        return 6; // STAGE_TYPE_REM
+      default:
+        return null;
+    }
   }
 
   /// Extract a numeric value from a HealthDataPoint.
@@ -318,15 +387,6 @@ class HealthIngestService {
     final value = point.value;
     if (value is NumericHealthValue) {
       return value.numericValue.toDouble();
-    }
-    return null;
-  }
-
-  /// Extract workout type from a HealthDataPoint.
-  String? _extractWorkoutType(HealthDataPoint point) {
-    final value = point.value;
-    if (value is WorkoutHealthValue) {
-      return value.workoutActivityType.name.toLowerCase();
     }
     return null;
   }
