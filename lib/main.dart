@@ -26,6 +26,7 @@ import 'hw_telemetry.dart';
 import 'rust_engine.dart';
 import 'screens/debug_swatch_exerciser.dart';
 import 'screens/readiness_screen.dart';
+import 'theme/tokens.dart';
 
 const String _modelUrl =
     'http://144.76.62.249/models/josi-v10-1-q4_k_m.gguf';
@@ -46,6 +47,7 @@ class MivaltaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MiValta',
+      theme: mivaltaDarkTheme(),
       home: const ReadinessScreen(),
       routes: {
         // V10.1 LLM spike screen — kDebugMode-only, accessed via debug menu
