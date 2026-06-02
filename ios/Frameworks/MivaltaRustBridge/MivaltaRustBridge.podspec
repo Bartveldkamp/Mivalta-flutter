@@ -16,10 +16,12 @@ Privacy-first AI fitness coaching engine. 100% on-device. No cloud.
   s.vendored_frameworks = 'MivaltaRustBridge.xcframework'
 
   # Link against system frameworks required by the Rust code
+  # Security + CoreFoundation: CommonCrypto for SQLCipher's crypto backend
   s.frameworks = 'Security', 'CoreFoundation'
 
-  # These are needed for rusqlite and other native code
-  s.libraries = 'c++', 'sqlite3'
+  # c++ only — bundled-sqlcipher provides its own SQLite symbols;
+  # linking system sqlite3 would shadow them and break PRAGMA key.
+  s.libraries = 'c++'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

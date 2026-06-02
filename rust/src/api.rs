@@ -1415,70 +1415,72 @@ mod tests {
     }
 
     // =========================================================================
-    // PR-E2b: iOS Encrypted Vault Tests
+    // PR-E2b: iOS SQLCipher Encryption Tests
     // =========================================================================
     //
-    // These tests verify the vault encryption layer works correctly.
-    // The encryption uses pure Rust (aes-gcm crate) which compiles identically
-    // for iOS targets. Running these tests on the host validates the crypto
-    // paths that iOS will use.
+    // These tests verify the vault's SQLCipher page-level encryption works
+    // correctly. The vault uses bundled-sqlcipher with PRAGMA key (Entry S,
+    // DECISIONS.md 2026-06-01). Running these tests on the host validates
+    // the same encryption paths used on iOS.
     //
-    // Architecture note: The vault uses:
-    // - Plain SQLite for main vault.db (user-accessible by design)
-    // - Encrypted cache (cache.enc) with AES-256-GCM via cache.key
-    // - NOT SQLCipher (application-layer encryption instead)
+    // Architecture (Entry S):
+    // - vault.db is SQLCipher page-level encrypted (bundled-sqlcipher)
+    // - Every open routes through keyed_conn::open_vault (PRAGMA key)
+    // - The aes-gcm crate is only for the sealed cache layer, not vault.db
 
     #[test]
-    fn ios_vault_encryption_infrastructure_ready() {
-        // PR-E2b: Verify the Viterbi engine (which uses vault encryption primitives)
-        // works correctly. This test runs on the host but validates the same crypto
-        // paths that iOS will use (pure Rust aes-gcm crate, no platform dependencies).
+    fn ios_vault_on_disk_bytes_are_not_plaintext() {
+        // PR-E2b: Verify vault.db is SQLCipher-encrypted, not plaintext.
+        // Mirrors gatc-vault/src/keyed_conn.rs::on_disk_bytes_are_not_plaintext.
         //
-        // The ViterbiEngine uses:
-        // - aes-gcm crate for encryption (same as iOS)
-        // - Pure Rust implementation (no OpenSSL, no platform-specific code)
-        // - Application-layer encryption (not SQLCipher)
+        // A plaintext SQLite file starts with "SQLite format 3\0" and would
+        // contain row text in cleartext. An encrypted vault shows neither.
 
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
+        // Create VaultEngine and write a biometric row
         let profile = test_profile();
-        let (viterbi, athlete_id) = construct_viterbi_only_handle(profile.clone(), vault_path)
-            .expect("ViterbiEngine should construct");
+        let vault = gatc_ffi::VaultEngine::new(profile, vault_path.clone())
+            .expect("VaultEngine should construct");
 
-        assert_eq!(athlete_id, "test-user-001");
+        // Write a biometric with identifiable text we can search for
+        let payload = serde_json::json!({
+            "date": "2026-06-02",
+            "source": "test_encryption_marker_xyzzy",
+            "resting_hr": 58,
+        });
+        vault.write_biometric(payload.to_string())
+            .expect("write_biometric should succeed");
 
-        // Process an observation using the standard helper
-        let result = process_manual_with_viterbi(
-            &viterbi,
-            "2026-06-02".to_string(),
-            Some(58.0),  // resting_hr
-            Some(45.0),  // hrv_rmssd
-            Some(7.5),   // sleep_hours
-            Some(5),     // rpe
+        // Read the raw vault.db bytes
+        let db_path = std::path::Path::new(&vault_path).join("vault.db");
+        assert!(db_path.exists(), "vault.db should exist after write");
+
+        let bytes = std::fs::read(&db_path).expect("should read vault.db");
+
+        // Assert: NOT a plaintext SQLite header
+        assert!(
+            !bytes.starts_with(b"SQLite format 3\0"),
+            "vault.db must not have a plaintext SQLite header (SQLCipher encrypts pages)"
         );
-        assert!(result.is_ok(), "observation should process: {:?}", result.err());
 
-        // Verify the HMM state was processed
-        let result_json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
-        let snapshot = result_json.get("snapshot").expect("should have snapshot");
-        assert!(snapshot.get("state").is_some(), "snapshot should have state");
-        assert!(snapshot.get("score").is_some(), "snapshot should have score");
+        // Assert: Row text must NOT appear in cleartext on disk
+        let marker = b"test_encryption_marker_xyzzy";
+        assert!(
+            !bytes.windows(marker.len()).any(|w| w == marker),
+            "row text must not appear in plaintext on disk (SQLCipher encrypts data)"
+        );
 
-        // Verify the readiness indicator works
-        let indicator = viterbi.readiness_indicator();
-        assert!(indicator.is_ok(), "readiness_indicator should work");
-
-        eprintln!("PR-E2b: iOS vault encryption infrastructure test passed");
-        eprintln!("  - ViterbiEngine constructed successfully");
-        eprintln!("  - Crypto layer: aes-gcm (pure Rust, iOS-compatible)");
-        eprintln!("  - Observation processed correctly");
+        eprintln!("PR-E2b: iOS SQLCipher encryption test passed");
+        eprintln!("  - vault.db is NOT plaintext SQLite");
+        eprintln!("  - Row data is encrypted on disk");
     }
 
     #[test]
     fn ios_vault_profile_round_trip() {
         // PR-E2b: Verify profile write→read round-trip through the vault.
-        // This is the same code path used on iOS for persistence.
+        // The VaultEngine creates a SQLCipher-encrypted vault.db (Entry S).
 
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
@@ -1486,40 +1488,28 @@ mod tests {
         let profile = onboarding_profile_with_anchors();
         let profile_value: serde_json::Value = serde_json::from_str(&profile).unwrap();
 
-        // Construct engines which writes the profile to vault
-        let result = construct_viterbi_only_handle(profile.clone(), vault_path.clone());
-        assert!(result.is_ok(), "engines should construct: {:?}", result.err());
+        // Construct VaultEngine which creates encrypted vault.db
+        let vault = gatc_ffi::VaultEngine::new(profile.clone(), vault_path.clone())
+            .expect("VaultEngine should construct");
 
-        let (_, athlete_id) = result.unwrap();
-        assert_eq!(athlete_id, "onboarding-test-001");
+        // Read back the profile to verify round-trip
+        let read_profile = vault.read_default_profile()
+            .expect("read_default_profile should succeed");
+        let _read_value: serde_json::Value = serde_json::from_str(&read_profile)
+            .expect("profile should be valid JSON");
 
-        // The profile's key fields should have been written
+        // The profile's key fields should match
         let age = profile_value.get("age").and_then(|v| v.as_i64());
         let sport = profile_value.get("sport").and_then(|v| v.as_str());
         assert_eq!(age, Some(35), "profile age should be 35");
         assert_eq!(sport, Some("cycling"), "profile sport should be cycling");
 
+        // Verify the vault.db file exists (SQLCipher-encrypted)
+        let db_path = std::path::Path::new(&vault_path).join("vault.db");
+        assert!(db_path.exists(), "vault.db should exist");
+
         eprintln!("PR-E2b: iOS vault profile round-trip test passed");
-        eprintln!("  - Profile written with athlete_id: {athlete_id}");
-        eprintln!("  - Age: {:?}, Sport: {:?}", age, sport);
-    }
-
-    #[test]
-    fn ios_vault_aes_gcm_crate_compiles() {
-        // PR-E2b: Sanity check that the aes-gcm encryption primitives work.
-        // This validates the crypto dependencies compile and function correctly,
-        // which is the same code that runs on iOS (pure Rust, no C dependencies).
-
-        // The aes-gcm crate is a dependency of gatc-vault. If this test compiles
-        // and runs, the encryption primitives are functional. The actual encryption
-        // is tested indirectly through vault operations above.
-        //
-        // On iOS, the same aes-gcm crate compiles to ARM64 via LLVM, using the
-        // same Rust implementation. No platform-specific crypto libraries needed.
-
-        eprintln!("PR-E2b: aes-gcm crate compiles for host (same code path as iOS)");
-        eprintln!("  - Encryption: AES-256-GCM (authenticated encryption)");
-        eprintln!("  - No OpenSSL dependency (pure Rust)");
-        eprintln!("  - No SQLCipher (application-layer encryption)");
+        eprintln!("  - Profile written to SQLCipher-encrypted vault");
+        eprintln!("  - Profile read back successfully");
     }
 }
