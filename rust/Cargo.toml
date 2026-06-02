@@ -33,6 +33,8 @@ flutter_rust_bridge = "=2.12.0"
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
 gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
+# PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
@@ -40,6 +42,9 @@ gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev 
 # in the workspace; cargo will dedupe.
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
 opt-level = 3

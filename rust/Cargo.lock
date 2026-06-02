@@ -1351,7 +1351,9 @@ dependencies = [
  "chrono",
  "flutter_rust_bridge",
  "gatc-ffi",
+ "gatc-viterbi",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -45,6 +45,9 @@ class _DetailData {
   // From lastObservationSourceTier()
   SourceTier? sourceTier;
 
+  // From getStateWidget() — non-null when still calibrating
+  String? confidenceAdvisory;
+
   String? error;
 }
 
@@ -122,6 +125,12 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       final tierJson =
           await widget.binding.lastObservationSourceTier(widget.handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
+
+      // getStateWidget() — confidence_advisory for calibration banner
+      final stateWidgetJson =
+          await widget.binding.getStateWidget(widget.handle);
+      final stateWidget = jsonDecode(stateWidgetJson) as Map<String, dynamic>;
+      d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
     } catch (e) {
       d.error = '${e.runtimeType}: $e';
     }
@@ -184,6 +193,7 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       _SourceConfidenceSection(
                         sourceTier: _data.sourceTier,
                         confidence: _data.confidence,
+                        confidenceAdvisory: _data.confidenceAdvisory,
                         textTheme: textTheme,
                       ),
                       const SizedBox(height: MivaltaSpace.x4),
@@ -516,16 +526,19 @@ class _SourceConfidenceSection extends StatelessWidget {
   const _SourceConfidenceSection({
     required this.sourceTier,
     required this.confidence,
+    required this.confidenceAdvisory,
     required this.textTheme,
   });
   final SourceTier? sourceTier;
   final double? confidence;
+  final String? confidenceAdvisory;
   final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
     final confPct = confidence != null ? (confidence! * 100).round() : null;
-    final isLearning = confidence != null && confidence! < 0.7;
+    // Show banner when engine signals calibration via confidence_advisory (honest-confidence)
+    final isLearning = confidenceAdvisory != null;
 
     return _SectionCard(
       title: 'SOURCE & CONFIDENCE',

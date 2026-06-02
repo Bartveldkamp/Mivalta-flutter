@@ -136,16 +136,66 @@ class RustEngineBinding {
   Future<String> saveState(EnginesHandle handle) =>
       rust_api.saveState(handle: handle);
 
+  /// `ViterbiEngine::process_observation(observation_json)` — feed a
+  /// UniversalObservation (JSON) to the HMM. Returns the updated assessment
+  /// JSON including fatigue_state, readiness_level, confidence, etc.
+  ///
+  /// Use this for vendor-normalized observations (from [normalizeObservation]).
+  /// For manual entry, prefer [processManualObservation] which builds the
+  /// typed observation in Rust with proper defaults.
+  Future<String> processObservation(
+    EnginesHandle handle, {
+    required String observationJson,
+  }) =>
+      rust_api.processObservation(handle: handle, observationJson: observationJson);
+
+  /// Build and process a manual observation entry in Rust.
+  ///
+  /// This helper constructs a typed UniversalObservation with `source="manual"`
+  /// and `tier=Minimal`, then processes it through the HMM. Keeps JSON hand-building
+  /// out of Dart and ensures honest provenance.
+  ///
+  /// [isoDate] must parse as `YYYY-MM-DD`; throws [BridgeError.invalidDate] if not.
+  /// All biometric fields are optional; pass `null` for fields the user didn't enter.
+  Future<String> processManualObservation(
+    EnginesHandle handle, {
+    required String isoDate,
+    double? restingHr,
+    double? hrvRmssd,
+    double? sleepHours,
+    int? rpe,
+  }) =>
+      rust_api.processManualObservation(
+        handle: handle,
+        isoDate: isoDate,
+        restingHr: restingHr,
+        hrvRmssd: hrvRmssd,
+        sleepHours: sleepHours,
+        rpe: rpe,
+      );
+
   // ===========================================================================
   // ADVISOR ENGINE — workout suggestions (A/B/C options)
   // ===========================================================================
 
   /// `AdvisorEngine::suggest_workouts(...)` — shim composes the
-  /// `SuggesterContext` from live engine state + profile fields, with
-  /// documented defaults for mood / equipment / terrain / phase /
-  /// meso_day (no user-input form yet). Raw JSON array of options.
-  Future<String> recommendWorkout(EnginesHandle handle) =>
-      rust_api.recommendWorkout(handle: handle);
+  /// `SuggesterContext` from live engine state + profile fields.
+  ///
+  /// Optional [mood], [equipment], and [terrain] parameters allow the UI
+  /// to pass user preferences. Defaults: mood="normal", equipment=null,
+  /// terrain=null (engine interprets as "any").
+  Future<String> recommendWorkout(
+    EnginesHandle handle, {
+    String? mood,
+    String? equipment,
+    String? terrain,
+  }) =>
+      rust_api.recommendWorkout(
+        handle: handle,
+        mood: mood,
+        equipment: equipment,
+        terrain: terrain,
+      );
 
   // ===========================================================================
   // VAULT ENGINE — on-device encrypted storage

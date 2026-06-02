@@ -27,7 +27,9 @@ import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/readiness_ring.dart';
+import 'advisor_screen.dart';
 import 'debug_swatch_exerciser.dart';
+import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
@@ -279,6 +281,41 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     Navigator.of(context).pushNamed('/v10-spike');
   }
 
+  Future<void> _openManualEntry() async {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ManualEntryScreen(
+          binding: binding,
+          handle: handle,
+        ),
+      ),
+    );
+
+    // Refresh data if manual entry was submitted
+    if (result == true && mounted) {
+      setState(() => _loading = true);
+      _fetch();
+    }
+  }
+
+  void _openAdvisor() {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdvisorScreen(
+          binding: binding,
+          handle: handle,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -316,15 +353,34 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _ThreeZoneHome(data: _data, onTapRing: _openReadinessDetail),
+          : _ThreeZoneHome(
+              data: _data,
+              onTapRing: _openReadinessDetail,
+              onTapAdvisor: _openAdvisor,
+            ),
+      // PR-D: FAB for manual entry
+      floatingActionButton: _loading
+          ? null
+          : FloatingActionButton(
+              onPressed: _openManualEntry,
+              backgroundColor: MivaltaColors.primaryGreen,
+              foregroundColor: MivaltaColors.textPrimary,
+              tooltip: 'Log today',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 }
 
 class _ThreeZoneHome extends StatelessWidget {
-  const _ThreeZoneHome({required this.data, required this.onTapRing});
+  const _ThreeZoneHome({
+    required this.data,
+    required this.onTapRing,
+    required this.onTapAdvisor,
+  });
   final _HomeData data;
   final VoidCallback onTapRing;
+  final VoidCallback onTapAdvisor;
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +418,7 @@ class _ThreeZoneHome extends StatelessWidget {
           const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 2: TODAY ============
-          _Zone2Today(data: data, textTheme: textTheme),
+          _Zone2Today(data: data, textTheme: textTheme, onTapAdvisor: onTapAdvisor),
           const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 3: CONTEXT ============
@@ -443,9 +499,14 @@ class _Zone1State extends StatelessWidget {
 
 /// Zone 2 — Today: SessionWidget fields + zone cap
 class _Zone2Today extends StatelessWidget {
-  const _Zone2Today({required this.data, required this.textTheme});
+  const _Zone2Today({
+    required this.data,
+    required this.textTheme,
+    required this.onTapAdvisor,
+  });
   final _HomeData data;
   final TextTheme textTheme;
+  final VoidCallback onTapAdvisor;
 
   @override
   Widget build(BuildContext context) {
@@ -548,6 +609,25 @@ class _Zone2Today extends StatelessWidget {
               ],
             ),
           ),
+
+        // PR-D: "See Options" button to open advisor
+        const SizedBox(height: MivaltaSpace.x4),
+        OutlinedButton(
+          onPressed: onTapAdvisor,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: MivaltaColors.textSecondary,
+            side: const BorderSide(color: MivaltaColors.surface2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+            ),
+          ),
+          child: Text(
+            'See workout options',
+            style: textTheme.labelLarge?.copyWith(
+              color: MivaltaColors.textSecondary,
+            ),
+          ),
+        ),
       ],
     );
   }

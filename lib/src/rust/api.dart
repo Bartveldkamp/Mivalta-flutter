@@ -93,12 +93,62 @@ Future<String> zoneCapWithAdvisories({required EnginesHandle handle}) =>
 Future<String> saveState({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiSaveState(handle: handle);
 
+/// `ViterbiEngine::process_observation(observation_json)` — feed a
+/// UniversalObservation (JSON) to the HMM. Returns the updated assessment
+/// JSON including fatigue_state, readiness_level, confidence, etc.
+///
+/// Use this for vendor-normalized observations (from [normalizeObservation]).
+/// For manual entry, prefer [processManualObservation] which builds the
+/// typed observation in Rust with proper defaults.
+Future<String> processObservation({
+  required EnginesHandle handle,
+  required String observationJson,
+}) => RustLib.instance.api.crateApiProcessObservation(
+  handle: handle,
+  observationJson: observationJson,
+);
+
+/// Build and process a manual observation entry in Rust.
+///
+/// This helper constructs a typed [UniversalObservation] with `source="manual"`
+/// and `tier=Minimal`, then processes it through the HMM. Keeps JSON hand-building
+/// out of Dart and ensures honest provenance.
+///
+/// `iso_date` must parse as `YYYY-MM-DD`; returns [BridgeError::InvalidDate] if not.
+/// All biometric fields are optional; pass `None` for fields the user didn't enter.
+Future<String> processManualObservation({
+  required EnginesHandle handle,
+  required String isoDate,
+  double? restingHr,
+  double? hrvRmssd,
+  double? sleepHours,
+  int? rpe,
+}) => RustLib.instance.api.crateApiProcessManualObservation(
+  handle: handle,
+  isoDate: isoDate,
+  restingHr: restingHr,
+  hrvRmssd: hrvRmssd,
+  sleepHours: sleepHours,
+  rpe: rpe,
+);
+
 /// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
-/// from (a) the engine-bound profile and (b) live `readiness_score` —
-/// no per-call user input (no mood/equipment/terrain form in the
-/// MVP-1 UI), so those fields use defaults — see PR body.
-Future<String> recommendWorkout({required EnginesHandle handle}) =>
-    RustLib.instance.api.crateApiRecommendWorkout(handle: handle);
+/// from (a) the engine-bound profile and (b) live `readiness_score`.
+///
+/// Optional parameters allow the UI to pass user-selected mood, equipment,
+/// and terrain. When `None`, defaults to `"normal"` for mood and `null`
+/// for equipment/terrain (engine interprets as "any").
+Future<String> recommendWorkout({
+  required EnginesHandle handle,
+  String? mood,
+  String? equipment,
+  String? terrain,
+}) => RustLib.instance.api.crateApiRecommendWorkout(
+  handle: handle,
+  mood: mood,
+  equipment: equipment,
+  terrain: terrain,
+);
 
 /// `VaultEngine::read_default_profile()` — round-trips the profile
 /// through the on-device vault. With a fresh vault this is the seed
