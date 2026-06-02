@@ -13,21 +13,26 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Git-rev pin (Day-7 — bumped to rust-engine main after PR #147 merged).
-# 281d831 is the merge commit of `claude/day5-source-tier-binding`,
-# bringing in VaultEngine.last_observation_source_tier + the
-# rust-engine rustfmt-CI workflow fix. SSH URL because rust-engine
-# is currently a private repo; HTTPS clones would need an unattended
-# token. SSH lets local dev (Hetzner box, founder laptop) and CI
-# (deploy key on rust-engine paired with the
-# `RUST_ENGINE_DEPLOY_KEY` secret on this repo's Actions config —
-# see `.github/workflows/smoke-build.yml`) share one transport.
+# Git-rev pin (MVP-1 — re-pinned to rust-engine main @ engine_registry v2.18).
+# 4dab6cb is the current main, bringing in:
+#   - ViterbiEngine::readiness_indicator() — 4-axis readiness blend headline
+#   - DashboardEngine — purpose-built Tier-2.5 display assembler for the
+#     three-zone PULL home (get_dashboard / get_state_widget /
+#     get_session_widget / get_context_widget)
+#   - NormalizerEngine — 8-vendor normalizer (normalize_observation,
+#     classify_source, build_source_overview)
+#   - VaultEngine::read_readiness_history() — trend series for dashboard
+#   - ViterbiEngine::from_persisted_state() — restore saved HMM on launch
+#
+# SSH URL because rust-engine is a private repo; CI uses the
+# `RUST_ENGINE_DEPLOY_KEY` secret paired with the deploy key on
+# rust-engine (see `.github/workflows/smoke-build.yml`).
 #
 # Local-dev override: to point at a working tree on disk instead of
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "281d831687f29930e318662beea6940c573f5dbf" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

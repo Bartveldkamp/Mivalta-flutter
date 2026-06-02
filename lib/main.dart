@@ -1,12 +1,14 @@
-// MiValta spike entry. Day 1 owns the on-device V10.1 chat loop
-// (llama_cpp_dart + GGUF download + sha256-gated load); Day 2 layers
-// the rust-engine bridge on top (flutter_rust_bridge → libgatc_ffi /
-// libmivalta_rust_bridge → gatc_ffi::hello_uniffi). They are
-// orthogonal — the engine bridge boots in parallel with the model
-// download, and its result lands as an additional status line above
-// the V10.1 UI without blocking Run.
+// MiValta MVP-1 entry point. Production app with engine-connected UI.
 //
-// See docs/V10_1_FLUTTER_PERF_SPIKE.md and docs/DAY2_RUST_BRIDGE.md.
+// Default home is ReadinessScreen — the three-zone PULL layout driven
+// by the Rust engine via flutter_rust_bridge.
+//
+// The V10.1 LLM spike screen is now a kDebugMode-only route, accessed
+// via long-press on the app title (same entry point as the SourceTier
+// debug exerciser). The llama_cpp_dart dep is retained for the
+// deferred grounded-Josi phase (PR-F).
+//
+// See docs/MVP1_BUILD_BRIEF.md for the current milestone scope.
 
 import 'dart:async';
 import 'dart:io';
@@ -34,31 +36,44 @@ const int _expectedBytes = 1107408608;
 const String _defaultPrompt = 'Should I train today?';
 
 void main() {
-  runApp(const PerfSpikeApp());
+  runApp(const MivaltaApp());
 }
 
-class PerfSpikeApp extends StatelessWidget {
-  const PerfSpikeApp({super.key});
+class MivaltaApp extends StatelessWidget {
+  const MivaltaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'MiValta V10.1 Spike',
-      home: SpikeHome(),
+    return MaterialApp(
+      title: 'MiValta',
+      home: const ReadinessScreen(),
+      routes: {
+        // V10.1 LLM spike screen — kDebugMode-only, accessed via debug menu
+        '/v10-spike': (_) => const V10SpikeScreen(),
+      },
     );
   }
 }
 
+// =============================================================================
+// V10.1 LLM SPIKE — kDebugMode-only (access via ReadinessScreen debug menu)
+// =============================================================================
+// Retained for the deferred grounded-Josi phase (PR-F). The model download
+// and llama_cpp_dart binding are intact; the screen is just not the default
+// route anymore.
+
 enum _ModelStage { checking, downloading, verifying, ready, error }
 
-class SpikeHome extends StatefulWidget {
-  const SpikeHome({super.key});
+/// V10.1 LLM spike screen (kDebugMode-only). Kept for the deferred
+/// grounded-Josi phase (PR-F). Access from ReadinessScreen debug menu.
+class V10SpikeScreen extends StatefulWidget {
+  const V10SpikeScreen({super.key});
 
   @override
-  State<SpikeHome> createState() => _SpikeHomeState();
+  State<V10SpikeScreen> createState() => _V10SpikeScreenState();
 }
 
-class _SpikeHomeState extends State<SpikeHome> {
+class _V10SpikeScreenState extends State<V10SpikeScreen> {
   final TextEditingController _controller =
       TextEditingController(text: _defaultPrompt);
 
@@ -314,12 +329,12 @@ class _SpikeHomeState extends State<SpikeHome> {
     final canRun = _stage == _ModelStage.ready && !_running;
     return Scaffold(
       appBar: AppBar(
-        // Day-7: long-press the title to open the SourceTier debug
-        // exerciser. kDebugMode-gated so production builds never
-        // expose the entry point even if a tester finds it.
+        // Long-press the title to open the SourceTier debug exerciser.
+        // kDebugMode-gated so production builds never expose the entry
+        // point even if a tester finds it.
         title: GestureDetector(
           onLongPress: kDebugMode ? _openDebugExerciser : null,
-          child: const Text('MiValta V10.1 Spike'),
+          child: const Text('V10.1 LLM Debug (spike)'),
         ),
       ),
       body: Padding(
@@ -343,27 +358,9 @@ class _SpikeHomeState extends State<SpikeHome> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: canRun ? _runOnce : null,
-                    child: Text(_running ? 'Running...' : 'Run'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ReadinessScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.favorite_outline),
-                    label: const Text('Readiness'),
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: canRun ? _runOnce : null,
+              child: Text(_running ? 'Running...' : 'Run'),
             ),
             const SizedBox(height: 12),
             Row(

@@ -8,14 +8,53 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
+// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `from`
 
 /// Day-2 smoke test — kept so the existing engine-hello status line
 /// in main.dart stays green.
 Future<String> engineHello() => RustLib.instance.api.crateApiEngineHello();
 
-/// Construct the three engines from the canonical seed JSON +
-/// compiled tables + a writable vault path (created at first use).
+/// Construct all engines for a FIRST RUN (no persisted state exists).
+///
+/// After calling this, the Dart side MUST immediately call `save_state()`
+/// and persist the returned JSON so subsequent launches can restore via
+/// `construct_engines_from_state()`. The plain `new()` seed constructor is
+/// only reachable here — the restore path uses `from_persisted_state()`.
+Future<EnginesHandle> constructEnginesFresh({
+  required String athleteProfileJson,
+  required String tablesJson,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiConstructEnginesFresh(
+  athleteProfileJson: athleteProfileJson,
+  tablesJson: tablesJson,
+  vaultPath: vaultPath,
+);
+
+/// Construct all engines from PERSISTED STATE (subsequent launches).
+///
+/// `viterbi_state_json` is the JSON returned by a prior `save_state()` call.
+/// The ViterbiEngine is restored via `from_persisted_state()`, preserving the
+/// learned HMM, ceiling intelligence, OutcomeTracker, etc. across app restarts.
+///
+/// If the state JSON is invalid or corrupted, returns an error. The Dart side
+/// should handle this by falling back to `construct_engines_fresh()` and
+/// accepting the state reset.
+Future<EnginesHandle> constructEnginesFromState({
+  required String athleteProfileJson,
+  required String tablesJson,
+  required String vaultPath,
+  required String viterbiStateJson,
+}) => RustLib.instance.api.crateApiConstructEnginesFromState(
+  athleteProfileJson: athleteProfileJson,
+  tablesJson: tablesJson,
+  vaultPath: vaultPath,
+  viterbiStateJson: viterbiStateJson,
+);
+
+/// Legacy constructor for backward compatibility with existing screens.
+/// Delegates to `construct_engines_fresh`. New code should use the explicit
+/// `construct_engines_fresh` / `construct_engines_from_state` pair.
 Future<EnginesHandle> constructEngines({
   required String athleteProfileJson,
   required String tablesJson,
@@ -30,6 +69,13 @@ Future<EnginesHandle> constructEngines({
 Future<String> readinessScore({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadinessScore(handle: handle);
 
+/// `ViterbiEngine::readiness_indicator()` — the 4-axis readiness blend
+/// (HMM posteriors + Banister + physio + psychological), with per-axis
+/// breakdown, level, and confidence. This is the headline number for the
+/// three-zone PULL home.
+Future<String> readinessIndicator({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadinessIndicator(handle: handle);
+
 /// `ViterbiEngine::get_readiness()` — full snapshot JSON including
 /// `fatigue_state`. gatc-ffi exposes the state through the snapshot,
 /// not as a standalone scalar; Dart parses/renders as-is.
@@ -40,10 +86,17 @@ Future<String> viterbiFatigueState({required EnginesHandle handle}) =>
 Future<String> zoneCapWithAdvisories({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiZoneCapWithAdvisories(handle: handle);
 
+/// `ViterbiEngine::save_state()` — serialize the current HMM state to JSON.
+/// Call this after any state-changing operation and persist the result to
+/// the vault via `write_viterbi_state()`. On next launch, pass this JSON
+/// to `construct_engines_from_state()` to restore continuity.
+Future<String> saveState({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiSaveState(handle: handle);
+
 /// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
 /// from (a) the engine-bound profile and (b) live `readiness_score` —
 /// no per-call user input (no mood/equipment/terrain form in the
-/// Day-3 UI), so those fields use defaults — see PR body.
+/// MVP-1 UI), so those fields use defaults — see PR body.
 Future<String> recommendWorkout({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiRecommendWorkout(handle: handle);
 
@@ -61,16 +114,42 @@ Future<String> vaultSnapshot({required EnginesHandle handle}) =>
 Future<String> lastObservationSourceTier({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiLastObservationSourceTier(handle: handle);
 
-/// Day-7: minimal biometric write for the hardware-verification debug
-/// swatch exerciser. Composes a minimal VaultBiometric JSON with
-/// `date`, `source`, and a placeholder `resting_hr` so the next
+/// `VaultEngine::read_readiness_history(days)` — series of readiness
+/// snapshots for the past N days, driving the home/detail trend chart.
+Future<String> readReadinessHistory({
+  required EnginesHandle handle,
+  required int days,
+}) => RustLib.instance.api.crateApiReadReadinessHistory(
+  handle: handle,
+  days: days,
+);
+
+/// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
+/// ViterbiEngine state to the vault. Call this after `save_state()` to
+/// ensure continuity across app restarts.
+Future<void> writeViterbiState({
+  required EnginesHandle handle,
+  required String stateJson,
+}) => RustLib.instance.api.crateApiWriteViterbiState(
+  handle: handle,
+  stateJson: stateJson,
+);
+
+/// `VaultEngine::read_viterbi_state(athlete_id)` — read the persisted
+/// ViterbiEngine state from the vault. Returns JSON `null` if no state
+/// exists (first run). Use this at launch to check whether to call
+/// `construct_engines_from_state()` or `construct_engines_fresh()`.
+Future<String> readViterbiState({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadViterbiState(handle: handle);
+
+/// Minimal biometric write for the hardware-verification debug swatch
+/// exerciser. Composes a minimal VaultBiometric JSON with `date`,
+/// `source`, and a placeholder `resting_hr` so the next
 /// `last_observation_source_tier` call returns the matching tier and
 /// the readiness screen's section (e) picks up the LOCKED swatch.
 ///
 /// `iso_date` must parse as `YYYY-MM-DD`; on failure the shim emits
-/// `BridgeError::InvalidDate` *before* touching the vault. The
-/// physiological value is a placeholder — production writes will
-/// carry real metrics.
+/// `BridgeError::InvalidDate` *before* touching the vault.
 Future<void> writeMinimalBiometric({
   required EnginesHandle handle,
   required String source,
@@ -81,6 +160,85 @@ Future<void> writeMinimalBiometric({
   source: source,
   isoDate: isoDate,
   restingHr: restingHr,
+);
+
+/// `DashboardEngine::get_dashboard()` — composite payload (state + session
+/// + context) as JSON. Drives the three-zone PULL home layout.
+Future<String> getDashboard({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetDashboard(handle: handle);
+
+/// `DashboardEngine::get_state_widget()` — Tier 1 state widget JSON.
+Future<String> getStateWidget({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetStateWidget(handle: handle);
+
+/// `DashboardEngine::get_session_widget()` — Tier 2 session widget JSON.
+Future<String> getSessionWidget({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetSessionWidget(handle: handle);
+
+/// `DashboardEngine::get_context_widget()` — history/load context widget JSON.
+Future<String> getContextWidget({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetContextWidget(handle: handle);
+
+/// `NormalizerEngine::normalize_observation(vendor, json)` — normalize
+/// vendor-specific observation JSON to a UniversalObservation.
+///
+/// Supported vendors: garmin, oura, whoop, polar, apple/healthkit,
+/// wahoo, coros, ble. The engine bounds-validates the result before
+/// returning. The Dart side receives a normalized JSON ready to pass
+/// to `ViterbiEngine::process_observation()`.
+Future<String> normalizeObservation({
+  required EnginesHandle handle,
+  required String vendor,
+  required String json,
+}) => RustLib.instance.api.crateApiNormalizeObservation(
+  handle: handle,
+  vendor: vendor,
+  json: json,
+);
+
+/// `NormalizerEngine::classify_source(source)` — classify a data source
+/// into a quality tier. Returns JSON with tier, tier_code, and
+/// confidence_acceleration.
+Future<String> classifySource({
+  required EnginesHandle handle,
+  required String source,
+}) =>
+    RustLib.instance.api.crateApiClassifySource(handle: handle, source: source);
+
+/// `NormalizerEngine::build_source_overview(sources_json)` — build a
+/// complete "data sources overview" for the mobile UI. Returns which
+/// source is primary for each metric (HRV, sleep, RHR, activity).
+Future<String> buildSourceOverview({
+  required EnginesHandle handle,
+  required String sourcesJson,
+}) => RustLib.instance.api.crateApiBuildSourceOverview(
+  handle: handle,
+  sourcesJson: sourcesJson,
+);
+
+/// Check if a persisted ViterbiEngine state exists for the given athlete.
+/// Uses a temporary VaultEngine to query without constructing all engines.
+///
+/// Returns `true` if state exists and should be restored via
+/// `construct_engines_from_state()`, `false` if this is a first run and
+/// should use `construct_engines_fresh()`.
+Future<bool> hasPersistedState({
+  required String athleteProfileJson,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiHasPersistedState(
+  athleteProfileJson: athleteProfileJson,
+  vaultPath: vaultPath,
+);
+
+/// Read the persisted ViterbiEngine state JSON directly from the vault.
+/// Returns `None` if no state exists (first run), `Some(json)` otherwise.
+/// Use this to get the state JSON to pass to `construct_engines_from_state()`.
+Future<String?> readPersistedState({
+  required String athleteProfileJson,
+  required String vaultPath,
+}) => RustLib.instance.api.crateApiReadPersistedState(
+  athleteProfileJson: athleteProfileJson,
+  vaultPath: vaultPath,
 );
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>>
@@ -99,11 +257,10 @@ sealed class BridgeError with _$BridgeError implements FrbException {
   const factory BridgeError.roundTripFailed(String field0) =
       BridgeError_RoundTripFailed;
 
-  /// Day-7: ISO-8601 date string couldn't be parsed at the shim
-  /// before reaching the engine. Distinct from `InputError` so the
-  /// debug exerciser (and future writes) can surface a precise
-  /// "your date is malformed" toast instead of the generic JSON
-  /// schema rejection text.
+  /// ISO-8601 date string couldn't be parsed at the shim before
+  /// reaching the engine. Distinct from `InputError` so the debug
+  /// exerciser (and future writes) can surface a precise "your date
+  /// is malformed" toast instead of the generic JSON schema rejection text.
   const factory BridgeError.invalidDate(String field0) =
       BridgeError_InvalidDate;
 }
