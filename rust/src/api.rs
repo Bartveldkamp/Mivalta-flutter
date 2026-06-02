@@ -700,6 +700,84 @@ pub fn read_persisted_state(
     }
 }
 
+// =============================================================================
+// PR-H: VAULT-BASED PROFILE STORAGE
+// =============================================================================
+
+/// Read the athlete profile from the encrypted vault using just the athlete_id.
+///
+/// Bootstrap approach: the Dart side persists only the athlete_id (a random UUID)
+/// in plaintext; the full profile (age/sex/FTP/anchors) lives in the encrypted
+/// vault. On app launch, Dart calls this function with just the athlete_id to
+/// retrieve the full profile JSON.
+///
+/// Returns `None` if no profile exists in the vault (first run scenario).
+/// Returns `Some(profile_json)` if a profile was found.
+///
+/// The bootstrap profile used internally has placeholder values for all fields
+/// except athlete_id — these placeholders are never used because `read_default_profile`
+/// reads from the vault DB, not from the construction-time profile.
+pub fn read_profile_from_vault(
+    athlete_id: String,
+    vault_path: String,
+) -> Result<Option<String>, BridgeError> {
+    // Create a minimal bootstrap profile with just the athlete_id.
+    // The other fields are placeholders — VaultEngine::new needs them but
+    // read_default_profile reads from the vault DB, not this profile.
+    let bootstrap_profile = serde_json::json!({
+        "athlete_id": athlete_id,
+        "age": 30,
+        "sex": "male",
+        "level": "intermediate",
+        "goal_type": "general_fitness",
+        "sport": "cycling",
+        "weekly_hours": 5.0,
+        "training_years": 2,
+        "goal_class": "endurance",
+        "recent_activity": "trained",
+        "threshold_hr": null,
+        "ftp_watts": null,
+        "threshold_pace_sec_km": null,
+        "power_profile": null,
+        "meso_length": 21,
+        "meso_train_days": [0, 1, 2, 3, 4],
+        "meso_off_days": [5, 6],
+        "meso_minutes": 300,
+        "availability": {}
+    });
+    let bootstrap_json = bootstrap_profile.to_string();
+
+    let vault = gatc_ffi::VaultEngine::new(bootstrap_json, vault_path)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
+
+    // Try to read the profile from the vault.
+    // read_default_profile returns JSON "null" if no profile exists.
+    let profile_json = vault.read_default_profile().map_err(BridgeError::from)?;
+
+    // Check for JSON null (empty vault) — return None in that case
+    if profile_json == "null" || profile_json.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(profile_json))
+    }
+}
+
+/// Write the athlete profile to the encrypted vault.
+///
+/// Use this after onboarding to persist the full profile. The profile is
+/// encrypted at rest (AES-256-GCM via SQLCipher).
+///
+/// This is a standalone function for first-run bootstrap — after engines are
+/// constructed, use `write_profile(handle, json)` instead.
+pub fn write_profile_to_vault(
+    athlete_profile_json: String,
+    vault_path: String,
+) -> Result<(), BridgeError> {
+    let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
+    vault.write_profile(athlete_profile_json).map_err(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1681,5 +1759,85 @@ mod tests {
         eprintln!("  - Data written to vault");
         eprintln!("  - clear_all_user_data called");
         eprintln!("  - Data is cryptographically unrecoverable");
+    }
+
+    // =========================================================================
+    // PR-H: Profile-in-vault round-trip test
+    // =========================================================================
+    //
+    // Verifies the bootstrap approach: write profile to vault, then read it
+    // back using only athlete_id (simulating app restart with pointer file).
+
+    #[test]
+    fn profile_in_vault_round_trip() {
+        // PR-H: Write profile to vault, read it back using just athlete_id.
+        // This is the core "profile moved to encrypted vault" invariant.
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let profile = test_profile();
+        let athlete_id = "test-user-001".to_string();
+
+        // Step 1: Write profile to vault (simulates onboarding completion)
+        write_profile_to_vault(profile.clone(), vault_path.clone())
+            .expect("write_profile_to_vault should succeed");
+
+        // Step 2: Read profile using only athlete_id (simulates app restart)
+        // This is what the Dart side does after reading the pointer file.
+        let read_back = read_profile_from_vault(athlete_id.clone(), vault_path.clone())
+            .expect("read_profile_from_vault should succeed");
+
+        assert!(read_back.is_some(), "profile should exist in vault");
+        let profile_json = read_back.unwrap();
+
+        // Verify key fields match
+        let original: serde_json::Value = serde_json::from_str(&profile).unwrap();
+        let read: serde_json::Value = serde_json::from_str(&profile_json).unwrap();
+
+        assert_eq!(
+            read["athlete_id"].as_str().unwrap(),
+            original["athlete_id"].as_str().unwrap(),
+            "athlete_id should match"
+        );
+        assert_eq!(
+            read["age"].as_i64().unwrap(),
+            original["age"].as_i64().unwrap(),
+            "age should match"
+        );
+        assert_eq!(
+            read["sport"].as_str().unwrap(),
+            original["sport"].as_str().unwrap(),
+            "sport should match"
+        );
+        assert_eq!(
+            read["ftp_watts"].as_i64().unwrap(),
+            original["ftp_watts"].as_i64().unwrap(),
+            "ftp_watts should match"
+        );
+
+        eprintln!("PR-H: Profile-in-vault round-trip test passed");
+        eprintln!("  - Profile written to vault: age={}, sport={}",
+            original["age"], original["sport"]);
+        eprintln!("  - Profile read back using athlete_id only");
+        eprintln!("  - All key fields preserved through encryption round-trip");
+    }
+
+    #[test]
+    fn read_profile_from_empty_vault_returns_none() {
+        // PR-H: Reading from an empty vault should return None, not error.
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+
+        let athlete_id = "nonexistent-user".to_string();
+
+        // Read from empty vault — should return None
+        let result = read_profile_from_vault(athlete_id, vault_path)
+            .expect("read_profile_from_vault should succeed");
+
+        assert!(result.is_none(), "empty vault should return None");
+
+        eprintln!("PR-H: Empty vault returns None (not error) - passed");
     }
 }
