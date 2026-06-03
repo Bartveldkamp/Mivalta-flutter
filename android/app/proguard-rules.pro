@@ -22,16 +22,6 @@
 }
 
 # =============================================================================
-# LLAMA.CPP AAR — llama_cpp_dart plugin (V10.1 spike, grounded-Josi phase)
-# =============================================================================
-#
-# The llama_cpp_dart plugin uses JNI to bridge Dart → C++ llama.cpp.
-# Keep all classes in the plugin's package.
-
--keep class com.example.llama_cpp_dart.** { *; }
--keep class io.netdur.llama_cpp_dart.** { *; }
-
-# =============================================================================
 # HEALTH PLUGIN — Health Connect API access via reflection
 # =============================================================================
 #

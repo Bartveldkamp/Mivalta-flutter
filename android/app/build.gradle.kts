@@ -1,4 +1,4 @@
-// PR-I: Release hardening — signing, R8/minify, ProGuard rules for native bindings.
+// PR-J: Release hardening — signing, R8/minify, ProGuard rules for native bindings.
 //
 // SIGNING:
 // - Debug builds use the default debug keystore (auto-generated).
@@ -7,8 +7,7 @@
 //   (for CI builds that just verify the pipeline compiles).
 //
 // NATIVE BINDINGS:
-// - Rust FFI (libgatc_ffi.so, libmivalta_rust_bridge.so) loaded via System.loadLibrary
-// - llama.cpp AAR (libs/llama-cpp-dart.aar) loaded via System.loadLibrary
+// - Rust FFI (libmivalta_rust_bridge.so) loaded via System.loadLibrary
 // - Health plugin uses reflection for Health Connect APIs
 // - All require ProGuard keep rules to prevent R8 from stripping JNI entry points.
 
@@ -46,7 +45,7 @@ android {
         applicationId = "com.mivalta.app"
 
         // SDK levels:
-        // - minSdk 26: required by llama-cpp-dart AAR (Android 8.0+)
+        // - minSdk 26: Android 8.0+ (Health Connect baseline)
         // - targetSdk 35: current Play Store requirement (Android 15)
         minSdk = 26
         targetSdk = 35
@@ -57,7 +56,6 @@ android {
         versionName = flutter.versionName
 
         // ABI filter: arm64-v8a only.
-        // - llama-cpp-dart AAR ships arm64-v8a only
         // - Rust FFI .so files built for arm64-v8a only
         // Adding other ABIs would cause missing native lib crashes.
         ndk {
@@ -118,11 +116,4 @@ kotlin {
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    // V10.1 perf spike: llama.cpp prebuilt CPU AAR from
-    // netdur/llama_cpp_dart v0.9.0-dev.6 GitHub release. sha256:
-    // 005fb18cf74a3827f23dddefa9284e57462dbaec7f4d764c0b4f8971a47a0f53
-    implementation(files("libs/llama-cpp-dart.aar"))
 }

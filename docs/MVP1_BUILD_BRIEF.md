@@ -4,17 +4,12 @@
 > seat) per Working Rule 3. The Mac Claude Code executor builds from this
 > PR-by-PR; the founder runs each APK on-device.
 >
-> **Supersedes:** `docs/spike/SPIKE_CLOSED.md` "Next milestone" line. The
-> V10.1 spike is closed; this is "MVP build week 1."
->
-> **Develop on branch:** `claude/clever-noether-1hhfw` (this branch).
->
 > **Founder decisions locked (2026-06-01):** ADVISOR = **suggestions only**
 > (no `ReplanEngine` in MVP-1). Data ingest connects **Garmin + Polar + BLE +
-> other supported platforms** (multi-vendor, not one). The **entire LLM/Josi
-> layer is deferred to a later step** — MVP-1 is purely about connecting the
-> Rust engine to the Flutter frontend over FFI with real, working app
-> functionality.
+> other supported platforms** (multi-vendor, not one). The **conversational
+> AI layer is deferred to a later step** (model W, delivered via Play Asset
+> Delivery) — MVP-1 is purely about connecting the Rust engine to the Flutter
+> frontend over FFI with real, working app functionality.
 
 ---
 
@@ -27,10 +22,10 @@ of that proven binding, to UI/UX Direction v1.1 (three-zone PULL home,
 calm/honest/agency, dark-first) and canonical spec v1.4 ("a coach they can
 trust — honest about what it does not yet know"; **not** an all-knowing coach).
 Scope is **MONITOR + ADVISOR (suggestions) + multi-vendor data ingest**, with
-the **on-device LLM / grounded Josi added dead-last**. Everything in MVP-1 is
-pure engine→display: zero fabrication surface, which is exactly the constraint
-we locked ("must come from engine to eliminate hallucination / wandering of
-LLM").
+the **conversational AI added later** (model W, delivered via Play Asset
+Delivery). Everything in MVP-1 is pure engine→display: zero fabrication
+surface, which is exactly the constraint we locked ("must come from engine to
+eliminate hallucination / wandering of LLM").
 
 ---
 
@@ -64,18 +59,16 @@ LLM").
 the entire recent engine evolution. **First build step is to re-pin and
 reconcile.**
 
-| | Spike (`281d831`) | Current `main` (`94b2bd4`, registry **v2.18**) |
+| | Previous | Current `main` (registry **v2.18+**) |
 |---|---|---|
 | Live readiness indicator | `readiness_score()` (0–100 scalar) | **`readiness_indicator()`** — 4-axis readiness blend (HMM posteriors + Banister performance + physio z + psychological), calibration-aware, card-pinned `monitoring_v5:readiness_blend`. **The headline number for the home.** |
-| V10 / "all-knowing coach" | present in engine + spike LLM path | **removed** from engine; spec → v1.4 honest posture |
+| Posture | — | spec → v1.4 honest posture |
 | Engine count | pre-consolidation | **16 engines**; ChatEngine = 6 methods |
 | New fields | — | `UniversalObservation.altitude_m`, `utc_offset_minutes` (§8.5 altitude/travel safety) |
 
 **Action (PR-A):** bump the `rev =` pin to current `main` (verify it contains
 `pub fn readiness_indicator` and `engine_registry.json` `"version": "2.18"`
-first), regenerate the FRB bindings, reconcile the bound-method list (§3), and
-drop every V10/`josi-v10-1` reference from the default code path (the GGUF path
-stays dead-coded behind a debug flag until the LLM phase).
+first), regenerate the FRB bindings, reconcile the bound-method list (§3).
 
 ---
 
@@ -120,10 +113,10 @@ transport (BLE, vendor OAuth) is the Flutter platform layer — see §4a and PR-
 | Manual / write | `write_minimal_biometric` ✅ (promote) | `VaultEngine::write_biometric(json)` | Production carries real metrics, not the placeholder RHR. |
 | Profile read-back | `vault_snapshot` ✅ | `VaultEngine::read_default_profile()` | |
 
-### Josi surface — **deferred entirely to a later step**
+### Conversational AI surface — **deferred entirely to a later step**
 `ChatEngine::chat / get_conversation_for_llm / clear_history / update_profile`
-+ the on-device LLM messenger (`llama_cpp_dart`, engine-grounded, §8 retrieval:
-Josi queries, the engine computes). **Not in MVP-1.**
++ the on-device model W messenger (engine-grounded: it queries, the engine
+computes). Delivered via Play Asset Delivery. **Not in MVP-1.**
 
 ---
 
@@ -153,17 +146,15 @@ Each pulls the user's *own* data into the on-device vault; engine state never
 leaves the device. This is its own PR (PR-E) because OAuth + BLE pairing +
 background sync is substantial.
 
-The spike's `main.dart` perf-measurement screen (prompt box + TTFT/PSS) is
-**retired from the default route** in PR-A; its telemetry harness may be kept
-behind the debug flag for the eventual LLM phase.
+The debug perf-measurement screen has been **removed** (PR-J). The app ships
+with zero network permission and zero deferred-LLM scaffolding.
 
 ---
 
 ## 5. Stale docs to fix (cheap, do alongside PR-A)
 
-- `CLAUDE.md` / `README.md` (this repo): V10.1-centric, "spike Day N", old
-  "Three Rules". Update to: production app, spec v1.4, UI/UX v1.1,
-  readiness_blend headline, engine-decides/Flutter-displays.
+- `CLAUDE.md` / `README.md` (this repo): update to production app, spec v1.4,
+  UI/UX v1.1, readiness_blend headline, engine-decides/Flutter-displays.
 
 ---
 
@@ -171,12 +162,12 @@ behind the debug flag for the eventual LLM phase.
 
 | PR | Scope | Gates |
 |---|---|---|
-| **PR-A** | Re-pin shim to current `main`; regenerate FRB; bind the full no-LLM surface (`readiness_indicator`, `read_readiness_history`, 4 Dashboard widgets, 3 Normalizer fns); keep advisor suggestions-only; retire V10/GGUF from default route; refresh `CLAUDE.md`/`README`. | Bindings round-trip on-device; CI green; no V10 symbol in default path. |
+| **PR-A** | Re-pin shim to current `main`; regenerate FRB; bind the full no-LLM surface (`readiness_indicator`, `read_readiness_history`, 4 Dashboard widgets, 3 Normalizer fns); keep advisor suggestions-only; refresh `CLAUDE.md`/`README`. | Bindings round-trip on-device; CI green. |
 | **PR-B** | Theme + three-zone home (dark-first tokens, PULL layout) wired to `DashboardEngine` widgets + `readiness_indicator`. | Home renders real engine state; insufficient-data shows honest empty. |
 | **PR-C** | Readiness detail (4 axes, trend, source tier, altitude/travel banner). | Every value verbatim from engine; widget test per section. |
 | **PR-D** | Advisor surface + `SuggesterContext` mood/equipment/terrain picker → `suggest_workouts` (suggestions only). | A/B/C options reflect real picker input, not defaults. |
 | **PR-E** | **Connectivity:** BLE + Garmin + Polar transport (then Oura/Whoop/Apple/Wahoo/COROS) → `normalize_observation` → vault; "data sources" UI via `build_source_overview`. | Real data from a paired device/account lands in the vault and moves readiness. |
-| **PR-F** *(later step, not MVP-1)* | Grounded Josi bottom sheet via `ChatEngine::chat` (§8, engine-fed) **then** the on-device LLM messenger. | Josi surfaces only engine-computed values; LLM is messenger, never source of physics. |
+| **PR-F** *(later step, not MVP-1)* | Conversational AI bottom sheet via `ChatEngine::chat` (§8, engine-fed) **then** model W (delivered via Play Asset Delivery). | AI surfaces only engine-computed values; model is messenger, never source of physics. |
 
 ---
 

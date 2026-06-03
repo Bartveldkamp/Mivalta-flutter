@@ -205,7 +205,7 @@ A privacy policy URL is required for Play Store. Host at:
 3. **No analytics**: No Firebase, no Amplitude, no tracking.
 4. **No ads**: No advertising SDKs.
 5. **Health data**: Read from Health Connect (Android) / HealthKit (iOS) with explicit user permission. Used only for readiness calculations.
-6. **Network usage**: One-time model download only. No ongoing connectivity required.
+6. **No network permission**: The app does not request INTERNET permission. When the conversational AI ships, it will be delivered via Play Asset Delivery.
 7. **Data deletion**: Users can crypto-shred all data via in-app function.
 
 ---
@@ -269,7 +269,6 @@ Before release, verify these files exist and are configured:
 
 - [ ] `android/key.properties` (not committed, local only)
 - [ ] `android/app/proguard-rules.pro` (keep rules for JNI)
-- [ ] `android/app/src/main/res/xml/network_security_config.xml`
 - [ ] `android/app/src/main/res/values/health_permissions.xml`
 - [ ] `assets/compiled_tables.json` (knowledge tables)
 - [ ] App icon assets (when brand art ready)

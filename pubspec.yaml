@@ -35,25 +35,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # V10.1 perf spike (Day 1): on-device Qwen3-1.7B via llama.cpp,
-  # off-thread LlamaEngine isolate + streaming GenerationEvent.
-  # Pre-1.0 prerelease; API may break before 1.0 — acceptable for
-  # a single-screen spike.
-  llama_cpp_dart: ^0.9.0-dev.6
-
-  # GGUF: download once on first launch, persist under
-  # getApplicationSupportDirectory(), verify sha256 before load.
+  # Filesystem access for vault persistence.
   path_provider: ^2.1.5
-  crypto: ^3.0.6
-  http: ^1.2.2
 
-  # Day 2: rust-engine binding via flutter_rust_bridge.
+  # Rust-engine binding via flutter_rust_bridge.
   # Pinned to match the exact `flutter_rust_bridge` version in
   # rust/Cargo.toml so the codec is symmetric on both sides.
   flutter_rust_bridge: 2.12.0
 
-  # Day 3: FRB-generated BridgeError variants are emitted as
-  # freezed sealed classes; the annotation lives at runtime.
+  # FRB-generated BridgeError variants are emitted as freezed sealed
+  # classes; the annotation lives at runtime.
   freezed_annotation: ^2.4.0
 
   # PR-D: Date formatting for manual entry screen.
@@ -75,8 +66,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # FRB codegen emits freezed-style sealed classes for the
-  # BridgeError variants (Day 3). Generation-time only.
+  # FRB codegen emits freezed-style sealed classes for BridgeError
+  # variants. Generation-time only.
   freezed: ^2.5.0
   build_runner: ^2.4.0
 
@@ -146,10 +137,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Day-3 real-data round trip: the compiled knowledge tables that
-  # `AdvisorEngine::new` needs at construction time. Copied verbatim
-  # from mivalta-rust-engine/compiled_tables.json — not regenerated
-  # here.
+  # The compiled knowledge tables that `AdvisorEngine::new` needs at
+  # construction time. Copied verbatim from mivalta-rust-engine/
+  # compiled_tables.json — not regenerated here.
   assets:
     - assets/compiled_tables.json
 

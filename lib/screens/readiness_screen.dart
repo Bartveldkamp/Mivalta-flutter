@@ -338,10 +338,6 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     );
   }
 
-  void _openV10Spike() {
-    Navigator.of(context).pushNamed('/v10-spike');
-  }
-
   Future<void> _openManualEntry() async {
     final handle = _handle;
     final binding = _binding;
@@ -510,27 +506,10 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
             ),
           // Debug menu (debug mode only)
           if (kDebugMode)
-            PopupMenuButton<String>(
+            IconButton(
               icon: const Icon(Icons.bug_report),
-              tooltip: 'Debug tools',
-              onSelected: (value) {
-                switch (value) {
-                  case 'swatch':
-                    _openDebugExerciser();
-                  case 'v10':
-                    _openV10Spike();
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'swatch',
-                  child: Text('SourceTier exerciser'),
-                ),
-                PopupMenuItem(
-                  value: 'v10',
-                  child: Text('V10.1 LLM spike'),
-                ),
-              ],
+              tooltip: 'SourceTier exerciser',
+              onPressed: _openDebugExerciser,
             ),
         ],
       ),
