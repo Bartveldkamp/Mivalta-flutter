@@ -13,10 +13,13 @@ Companion to [`DISTRIBUTION_AND_TIERS.md`](DISTRIBUTION_AND_TIERS.md).
 ## 0. Hard rule — the free tier requires no account
 
 The free **Monitor** never requires an account, login, or signup. Identity is
-requested **only** at the Josi (paid) upgrade, on the website, where billing
-legitimately needs it. Requiring an account to use an on-device, "your data
-never leaves your phone" app would contradict the core promise — so it is a
-locked product rule, not a default to revisit.
+requested **only** at the paid upgrade (Advisory or Coach), on the website,
+where billing legitimately needs it. See [`TIERS.md`](TIERS.md) for the
+canonical tier model.
+
+Requiring an account to use an on-device, "your data never leaves your phone"
+app would contradict the core promise — so it is a locked product rule, not a
+default to revisit.
 
 Consequence for metrics: we cannot (and will not) count free users by
 identity. We count them by the stores' aggregate device numbers instead.
@@ -31,14 +34,14 @@ identity. We count them by the stores' aggregate device numbers instead.
 | How many active users? | Store consoles (active devices, retention curves) | Good aggregate proxy |
 | Store-listing conversion (views → install) | Store consoles | Exact |
 | Upgrade funnel (pricing page → checkout → paid) | **Website** analytics (cookieless) + checkout | Exact on the web side |
-| How many paid for Josi? | Our **billing** (Stripe/etc.) + Auth0 entitlement | Exact |
+| How many paid (Advisory/Coach)? | Our **billing** (Stripe/etc.) + Auth0 entitlement | Exact |
 | Free → paid conversion | `paid subscribers ÷ active devices` | Numerator exact; denominator store-estimated |
 
 The two numbers a business actually steers on — **retention** and **paid
 conversion** — are both available this way, with no in-app tracking.
 
 ```
-Conversion ≈  Josi subscribers (exact, from billing)
+Conversion ≈  paid subscribers (exact, from billing)
               ─────────────────────────────────────
               active devices    (from store consoles)
 ```
