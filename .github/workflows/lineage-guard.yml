@@ -1,0 +1,58 @@
+# PR-J: Lineage guard — prevent V10/llama_cpp pollution from re-entering.
+#
+# The V10 LLM spike was purged. The replacement (model W) ships via Play Asset
+# Delivery with a clean-slate architecture. This guard fails the build if any
+# V10-era symbols sneak back in.
+#
+# Allowed exceptions:
+# - docs/archive/ (historical notes)
+# - This workflow file itself
+# - CLAUDE.md (may document the purge)
+
+name: lineage-guard
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for V10 lineage pollution
+        run: |
+          echo "Scanning for V10/llama_cpp lineage..."
+
+          # Patterns to reject (case-insensitive)
+          PATTERNS="v10|josi-v10|llama_cpp|llama-cpp"
+
+          # Directories to scan
+          SCAN_DIRS="lib/ android/ ios/ test/"
+
+          # Also scan docs/ but exclude docs/archive/
+          DOCS_MATCHES=$(grep -riE "$PATTERNS" docs/ --include="*.md" 2>/dev/null | grep -v "docs/archive/" || true)
+
+          # Scan code directories
+          CODE_MATCHES=$(grep -riE "$PATTERNS" $SCAN_DIRS 2>/dev/null || true)
+
+          # Combine results
+          ALL_MATCHES="$CODE_MATCHES$DOCS_MATCHES"
+
+          if [ -n "$ALL_MATCHES" ]; then
+            echo "❌ LINEAGE POLLUTION DETECTED"
+            echo ""
+            echo "The following files contain V10/llama_cpp references:"
+            echo "$ALL_MATCHES"
+            echo ""
+            echo "V10 was purged in PR-J. The replacement (model W) ships via"
+            echo "Play Asset Delivery with a clean-slate architecture."
+            echo ""
+            echo "If this is intentional documentation, move it to docs/archive/."
+            exit 1
+          fi
+
+          echo "✅ No V10 lineage pollution detected"

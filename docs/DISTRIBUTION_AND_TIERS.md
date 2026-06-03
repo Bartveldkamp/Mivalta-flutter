@@ -62,24 +62,20 @@ no harvesting" promise while still having paid tiers and accounts.
 
 ---
 
-## 4. How the Josi model gets onto the device
+## 4. How the conversational AI model gets onto the device
 
-The model (~1 GB GGUF) is too large to bundle in the app binary, so it is
-**fetched once** and then cached and run locally. Three delivery options:
+The model (~1 GB) is too large to bundle in the app binary. **Play Asset
+Delivery** ships it as an on-demand asset, delivered around install or on
+first request. This lets the app declare **no runtime network permission of
+its own** — the strongest privacy signal possible.
 
-| Option | Mechanism | Trade-off |
-|--------|-----------|-----------|
-| **A — Direct download** (current spike) | App downloads the GGUF from a MiValta-controlled host on first Josi use; SHA-256 verified before load. | Works today. Requires the app to hold the `INTERNET` permission. Download-only — no user data is uploaded. |
-| **B — Play Asset Delivery / on-demand asset** | The model ships through Google Play's (and App Store's equivalent) own large-asset pipeline, delivered around install / on first request. | Closest to "comes with the install." Lets the **app declare no runtime network of its own**. Preferred for Josi when it ships. |
-| **C — No Josi in v1** | Ship the engine-only Monitor with **no `INTERNET` permission at all**. | Strongest privacy signal possible: an app that *cannot* reach the internet. Add Josi (via B) later. |
+**Current status:** The free Monitor ships with **zero INTERNET permission**.
+The app *cannot* reach any server. When the paid conversational AI tier goes
+live, the model will be delivered via Play Asset Delivery — no change to the
+app's network posture.
 
-**Recommendation:** launch the free Monitor as **C** (zero network
-permission — a powerful trust statement), then deliver Josi via **B** when
-the paid tier goes live, so the app never needs a general-purpose internet
-permission.
-
-In every option, the download is the app *pulling a file in*. It never
-*sends* anything about the user out.
+The download is the Play Store *pushing a file in*. The app never *sends*
+anything about the user out.
 
 ---
 
@@ -108,10 +104,11 @@ purely by the account entitlement flag.
 
 ## 6. Status
 
-- ✅ Free Monitor — built, on-device, working (Android).
+- ✅ Free Monitor — built, on-device, working (Android + iOS).
 - ✅ On-device encrypted vault + crypto-erase data control.
+- ✅ Zero network permission — app cannot reach any server.
 - ⏳ Accounts (Auth0) — planned; not yet wired into the app flow.
 - ⏳ Website tier upgrade + entitlement check — planned.
-- ⏳ Josi (LLM) — deferred (debug-only spike today); will ship via Play Asset
-  Delivery (Option B) gated on the entitlement flag.
+- ⏳ Conversational AI (model W) — in development; will ship via Play Asset
+  Delivery gated on the entitlement flag.
 - ⏳ App-store purchase-presentation decision (§5) — **open**.
