@@ -24,19 +24,24 @@ encryption key is destroyed — the data becomes unrecoverable noise.
 
 ---
 
-## 2. The tier ladder
+## 2. The tiers
 
-The product is built in tiers. **Tier 1 and Tier 2 are the first two delivery
-steps** and are functionally built today; Tier 3 is the next phase.
+Three product tiers — **Monitor / Advisory / Coach**. See [`TIERS.md`](TIERS.md)
+for the canonical definition. (These are *product/pricing* tiers, named — not
+to be confused with the engine's "Tier 1/2/3" architecture axis in the
+rust-engine's `W1_SPEC.md`, which is Viterbi / GATC / Josi.)
 
-| Tier | Name | What the user gets | Status |
-|------|------|--------------------|--------|
-| **Tier 1** | **Monitor** | Daily readiness & fatigue state from biometrics — "how recovered am I, and how hard can I go today?" | ✅ Built |
-| **Tier 2** | **Advisory** | Concrete workout recommendations (A/B/C options) tuned to today's state — "what exactly should I do?" | ✅ Built |
-| **Tier 3** | **Josi** | A conversational AI coach that *explains* the engine's decisions in natural language. Paid; on-device LLM. | 🔲 Next phase (deferred) |
+| Tier | Price | What the user gets | Josi (LLM) | Engine |
+|------|-------|--------------------|-----------|--------|
+| **Monitor** | **Free** | Biometric numbers, stats, readiness/state — display only. No account, no network. | ❌ | ViterbiEngine |
+| **Advisory** | **Paid** | Monitor + Josi (explains, interactive) + a single-day training idea | ✅ | + AdvisorEngine + Josi |
+| **Coach** | **Paid (higher)** | Advisory + full long-term periodized plan, adjusts on request | ✅ | + PlanEngine + ReplanEngine + Josi |
 
-Tiers 1–2 are the free, on-device coaching core. Tier 3 (Josi) is the paid
-upgrade and the subject of a separate model-training track.
+Josi (the on-device LLM) switches on at **Advisory** and stays through
+**Coach**; the free **Monitor** has no LLM at all. Build status: the *engine*
+behind all three tiers exists today; **Josi (model W) is in development** and is
+what gates the paid tiers, and the **entitlement gating itself is future work**
+(today's build shows all surfaces open).
 
 ---
 
@@ -77,28 +82,30 @@ upgrade and the subject of a separate model-training track.
 | Repo | What it is | Start reading at |
 |------|-----------|------------------|
 | **mivalta-rust-engine** | The on-device coaching engine (core IP), Rust. | `CLAUDE.md` → `docs/MIVALTA_FINAL_SPEC.md` → `docs/ARCHITECTURE.md` → `docs/VITERBI.md` (the monitoring model) → `docs/FFI_API_CONTRACT.md` |
-| **Mivalta-flutter** | The cross-platform app (Android + iOS), Dart. | `CLAUDE.md` → `docs/MIVALTA_OVERVIEW.md` (this file) → `docs/DISTRIBUTION_AND_TIERS.md` → `docs/RELEASE_CHECKLIST.md` |
+| **Mivalta-flutter** | The cross-platform app (Android + iOS), Dart. | `CLAUDE.md` → `docs/MIVALTA_OVERVIEW.md` (this file) → `docs/TIERS.md` → `docs/DISTRIBUTION_AND_TIERS.md` → `docs/RELEASE_CHECKLIST.md` |
 
 Two repos **not** in scope for this review: `mivalta-android-client` (legacy
-native app, superseded by Flutter) and `mivalta-science-engine` (the Tier-3
-Josi model-training track, relevant only if the LLM is in Apadmi's scope).
+native app, superseded by Flutter) and `mivalta-science-engine` (the Josi
+model-training track, relevant only if the LLM is in Apadmi's scope).
 
 ---
 
 ## 5. What's built today (honest status)
 
 ✅ **Functionally complete and connected:**
-- Tier 1 Monitor + Tier 2 Advisory, running on real biometrics
+- The **Monitor** and **Advisory** *engine* (readiness/state + A/B/C workout suggestions), running on real biometrics
 - Android end-to-end: Health Connect + Apple Health + manual ingest → engine → readiness/advice
 - On-device **SQLCipher** encryption; data export (encrypted backup + CSV) and **crypto-erase** delete
 - First-launch onboarding capturing real anchors (honest "I don't know" → no fabricated values)
 - iOS data layer + native bridge **foundation** (xcframework, HealthKit mapping, encryption proven)
+- **Zero network** — the app holds no INTERNET permission
 
 🔲 **Not yet done (the next phase):**
+- **Josi (the LLM, model W)** — in development on a separate model-training track; it's what unlocks the paid **Advisory** and **Coach** tiers.
+- **Tier gating / accounts / website upgrade** — the paywall mechanics; today's build shows all surfaces open.
 - **Visual design pass** — the app currently renders through a neutral design-token layer (functional, not yet the final look). The architecture is set up so the real design is largely a token-layer swap.
 - **iOS built end-to-end** — foundation is in; needs a real `flutter build ios` on a Mac with simulator runtime + signing.
 - **Release/store steps** — keystore, Play Console, store listing, privacy policy (drafts in `RELEASE_CHECKLIST.md`).
-- **Tier 3 Josi** — deferred to a later phase (separate model-training track).
 
 ⚠️ **Honest caveat for technical reviewers:** the engine's coaching
 *constants* (thresholds, recovery curves) are **DRAFT** — grounded in
@@ -125,9 +132,10 @@ architecture is sound; field validation is outstanding work.
 
 1. **Computation stays in Rust.** No coaching logic, thresholds, or math in
    Dart — the app is display only.
-2. **On-device only.** No cloud round-trips for user data. The only network
-   exception is a one-time model download for Tier-3 Josi (and even that is
-   download-only — nothing about the user is uploaded).
+2. **On-device only.** No cloud round-trips for user data. The app holds no
+   INTERNET permission today; when the paid tiers ship, the Josi model (W) is
+   delivered via Play Asset Delivery (download-only — nothing about the user is
+   uploaded).
 3. **No fabrication.** If a value is unknown, the app says so — it never
    invents numbers (e.g. an unknown FTP is stored as null, not guessed).
 4. **Encryption + erasure are load-bearing.** SQLCipher vault; delete =
