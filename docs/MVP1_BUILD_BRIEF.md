@@ -21,9 +21,9 @@ engine output, and renders it display-only. MVP-1 *rebuilds the product* on top
 of that proven binding, to UI/UX Direction v1.1 (three-zone PULL home,
 calm/honest/agency, dark-first) and canonical spec v1.4 ("a coach they can
 trust — honest about what it does not yet know"; **not** an all-knowing coach).
-Scope is **MONITOR + ADVISOR (suggestions) + multi-vendor data ingest**, with
-the **conversational AI added later** (model W, delivered via Play Asset
-Delivery). Everything in MVP-1 is pure engine→display: zero fabrication
+Scope is **Monitor + Advisory (suggestions only) + multi-vendor data ingest**,
+with the **conversational AI added later** (model W, delivered via Play Asset
+Delivery). See [`TIERS.md`](TIERS.md) for the canonical tier model. Everything in MVP-1 is pure engine→display: zero fabrication
 surface, which is exactly the constraint we locked ("must come from engine to
 eliminate hallucination / wandering of LLM").
 

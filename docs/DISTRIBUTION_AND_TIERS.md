@@ -11,14 +11,17 @@ where the on-device / no-harvesting line sits.
 
 ## 1. The tiers
 
-| Tier | What you get | Where it runs | Cost |
-|------|--------------|---------------|------|
-| **Monitor** (free) | Readiness, fatigue state, workout advice (A/B/C), training context (ACWR / monotony / strain), data ingest from Health Connect / Apple Health / manual entry | 100% on-device (Rust engine) | **Free** |
-| **Josi** (paid) | Conversational AI coach that *explains* the engine's decisions in natural language | 100% on-device (LLM runs locally) | Paid — upgraded via the **website** |
+**See [`TIERS.md`](TIERS.md) for the canonical tier model.**
 
-The Monitor is the whole coaching engine. Josi is the *messenger* on top of
-it — it explains, it never decides. So the free tier is genuinely useful on
-its own; Josi is an experience upgrade, not a gate on the coaching itself.
+Summary: **Monitor** (free) → **Advisory** (paid) → **Coach** (paid, higher).
+
+- **Monitor** is the free display tier — biometrics, readiness, stats. No Josi, no account, no network.
+- **Advisory** adds Josi (conversational AI) + single-day training ideas.
+- **Coach** adds full periodized planning + replan-on-request.
+
+Josi switches on at Advisory and stays through Coach. The free tier has
+genuine coaching value; Josi is the explanation layer, not a gate on the
+engine itself.
 
 ---
 
@@ -30,19 +33,19 @@ its own; Josi is an experience upgrade, not a gate on the coaching itself.
 2. Onboarding            Capture anchors (sport, FTP / threshold HR / pace, age…).
         │                Stored in the on-device encrypted vault. No account needed.
         │
-3. Monitor (free)        Coaching works immediately, on-device. No login, no cloud.
+3. Monitor (free)        Readiness, stats, state. On-device. No login, no cloud.
         │
 4. (Optional) Account    Sign in with Auth0 — identity only (email).
         │
-5. Upgrade to Josi       On the WEBSITE: pick a plan, pay. Account is marked entitled.
+5. Upgrade to Advisory   On the WEBSITE: pick a plan, pay. Account is marked entitled.
+        │                → Josi model (W) downloads via Play Asset Delivery.
         │
-6. Josi unlock           App sees the entitlement → fetches the Josi model ONCE
-        │                → Josi then runs fully on-device, like everything else.
+6. (Optional) Coach      Higher tier on the website. Full planning + replan unlocks.
         ▼
-   Everything on-device, forever. Cloud is only touched for steps 4–5.
+   Everything on-device, forever. Cloud is only touched for steps 4–6.
 ```
 
-A user can stop at step 3 and have a complete, free, private coach.
+A user can stop at step 3 and have a complete, free, private coaching display.
 
 ---
 
@@ -57,7 +60,7 @@ A user can stop at step 3 and have a complete, free, private coach.
 
 **No health data, profile data, or coaching output is ever sent to a
 server.** The account exists only to answer one question: *"is this user
-entitled to download Josi?"* This is what lets us keep the "100% ownership,
+entitled to Josi / Coach?"* This is what lets us keep the "100% ownership,
 no harvesting" promise while still having paid tiers and accounts.
 
 ---
@@ -70,7 +73,7 @@ first request. This lets the app declare **no runtime network permission of
 its own** — the strongest privacy signal possible.
 
 **Current status:** The free Monitor ships with **zero INTERNET permission**.
-The app *cannot* reach any server. When the paid conversational AI tier goes
+The app *cannot* reach any server. When the paid tiers (Advisory/Coach) go
 live, the model will be delivered via Play Asset Delivery — no change to the
 app's network posture.
 
@@ -79,26 +82,25 @@ anything about the user out.
 
 ---
 
-## 5. Open decision — app-store purchase rules ⚠️
+## 5. Open decision — app-store purchase rules
 
-Routing users to the **website** to pay for Josi (rather than in-app
-purchase) avoids the 15–30% store commission and keeps billing in our
-control — but Apple's and Google's **anti-steering rules** restrict how an
-app may point users to outside payment for digital features. This must be
-designed deliberately:
+Routing users to the **website** to pay (rather than in-app purchase) avoids
+the 15–30% store commission and keeps billing in our control — but Apple's
+and Google's **anti-steering rules** restrict how an app may point users to
+outside payment for digital features. This must be designed deliberately:
 
-- **Safe pattern:** the app simply doesn't sell Josi in-app. Josi appears as
-  "available on your plan" once the account is entitled; plan management
-  lives entirely on the website, with no in-app "buy" button linking out.
+- **Safe pattern:** the app simply doesn't sell upgrades in-app. Advisory/Coach
+  appear as "available on your plan" once the account is entitled; plan
+  management lives entirely on the website, with no in-app "buy" button linking out.
 - **Risky pattern:** an in-app "Upgrade — pay here →" button deep-linking to
   the web checkout. This is the kind of steering that has triggered
   rejections; rules are loosening (post-2024 rulings) but vary by region.
 
 **Decision needed before store submission:** confirm the exact in-app
-presentation of the Josi upgrade with current Apple/Google policy (and
-whether to use external-purchase entitlements where allowed). Until then,
-the app ships with **no in-app purchase surface** and Josi unlock is driven
-purely by the account entitlement flag.
+presentation of the upgrade with current Apple/Google policy (and whether to
+use external-purchase entitlements where allowed). Until then, the app ships
+with **no in-app purchase surface** and tier unlock is driven purely by the
+account entitlement flag.
 
 ---
 
@@ -112,3 +114,4 @@ purely by the account entitlement flag.
 - ⏳ Conversational AI (model W) — in development; will ship via Play Asset
   Delivery gated on the entitlement flag.
 - ⏳ App-store purchase-presentation decision (§5) — **open**.
+- ⏳ Tier gating (Advisory/Coach engine features) — future work.
