@@ -149,7 +149,7 @@ Google Play requires a Data safety declaration. MiValta's privacy-first architec
 - Collected only. Never shared.
 
 **Is this data processed ephemerally?**
-- No, data is stored on-device in an encrypted vault (SQLCipher AES-256-GCM).
+- No, data is stored on-device in a SQLCipher page-encrypted vault (AES-256-CBC + HMAC-SHA512); the separate sealed cache uses AES-256-GCM.
 
 **Is this data required for your app, or can users choose whether it's collected?**
 - Optional — app functions with manual data entry if health permissions denied.
@@ -176,7 +176,7 @@ Google Play requires a Data safety declaration. MiValta's privacy-first architec
 
 **Does your app provide privacy & security practices?**
 - Yes:
-  - All data encrypted at rest (SQLCipher AES-256-GCM)
+  - All data encrypted at rest — SQLCipher page-encrypted vault (AES-256-CBC + HMAC), AES-256-GCM sealed cache
   - No network transmission of user data
   - Crypto-shred deletion available
   - No third-party analytics
