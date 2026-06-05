@@ -11,7 +11,6 @@
 // Field contract (verified against WorkoutOptionData):
 //   option_id, title, zone, why, tags, structure.total_minutes,
 //   target_watts (Option), target_pace_mss (Option, skip_serializing_if none).
-library;
 
 /// Parsed workout option from engine JSON.
 class WorkoutOption {
