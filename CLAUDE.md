@@ -41,7 +41,11 @@ The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi ph
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` to revision `4dab6cb` (engine_registry v2.18).
+`rust/Cargo.toml` pins `gatc-ffi` to revision `793bb44` (engine_registry v2.18).
+Advances from `4dab6cb` to carry the DashboardEngine BLOCKER-1 honesty fix
+(`data_status: state_unavailable`, #205), the Health Connect normalizer (#203),
+and the SQLCipher-bundled vault (Entry S). No UniFFI surface change in the
+range, so the FRB bindings/shim are unchanged (no regen).
 
 ## Repository Structure
 

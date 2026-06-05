@@ -14,12 +14,24 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.12.0"
 
 # Git-rev pin (MVP-1 — re-pinned to rust-engine main @ engine_registry v2.18).
-# 4dab6cb is the current main, bringing in:
+# 793bb44 is the current main. It advances from 4dab6cb (the prior pin)
+# bringing in, on top of the v2.18 surface already consumed here:
+#   - DashboardEngine BLOCKER-1 honesty fix (#205): get_dashboard/widgets now
+#     carry `data_status: state_unavailable` and never render a fabricated
+#     "Recovered/green" when persisted vault state is unreadable.
+#   - Health Connect normalizer (#203): NormalizerEngine::normalize now accepts
+#     vendor "health_connect" (Android ingestion parity with Apple Health).
+#   - SQLCipher-bundled vault (Entry S): gatc-vault builds rusqlite with the
+#     `bundled-sqlcipher` feature (page-encrypted vault.db).
+# No UniFFI surface changed across 4dab6cb..793bb44 (the FFI delta is one new
+# vendor match-arm + an additive JSON field), so the generated FRB bindings in
+# lib/src/rust/ and the shim in src/api.rs are unchanged — no regen needed.
+#
+# The base v2.18 surface (carried since 4dab6cb):
 #   - ViterbiEngine::readiness_indicator() — 4-axis readiness blend headline
-#   - DashboardEngine — purpose-built Tier-2.5 display assembler for the
-#     three-zone PULL home (get_dashboard / get_state_widget /
-#     get_session_widget / get_context_widget)
-#   - NormalizerEngine — 8-vendor normalizer (normalize_observation,
+#   - DashboardEngine — Tier-2.5 display assembler for the three-zone PULL home
+#     (get_dashboard / get_state_widget / get_session_widget / get_context_widget)
+#   - NormalizerEngine — multi-vendor normalizer (normalize_observation,
 #     classify_source, build_source_overview)
 #   - VaultEngine::read_readiness_history() — trend series for dashboard
 #   - ViterbiEngine::from_persisted_state() — restore saved HMM on launch
@@ -32,7 +44,7 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "4dab6cb2ee7fcd23bcc0b6fe19e612006f980c05" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "793bb4415fee612ab98c0b72521819d319a9ee02" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
