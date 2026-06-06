@@ -12,6 +12,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/critical_power.dart';
 import '../models/decoupling_trend.dart';
 import '../models/fitness_trend.dart';
 import '../models/metric_series.dart';
@@ -20,6 +21,7 @@ import '../models/training_load.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+import '../widgets/analytics/critical_power_card.dart';
 import '../widgets/analytics/decoupling_card.dart';
 import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
@@ -56,6 +58,9 @@ class _DetailData {
 
   // From readMmpHistory() — power-profile surface (cycling)
   PowerCurve? powerCurve;
+
+  // From fitCp() over the MMP curve — Critical Power (CP + W′) depth
+  CriticalPower? criticalPower;
 
   // From recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling surface
   DecouplingTrend? decoupling;
@@ -152,6 +157,19 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       // readMmpHistory() — power profile (JSON null when no curve yet)
       final mmpJson = await widget.binding.readMmpHistory(widget.handle);
       d.powerCurve = PowerCurve.fromJson(jsonDecode(mmpJson));
+
+      // fitCp() over the same MMP curve → Critical Power (CP + W′). The fit
+      // needs enough points; if it can't, the card stays hidden (honest), it
+      // never breaks the rest of the screen.
+      if (d.powerCurve != null && !d.powerCurve!.isEmpty) {
+        try {
+          final cpJson =
+              await widget.binding.fitCp(widget.handle, mmpCurveJson: mmpJson);
+          d.criticalPower = CriticalPower.fromJson(jsonDecode(cpJson));
+        } catch (_) {
+          // Insufficient MMP points to fit CP — absence is honest, not an error.
+        }
+      }
 
       // recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling trend
       final dc7 = await widget.binding.recentDecouplingPct(widget.handle, windowDays: 7);
@@ -266,6 +284,13 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       if (_data.powerCurve != null &&
                           !_data.powerCurve!.isEmpty) ...[
                         PowerCurveChart(curve: _data.powerCurve!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Critical Power (CP + W′), when the fit is usable
+                      if (_data.criticalPower != null &&
+                          !_data.criticalPower!.isEmpty) ...[
+                        CriticalPowerCard(cp: _data.criticalPower!),
                         const SizedBox(height: MivaltaSpace.x5),
                       ],
 

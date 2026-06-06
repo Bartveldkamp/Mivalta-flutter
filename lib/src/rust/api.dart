@@ -192,7 +192,19 @@ Future<String> readDailyLoads({
 Future<String> readMmpHistory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
 
-/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `CpEngine::fit_cp_default(mmp_curve_json)` — Critical Power + W′ fit over an
+/// MMP curve (Monod-Scherrer 1965 / Hill 1993). Feed the same curve JSON
+/// `read_mmp_history` returns; yields `CpFit{cp_watts, w_prime_joules,
+/// r_squared, n_points}`. Pure pass-through. Monitor power-profile depth.
+Future<String> fitCp({
+  required EnginesHandle handle,
+  required String mmpCurveJson,
+}) => RustLib.instance.api.crateApiFitCp(
+  handle: handle,
+  mmpCurveJson: mmpCurveJson,
+);
+
+/// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
 /// Drives the Monitor aerobic-decoupling surface. Pure pass-through.

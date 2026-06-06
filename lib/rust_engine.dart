@@ -229,6 +229,13 @@ class RustEngineBinding {
   Future<String> readMmpHistory(EnginesHandle handle) =>
       rust_api.readMmpHistory(handle: handle);
 
+  /// `CpEngine::fit_cp_default(mmpCurveJson)` — Critical Power + W′ fit over the
+  /// MMP curve (Monod-Scherrer / Hill). Feed the JSON [readMmpHistory] returns;
+  /// yields `{cp_watts, w_prime_joules, r_squared, n_points}`. Monitor
+  /// power-profile depth.
+  Future<String> fitCp(EnginesHandle handle, {required String mmpCurveJson}) =>
+      rust_api.fitCp(handle: handle, mmpCurveJson: mmpCurveJson);
+
   /// `VaultEngine::recent_decoupling_pct` — trailing-window mean of
   /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
   /// Monitor aerobic-decoupling surface.

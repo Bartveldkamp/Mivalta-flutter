@@ -81,6 +81,8 @@ pub struct EnginesHandle {
     vault: Arc<gatc_ffi::VaultEngine>,
     dashboard: Arc<gatc_ffi::DashboardEngine>,
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
+    /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
+    cp: Arc<gatc_ffi::CpEngine>,
     profile_json: String,
     athlete_id: String,
 }
@@ -122,6 +124,8 @@ pub fn construct_engines_fresh(
     .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
+    let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -129,6 +133,7 @@ pub fn construct_engines_fresh(
         vault,
         dashboard,
         normalizer,
+        cp,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -169,6 +174,8 @@ pub fn construct_engines_from_state(
     .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
+    let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -176,6 +183,7 @@ pub fn construct_engines_from_state(
         vault,
         dashboard,
         normalizer,
+        cp,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -465,6 +473,14 @@ pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
         .vault
         .read_mmp_history(handle.athlete_id.clone())
         .map_err(Into::into)
+}
+
+/// `CpEngine::fit_cp_default(mmp_curve_json)` — Critical Power + W′ fit over an
+/// MMP curve (Monod-Scherrer 1965 / Hill 1993). Feed the same curve JSON
+/// `read_mmp_history` returns; yields `CpFit{cp_watts, w_prime_joules,
+/// r_squared, n_points}`. Pure pass-through. Monitor power-profile depth.
+pub fn fit_cp(handle: &EnginesHandle, mmp_curve_json: String) -> Result<String, BridgeError> {
+    handle.cp.fit_cp_default(mmp_curve_json).map_err(Into::into)
 }
 
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
