@@ -450,6 +450,23 @@ pub fn read_readiness_history(handle: &EnginesHandle, days: i32) -> Result<Strin
     handle.vault.read_readiness_history(days).map_err(Into::into)
 }
 
+/// `VaultEngine::read_daily_loads(days)` — daily training load (`load_uls`
+/// summed per day) for the past N days, JSON `[[date, load], ...]`. Drives the
+/// Monitor training-load surface. Pure pass-through.
+pub fn read_daily_loads(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
+    handle.vault.read_daily_loads(days).map_err(Into::into)
+}
+
+/// `VaultEngine::read_mmp_history(athlete_id)` — the rolling mean-maximal power
+/// curve, JSON `{"points":[{"duration_seconds","max_power_watts"}...]}` or
+/// `null`. Drives the Monitor power-profile surface. Pure pass-through.
+pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_mmp_history(handle.athlete_id.clone())
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.
