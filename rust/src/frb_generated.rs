@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1436341007;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1539727619;
 
 // Section: executor
 
@@ -1236,6 +1236,59 @@ fn wire__crate__api__process_observation_impl(
                     let api_handle_guard = api_handle_guard.unwrap();
                     let output_ok =
                         crate::api::process_observation(&*api_handle_guard, api_observation_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__read_biometric_history_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "read_biometric_history",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EnginesHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_days = <i32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::BridgeError>((move || {
+                    let mut api_handle_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_handle,
+                                0,
+                                false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_handle_guard = api_handle_guard.unwrap();
+                    let output_ok =
+                        crate::api::read_biometric_history(&*api_handle_guard, api_days)?;
                     Ok(output_ok)
                 })())
             }
@@ -2550,30 +2603,31 @@ fn pde_ffi_dispatcher_primary_impl(
         22 => wire__crate__api__normalize_observation_impl(port, ptr, rust_vec_len, data_len),
         23 => wire__crate__api__process_manual_observation_impl(port, ptr, rust_vec_len, data_len),
         24 => wire__crate__api__process_observation_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__read_daily_loads_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__read_default_profile_impl(port, ptr, rust_vec_len, data_len),
-        27 => {
+        25 => wire__crate__api__read_biometric_history_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__read_daily_loads_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__read_default_profile_impl(port, ptr, rust_vec_len, data_len),
+        28 => {
             wire__crate__api__read_metric_across_activities_impl(port, ptr, rust_vec_len, data_len)
         }
-        28 => wire__crate__api__read_mmp_history_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__read_persisted_state_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__read_profile_from_vault_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__read_readiness_history_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__read_recent_activities_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__read_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__readiness_indicator_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__readiness_score_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__recent_decoupling_pct_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__recommend_workout_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__save_state_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__update_profile_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__vault_snapshot_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__viterbi_fatigue_state_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__write_minimal_biometric_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__write_profile_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__write_profile_to_vault_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__write_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__zone_cap_with_advisories_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__read_mmp_history_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__read_persisted_state_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__read_profile_from_vault_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__read_readiness_history_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__read_recent_activities_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__read_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__readiness_indicator_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__readiness_score_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__recent_decoupling_pct_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__recommend_workout_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__save_state_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__update_profile_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__vault_snapshot_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__viterbi_fatigue_state_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__write_minimal_biometric_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__write_profile_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__write_profile_to_vault_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__write_viterbi_state_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__zone_cap_with_advisories_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

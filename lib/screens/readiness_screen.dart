@@ -31,6 +31,7 @@ import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/readiness_ring.dart';
 import 'advisor_screen.dart';
+import 'explore_screen.dart';
 import 'debug_swatch_exerciser.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
@@ -373,6 +374,21 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
     );
   }
 
+  /// Open the on-request Explore view (biometrics + workout history).
+  void _openExplore() {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ExploreScreen(
+          binding: binding,
+          handle: handle,
+        ),
+      ),
+    );
+  }
+
   /// PR-G: Open settings screen.
   void _openSettings() {
     final handle = _handle;
@@ -481,6 +497,13 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         foregroundColor: MivaltaColors.textPrimary,
         title: const Text('MiValta'),
         actions: [
+          // Explore — on-request biometrics + workout history
+          if (!_loading)
+            IconButton(
+              icon: const Icon(Icons.insights_outlined),
+              tooltip: 'Explore',
+              onPressed: _openExplore,
+            ),
           // PR-E: Health sync button (Android only for now)
           if (Platform.isAndroid && !_loading)
             _syncing
