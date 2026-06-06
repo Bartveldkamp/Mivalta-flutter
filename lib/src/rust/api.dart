@@ -224,6 +224,30 @@ Future<String> getWorkoutDetail({
   required String date,
 }) => RustLib.instance.api.crateApiGetWorkoutDetail(handle: handle, date: date);
 
+/// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
+/// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
+/// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
+/// `build_post_workout_report`. Pure pass-through. Advisor post-workout surface.
+Future<String> completedWorkoutFacts({
+  required EnginesHandle handle,
+  required String date,
+}) => RustLib.instance.api.crateApiCompletedWorkoutFacts(
+  handle: handle,
+  date: date,
+);
+
+/// `AdvisorEngine::build_post_workout_report(facts_json)` — card-grounded report
+/// (energy system, zone purpose, stimulus/cost note, quality summary, autocue)
+/// resolved against the bound ruleset. Feed the JSON `completed_workout_facts`
+/// returns. Pure pass-through. Advisor post-workout surface.
+Future<String> buildPostWorkoutReport({
+  required EnginesHandle handle,
+  required String factsJson,
+}) => RustLib.instance.api.crateApiBuildPostWorkoutReport(
+  handle: handle,
+  factsJson: factsJson,
+);
+
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).

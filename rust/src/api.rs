@@ -501,6 +501,34 @@ pub fn get_workout_detail(handle: &EnginesHandle, date: String) -> Result<String
     handle.vault.get_workout_detail(date).map_err(Into::into)
 }
 
+/// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
+/// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
+/// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
+/// `build_post_workout_report`. Pure pass-through. Advisor post-workout surface.
+pub fn completed_workout_facts(
+    handle: &EnginesHandle,
+    date: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .completed_workout_facts(date)
+        .map_err(Into::into)
+}
+
+/// `AdvisorEngine::build_post_workout_report(facts_json)` — card-grounded report
+/// (energy system, zone purpose, stimulus/cost note, quality summary, autocue)
+/// resolved against the bound ruleset. Feed the JSON `completed_workout_facts`
+/// returns. Pure pass-through. Advisor post-workout surface.
+pub fn build_post_workout_report(
+    handle: &EnginesHandle,
+    facts_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .advisor
+        .build_post_workout_report(facts_json)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).

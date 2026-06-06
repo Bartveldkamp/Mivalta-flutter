@@ -11,8 +11,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/workout_option.dart';
+import '../models/workout_report.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
+import '../widgets/analytics/post_workout_report_card.dart';
 
 /// Advisor screen showing A/B/C workout options.
 ///
@@ -37,6 +39,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   bool _loading = true;
   String? _error;
 
+  // Card-grounded post-workout report for the most recent completed session.
+  WorkoutReport? _report;
+
   // Picker state
   String? _selectedMood;
   String? _selectedEquipment;
@@ -50,6 +55,34 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   void initState() {
     super.initState();
     _fetchOptions();
+    _fetchReport();
+  }
+
+  /// Build the card-grounded post-workout report for the most recent completed
+  /// session: latest activity date → facts → report. Two pure pass-through
+  /// calls; the engine composes. Absent/failed → section hidden, never faked.
+  Future<void> _fetchReport() async {
+    try {
+      final actsJson =
+          await widget.binding.readRecentActivities(widget.handle, limit: 1);
+      final acts = jsonDecode(actsJson);
+      if (acts is! List || acts.isEmpty || acts.first is! Map) return;
+      final date = acts.first['date']?.toString();
+      if (date == null || date.isEmpty) return;
+
+      final factsJson =
+          await widget.binding.completedWorkoutFacts(widget.handle, date: date);
+      if (factsJson.trim() == 'null') return; // no activity that date
+
+      final reportJson = await widget.binding
+          .buildPostWorkoutReport(widget.handle, factsJson: factsJson);
+      final report = WorkoutReport.fromJson(jsonDecode(reportJson));
+      if (!report.isEmpty && mounted) {
+        setState(() => _report = report);
+      }
+    } catch (_) {
+      // No completed workout, or report unavailable — show nothing.
+    }
   }
 
   Future<void> _fetchOptions() async {
@@ -115,6 +148,18 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Post-workout report for the most recent session (when present).
+            if (_report != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MivaltaSpace.x4,
+                  MivaltaSpace.x4,
+                  MivaltaSpace.x4,
+                  0,
+                ),
+                child: PostWorkoutReportCard(report: _report!),
+              ),
+
             // Pickers section
             _PreferencesPicker(
               selectedMood: _selectedMood,

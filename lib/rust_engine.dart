@@ -248,6 +248,19 @@ class RustEngineBinding {
   Future<String> getWorkoutDetail(EnginesHandle handle, {required String date}) =>
       rust_api.getWorkoutDetail(handle: handle, date: date);
 
+  /// `VaultEngine::completed_workout_facts(date)` — the post-workout report's
+  /// INPUT facts (engine-classified zone + actuals + quality) for a date; JSON
+  /// `CompletedWorkoutFacts`, or `null` when no activity. Pair with
+  /// [buildPostWorkoutReport].
+  Future<String> completedWorkoutFacts(EnginesHandle handle, {required String date}) =>
+      rust_api.completedWorkoutFacts(handle: handle, date: date);
+
+  /// `AdvisorEngine::build_post_workout_report(factsJson)` — the card-grounded
+  /// post-workout report (energy system, zone purpose, stimulus/cost note,
+  /// quality summary, autocue). Feed the JSON [completedWorkoutFacts] returns.
+  Future<String> buildPostWorkoutReport(EnginesHandle handle, {required String factsJson}) =>
+      rust_api.buildPostWorkoutReport(handle: handle, factsJson: factsJson);
+
   /// `VaultEngine::recent_decoupling_pct` — trailing-window mean of
   /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
   /// Monitor aerobic-decoupling surface.
