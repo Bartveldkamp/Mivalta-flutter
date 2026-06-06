@@ -13,12 +13,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/decoupling_trend.dart';
+import '../models/fitness_trend.dart';
+import '../models/metric_series.dart';
 import '../models/power_curve.dart';
 import '../models/training_load.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/decoupling_card.dart';
+import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
 
@@ -56,6 +59,11 @@ class _DetailData {
 
   // From recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling surface
   DecouplingTrend? decoupling;
+
+  // From fitnessSeries() — long-term Banister fitness trend + actuals overlay
+  FitnessTrend? fitnessTrend;
+  MetricSeries? fitnessOverlay;
+  String? fitnessOverlayLabel;
 
   // From lastObservationSourceTier()
   SourceTier? sourceTier;
@@ -155,6 +163,27 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
         long: DecouplingTrend.parseMean(jsonDecode(dc28)),
       );
 
+      // fitnessSeries(90) — long-term Banister fitness trend (the slow shape)
+      final fitJson = await widget.binding.fitnessSeries(widget.handle, days: 90);
+      d.fitnessTrend = FitnessTrend.fromJson(jsonDecode(fitJson));
+
+      // Actuals overlay: prefer real watts (cycling); fall back to pace (running).
+      final powerJson = await widget.binding.readMetricAcrossActivities(
+          widget.handle, metric: 'normalized_power', activityType: '', limit: 90);
+      final power = MetricSeries.fromJson(jsonDecode(powerJson));
+      if (!power.isEmpty) {
+        d.fitnessOverlay = power;
+        d.fitnessOverlayLabel = 'Actual watts';
+      } else {
+        final paceJson = await widget.binding.readMetricAcrossActivities(
+            widget.handle, metric: 'pace_sec_per_km', activityType: '', limit: 90);
+        final pace = MetricSeries.fromJson(jsonDecode(paceJson));
+        if (!pace.isEmpty) {
+          d.fitnessOverlay = pace;
+          d.fitnessOverlayLabel = 'Actual pace';
+        }
+      }
+
       // lastObservationSourceTier()
       final tierJson =
           await widget.binding.lastObservationSourceTier(widget.handle);
@@ -215,6 +244,17 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                         textTheme: textTheme,
                       ),
                       const SizedBox(height: MivaltaSpace.x5),
+
+                      // Section: Fitness trend (long-term Banister shape + actuals)
+                      if (_data.fitnessTrend != null &&
+                          !_data.fitnessTrend!.isEmpty) ...[
+                        FitnessTrendChart(
+                          trend: _data.fitnessTrend!,
+                          overlay: _data.fitnessOverlay,
+                          overlayLabel: _data.fitnessOverlayLabel,
+                        ),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
 
                       // Section: Training load (all sports)
                       if (_data.trainingLoad != null) ...[

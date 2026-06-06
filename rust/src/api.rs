@@ -481,6 +481,29 @@ pub fn recent_decoupling_pct(
         .map_err(Into::into)
 }
 
+/// `ViterbiEngine::fitness_series(days)` — long-term Banister fitness *trend*
+/// (the slow shape), JSON `[{date, fitness, fatigue, form}]` ascending by date.
+/// Distinct from the HMM *state*. Pure pass-through.
+pub fn fitness_series(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
+    handle.viterbi.fitness_series(days).map_err(Into::into)
+}
+
+/// `VaultEngine::read_metric_across_activities(metric, activity_type, limit)` —
+/// dated per-activity metric series for the fitness-trend actuals overlay
+/// (e.g. `normalized_power`, `pace_sec_per_km`). JSON array of `MetricPoint`.
+/// Pure pass-through.
+pub fn read_metric_across_activities(
+    handle: &EnginesHandle,
+    metric: String,
+    activity_type: String,
+    limit: i32,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_metric_across_activities(metric, activity_type, limit)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.

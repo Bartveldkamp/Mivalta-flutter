@@ -235,6 +235,28 @@ class RustEngineBinding {
   Future<String> recentDecouplingPct(EnginesHandle handle, {required int windowDays}) =>
       rust_api.recentDecouplingPct(handle: handle, windowDays: windowDays);
 
+  /// `ViterbiEngine::fitness_series` — long-term Banister fitness *trend*
+  /// (the slow shape), JSON `[{date, fitness, fatigue, form}]` ascending.
+  /// Distinct from the Viterbi *state*. Monitor fitness-trend surface.
+  Future<String> fitnessSeries(EnginesHandle handle, {required int days}) =>
+      rust_api.fitnessSeries(handle: handle, days: days);
+
+  /// `VaultEngine::read_metric_across_activities` — dated per-activity metric
+  /// series (`normalized_power`, `pace_sec_per_km`, …) for the fitness-trend
+  /// actuals overlay. JSON array of `{date, activity_id, value, activity_type}`.
+  Future<String> readMetricAcrossActivities(
+    EnginesHandle handle, {
+    required String metric,
+    required String activityType,
+    required int limit,
+  }) =>
+      rust_api.readMetricAcrossActivities(
+        handle: handle,
+        metric: metric,
+        activityType: activityType,
+        limit: limit,
+      );
+
   /// `VaultEngine::write_viterbi_state(athlete_id, state_json)` — persist
   /// the ViterbiEngine state to the vault. Call this after [saveState]
   /// to ensure continuity across app restarts.
