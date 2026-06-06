@@ -229,6 +229,12 @@ class RustEngineBinding {
   Future<String> readMmpHistory(EnginesHandle handle) =>
       rust_api.readMmpHistory(handle: handle);
 
+  /// `ViterbiEngine::recent_decoupling_pct` — trailing-window mean of
+  /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
+  /// Monitor aerobic-decoupling surface.
+  Future<String> recentDecouplingPct(EnginesHandle handle, {required int windowDays}) =>
+      rust_api.recentDecouplingPct(handle: handle, windowDays: windowDays);
+
   /// `VaultEngine::write_viterbi_state(athlete_id, state_json)` — persist
   /// the ViterbiEngine state to the vault. Call this after [saveState]
   /// to ensure continuity across app restarts.

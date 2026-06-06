@@ -192,6 +192,18 @@ Future<String> readDailyLoads({
 Future<String> readMmpHistory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
 
+/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `hr_decoupling_pct` across completed activities, JSON
+/// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
+/// Drives the Monitor aerobic-decoupling surface. Pure pass-through.
+Future<String> recentDecouplingPct({
+  required EnginesHandle handle,
+  required int windowDays,
+}) => RustLib.instance.api.crateApiRecentDecouplingPct(
+  handle: handle,
+  windowDays: windowDays,
+);
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.

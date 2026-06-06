@@ -467,6 +467,20 @@ pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
         .map_err(Into::into)
 }
 
+/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `hr_decoupling_pct` across completed activities, JSON
+/// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
+/// Drives the Monitor aerobic-decoupling surface. Pure pass-through.
+pub fn recent_decoupling_pct(
+    handle: &EnginesHandle,
+    window_days: i32,
+) -> Result<String, BridgeError> {
+    handle
+        .viterbi
+        .recent_decoupling_pct(window_days)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.
