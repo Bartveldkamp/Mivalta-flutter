@@ -17,12 +17,14 @@ import '../models/decoupling_trend.dart';
 import '../models/fitness_trend.dart';
 import '../models/metric_series.dart';
 import '../models/power_curve.dart';
+import '../models/sleep_trend.dart';
 import '../models/training_load.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/critical_power_card.dart';
+import '../widgets/analytics/sleep_trend_card.dart';
 import '../widgets/analytics/decoupling_card.dart';
 import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
@@ -57,6 +59,9 @@ class _DetailData {
 
   // From readDailyLoads(days: 30) — training-load surface
   TrainingLoad? trainingLoad;
+
+  // From readBiometricHistory(days: 14) — sleep-trend surface
+  SleepTrend? sleepTrend;
 
   // From readMmpHistory() — power-profile surface (cycling)
   PowerCurve? powerCurve;
@@ -158,6 +163,11 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       final loadsJson =
           await widget.binding.readDailyLoads(widget.handle, days: 30);
       d.trainingLoad = TrainingLoad.fromJson(jsonDecode(loadsJson));
+
+      // readBiometricHistory(days: 14) — sleep-trend surface (recovery input)
+      final bioJson =
+          await widget.binding.readBiometricHistory(widget.handle, days: 14);
+      d.sleepTrend = SleepTrend.fromJson(jsonDecode(bioJson));
 
       // readMmpHistory() — power profile (JSON null when no curve yet)
       final mmpJson = await widget.binding.readMmpHistory(widget.handle);
@@ -300,6 +310,13 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       // Section: Training load (all sports)
                       if (_data.trainingLoad != null) ...[
                         TrainingLoadChart(load: _data.trainingLoad!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Sleep trend (recovery input)
+                      if (_data.sleepTrend != null &&
+                          !_data.sleepTrend!.isEmpty) ...[
+                        SleepTrendCard(trend: _data.sleepTrend!),
                         const SizedBox(height: MivaltaSpace.x5),
                       ],
 

@@ -248,6 +248,17 @@ Future<String> buildPostWorkoutReport({
   factsJson: factsJson,
 );
 
+/// `VaultEngine::read_biometric_history(days)` — daily biometric snapshots for
+/// the past N days, JSON array incl. `sleep_hours` / `sleep_quality`. Drives the
+/// Monitor sleep-trend surface. Pure pass-through.
+Future<String> readBiometricHistory({
+  required EnginesHandle handle,
+  required int days,
+}) => RustLib.instance.api.crateApiReadBiometricHistory(
+  handle: handle,
+  days: days,
+);
+
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).

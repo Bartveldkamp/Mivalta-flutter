@@ -529,6 +529,16 @@ pub fn build_post_workout_report(
         .map_err(Into::into)
 }
 
+/// `VaultEngine::read_biometric_history(days)` — daily biometric snapshots for
+/// the past N days, JSON array incl. `sleep_hours` / `sleep_quality`. Drives the
+/// Monitor sleep-trend surface. Pure pass-through.
+pub fn read_biometric_history(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_biometric_history(days)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).

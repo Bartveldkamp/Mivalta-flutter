@@ -261,6 +261,12 @@ class RustEngineBinding {
   Future<String> buildPostWorkoutReport(EnginesHandle handle, {required String factsJson}) =>
       rust_api.buildPostWorkoutReport(handle: handle, factsJson: factsJson);
 
+  /// `VaultEngine::read_biometric_history(days)` — daily biometric snapshots for
+  /// the past N days, JSON array incl. `sleep_hours`/`sleep_quality`. Drives the
+  /// Monitor sleep-trend surface.
+  Future<String> readBiometricHistory(EnginesHandle handle, {required int days}) =>
+      rust_api.readBiometricHistory(handle: handle, days: days);
+
   /// `VaultEngine::recent_decoupling_pct` — trailing-window mean of
   /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
   /// Monitor aerobic-decoupling surface.
