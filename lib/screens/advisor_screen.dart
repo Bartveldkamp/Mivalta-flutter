@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
 
@@ -32,7 +33,7 @@ class AdvisorScreen extends StatefulWidget {
 }
 
 class _AdvisorScreenState extends State<AdvisorScreen> {
-  List<_WorkoutOption> _options = [];
+  List<WorkoutOption> _options = [];
   bool _loading = true;
   String? _error;
 
@@ -67,7 +68,7 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
 
       final decoded = jsonDecode(json);
       if (decoded is List) {
-        _options = decoded.map((e) => _WorkoutOption.fromJson(e)).toList();
+        _options = decoded.map((e) => WorkoutOption.fromJson(e)).toList();
       } else {
         _options = [];
       }
@@ -341,7 +342,7 @@ class _EmptyView extends StatelessWidget {
 /// List of workout option cards.
 class _OptionsList extends StatelessWidget {
   const _OptionsList({required this.options});
-  final List<_WorkoutOption> options;
+  final List<WorkoutOption> options;
 
   @override
   Widget build(BuildContext context) {
@@ -359,7 +360,7 @@ class _OptionsList extends StatelessWidget {
 /// Individual workout option card.
 class _WorkoutCard extends StatelessWidget {
   const _WorkoutCard({required this.option});
-  final _WorkoutOption option;
+  final WorkoutOption option;
 
   @override
   Widget build(BuildContext context) {
@@ -518,54 +519,5 @@ class _WorkoutCard extends StatelessWidget {
   }
 }
 
-/// Parsed workout option from engine JSON.
-class _WorkoutOption {
-  final String optionId;
-  final String title;
-  final String zone;
-  final String why;
-  final List<String> tags;
-  final int? durationMin;
-  final int? targetWatts;
-  final String? targetPaceMss;
-
-  _WorkoutOption({
-    required this.optionId,
-    required this.title,
-    required this.zone,
-    required this.why,
-    required this.tags,
-    this.durationMin,
-    this.targetWatts,
-    this.targetPaceMss,
-  });
-
-  factory _WorkoutOption.fromJson(dynamic json) {
-    if (json is! Map) {
-      return _WorkoutOption(
-        optionId: '?',
-        title: 'Unknown',
-        zone: '?',
-        why: '',
-        tags: [],
-      );
-    }
-
-    final structure = json['structure'];
-    int? duration;
-    if (structure is Map) {
-      duration = (structure['total_minutes'] as num?)?.toInt();
-    }
-
-    return _WorkoutOption(
-      optionId: json['option_id']?.toString() ?? '?',
-      title: json['title']?.toString() ?? 'Workout',
-      zone: json['zone']?.toString() ?? '?',
-      why: json['why']?.toString() ?? '',
-      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      durationMin: duration,
-      targetWatts: (json['target_watts'] as num?)?.toInt(),
-      targetPaceMss: json['target_pace_mss']?.toString(),
-    );
-  }
-}
+// _WorkoutOption extracted to lib/models/workout_option.dart as the public,
+// testable WorkoutOption (engine→Dart JSON contract guard).
