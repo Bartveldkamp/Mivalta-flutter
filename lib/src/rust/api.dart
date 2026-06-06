@@ -192,6 +192,42 @@ Future<String> readDailyLoads({
 Future<String> readMmpHistory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
 
+/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `hr_decoupling_pct` across completed activities, JSON
+/// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
+/// Drives the Monitor aerobic-decoupling surface. Pure pass-through.
+Future<String> recentDecouplingPct({
+  required EnginesHandle handle,
+  required int windowDays,
+}) => RustLib.instance.api.crateApiRecentDecouplingPct(
+  handle: handle,
+  windowDays: windowDays,
+);
+
+/// `ViterbiEngine::fitness_series(days)` — long-term Banister fitness *trend*
+/// (the slow shape), JSON `[{date, fitness, fatigue, form}]` ascending by date.
+/// Distinct from the HMM *state*. Pure pass-through.
+Future<String> fitnessSeries({
+  required EnginesHandle handle,
+  required int days,
+}) => RustLib.instance.api.crateApiFitnessSeries(handle: handle, days: days);
+
+/// `VaultEngine::read_metric_across_activities(metric, activity_type, limit)` —
+/// dated per-activity metric series for the fitness-trend actuals overlay
+/// (e.g. `normalized_power`, `pace_sec_per_km`). JSON array of `MetricPoint`.
+/// Pure pass-through.
+Future<String> readMetricAcrossActivities({
+  required EnginesHandle handle,
+  required String metric,
+  required String activityType,
+  required int limit,
+}) => RustLib.instance.api.crateApiReadMetricAcrossActivities(
+  handle: handle,
+  metric: metric,
+  activityType: activityType,
+  limit: limit,
+);
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.

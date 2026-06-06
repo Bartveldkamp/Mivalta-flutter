@@ -1,27 +1,43 @@
-// Fitness Development (PMC) chart — Monitor analytics, next-gen UI.
+// Fitness trend chart — Monitor analytics, next-gen UI.
 //
 // Display-only (UI_UX_DIRECTION §2.1 insight-first, §2.5 opaque data surface,
-// §8.6 engine-drawn chart). Renders the engine's Banister CTL/ATL/TSB series:
-//   - CTL (fitness)  — slow line, the "are you getting fitter" signal
-//   - ATL (fatigue)  — fast line
-//   - TSB (form)     — CTL-ATL, the freshness band
-// The engine computes the series + the form classification; this widget only
-// plots and labels. No thresholds or math in Dart.
+// §8.6 engine-drawn chart). Renders the engine's long-term Banister fitness
+// trend (the slow shape):
+//   - fitness — slow line, the "are you getting fitter" signal
+//   - fatigue — fast line
+//   - form    — fitness − fatigue (shown as a value)
+// Optionally overlays the athlete's ACTUAL watts/pace over time on a secondary
+// scale — the trend is the model, the overlay is measured (no new claim). The
+// engine computes everything; this widget only plots and labels. No math in
+// Dart beyond rendering geometry.
 
 import 'package:flutter/material.dart';
 
 import '../../models/fitness_trend.dart';
+import '../../models/metric_series.dart';
 import '../../theme/tokens.dart';
 
 class FitnessTrendChart extends StatelessWidget {
-  const FitnessTrendChart({super.key, required this.trend});
+  const FitnessTrendChart({
+    super.key,
+    required this.trend,
+    this.overlay,
+    this.overlayLabel,
+  });
 
   final FitnessTrend trend;
+
+  /// Actual watts/pace over time, plotted on a secondary scale. Null = no overlay.
+  final MetricSeries? overlay;
+
+  /// Legend label for the overlay (e.g. "Actual watts", "Actual pace").
+  final String? overlayLabel;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final latest = trend.latest;
+    final hasOverlay = overlay != null && !overlay!.isEmpty && overlayLabel != null;
 
     return Container(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
@@ -32,73 +48,74 @@ class FitnessTrendChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Insight-first header: title + engine's form classification.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Fitness development',
-                style: textTheme.titleMedium?.copyWith(
-                  color: MivaltaColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (trend.formZone != null && trend.formZone!.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MivaltaSpace.x2,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: MivaltaColors.surface2,
-                    borderRadius: BorderRadius.circular(MivaltaRadii.sm),
-                  ),
-                  child: Text(
-                    trend.formZone!,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: MivaltaColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
+          Text(
+            'Fitness development',
+            style: textTheme.titleMedium?.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x1),
+          Text(
+            'Your long-term fitness shape — the slow Banister trend.',
+            style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
           ),
           const SizedBox(height: MivaltaSpace.x3),
-
           if (trend.isEmpty)
             _EmptyChart(textTheme: textTheme)
           else ...[
-            // The curve (opaque, engine-drawn).
             SizedBox(
               height: 140,
               width: double.infinity,
               child: CustomPaint(
-                painter: _PmcPainter(samples: trend.samples),
+                painter: _TrendPainter(
+                  samples: trend.samples,
+                  overlay: hasOverlay ? overlay!.samples : const [],
+                ),
               ),
             ),
             const SizedBox(height: MivaltaSpace.x3),
-            // Latest values + legend.
             Row(
               children: [
                 _Metric(
-                  label: 'Fitness (CTL)',
-                  value: latest == null ? '—' : latest.ctl.round().toString(),
+                  label: 'Fitness',
+                  value: latest == null ? '—' : latest.fitness.round().toString(),
                   color: MivaltaColors.levelGreen,
                 ),
                 const SizedBox(width: MivaltaSpace.x5),
                 _Metric(
-                  label: 'Fatigue (ATL)',
-                  value: latest == null ? '—' : latest.atl.round().toString(),
+                  label: 'Fatigue',
+                  value: latest == null ? '—' : latest.fatigue.round().toString(),
                   color: MivaltaColors.levelOrange,
                 ),
                 const SizedBox(width: MivaltaSpace.x5),
                 _Metric(
-                  label: 'Form (TSB)',
-                  value: latest == null ? '—' : latest.tsb.round().toString(),
+                  label: 'Form',
+                  value: latest == null ? '—' : latest.form.round().toString(),
                   color: MivaltaColors.tertiaryTeal,
                 ),
               ],
             ),
+            if (hasOverlay) ...[
+              const SizedBox(height: MivaltaSpace.x2),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: MivaltaColors.textSecondary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: MivaltaSpace.x1),
+                  Text(
+                    '${overlayLabel!} (measured, secondary scale)',
+                    style: textTheme.labelSmall?.copyWith(color: MivaltaColors.textMuted),
+                  ),
+                ],
+              ),
+            ],
           ],
         ],
       ),
@@ -120,12 +137,14 @@ class _Metric extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: MivaltaSpace.x1),
-            Text(
-              label,
-              style: textTheme.labelSmall?.copyWith(color: MivaltaColors.textMuted),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
+            const SizedBox(width: MivaltaSpace.x1),
+            Text(label,
+                style: textTheme.labelSmall?.copyWith(color: MivaltaColors.textMuted)),
           ],
         ),
         const SizedBox(height: 2),
@@ -156,10 +175,12 @@ class _EmptyChart extends StatelessWidget {
       );
 }
 
-/// Plots CTL and ATL as lines over a shared min/max range. Pure rendering.
-class _PmcPainter extends CustomPainter {
-  _PmcPainter({required this.samples});
+/// Plots fitness + fatigue as lines (left scale) and the actuals overlay as dots
+/// (right scale, its own range). Pure rendering geometry — no engine logic.
+class _TrendPainter extends CustomPainter {
+  _TrendPainter({required this.samples, required this.overlay});
   final List<FitnessSample> samples;
+  final List<MetricSample> overlay;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -167,13 +188,15 @@ class _PmcPainter extends CustomPainter {
 
     double minV = double.infinity, maxV = -double.infinity;
     for (final s in samples) {
-      minV = [minV, s.ctl, s.atl].reduce((a, b) => a < b ? a : b);
-      maxV = [maxV, s.ctl, s.atl].reduce((a, b) => a > b ? a : b);
+      for (final v in [s.fitness, s.fatigue]) {
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+      }
     }
     if (minV == maxV) maxV = minV + 1;
 
     Offset pt(int i, double v) {
-      final x = samples.length == 1 ? 0.0 : i / (samples.length - 1) * size.width;
+      final x = i / (samples.length - 1) * size.width;
       final y = size.height - (v - minV) / (maxV - minV) * size.height;
       return Offset(x, y);
     }
@@ -182,11 +205,7 @@ class _PmcPainter extends CustomPainter {
       final path = Path();
       for (var i = 0; i < samples.length; i++) {
         final p = pt(i, sel(samples[i]));
-        if (i == 0) {
-          path.moveTo(p.dx, p.dy);
-        } else {
-          path.lineTo(p.dx, p.dy);
-        }
+        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
       }
       canvas.drawPath(
         path,
@@ -198,10 +217,38 @@ class _PmcPainter extends CustomPainter {
       );
     }
 
-    line((s) => s.ctl, MivaltaColors.levelGreen);
-    line((s) => s.atl, MivaltaColors.levelOrange);
+    line((s) => s.fitness, MivaltaColors.levelGreen);
+    line((s) => s.fatigue, MivaltaColors.levelOrange);
+
+    // Actuals overlay: dots on the right scale, positioned by date within the
+    // trend's date span. Rendering geometry only.
+    if (overlay.isNotEmpty) {
+      final first = DateTime.tryParse(samples.first.date);
+      final last = DateTime.tryParse(samples.last.date);
+      if (first == null || last == null) return;
+      final spanDays = last.difference(first).inDays;
+      if (spanDays <= 0) return;
+
+      double oMin = double.infinity, oMax = -double.infinity;
+      for (final s in overlay) {
+        if (s.value < oMin) oMin = s.value;
+        if (s.value > oMax) oMax = s.value;
+      }
+      if (oMin == oMax) oMax = oMin + 1;
+
+      final dot = Paint()..color = MivaltaColors.textSecondary;
+      for (final s in overlay) {
+        final d = DateTime.tryParse(s.date);
+        if (d == null) continue;
+        final frac = (d.difference(first).inDays / spanDays).clamp(0.0, 1.0);
+        final x = frac * size.width;
+        final y = size.height - (s.value - oMin) / (oMax - oMin) * size.height;
+        canvas.drawCircle(Offset(x, y), 2.5, dot);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _PmcPainter old) => old.samples != samples;
+  bool shouldRepaint(covariant _TrendPainter old) =>
+      old.samples != samples || old.overlay != overlay;
 }
