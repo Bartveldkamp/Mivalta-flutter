@@ -192,7 +192,63 @@ Future<String> readDailyLoads({
 Future<String> readMmpHistory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
 
-/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `CpEngine::fit_cp_default(mmp_curve_json)` — Critical Power + W′ fit over an
+/// MMP curve (Monod-Scherrer 1965 / Hill 1993). Feed the same curve JSON
+/// `read_mmp_history` returns; yields `CpFit{cp_watts, w_prime_joules,
+/// r_squared, n_points}`. Pure pass-through. Monitor power-profile depth.
+Future<String> fitCp({
+  required EnginesHandle handle,
+  required String mmpCurveJson,
+}) => RustLib.instance.api.crateApiFitCp(
+  handle: handle,
+  mmpCurveJson: mmpCurveJson,
+);
+
+/// `VaultEngine::read_recent_activities(limit)` — most recent completed
+/// activities (newest first), JSON array of stored activities. Used to find the
+/// latest workout's date for the workout-detail surface. Pure pass-through.
+Future<String> readRecentActivities({
+  required EnginesHandle handle,
+  required int limit,
+}) => RustLib.instance.api.crateApiReadRecentActivities(
+  handle: handle,
+  limit: limit,
+);
+
+/// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
+/// (actuals + engine-graded quality via `grade_workout`) for a date. JSON
+/// matches the Flutter `WorkoutDetail` contract, or JSON `null` when no activity
+/// on that date. Pure pass-through. Monitor workout-detail surface.
+Future<String> getWorkoutDetail({
+  required EnginesHandle handle,
+  required String date,
+}) => RustLib.instance.api.crateApiGetWorkoutDetail(handle: handle, date: date);
+
+/// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
+/// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
+/// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
+/// `build_post_workout_report`. Pure pass-through. Advisor post-workout surface.
+Future<String> completedWorkoutFacts({
+  required EnginesHandle handle,
+  required String date,
+}) => RustLib.instance.api.crateApiCompletedWorkoutFacts(
+  handle: handle,
+  date: date,
+);
+
+/// `AdvisorEngine::build_post_workout_report(facts_json)` — card-grounded report
+/// (energy system, zone purpose, stimulus/cost note, quality summary, autocue)
+/// resolved against the bound ruleset. Feed the JSON `completed_workout_facts`
+/// returns. Pure pass-through. Advisor post-workout surface.
+Future<String> buildPostWorkoutReport({
+  required EnginesHandle handle,
+  required String factsJson,
+}) => RustLib.instance.api.crateApiBuildPostWorkoutReport(
+  handle: handle,
+  factsJson: factsJson,
+);
+
+/// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
 /// Drives the Monitor aerobic-decoupling surface. Pure pass-through.

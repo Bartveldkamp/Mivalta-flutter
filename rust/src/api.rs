@@ -81,6 +81,8 @@ pub struct EnginesHandle {
     vault: Arc<gatc_ffi::VaultEngine>,
     dashboard: Arc<gatc_ffi::DashboardEngine>,
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
+    /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
+    cp: Arc<gatc_ffi::CpEngine>,
     profile_json: String,
     athlete_id: String,
 }
@@ -122,6 +124,8 @@ pub fn construct_engines_fresh(
     .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
+    let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -129,6 +133,7 @@ pub fn construct_engines_fresh(
         vault,
         dashboard,
         normalizer,
+        cp,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -169,6 +174,8 @@ pub fn construct_engines_from_state(
     .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
+    let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -176,6 +183,7 @@ pub fn construct_engines_from_state(
         vault,
         dashboard,
         normalizer,
+        cp,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -467,7 +475,61 @@ pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
         .map_err(Into::into)
 }
 
-/// `ViterbiEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
+/// `CpEngine::fit_cp_default(mmp_curve_json)` — Critical Power + W′ fit over an
+/// MMP curve (Monod-Scherrer 1965 / Hill 1993). Feed the same curve JSON
+/// `read_mmp_history` returns; yields `CpFit{cp_watts, w_prime_joules,
+/// r_squared, n_points}`. Pure pass-through. Monitor power-profile depth.
+pub fn fit_cp(handle: &EnginesHandle, mmp_curve_json: String) -> Result<String, BridgeError> {
+    handle.cp.fit_cp_default(mmp_curve_json).map_err(Into::into)
+}
+
+/// `VaultEngine::read_recent_activities(limit)` — most recent completed
+/// activities (newest first), JSON array of stored activities. Used to find the
+/// latest workout's date for the workout-detail surface. Pure pass-through.
+pub fn read_recent_activities(handle: &EnginesHandle, limit: i32) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_recent_activities(limit)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
+/// (actuals + engine-graded quality via `grade_workout`) for a date. JSON
+/// matches the Flutter `WorkoutDetail` contract, or JSON `null` when no activity
+/// on that date. Pure pass-through. Monitor workout-detail surface.
+pub fn get_workout_detail(handle: &EnginesHandle, date: String) -> Result<String, BridgeError> {
+    handle.vault.get_workout_detail(date).map_err(Into::into)
+}
+
+/// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
+/// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
+/// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
+/// `build_post_workout_report`. Pure pass-through. Advisor post-workout surface.
+pub fn completed_workout_facts(
+    handle: &EnginesHandle,
+    date: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .completed_workout_facts(date)
+        .map_err(Into::into)
+}
+
+/// `AdvisorEngine::build_post_workout_report(facts_json)` — card-grounded report
+/// (energy system, zone purpose, stimulus/cost note, quality summary, autocue)
+/// resolved against the bound ruleset. Feed the JSON `completed_workout_facts`
+/// returns. Pure pass-through. Advisor post-workout surface.
+pub fn build_post_workout_report(
+    handle: &EnginesHandle,
+    facts_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .advisor
+        .build_post_workout_report(facts_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).
 /// Drives the Monitor aerobic-decoupling surface. Pure pass-through.
@@ -476,7 +538,7 @@ pub fn recent_decoupling_pct(
     window_days: i32,
 ) -> Result<String, BridgeError> {
     handle
-        .viterbi
+        .vault
         .recent_decoupling_pct(window_days)
         .map_err(Into::into)
 }
