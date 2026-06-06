@@ -36,6 +36,7 @@ import 'dart:io' show Platform;
 
 import 'package:health/health.dart';
 
+import '../models/time_in_zone.dart';
 import '../rust_engine.dart';
 
 /// Result of a health data sync operation.
@@ -101,6 +102,8 @@ class HealthIngestService {
       HealthDataType.BLOOD_OXYGEN,
       // Steps (informational, not critical for readiness)
       HealthDataType.STEPS,
+      // Workout sessions — bound the HR window for time-in-zone.
+      HealthDataType.WORKOUT,
     ];
 
     if (Platform.isAndroid) {
@@ -528,5 +531,99 @@ class HealthIngestService {
       return value.numericValue.toDouble();
     }
     return null;
+  }
+
+  // ===========================================================================
+  // Workout time-in-zone — intra-workout HR samples → engine producer.
+  //
+  // Health Connect / HealthKit expose per-reading HEART_RATE samples (the same
+  // stream a watch records during a session). We bound them by the workout's
+  // WORKOUT session window and hand the raw stream to the engine, which bins it
+  // through MiValta's own zone_anchors scale (no Dart-side binning).
+  // ===========================================================================
+
+  /// Build the engine activity wire from intra-workout HR samples.
+  ///
+  /// ZERO-FABRICATION transport: orders the samples by time, drops non-positive
+  /// (dropout) readings, and emits `hr_samples` plus a `sample_rate_hz` chosen
+  /// so the engine's uniform per-sample dwell sums to the workout's ACTUAL
+  /// duration (`rate = n / duration_seconds`). That rate is stream metadata, not
+  /// physiology — the engine still owns every zone decision. HR samples from
+  /// these stores are irregular, so the even-dwell mapping is a v1 approximation
+  /// of true per-sample dwell; total time matches the session.
+  ///
+  /// Returns null when there are too few samples or the window is non-positive —
+  /// the caller renders the honest no-data state rather than a thin guess.
+  static String? buildHrActivityJson({
+    required DateTime workoutStart,
+    required DateTime workoutEnd,
+    required List<({DateTime t, double bpm})> hrSamples,
+  }) {
+    final valid = hrSamples.where((s) => s.bpm > 0).toList()
+      ..sort((a, b) => a.t.compareTo(b.t));
+    if (valid.length < 2) return null;
+
+    final durationSeconds = workoutEnd.difference(workoutStart).inSeconds;
+    if (durationSeconds <= 0) return null;
+
+    final rateHz = valid.length / durationSeconds;
+    return jsonEncode({
+      'completed_at': workoutEnd.toUtc().toIso8601String(),
+      'power_samples': <double>[],
+      'hr_samples': valid.map((s) => s.bpm).toList(growable: false),
+      'sample_rate_hz': rateHz,
+    });
+  }
+
+  /// Compute the time-in-zone distribution for the athlete's most recent
+  /// workout in the last [lookbackDays] days, by pulling its intra-workout HR
+  /// samples and binning them through the engine (`computeTimeInZone`).
+  ///
+  /// Returns null when permissions are missing, there is no recent workout, or
+  /// the HR stream is too thin — every failure is swallowed into a null so the
+  /// detail surface degrades to its no-data state, never an error.
+  Future<TimeInZone?> latestWorkoutTimeInZone({int lookbackDays = 14}) async {
+    try {
+      if (!await hasPermissions()) return null;
+
+      final now = DateTime.now();
+      final from = now.subtract(Duration(days: lookbackDays));
+
+      final workouts = await _health.getHealthDataFromTypes(
+        types: [HealthDataType.WORKOUT],
+        startTime: from,
+        endTime: now,
+      );
+      if (workouts.isEmpty) return null;
+      workouts.sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
+      final workout = workouts.first;
+
+      final hrPoints = await _health.getHealthDataFromTypes(
+        types: [HealthDataType.HEART_RATE],
+        startTime: workout.dateFrom,
+        endTime: workout.dateTo,
+      );
+
+      final samples = <({DateTime t, double bpm})>[];
+      for (final p in hrPoints) {
+        final bpm = _extractNumericValue(p);
+        if (bpm != null) samples.add((t: p.dateFrom, bpm: bpm));
+      }
+
+      final activityJson = buildHrActivityJson(
+        workoutStart: workout.dateFrom,
+        workoutEnd: workout.dateTo,
+        hrSamples: samples,
+      );
+      if (activityJson == null) return null;
+
+      final tizJson = await binding.computeTimeInZone(
+        handle,
+        activityJson: activityJson,
+      );
+      return TimeInZone.fromJson(jsonDecode(tizJson));
+    } catch (_) {
+      return null;
+    }
   }
 }

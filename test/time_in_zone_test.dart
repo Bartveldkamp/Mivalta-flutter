@@ -3,9 +3,12 @@
 // The model maps the engine's `compute_time_in_zone` wire shape; the chart
 // renders it. No Dart-side binning — these assert parse + render fidelity only.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/time_in_zone.dart';
+import 'package:mivalta_flutter/services/health_ingest.dart';
 import 'package:mivalta_flutter/widgets/analytics/time_in_zone_chart.dart';
 
 /// A representative engine payload: 9 canonical buckets, most time in Z2.
@@ -50,6 +53,72 @@ void main() {
       expect(TimeInZone.fromJson(null).isEmpty, isTrue);
       expect(TimeInZone.fromJson('not a map').isEmpty, isTrue);
       expect(TimeInZone.fromJson({'anchor': 'hr'}).zones, isEmpty);
+    });
+  });
+
+  group('HealthIngestService.buildHrActivityJson (workout-sample ingest)', () {
+    final start = DateTime.utc(2026, 6, 1, 12, 0, 0);
+
+    test('maps intra-workout HR samples to the engine activity wire', () {
+      // 600 one-per-second samples across a 600 s (10 min) workout.
+      final end = start.add(const Duration(seconds: 600));
+      final samples = List.generate(
+        600,
+        (i) => (t: start.add(Duration(seconds: i)), bpm: 150.0),
+      );
+
+      final json = HealthIngestService.buildHrActivityJson(
+        workoutStart: start,
+        workoutEnd: end,
+        hrSamples: samples,
+      );
+      expect(json, isNotNull);
+      final m = jsonDecode(json!) as Map<String, dynamic>;
+      expect((m['hr_samples'] as List).length, 600);
+      expect(m['sample_rate_hz'], 1.0, reason: '600 samples / 600 s = 1 Hz');
+      expect(m['power_samples'], isEmpty);
+      // Even-dwell rate makes total time match the session (engine: n / rate).
+      expect((m['hr_samples'] as List).length / (m['sample_rate_hz'] as num),
+          600);
+    });
+
+    test('drops zero-bpm dropouts and orders by time', () {
+      final end = start.add(const Duration(seconds: 4));
+      final samples = [
+        (t: start.add(const Duration(seconds: 2)), bpm: 152.0),
+        (t: start.add(const Duration(seconds: 0)), bpm: 0.0), // dropout
+        (t: start.add(const Duration(seconds: 1)), bpm: 148.0),
+      ];
+      final json = HealthIngestService.buildHrActivityJson(
+        workoutStart: start,
+        workoutEnd: end,
+        hrSamples: samples,
+      );
+      final m = jsonDecode(json!) as Map<String, dynamic>;
+      expect(m['hr_samples'], [148.0, 152.0], reason: 'dropout gone, sorted');
+    });
+
+    test('returns null for too-few samples or a non-positive window', () {
+      expect(
+        HealthIngestService.buildHrActivityJson(
+          workoutStart: start,
+          workoutEnd: start.add(const Duration(seconds: 60)),
+          hrSamples: [(t: start, bpm: 150.0)],
+        ),
+        isNull,
+        reason: 'a single sample is not a distribution',
+      );
+      expect(
+        HealthIngestService.buildHrActivityJson(
+          workoutStart: start,
+          workoutEnd: start, // zero-length window
+          hrSamples: [
+            (t: start, bpm: 150.0),
+            (t: start, bpm: 151.0),
+          ],
+        ),
+        isNull,
+      );
     });
   });
 
