@@ -178,6 +178,20 @@ Future<String> readReadinessHistory({
   days: days,
 );
 
+/// `VaultEngine::read_daily_loads(days)` — daily training load (`load_uls`
+/// summed per day) for the past N days, JSON `[[date, load], ...]`. Drives the
+/// Monitor training-load surface. Pure pass-through.
+Future<String> readDailyLoads({
+  required EnginesHandle handle,
+  required int days,
+}) => RustLib.instance.api.crateApiReadDailyLoads(handle: handle, days: days);
+
+/// `VaultEngine::read_mmp_history(athlete_id)` — the rolling mean-maximal power
+/// curve, JSON `{"points":[{"duration_seconds","max_power_watts"}...]}` or
+/// `null`. Drives the Monitor power-profile surface. Pure pass-through.
+Future<String> readMmpHistory({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
+
 /// `VaultEngine::write_viterbi_state(athlete_id, json)` — persist the
 /// ViterbiEngine state to the vault. Call this after `save_state()` to
 /// ensure continuity across app restarts.

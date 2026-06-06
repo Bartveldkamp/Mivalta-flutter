@@ -12,9 +12,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/power_curve.dart';
+import '../models/training_load.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+import '../widgets/analytics/power_curve_chart.dart';
+import '../widgets/analytics/training_load_chart.dart';
 
 /// Humanize axis names for display. Engine field → user-friendly label.
 String _humanizeAxisName(String? name) {
@@ -41,6 +45,12 @@ class _DetailData {
   // From readReadinessHistory(days: 30)
   List<double> historyScores = [];
   List<String> historyDates = [];
+
+  // From readDailyLoads(days: 30) — training-load surface
+  TrainingLoad? trainingLoad;
+
+  // From readMmpHistory() — power-profile surface (cycling)
+  PowerCurve? powerCurve;
 
   // From lastObservationSourceTier()
   SourceTier? sourceTier;
@@ -121,6 +131,15 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
         }
       }
 
+      // readDailyLoads(days: 30) — training-load surface
+      final loadsJson =
+          await widget.binding.readDailyLoads(widget.handle, days: 30);
+      d.trainingLoad = TrainingLoad.fromJson(jsonDecode(loadsJson));
+
+      // readMmpHistory() — power profile (JSON null when no curve yet)
+      final mmpJson = await widget.binding.readMmpHistory(widget.handle);
+      d.powerCurve = PowerCurve.fromJson(jsonDecode(mmpJson));
+
       // lastObservationSourceTier()
       final tierJson =
           await widget.binding.lastObservationSourceTier(widget.handle);
@@ -181,6 +200,19 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                         textTheme: textTheme,
                       ),
                       const SizedBox(height: MivaltaSpace.x5),
+
+                      // Section: Training load (all sports)
+                      if (_data.trainingLoad != null) ...[
+                        TrainingLoadChart(load: _data.trainingLoad!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Power profile (shown when a power curve exists)
+                      if (_data.powerCurve != null &&
+                          !_data.powerCurve!.isEmpty) ...[
+                        PowerCurveChart(curve: _data.powerCurve!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
 
                       // Section 3: Coach Note
                       _CoachNoteSection(

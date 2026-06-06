@@ -219,6 +219,16 @@ class RustEngineBinding {
   Future<String> readReadinessHistory(EnginesHandle handle, {required int days}) =>
       rust_api.readReadinessHistory(handle: handle, days: days);
 
+  /// `VaultEngine::read_daily_loads` — daily training load (`load_uls` per day)
+  /// for the past N days, JSON `[[date, load], ...]`. Monitor load surface.
+  Future<String> readDailyLoads(EnginesHandle handle, {required int days}) =>
+      rust_api.readDailyLoads(handle: handle, days: days);
+
+  /// `VaultEngine::read_mmp_history` — rolling mean-maximal power curve JSON
+  /// (`{"points":[...]}` or `null`). Monitor power-profile surface.
+  Future<String> readMmpHistory(EnginesHandle handle) =>
+      rust_api.readMmpHistory(handle: handle);
+
   /// `VaultEngine::write_viterbi_state(athlete_id, state_json)` — persist
   /// the ViterbiEngine state to the vault. Call this after [saveState]
   /// to ensure continuity across app restarts.
