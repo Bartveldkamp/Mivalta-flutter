@@ -18,6 +18,7 @@ import '../models/fitness_trend.dart';
 import '../models/metric_series.dart';
 import '../models/power_curve.dart';
 import '../models/training_load.dart';
+import '../models/workout_detail.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
@@ -26,6 +27,7 @@ import '../widgets/analytics/decoupling_card.dart';
 import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
+import '../widgets/analytics/workout_detail_card.dart';
 
 /// Humanize axis names for display. Engine field → user-friendly label.
 String _humanizeAxisName(String? name) {
@@ -61,6 +63,9 @@ class _DetailData {
 
   // From fitCp() over the MMP curve — Critical Power (CP + W′) depth
   CriticalPower? criticalPower;
+
+  // From getWorkoutDetail() for the most recent activity — last session quality
+  WorkoutDetail? lastWorkout;
 
   // From recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling surface
   DecouplingTrend? decoupling;
@@ -169,6 +174,24 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
         } catch (_) {
           // Insufficient MMP points to fit CP — absence is honest, not an error.
         }
+      }
+
+      // Most recent workout's detail (actuals + engine-graded quality). Find the
+      // latest activity's date, then fetch its composite. Absent/failed → hidden.
+      try {
+        final actsJson =
+            await widget.binding.readRecentActivities(widget.handle, limit: 1);
+        final acts = jsonDecode(actsJson);
+        if (acts is List && acts.isNotEmpty && acts.first is Map) {
+          final date = acts.first['date']?.toString();
+          if (date != null && date.isNotEmpty) {
+            final wdJson =
+                await widget.binding.getWorkoutDetail(widget.handle, date: date);
+            d.lastWorkout = WorkoutDetail.fromJson(jsonDecode(wdJson));
+          }
+        }
+      } catch (_) {
+        // No activities yet, or detail unavailable — show nothing, never fake it.
       }
 
       // recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling trend
@@ -291,6 +314,13 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       if (_data.criticalPower != null &&
                           !_data.criticalPower!.isEmpty) ...[
                         CriticalPowerCard(cp: _data.criticalPower!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Last workout — actuals + engine-graded quality
+                      if (_data.lastWorkout != null &&
+                          _data.lastWorkout!.date.isNotEmpty) ...[
+                        WorkoutDetailCard(detail: _data.lastWorkout!),
                         const SizedBox(height: MivaltaSpace.x5),
                       ],
 

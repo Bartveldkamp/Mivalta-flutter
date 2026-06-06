@@ -204,6 +204,26 @@ Future<String> fitCp({
   mmpCurveJson: mmpCurveJson,
 );
 
+/// `VaultEngine::read_recent_activities(limit)` — most recent completed
+/// activities (newest first), JSON array of stored activities. Used to find the
+/// latest workout's date for the workout-detail surface. Pure pass-through.
+Future<String> readRecentActivities({
+  required EnginesHandle handle,
+  required int limit,
+}) => RustLib.instance.api.crateApiReadRecentActivities(
+  handle: handle,
+  limit: limit,
+);
+
+/// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
+/// (actuals + engine-graded quality via `grade_workout`) for a date. JSON
+/// matches the Flutter `WorkoutDetail` contract, or JSON `null` when no activity
+/// on that date. Pure pass-through. Monitor workout-detail surface.
+Future<String> getWorkoutDetail({
+  required EnginesHandle handle,
+  required String date,
+}) => RustLib.instance.api.crateApiGetWorkoutDetail(handle: handle, date: date);
+
 /// `VaultEngine::recent_decoupling_pct(window_days)` — trailing-window mean of
 /// `hr_decoupling_pct` across completed activities, JSON
 /// `{"mean_decoupling_pct": <f64|null>}` (null when no reading in the window).

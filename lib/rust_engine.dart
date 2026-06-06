@@ -236,6 +236,18 @@ class RustEngineBinding {
   Future<String> fitCp(EnginesHandle handle, {required String mmpCurveJson}) =>
       rust_api.fitCp(handle: handle, mmpCurveJson: mmpCurveJson);
 
+  /// `VaultEngine::read_recent_activities(limit)` — recent completed activities
+  /// (newest first), JSON array of stored activities. Used to find the latest
+  /// workout's date for the workout-detail surface.
+  Future<String> readRecentActivities(EnginesHandle handle, {required int limit}) =>
+      rust_api.readRecentActivities(handle: handle, limit: limit);
+
+  /// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
+  /// (actuals + engine-graded quality) for a date; JSON matches the Flutter
+  /// `WorkoutDetail` contract, or `null` when no activity that date.
+  Future<String> getWorkoutDetail(EnginesHandle handle, {required String date}) =>
+      rust_api.getWorkoutDetail(handle: handle, date: date);
+
   /// `VaultEngine::recent_decoupling_pct` — trailing-window mean of
   /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
   /// Monitor aerobic-decoupling surface.
