@@ -16,10 +16,12 @@ import 'package:flutter/material.dart';
 
 import '../models/activity_summary.dart';
 import '../models/biometric_series.dart';
+import '../models/load_context.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/biometric_chart.dart';
+import '../widgets/analytics/load_strain_card.dart';
 import '../widgets/analytics/workout_detail_card.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -42,13 +44,27 @@ class _ExploreScreenState extends State<ExploreScreen> {
   // Workouts state
   List<ActivitySummary> _workouts = const [];
 
+  // Load/strain rollup (engine context widget)
+  LoadContext? _loadContext;
+
   static const _ranges = <int>[7, 30, 90];
 
   @override
   void initState() {
     super.initState();
     _fetchBiometrics();
+    _fetchLoadContext();
     _fetchWorkouts();
+  }
+
+  Future<void> _fetchLoadContext() async {
+    try {
+      final json = await widget.binding.getContextWidget(widget.handle);
+      final ctx = LoadContext.fromJson(jsonDecode(json));
+      if (mounted) setState(() => _loadContext = ctx);
+    } catch (_) {
+      // Leave null — the section renders its loading/empty path.
+    }
   }
 
   Future<void> _fetchBiometrics() async {
@@ -134,6 +150,19 @@ class _ExploreScreenState extends State<ExploreScreen> {
             )
           else
             BiometricChart(series: series),
+
+          const SizedBox(height: MivaltaSpace.x6),
+
+          // ---- LOAD & STRAIN ----
+          _label('LOAD & STRAIN', textTheme),
+          const SizedBox(height: MivaltaSpace.x3),
+          if (_loadContext == null)
+            const Padding(
+              padding: EdgeInsets.all(MivaltaSpace.x5),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            LoadStrainCard(context_: _loadContext!),
 
           const SizedBox(height: MivaltaSpace.x6),
 
