@@ -229,7 +229,7 @@ class RustEngineBinding {
   Future<String> readMmpHistory(EnginesHandle handle) =>
       rust_api.readMmpHistory(handle: handle);
 
-  /// `ViterbiEngine::recent_decoupling_pct` — trailing-window mean of
+  /// `VaultEngine::recent_decoupling_pct` — trailing-window mean of
   /// `hr_decoupling_pct`, JSON `{"mean_decoupling_pct": <double|null>}`.
   /// Monitor aerobic-decoupling surface.
   Future<String> recentDecouplingPct(EnginesHandle handle, {required int windowDays}) =>
