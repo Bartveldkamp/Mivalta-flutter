@@ -83,6 +83,9 @@ pub struct EnginesHandle {
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
     /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
     cp: Arc<gatc_ffi::CpEngine>,
+    /// Post-activity producer pipeline — drives `compute_time_in_zone`
+    /// (per-zone dwell binned through MiValta's own zone_anchors scale).
+    postprocess: Arc<gatc_ffi::PostProcessEngine>,
     profile_json: String,
     athlete_id: String,
 }
@@ -126,6 +129,8 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
+    let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -134,6 +139,7 @@ pub fn construct_engines_fresh(
         dashboard,
         normalizer,
         cp,
+        postprocess,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -176,6 +182,8 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
+    let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -184,6 +192,7 @@ pub fn construct_engines_from_state(
         dashboard,
         normalizer,
         cp,
+        postprocess,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -472,6 +481,23 @@ pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle
         .vault
         .read_mmp_history(handle.athlete_id.clone())
+        .map_err(Into::into)
+}
+
+/// `PostProcessEngine::compute_time_in_zone(activity_json)` — per-zone dwell
+/// for one completed activity, binned through MiValta's own `zone_anchors`
+/// scale (R, Z1..Z8). `activity_json` is the producer-pipeline activity wire
+/// (`{"completed_at","power_samples":[..],"hr_samples":[..]?,"sample_rate_hz"}`).
+/// Returns `TimeInZone {anchor, seconds:[{zone,seconds}×9], total_seconds}`
+/// JSON. The engine picks the anchor from the bound profile (cycling+FTP+power
+/// → power, else HR) and errors when neither anchor is usable. Pure pass-through.
+pub fn compute_time_in_zone(
+    handle: &EnginesHandle,
+    activity_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .postprocess
+        .compute_time_in_zone(activity_json)
         .map_err(Into::into)
 }
 

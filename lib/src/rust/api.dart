@@ -192,6 +192,21 @@ Future<String> readDailyLoads({
 Future<String> readMmpHistory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadMmpHistory(handle: handle);
 
+/// `PostProcessEngine::compute_time_in_zone(activity_json)` — per-zone dwell
+/// for one completed activity, binned through MiValta's own `zone_anchors`
+/// scale (R, Z1..Z8). `activity_json` is the producer-pipeline activity wire
+/// (`{"completed_at","power_samples":[..],"hr_samples":[..]?,"sample_rate_hz"}`).
+/// Returns `TimeInZone {anchor, seconds:[{zone,seconds}×9], total_seconds}`
+/// JSON. The engine picks the anchor from the bound profile (cycling+FTP+power
+/// → power, else HR) and errors when neither anchor is usable. Pure pass-through.
+Future<String> computeTimeInZone({
+  required EnginesHandle handle,
+  required String activityJson,
+}) => RustLib.instance.api.crateApiComputeTimeInZone(
+  handle: handle,
+  activityJson: activityJson,
+);
+
 /// `CpEngine::fit_cp_default(mmp_curve_json)` — Critical Power + W′ fit over an
 /// MMP curve (Monod-Scherrer 1965 / Hill 1993). Feed the same curve JSON
 /// `read_mmp_history` returns; yields `CpFit{cp_watts, w_prime_joules,

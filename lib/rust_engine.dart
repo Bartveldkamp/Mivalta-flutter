@@ -236,6 +236,17 @@ class RustEngineBinding {
   Future<String> fitCp(EnginesHandle handle, {required String mmpCurveJson}) =>
       rust_api.fitCp(handle: handle, mmpCurveJson: mmpCurveJson);
 
+  /// `PostProcessEngine::compute_time_in_zone` — per-zone dwell for one
+  /// completed activity, binned through MiValta's own `zone_anchors` scale
+  /// (R, Z1..Z8). [activityJson] is the producer activity wire
+  /// (`{"completed_at","power_samples":[..],"hr_samples":[..]?,"sample_rate_hz"}`).
+  /// Returns `TimeInZone {anchor, seconds:[{zone,seconds}×9], total_seconds}`
+  /// JSON. The engine picks the anchor (cycling+FTP+power → power, else HR) and
+  /// throws when neither anchor is usable — Monitor time-in-zone surface.
+  Future<String> computeTimeInZone(EnginesHandle handle,
+          {required String activityJson}) =>
+      rust_api.computeTimeInZone(handle: handle, activityJson: activityJson);
+
   /// `VaultEngine::read_recent_activities(limit)` — recent completed activities
   /// (newest first), JSON array of stored activities. Used to find the latest
   /// workout's date for the workout-detail surface.
