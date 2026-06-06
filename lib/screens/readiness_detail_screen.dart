@@ -12,11 +12,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/decoupling_trend.dart';
 import '../models/power_curve.dart';
 import '../models/training_load.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+import '../widgets/analytics/decoupling_card.dart';
 import '../widgets/analytics/power_curve_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
 
@@ -51,6 +53,9 @@ class _DetailData {
 
   // From readMmpHistory() — power-profile surface (cycling)
   PowerCurve? powerCurve;
+
+  // From recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling surface
+  DecouplingTrend? decoupling;
 
   // From lastObservationSourceTier()
   SourceTier? sourceTier;
@@ -140,6 +145,16 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       final mmpJson = await widget.binding.readMmpHistory(widget.handle);
       d.powerCurve = PowerCurve.fromJson(jsonDecode(mmpJson));
 
+      // recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling trend
+      final dc7 = await widget.binding.recentDecouplingPct(widget.handle, windowDays: 7);
+      final dc14 = await widget.binding.recentDecouplingPct(widget.handle, windowDays: 14);
+      final dc28 = await widget.binding.recentDecouplingPct(widget.handle, windowDays: 28);
+      d.decoupling = DecouplingTrend(
+        short: DecouplingTrend.parseMean(jsonDecode(dc7)),
+        mid: DecouplingTrend.parseMean(jsonDecode(dc14)),
+        long: DecouplingTrend.parseMean(jsonDecode(dc28)),
+      );
+
       // lastObservationSourceTier()
       final tierJson =
           await widget.binding.lastObservationSourceTier(widget.handle);
@@ -211,6 +226,13 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       if (_data.powerCurve != null &&
                           !_data.powerCurve!.isEmpty) ...[
                         PowerCurveChart(curve: _data.powerCurve!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Aerobic decoupling (shown once a reading exists)
+                      if (_data.decoupling != null &&
+                          _data.decoupling!.hasData) ...[
+                        DecouplingCard(trend: _data.decoupling!),
                         const SizedBox(height: MivaltaSpace.x5),
                       ],
 
