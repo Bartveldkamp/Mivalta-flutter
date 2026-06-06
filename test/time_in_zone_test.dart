@@ -77,7 +77,12 @@ void main() {
       expect((m['hr_samples'] as List).length, 600);
       expect(m['sample_rate_hz'], 1.0, reason: '600 samples / 600 s = 1 Hz');
       expect(m['power_samples'], isEmpty);
-      // Even-dwell rate makes total time match the session (engine: n / rate).
+      // Per-sample timestamps (epoch seconds) drive the engine's true-dwell
+      // binning; parallel to hr_samples, monotonic, 1 s apart here.
+      final ts = (m['hr_timestamps'] as List).cast<num>();
+      expect(ts.length, 600);
+      expect(ts[1] - ts[0], 1.0, reason: '1 s between readings');
+      // Even-dwell fallback rate still makes total ≈ session (engine: n / rate).
       expect((m['hr_samples'] as List).length / (m['sample_rate_hz'] as num),
           600);
     });

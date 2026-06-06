@@ -545,12 +545,16 @@ class HealthIngestService {
   /// Build the engine activity wire from intra-workout HR samples.
   ///
   /// ZERO-FABRICATION transport: orders the samples by time, drops non-positive
-  /// (dropout) readings, and emits `hr_samples` plus a `sample_rate_hz` chosen
-  /// so the engine's uniform per-sample dwell sums to the workout's ACTUAL
-  /// duration (`rate = n / duration_seconds`). That rate is stream metadata, not
-  /// physiology — the engine still owns every zone decision. HR samples from
-  /// these stores are irregular, so the even-dwell mapping is a v1 approximation
-  /// of true per-sample dwell; total time matches the session.
+  /// (dropout) readings, and emits `hr_samples` alongside `hr_timestamps` (each
+  /// reading's epoch seconds). The engine bins by TRUE per-sample dwell — each
+  /// reading credited for the gap until the next, with its own adaptive
+  /// pause/dropout clamp — which is exact for the irregular sampling these
+  /// stores produce. No dwell math in Dart: we only forward the timestamps the
+  /// platform already recorded.
+  ///
+  /// `sample_rate_hz` is still emitted as the engine's uniform fallback for any
+  /// consumer that ignores timestamps (`rate = n / duration_seconds`, so total
+  /// dwell ≈ the session). The timestamped path supersedes it in the engine.
   ///
   /// Returns null when there are too few samples or the window is non-positive —
   /// the caller renders the honest no-data state rather than a thin guess.
@@ -571,6 +575,9 @@ class HealthIngestService {
       'completed_at': workoutEnd.toUtc().toIso8601String(),
       'power_samples': <double>[],
       'hr_samples': valid.map((s) => s.bpm).toList(growable: false),
+      'hr_timestamps': valid
+          .map((s) => s.t.millisecondsSinceEpoch / 1000.0)
+          .toList(growable: false),
       'sample_rate_hz': rateHz,
     });
   }
