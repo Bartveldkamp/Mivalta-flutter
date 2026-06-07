@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`, `extract_real_confidence`, `extract_real_state`
+// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `from`
 
 /// Day-2 smoke test — kept so the existing engine-hello status line
@@ -132,16 +132,21 @@ Future<String> processManualObservation({
   rpe: rpe,
 );
 
-/// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
-/// from (a) the engine-bound profile and (b) live readiness state.
+/// `AdvisorEngine::recommend_workout(...)` — PURE TRANSPORT (FL-1).
 ///
-/// PR-D.1: Now uses real fatigue state and confidence from the ViterbiEngine,
-/// ensuring the advisor sees the athlete's actual condition (Honesty principle:
-/// the engine decides the state; the advisor must use it).
+/// The shim forwards the engine's OWN readiness signals to the engine, which
+/// owns ALL coaching mapping (readiness band, confidence tier, periodization):
+/// `readiness_indicator()` supplies the blended score, the canonical
+/// traffic-light `level` (green/yellow/orange/red) and the posterior
+/// `confidence`; `get_readiness()` supplies the decided fatigue `state`. The
+/// shim no longer thresholds the score, buckets confidence, invents
+/// periodization, or defaults to a green-ish state on no data — a missing
+/// engine field is an error, not a fabricated value.
 ///
-/// Optional parameters allow the UI to pass user-selected mood, equipment,
-/// and terrain. When `None`, defaults to `"normal"` for mood and `null`
-/// for equipment/terrain (engine interprets as "any").
+/// `date`: a "what should I do now" recommendation legitimately needs today's
+/// date. It is taken as UTC, so there is no timezone non-determinism (the old
+/// `Local::now()` had both). Passing the user's local date down from the Dart
+/// display layer is a follow-up that requires an FRB binding regen.
 Future<String> recommendWorkout({
   required EnginesHandle handle,
   String? mood,
