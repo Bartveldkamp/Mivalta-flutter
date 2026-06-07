@@ -289,14 +289,23 @@ pub fn process_manual_observation(
     sleep_hours: Option<f64>,
     rpe: Option<i32>,
 ) -> Result<String, BridgeError> {
-    // Validate the date first
-    let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+    // FL-9: validate the date AND anchor the observation timestamp to it.
+    // Manual entries are date-only, but the HMM keys its 42-day window and
+    // day-gap decode off obs.timestamp — NOT obs.date. Using Utc::now() would
+    // drop a backdated entry ("I forgot yesterday's RHR") at TODAY in the
+    // temporal sequence, corrupting the gap math (and is non-deterministic).
+    // Noon UTC keeps the entry on the intended calendar day across timezones.
+    let parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
         .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+    let timestamp = parsed
+        .and_hms_opt(12, 0, 0)
+        .expect("12:00:00 is a valid wall-clock time")
+        .and_utc();
 
     // Build the observation with manual source and minimal tier
     // (manual entry is the lowest-fidelity data source)
     let obs = UniversalObservation {
-        timestamp: chrono::Utc::now(),
+        timestamp,
         date: iso_date,
         source: "manual".to_string(),
         tier: DataTier::Minimal,
@@ -980,12 +989,16 @@ mod tests {
         sleep_hours: Option<f64>,
         rpe: Option<i32>,
     ) -> Result<String, BridgeError> {
-        // Validate the date first
-        let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+        // FL-9: mirror production — timestamp anchored to iso_date, not Utc::now().
+        let parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
             .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+        let timestamp = parsed
+            .and_hms_opt(12, 0, 0)
+            .expect("12:00:00 is a valid wall-clock time")
+            .and_utc();
 
         let obs = UniversalObservation {
-            timestamp: chrono::Utc::now(),
+            timestamp,
             date: iso_date,
             source: "manual".to_string(),
             tier: DataTier::Minimal,
@@ -1056,6 +1069,14 @@ mod tests {
             "snapshot should contain state, got: {json}");
         assert!(snapshot.get("score").is_some(),
             "snapshot should contain score, got: {json}");
+
+        // FL-9 regression: the observation must be timestamped on the SUPPLIED
+        // date (2026-06-02), not wall-clock "today". snapshot.timestamp mirrors
+        // obs.timestamp, which the HMM keys its window/gap decode off.
+        let ts = snapshot.get("timestamp").and_then(|v| v.as_str())
+            .expect("snapshot should contain timestamp");
+        assert!(ts.starts_with("2026-06-02"),
+            "manual entry must be anchored to its iso_date, got timestamp {ts}");
     }
 
     #[test]
