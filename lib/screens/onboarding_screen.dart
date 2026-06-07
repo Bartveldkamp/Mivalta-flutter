@@ -14,9 +14,13 @@ import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 
 /// Result of the onboarding flow.
+///
+/// FL-16: carries the RAW onboarding inputs (not a built profile). The engine
+/// completes them into a full AthleteProfile downstream — the client computes
+/// nothing.
 class OnboardingResult {
-  const OnboardingResult({required this.profileJson});
-  final String profileJson;
+  const OnboardingResult({required this.inputsJson});
+  final String inputsJson;
 }
 
 class OnboardingScreen extends StatefulWidget {
@@ -146,8 +150,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    final profileJson = _builder.build();
-    Navigator.of(context).pop(OnboardingResult(profileJson: profileJson));
+    final inputsJson = _builder.buildInputs();
+    Navigator.of(context).pop(OnboardingResult(inputsJson: inputsJson));
   }
 
   @override

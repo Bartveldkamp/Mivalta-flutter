@@ -26,7 +26,7 @@ void main() {
 
       expect(builder.isValid, isTrue);
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // Required fields
@@ -63,7 +63,7 @@ void main() {
         ..weeklyHours = 3.0
         ..trainingYears = 0;
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
       final athleteId = decoded['athlete_id'] as String;
 
@@ -91,7 +91,7 @@ void main() {
         ..trainingYears = 2
         ..thresholdHr = null; // User doesn't know
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // threshold_hr MUST be null, not a fabricated default
@@ -111,7 +111,7 @@ void main() {
         ..thresholdHr = 172
         ..ftpWatts = null; // User doesn't know FTP
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // ftp_watts MUST be null, not a fabricated default
@@ -131,7 +131,7 @@ void main() {
         ..thresholdHr = 165
         ..thresholdPaceSecKm = null; // User doesn't know threshold pace
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // threshold_pace_sec_km MUST be null, not a fabricated default
@@ -151,7 +151,7 @@ void main() {
         ..thresholdHr = null
         ..ftpWatts = null;
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // ALL anchors MUST be null
@@ -175,7 +175,7 @@ void main() {
         ..trainingYears = 3
         ..ftpWatts = 280;
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       expect(decoded['ftp_watts'], 280);
@@ -194,7 +194,7 @@ void main() {
         ..trainingYears = 6
         ..thresholdPaceSecKm = 270; // 4:30/km = 270 sec/km
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       expect(decoded['threshold_pace_sec_km'], 270);
@@ -212,7 +212,7 @@ void main() {
         ..weeklyHours = 3.0
         ..trainingYears = 0;
 
-      final json = builder.build();
+      final json = builder.buildInputs();
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       expect(decoded['ftp_watts'], isNull);
@@ -220,62 +220,29 @@ void main() {
     });
 
     // =========================================================================
-    // GOAL CLASS MAPPING TESTS
+    // FL-16: derivation moved to the ENGINE — the client marshals RAW inputs
+    // only. goal_class / mesocycle / meso_minutes / per-sport anchor gating are
+    // now produced and tested in gatc-ffi::build_onboarding_profile, NOT here.
     // =========================================================================
 
-    test('goal_type general_fitness maps to goal_class stay_fit', () {
+    test('buildInputs marshals raw inputs only — no coaching derived in Dart', () {
       final builder = ProfileBuilder()
         ..age = 30
         ..sex = 'male'
         ..level = 'intermediate'
         ..sport = 'cycling'
-        ..goalType = 'general_fitness'
-        ..weeklyHours = 5.0
-        ..trainingYears = 2;
-
-      final json = builder.build();
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
-
-      expect(decoded['goal_class'], 'stay_fit');
-    });
-
-    test('goal_type performance maps to goal_class performance', () {
-      final builder = ProfileBuilder()
-        ..age = 25
-        ..sex = 'female'
-        ..level = 'advanced'
-        ..sport = 'running'
         ..goalType = 'performance'
-        ..weeklyHours = 10.0
-        ..trainingYears = 5;
-
-      final json = builder.build();
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
-
-      expect(decoded['goal_class'], 'performance');
-    });
-
-    // =========================================================================
-    // MESO PARAMETERS TESTS
-    // =========================================================================
-
-    test('meso parameters have sensible defaults', () {
-      final builder = ProfileBuilder()
-        ..age = 35
-        ..sex = 'male'
-        ..level = 'intermediate'
-        ..sport = 'cycling'
-        ..goalType = 'endurance'
         ..weeklyHours = 6.0
-        ..trainingYears = 4;
+        ..trainingYears = 3;
 
-      final json = builder.build();
-      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      final decoded = jsonDecode(builder.buildInputs()) as Map<String, dynamic>;
 
-      expect(decoded['meso_length'], 21);
-      expect(decoded['meso_train_days'], isA<List>());
-      expect(decoded['meso_off_days'], isA<List>());
-      expect(decoded['meso_minutes'], 360); // 6 hours * 60 = 360 min
+      // Raw goal_type is passed straight through...
+      expect(decoded['goal_type'], 'performance');
+      // ...and NOTHING is derived client-side (the engine owns these).
+      expect(decoded.containsKey('goal_class'), isFalse);
+      expect(decoded.containsKey('meso_length'), isFalse);
+      expect(decoded.containsKey('meso_minutes'), isFalse);
     });
   });
 

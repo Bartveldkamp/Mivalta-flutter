@@ -14,6 +14,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'rust_engine.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/readiness_screen.dart';
 import 'services/profile_service.dart';
@@ -86,11 +87,27 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
     );
 
     if (result != null && mounted) {
-      // Save the profile and proceed to ReadinessScreen
-      await ProfileService.saveProfile(result.profileJson);
-      setState(() {
-        _profileJson = result.profileJson;
-      });
+      // FL-16: the onboarding result is RAW inputs. The ENGINE completes them
+      // into a full profile (goal_class, mesocycle, anchors) — the client
+      // computes nothing — then we persist it and proceed. Completing + saving
+      // here (where onboarding navigation lives) keeps the two together and
+      // gives a clean retry path on failure.
+      try {
+        await RustEngineBinding.ensureRustInit();
+        final profileJson =
+            await RustEngineBinding.buildOnboardingProfile(result.inputsJson);
+        await ProfileService.saveProfile(profileJson);
+        if (mounted) setState(() => _profileJson = profileJson);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Setup could not be completed. Please try again.'),
+          ),
+        );
+        // Inputs were not persisted; re-show onboarding so the user can retry.
+        _showOnboarding();
+      }
     }
   }
 
@@ -132,7 +149,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    // Profile loaded — show ReadinessScreen with the profile
+    // Profile ready (loaded, or engine-completed from onboarding) — show home.
     return ReadinessScreen(profileJson: _profileJson);
   }
 }

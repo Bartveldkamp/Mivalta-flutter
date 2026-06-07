@@ -348,6 +348,20 @@ pub fn process_manual_observation(
 }
 
 // =============================================================================
+// ONBOARDING — engine-built athlete profile (stateless)
+// =============================================================================
+
+/// `gatc_ffi::build_onboarding_profile(...)` — PURE TRANSPORT (FL-16).
+///
+/// Stateless: onboarding has no engine instance yet. The client marshals the
+/// RAW onboarding inputs into `inputs_json` and the ENGINE derives everything
+/// (`goal_class`, the mesocycle + availability + `meso_minutes`, per-sport
+/// anchor gating). The client computes nothing.
+pub fn build_onboarding_profile(inputs_json: String) -> Result<String, BridgeError> {
+    gatc_ffi::build_onboarding_profile(inputs_json).map_err(Into::into)
+}
+
+// =============================================================================
 // ADVISOR ENGINE — workout suggestions (A/B/C options)
 // =============================================================================
 

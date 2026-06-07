@@ -119,6 +119,8 @@ class _HomeData {
 class ReadinessScreen extends StatefulWidget {
   /// PR-F: Accept profileJson from onboarding or persistence.
   /// The profile is used to construct engines — no longer uses canonical_seed.
+  /// FL-16: this is always a COMPLETE AthleteProfile — a fresh onboarding is
+  /// engine-completed in main.dart before this screen is shown.
   const ReadinessScreen({super.key, this.profileJson});
 
   /// The athlete profile JSON. If null, falls back to a minimal default
@@ -202,8 +204,9 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final vaultDir = Directory('${support.path}/mivalta-vault');
       if (!await vaultDir.exists()) await vaultDir.create(recursive: true);
 
-      // PR-F: Use the provided profile JSON (from onboarding or persistence)
-      // instead of the hardcoded canonical_seed.
+      // PR-F: Use the provided profile JSON (from onboarding or persistence).
+      // FL-16: a fresh onboarding profile is engine-completed in main.dart
+      // before this screen, so `profileJson` is always a complete profile here.
       final profileJson = widget.profileJson ?? _fallbackProfile();
 
       // Continuity: check for persisted state and restore if it exists
