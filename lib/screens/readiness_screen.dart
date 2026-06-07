@@ -111,6 +111,9 @@ class _HomeData {
   // State
   bool insufficientData = false;
   String? error;
+  // FL-3: set when a corrupt/incompatible persisted blob forced a fresh
+  // start. Surfaced once (non-silent), never swallowed.
+  bool historyReset = false;
 }
 
 class ReadinessScreen extends StatefulWidget {
@@ -173,13 +176,28 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       );
 
       if (persistedState != null) {
-        // Subsequent launch: restore from persisted state
-        localHandle = await binding.constructEnginesFromState(
-          athleteProfileJson: profileJson,
-          tablesJson: tablesJson,
-          vaultPath: vaultDir.path,
-          viterbiStateJson: persistedState,
-        );
+        // Subsequent launch: restore from persisted state.
+        // FL-3: a corrupt/legacy/incompatible blob must NOT brick every
+        // relaunch. If restore throws, fall back to a fresh engine, OVERWRITE
+        // the bad blob so the next launch restores cleanly, and surface a
+        // one-time "history reset" notice (not silent).
+        try {
+          localHandle = await binding.constructEnginesFromState(
+            athleteProfileJson: profileJson,
+            tablesJson: tablesJson,
+            vaultPath: vaultDir.path,
+            viterbiStateJson: persistedState,
+          );
+        } catch (_) {
+          localHandle = await binding.constructEnginesFresh(
+            athleteProfileJson: profileJson,
+            tablesJson: tablesJson,
+            vaultPath: vaultDir.path,
+          );
+          final stateJson = await binding.saveState(localHandle);
+          await binding.writeViterbiState(localHandle, stateJson: stateJson);
+          d.historyReset = true;
+        }
       } else {
         // First run: construct fresh and persist immediately
         localHandle = await binding.constructEnginesFresh(
@@ -317,6 +335,20 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
       _handle = localHandle;
       _binding = localBinding;
     });
+    // FL-3: surface the one-time history reset non-silently after the frame.
+    if (d.historyReset) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Saved history could not be read and was reset. '
+              'Your recent trend will rebuild over the next few days.',
+            ),
+          ),
+        );
+      });
+    }
   }
 
   void _openReadinessDetail() {
