@@ -41,7 +41,7 @@ The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi ph
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` to revision `4dab6cb` (engine_registry v2.18).
+`rust/Cargo.toml` pins `gatc-ffi` to revision `14a57f9` (engine_registry v2.20).
 
 ## Repository Structure
 

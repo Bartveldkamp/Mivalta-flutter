@@ -824,10 +824,15 @@ class _SourceConfidenceSection extends StatelessWidget {
   }
 
   Color _confidenceColor(double? conf) {
-    if (conf == null) return MivaltaColors.textMuted;
-    if (conf >= 0.8) return MivaltaColors.levelGreen;
-    if (conf >= 0.6) return MivaltaColors.levelYellow;
-    return MivaltaColors.levelOrange;
+    // FL-2: mirror the engine's canonical ConfidenceLevel::from_posterior tiers
+    // (gatc-types: <=0 unknown, <0.4 low, <0.7 medium, else high) — NOT an
+    // independent 0.8/0.6 threshold set — so the coloured bar can't disagree
+    // with the advisor's confidence tier. The engine owns the boundaries; this
+    // only maps a tier to a locked token.
+    if (conf == null || conf <= 0.0) return MivaltaColors.textMuted;
+    if (conf < 0.4) return MivaltaColors.levelOrange;
+    if (conf < 0.7) return MivaltaColors.levelYellow;
+    return MivaltaColors.levelGreen;
   }
 }
 

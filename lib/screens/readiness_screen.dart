@@ -129,7 +129,8 @@ class ReadinessScreen extends StatefulWidget {
   State<ReadinessScreen> createState() => _ReadinessScreenState();
 }
 
-class _ReadinessScreenState extends State<ReadinessScreen> {
+class _ReadinessScreenState extends State<ReadinessScreen>
+    with WidgetsBindingObserver {
   _HomeData _data = _HomeData();
   bool _loading = true;
   bool _syncing = false;
@@ -144,7 +145,43 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
   @override
   void initState() {
     super.initState();
+    // FL-6: persist engine state on background/detach, not only on explicit
+    // state-changing ops — an OS kill between a mutation and its save would
+    // otherwise lose the advance.
+    WidgetsBinding.instance.addObserver(this);
     _fetch();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // The callback is synchronous, so this is a fire-and-forget async save.
+      // `paused` is the reliable window (the app is backgrounded but alive);
+      // on `detached` the isolate may be torn down before the write completes,
+      // so that path is genuinely best-effort, not a guarantee (#52 review).
+      final handle = _handle;
+      final binding = _binding;
+      if (handle != null && binding != null) {
+        () async {
+          try {
+            final stateJson = await binding.saveState(handle);
+            await binding.writeViterbiState(handle, stateJson: stateJson);
+          } catch (e) {
+            if (kDebugMode) {
+              // ignore: avoid_print
+              print('lifecycle save failed — ${e.runtimeType}: $e');
+            }
+          }
+        }();
+      }
+    }
   }
 
   Future<void> _fetch() async {
@@ -188,7 +225,14 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
             vaultPath: vaultDir.path,
             viterbiStateJson: persistedState,
           );
-        } catch (_) {
+        } catch (e) {
+          // Capture WHY the restore failed before discarding the blob, so a
+          // field "history reset" is diagnosable rather than mysterious
+          // (#51 review).
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('persisted-state restore failed — ${e.runtimeType}: $e');
+          }
           localHandle = await binding.constructEnginesFresh(
             athleteProfileJson: profileJson,
             tablesJson: tablesJson,
@@ -223,9 +267,13 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
         _healthService = healthService;
 
         final syncResult = await healthService.syncHealthData(days: 7);
-        if (kDebugMode && syncResult.observationsProcessed > 0) {
+        if (kDebugMode &&
+            (syncResult.observationsProcessed > 0 ||
+                syncResult.skippedDays > 0)) {
           // ignore: avoid_print
-          print('PR-E: Health sync processed ${syncResult.observationsProcessed} days');
+          print('PR-E: Health sync processed '
+              '${syncResult.observationsProcessed} days'
+              '${syncResult.skippedDays > 0 ? ', skipped ${syncResult.skippedDays}' : ''}');
         }
       }
 
@@ -491,9 +539,14 @@ class _ReadinessScreenState extends State<ReadinessScreen> {
 
       if (mounted) {
         if (result.success && result.observationsProcessed > 0) {
+          // FL-4: surface skipped days so a partial sync is visible, not silent.
+          final skipped = result.skippedDays > 0
+              ? ' (${result.skippedDays} skipped)'
+              : '';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Synced ${result.observationsProcessed} days of health data'),
+              content: Text(
+                  'Synced ${result.observationsProcessed} days of health data$skipped'),
             ),
           );
           // Refresh display with new data
@@ -1163,7 +1216,12 @@ class _SparklinePainter extends CustomPainter {
 
     final path = Path();
     for (var i = 0; i < scores.length; i++) {
-      final x = (i / (scores.length - 1)) * size.width;
+      // FL-7: a single-point series makes (i / (length-1)) = 0/0 = NaN and the
+      // sparkline renders blank. Mirror the detail screen's guard: pin a lone
+      // point to the left edge.
+      final x = scores.length == 1
+          ? 0.0
+          : (i / (scores.length - 1)) * size.width;
       final normalized = range > 0 ? (scores[i] - minScore) / range : 0.5;
       final y = size.height - (normalized * size.height * 0.8) - size.height * 0.1;
 
