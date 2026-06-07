@@ -91,6 +91,9 @@
                  reviews permissions. -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+                <!-- FL-19: scope the filter with a category so only an explicit
+                     (Health Connect) intent resolves it, not a bare action match. -->
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <meta-data
                 android:name="health_permissions"

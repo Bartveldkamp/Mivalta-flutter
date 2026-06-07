@@ -264,11 +264,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           athleteProfileJson: updatedJson,
         );
 
-        // Persist to local storage (plaintext for now)
-        // TODO: Move to encrypted vault via write_profile when bootstrap allows
+        // FL-12: persist to the SQLCipher vault (ProfileService.saveProfile ->
+        // writeProfileToVault since PR-H — NOT plaintext). The engine rebind
+        // above and this write are not a single transaction; if the write
+        // throws, the engine is transiently ahead of the vault and self-heals
+        // on next launch (engines are rebuilt from the vault profile).
         await ProfileService.saveProfile(updatedJson);
 
-        setState(() => _profile = updatedProfile);
+        if (mounted) setState(() => _profile = updatedProfile);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

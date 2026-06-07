@@ -34,6 +34,7 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:health/health.dart';
 
 import '../models/time_in_zone.dart';
@@ -46,12 +47,18 @@ class HealthSyncResult {
     required this.observationsProcessed,
     this.error,
     this.permissionDenied = false,
+    this.skippedDays = 0,
   });
 
   final bool success;
   final int observationsProcessed;
   final String? error;
   final bool permissionDenied;
+
+  /// FL-4: days that failed a per-observation normalize/process and were
+  /// dropped. Surfaced (not silently swallowed) so the caller can tell a
+  /// partial sync from a clean one.
+  final int skippedDays;
 
   /// No-data result: permission granted but no health data available.
   static const noData = HealthSyncResult(
@@ -212,6 +219,8 @@ class HealthIngestService {
       final byDate = _groupByDate(healthData);
 
       var processed = 0;
+      var mutated = 0; // FL-4: any observation that advanced the HMM state
+      var skipped = 0; // FL-4: days dropped by a per-observation failure
       for (final entry in byDate.entries) {
         final date = entry.key;
         final records = entry.value;
@@ -234,25 +243,35 @@ class HealthIngestService {
             json: vendorJson,
           );
 
-          // Feed the normalized observation into the HMM
+          // Feed the normalized observation into the HMM. This advances the
+          // HMM state regardless of biometric content, so it must be persisted.
           await binding.processObservation(
             handle,
             observationJson: normalizedJson,
           );
+          mutated++;
 
           // Only count if we had real biometric content (RHR/HRV/sleep)
           if (hasBiometrics) {
             processed++;
           }
         } catch (e) {
-          // Skip this observation if normalization fails
-          // (e.g., missing required fields)
+          // FL-4: a failed day was previously dropped silently while the sync
+          // still reported success. Count it and (in debug) name the cause so a
+          // partial sync is diagnosable on-device.
+          skipped++;
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('health sync: skipped $date — ${e.runtimeType}: $e');
+          }
           continue;
         }
       }
 
-      // Persist the updated HMM state
-      if (processed > 0) {
+      // FL-4: persist on ANY state mutation, not just biometric-bearing days —
+      // processObservation advances the HMM for every observation and an
+      // unpersisted advance is lost on the next restart (compounds engine A).
+      if (mutated > 0) {
         final stateJson = await binding.saveState(handle);
         await binding.writeViterbiState(handle, stateJson: stateJson);
       }
@@ -260,6 +279,7 @@ class HealthIngestService {
       return HealthSyncResult(
         success: true,
         observationsProcessed: processed,
+        skippedDays: skipped,
       );
     } catch (e) {
       return HealthSyncResult(
@@ -629,7 +649,14 @@ class HealthIngestService {
         activityJson: activityJson,
       );
       return TimeInZone.fromJson(jsonDecode(tizJson));
-    } catch (_) {
+    } catch (e) {
+      // Degrade to "no time-in-zone" but name the cause in debug — a blanket
+      // swallow hid engine errors (profile mismatch, malformed wire) and made
+      // on-device diagnosis impossible (#51 review).
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('latestWorkoutTimeInZone: ${e.runtimeType}: $e');
+      }
       return null;
     }
   }

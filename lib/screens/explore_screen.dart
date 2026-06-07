@@ -327,21 +327,30 @@ class _WorkoutDetailPage extends StatelessWidget {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snap.hasError || snap.data == null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(MivaltaSpace.x5),
-                child: Text(
-                  'Workout detail unavailable.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: MivaltaColors.textMuted),
+          Widget unavailable() => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(MivaltaSpace.x5),
+                  child: Text(
+                    'Workout detail unavailable.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: MivaltaColors.textMuted),
+                  ),
                 ),
-              ),
-            );
+              );
+          if (snap.hasError || snap.data == null) {
+            return unavailable();
           }
-          final detail = WorkoutDetail.fromJson(jsonDecode(snap.data!));
+          // FL-5: parse defensively — engine schema drift (version skew vs the
+          // pinned rev) would otherwise throw inside build() and show a red
+          // screen. Degrade to the same "unavailable" state on parse failure.
+          final WorkoutDetail detail;
+          try {
+            detail = WorkoutDetail.fromJson(jsonDecode(snap.data!));
+          } catch (_) {
+            return unavailable();
+          }
           return SingleChildScrollView(
             padding: const EdgeInsets.all(MivaltaSpace.x4),
             child: WorkoutDetailCard(detail: detail),
