@@ -8,9 +8,8 @@
        - Sleep stages
        - Oxygen saturation
        - Steps
-
-     Deferred (exerciseType impedance mismatch — needs engine PR):
-       - Exercise / workout sessions -->
+       - Exercise / workout sessions (bound the intra-workout HR window for
+         time-in-zone; samples binned on-device by the engine) -->
 <resources>
     <array name="health_permissions">
         <item>android.permission.health.READ_HEART_RATE</item>
@@ -19,5 +18,6 @@
         <item>android.permission.health.READ_SLEEP</item>
         <item>android.permission.health.READ_OXYGEN_SATURATION</item>
         <item>android.permission.health.READ_STEPS</item>
+        <item>android.permission.health.READ_EXERCISE</item>
     </array>
 </resources>

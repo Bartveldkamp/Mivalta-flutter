@@ -18,9 +18,11 @@ import '../models/fitness_trend.dart';
 import '../models/metric_series.dart';
 import '../models/power_curve.dart';
 import '../models/sleep_trend.dart';
+import '../models/time_in_zone.dart';
 import '../models/training_load.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
+import '../services/health_ingest.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/critical_power_card.dart';
@@ -28,6 +30,7 @@ import '../widgets/analytics/sleep_trend_card.dart';
 import '../widgets/analytics/decoupling_card.dart';
 import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
+import '../widgets/analytics/time_in_zone_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
 import '../widgets/analytics/workout_detail_card.dart';
 
@@ -71,6 +74,10 @@ class _DetailData {
 
   // From getWorkoutDetail() for the most recent activity — last session quality
   WorkoutDetail? lastWorkout;
+
+  // From latestWorkoutTimeInZone() — most recent workout's per-zone dwell,
+  // binned through MiValta's own scale from intra-workout HR samples.
+  TimeInZone? timeInZone;
 
   // From recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling surface
   DecouplingTrend? decoupling;
@@ -203,6 +210,14 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       } catch (_) {
         // No activities yet, or detail unavailable — show nothing, never fake it.
       }
+
+      // Time-in-zone for the most recent workout: pull its intra-workout HR
+      // samples from the health store and bin them through the engine. Missing
+      // permission / no workout / thin stream → null → no-data state.
+      d.timeInZone = await HealthIngestService(
+        binding: widget.binding,
+        handle: widget.handle,
+      ).latestWorkoutTimeInZone();
 
       // recentDecouplingPct() at 7/14/28-day windows — aerobic-decoupling trend
       final dc7 = await widget.binding.recentDecouplingPct(widget.handle, windowDays: 7);
@@ -338,6 +353,14 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                       if (_data.lastWorkout != null &&
                           _data.lastWorkout!.date.isNotEmpty) ...[
                         WorkoutDetailCard(detail: _data.lastWorkout!),
+                        const SizedBox(height: MivaltaSpace.x5),
+                      ],
+
+                      // Section: Time in zone — most recent workout's intensity
+                      // distribution, binned through MiValta's own scale.
+                      if (_data.timeInZone != null &&
+                          !_data.timeInZone!.isEmpty) ...[
+                        TimeInZoneChart(data: _data.timeInZone!),
                         const SizedBox(height: MivaltaSpace.x5),
                       ],
 

@@ -83,6 +83,9 @@ pub struct EnginesHandle {
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
     /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
     cp: Arc<gatc_ffi::CpEngine>,
+    /// Post-activity producer pipeline — drives `compute_time_in_zone`
+    /// (per-zone dwell binned through MiValta's own zone_anchors scale).
+    postprocess: Arc<gatc_ffi::PostProcessEngine>,
     profile_json: String,
     athlete_id: String,
 }
@@ -126,6 +129,8 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
+    let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -134,6 +139,7 @@ pub fn construct_engines_fresh(
         dashboard,
         normalizer,
         cp,
+        postprocess,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -176,6 +182,8 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
+    let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -184,6 +192,7 @@ pub fn construct_engines_from_state(
         dashboard,
         normalizer,
         cp,
+        postprocess,
         profile_json: athlete_profile_json,
         athlete_id,
     })
@@ -280,14 +289,23 @@ pub fn process_manual_observation(
     sleep_hours: Option<f64>,
     rpe: Option<i32>,
 ) -> Result<String, BridgeError> {
-    // Validate the date first
-    let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+    // FL-9: validate the date AND anchor the observation timestamp to it.
+    // Manual entries are date-only, but the HMM keys its 42-day window and
+    // day-gap decode off obs.timestamp — NOT obs.date. Using Utc::now() would
+    // drop a backdated entry ("I forgot yesterday's RHR") at TODAY in the
+    // temporal sequence, corrupting the gap math (and is non-deterministic).
+    // Noon UTC keeps the entry on the intended calendar day across timezones.
+    let parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
         .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+    let timestamp = parsed
+        .and_hms_opt(12, 0, 0)
+        .expect("12:00:00 is a valid wall-clock time")
+        .and_utc();
 
     // Build the observation with manual source and minimal tier
     // (manual entry is the lowest-fidelity data source)
     let obs = UniversalObservation {
-        timestamp: chrono::Utc::now(),
+        timestamp,
         date: iso_date,
         source: "manual".to_string(),
         tier: DataTier::Minimal,
@@ -333,100 +351,92 @@ pub fn process_manual_observation(
 // ADVISOR ENGINE — workout suggestions (A/B/C options)
 // =============================================================================
 
-/// Extract the real fatigue state from ViterbiEngine::get_readiness().
-/// Returns the state string (PascalCase: "Recovered", "Productive", "Accumulated",
-/// "Overreached", "IllnessRisk") or the default "Recovered" if unavailable.
-fn extract_real_state(handle: &EnginesHandle) -> String {
-    // Try to get real state from get_readiness()
-    if let Ok(readiness_json) = handle.viterbi.get_readiness() {
-        if let Ok(readiness) = serde_json::from_str::<serde_json::Value>(&readiness_json) {
-            // State is at top level in get_readiness() response
-            if let Some(state) = readiness.get("state").and_then(|v| v.as_str()) {
-                if !state.is_empty() {
-                    return state.to_string();
-                }
-            }
-        }
-    }
-    // Safe fallback: use "Recovered" if state unavailable (e.g., no observations yet)
-    "Recovered".to_string()
-}
-
-/// Extract the real confidence from ViterbiEngine::readiness_indicator() and
-/// bucket to the string the SuggesterContext expects: <0.4 "low", <0.7 "medium", else "high".
-fn extract_real_confidence(handle: &EnginesHandle) -> String {
-    // Try to get real confidence from readiness_indicator()
-    if let Ok(indicator_json) = handle.viterbi.readiness_indicator() {
-        if let Ok(indicator) = serde_json::from_str::<serde_json::Value>(&indicator_json) {
-            if let Some(confidence) = indicator.get("confidence").and_then(|v| v.as_f64()) {
-                // Bucket to string: <0.4 "low", <0.7 "medium", else "high"
-                return if confidence < 0.4 {
-                    "low".to_string()
-                } else if confidence < 0.7 {
-                    "medium".to_string()
-                } else {
-                    "high".to_string()
-                };
-            }
-        }
-    }
-    // Safe fallback: use "medium" if confidence unavailable
-    "medium".to_string()
-}
-
-/// `AdvisorEngine::suggest_workouts(...)`. SuggesterContext is composed
-/// from (a) the engine-bound profile and (b) live readiness state.
+/// `AdvisorEngine::recommend_workout(...)` — PURE TRANSPORT (FL-1).
 ///
-/// PR-D.1: Now uses real fatigue state and confidence from the ViterbiEngine,
-/// ensuring the advisor sees the athlete's actual condition (Honesty principle:
-/// the engine decides the state; the advisor must use it).
+/// The shim forwards the engine's OWN readiness signals to the engine, which
+/// owns ALL coaching mapping (readiness band, confidence tier, periodization):
+/// `readiness_indicator()` supplies the blended score, the canonical
+/// traffic-light `level` (green/yellow/orange/red) and the posterior
+/// `confidence`; `get_readiness()` supplies the decided fatigue `state`. The
+/// shim no longer thresholds the score, buckets confidence, invents
+/// periodization, or defaults to a green-ish state on no data — a missing
+/// engine field is an error, not a fabricated value.
 ///
-/// Optional parameters allow the UI to pass user-selected mood, equipment,
-/// and terrain. When `None`, defaults to `"normal"` for mood and `null`
-/// for equipment/terrain (engine interprets as "any").
+/// `date`: a "what should I do now" recommendation legitimately needs today's
+/// date. It is taken as UTC, so there is no timezone non-determinism (the old
+/// `Local::now()` had both). Passing the user's local date down from the Dart
+/// display layer is a follow-up that requires an FRB binding regen.
 pub fn recommend_workout(
     handle: &EnginesHandle,
     mood: Option<String>,
     equipment: Option<String>,
     terrain: Option<String>,
 ) -> Result<String, BridgeError> {
+    // Engine-authored readiness blend: score + canonical level + posterior
+    // confidence, all from one call. No recomputation in the shim.
+    let indicator_str = handle
+        .viterbi
+        .readiness_indicator()
+        .map_err(BridgeError::from)?;
+    let indicator: serde_json::Value = serde_json::from_str(&indicator_str)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("readiness_indicator JSON: {e}")))?;
+    let readiness_score = indicator
+        .get("score")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| BridgeError::RoundTripFailed("readiness_indicator missing 'score'".into()))?
+        as i32;
+    let readiness_level = indicator
+        .get("level")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| BridgeError::RoundTripFailed("readiness_indicator missing 'level'".into()))?
+        .to_string();
+    let confidence = indicator
+        .get("confidence")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| {
+            BridgeError::RoundTripFailed("readiness_indicator missing 'confidence'".into())
+        })?;
+
+    // Engine-decided fatigue state.
+    let readiness_str = handle.viterbi.get_readiness().map_err(BridgeError::from)?;
+    let readiness: serde_json::Value = serde_json::from_str(&readiness_str)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("get_readiness JSON: {e}")))?;
+    let state = readiness
+        .get("state")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| BridgeError::RoundTripFailed("get_readiness missing 'state'".into()))?
+        .to_string();
+
+    // Daily availability is real athlete data carried on the bound profile;
+    // pass it through. A non-positive / absent value lets the ENGINE apply its
+    // own default — the shim no longer invents one.
     let profile: serde_json::Value = serde_json::from_str(&handle.profile_json)
         .map_err(|e| BridgeError::InputError(format!("profile re-parse: {e}")))?;
-    let readiness_str = handle.viterbi.readiness_score().map_err(BridgeError::from)?;
-    let readiness: serde_json::Value = serde_json::from_str(&readiness_str)
-        .map_err(|e| BridgeError::RoundTripFailed(format!("readiness_score JSON: {e}")))?;
-    let score = readiness.get("score").and_then(|v| v.as_i64()).unwrap_or(50) as i32;
-    let readiness_level = if score >= 75 { "high" } else if score >= 40 { "medium" } else { "low" };
-    let s = |k: &str, d: &str| profile.get(k).and_then(|v| v.as_str()).unwrap_or(d).to_string();
-    let i = |k: &str, d: i64| profile.get(k).and_then(|v| v.as_i64()).unwrap_or(d) as i32;
+    let duration_minutes = profile
+        .get("available_minutes_per_day")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as i32;
 
-    // PR-D.1: Extract real state and confidence from the engine
-    let real_state = extract_real_state(handle);
-    let real_confidence = extract_real_confidence(handle);
+    let today_iso = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
 
-    // Build equipment/terrain as JSON values: string if provided, null otherwise
-    let equipment_val = equipment
-        .map(|e| serde_json::Value::String(e))
-        .unwrap_or(serde_json::Value::Null);
-    let terrain_val = terrain
-        .map(|t| serde_json::Value::String(t))
-        .unwrap_or(serde_json::Value::Null);
-
-    let ctx = serde_json::json!({
-        "athlete_id": s("athlete_id", "smoketest-user"),
-        "date": chrono::Local::now().naive_local().date().format("%Y-%m-%d").to_string(),
-        "duration_minutes": i("available_minutes_per_day", 60),
-        "sport": s("sport", "cycling"),
-        "mood": mood.unwrap_or_else(|| "normal".to_string()),
-        "goal": s("goal_type", "general_fitness"),
-        "equipment": equipment_val, "terrain": terrain_val,
-        "readiness_level": readiness_level, "readiness_score": score,
-        "state": real_state, "confidence": real_confidence, "warm_up_period": false,
-        "level": s("level", "intermediate"), "age": i("age", 30),
-        "phase": "general_prep", "meso_day": 0, "meso_days": 21,
-        "variant_seed": 0, "session_class": "standard",
-    });
-    handle.advisor.suggest_workouts(ctx.to_string()).map_err(Into::into)
+    handle
+        .advisor
+        .recommend_workout(
+            handle.athlete_id.clone(),
+            today_iso,
+            readiness_level,
+            readiness_score,
+            state,
+            confidence,
+            duration_minutes,
+            mood,
+            equipment,
+            terrain,
+        )
+        .map_err(Into::into)
 }
 
 // =============================================================================
@@ -472,6 +482,23 @@ pub fn read_mmp_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle
         .vault
         .read_mmp_history(handle.athlete_id.clone())
+        .map_err(Into::into)
+}
+
+/// `PostProcessEngine::compute_time_in_zone(activity_json)` — per-zone dwell
+/// for one completed activity, binned through MiValta's own `zone_anchors`
+/// scale (R, Z1..Z8). `activity_json` is the producer-pipeline activity wire
+/// (`{"completed_at","power_samples":[..],"hr_samples":[..]?,"sample_rate_hz"}`).
+/// Returns `TimeInZone {anchor, seconds:[{zone,seconds}×9], total_seconds}`
+/// JSON. The engine picks the anchor from the bound profile (cycling+FTP+power
+/// → power, else HR) and errors when neither anchor is usable. Pure pass-through.
+pub fn compute_time_in_zone(
+    handle: &EnginesHandle,
+    activity_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .postprocess
+        .compute_time_in_zone(activity_json)
         .map_err(Into::into)
 }
 
@@ -954,12 +981,16 @@ mod tests {
         sleep_hours: Option<f64>,
         rpe: Option<i32>,
     ) -> Result<String, BridgeError> {
-        // Validate the date first
-        let _parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
+        // FL-9: mirror production — timestamp anchored to iso_date, not Utc::now().
+        let parsed = chrono::NaiveDate::parse_from_str(&iso_date, "%Y-%m-%d")
             .map_err(|e| BridgeError::InvalidDate(format!("{iso_date}: {e}")))?;
+        let timestamp = parsed
+            .and_hms_opt(12, 0, 0)
+            .expect("12:00:00 is a valid wall-clock time")
+            .and_utc();
 
         let obs = UniversalObservation {
-            timestamp: chrono::Utc::now(),
+            timestamp,
             date: iso_date,
             source: "manual".to_string(),
             tier: DataTier::Minimal,
@@ -1030,6 +1061,14 @@ mod tests {
             "snapshot should contain state, got: {json}");
         assert!(snapshot.get("score").is_some(),
             "snapshot should contain score, got: {json}");
+
+        // FL-9 regression: the observation must be timestamped on the SUPPLIED
+        // date (2026-06-02), not wall-clock "today". snapshot.timestamp mirrors
+        // obs.timestamp, which the HMM keys its window/gap decode off.
+        let ts = snapshot.get("timestamp").and_then(|v| v.as_str())
+            .expect("snapshot should contain timestamp");
+        assert!(ts.starts_with("2026-06-02"),
+            "manual entry must be anchored to its iso_date, got timestamp {ts}");
     }
 
     #[test]

@@ -36,6 +36,10 @@
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <!-- READ_EXERCISE: workout sessions bound the intra-workout HR window for
+         time-in-zone (HealthDataType.WORKOUT). Read-only; samples are binned
+         on-device by the engine. -->
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
 
     <!-- =======================================================================
          FOREGROUND SERVICE — HEALTH
@@ -50,9 +54,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
+    <!-- FL-17: on-device-only posture. Disable cloud/Auto Backup so the
+         SQLCipher vault (and its file-backed key) under filesDir cannot be
+         copied to Google Drive or a new device. allowBackup=false also disables
+         D2D transfer of app data; fullBackupContent guards pre-API-31 devices. -->
     <application
         android:label="MiValta"
         android:name="${applicationName}"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

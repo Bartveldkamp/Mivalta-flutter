@@ -19,9 +19,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
+import 'dart:convert';
+
 import '../canonical_seed.dart';
+import '../models/time_in_zone.dart';
 import '../rust_engine.dart';
 import '../theme/source_tier.dart';
+import '../widgets/analytics/time_in_zone_chart.dart';
 import 'readiness_screen.dart';
 
 /// One entry per LOCKED source tier. The `source` strings must match
@@ -45,6 +49,9 @@ class DebugSwatchExerciser extends StatefulWidget {
 class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
   String _status = '(tap a source button)';
   bool _busy = false;
+
+  /// Result of the most recent `computeTimeInZone` round-trip, rendered below.
+  TimeInZone? _tiz;
 
   Future<Directory> _vaultDir() async {
     final support = await getApplicationSupportDirectory();
@@ -87,6 +94,65 @@ class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Failed: ${e.runtimeType}: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Exercise the full time-in-zone vertical end-to-end on-device: build a
+  /// synthetic activity sample stream, hand it to the engine
+  /// (`computeTimeInZone`), and render the returned distribution. Real
+  /// per-activity samples aren't ingested by the app yet; this proves the
+  /// Dart → FFI → producer → MiValta-scale → chart pipeline against real
+  /// engine output (no Dart-side binning).
+  Future<void> _runTimeInZone() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _status = 'Computing time-in-zone (synthetic activity)…';
+    });
+    try {
+      final binding = await RustEngineBinding.bootstrap();
+      final tablesJson =
+          await rootBundle.loadString('assets/compiled_tables.json');
+      final dir = await _vaultDir();
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final handle = await binding.constructEngines(
+        athleteProfileJson: CanonicalSeed.vaultProfileJson(),
+        tablesJson: tablesJson,
+        vaultPath: dir.path,
+      );
+
+      // A varied 1 Hz HR stream so the HR anchor always classifies (works
+      // regardless of whether the seed profile carries an FTP): 5 min easy,
+      // 5 min endurance, 2 min threshold-ish, 1 min hard.
+      final hr = <double>[
+        ...List<double>.filled(300, 120),
+        ...List<double>.filled(300, 150),
+        ...List<double>.filled(120, 168),
+        ...List<double>.filled(60, 178),
+      ];
+      final activityJson = jsonEncode({
+        'completed_at': '${todayIsoDate()}T12:00:00Z',
+        'power_samples': <double>[],
+        'hr_samples': hr,
+        'sample_rate_hz': 1.0,
+      });
+
+      final tizJson = await binding.computeTimeInZone(
+        handle,
+        activityJson: activityJson,
+      );
+      if (!mounted) return;
+      final tiz = TimeInZone.fromJson(jsonDecode(tizJson));
+      setState(() {
+        _tiz = tiz;
+        _status = 'Engine binned ${tiz.totalSeconds.round()}s through the '
+            '${tiz.anchor} scale.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _status = 'Time-in-zone failed: ${e.runtimeType}: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -144,6 +210,16 @@ class _DebugSwatchExerciserState extends State<DebugSwatchExerciser> {
                   ),
                 ),
               ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _runTimeInZone,
+              icon: const Icon(Icons.donut_small_outlined),
+              label: const Text('Time in zone (synthetic activity)'),
+            ),
+            if (_tiz != null) ...[
+              const SizedBox(height: 16),
+              TimeInZoneChart(data: _tiz!),
+            ],
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: _busy ? null : _clearVault,
