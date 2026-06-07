@@ -207,71 +207,33 @@ class ProfileBuilder {
       weeklyHours != null &&
       trainingYears != null;
 
-  /// Build the AthleteProfile JSON for the engine.
+  /// Marshal the raw onboarding inputs into JSON for the engine.
   ///
-  /// ZERO-FABRICATION: Unknown anchors (FTP, threshold pace) are set to null,
-  /// not fabricated. The engine handles absent anchors correctly.
-  String build() {
+  /// FL-16: this is PURE TRANSPORT — it marshals the raw onboarding inputs and
+  /// computes NOTHING. Every derived/coaching field (`goal_class`, the
+  /// mesocycle, `meso_minutes`, per-sport anchor gating) is produced by the
+  /// engine's `build_onboarding_profile`, which the client calls once the FRB
+  /// runtime is up (see [RustEngineBinding.buildOnboardingProfile]). `athlete_id`
+  /// (a UUID) is an external identity, not coaching data, so it is generated here.
+  String buildInputs() {
     if (!isValid) {
       throw StateError('ProfileBuilder: required fields missing');
     }
-
-    // Generate a stable athlete_id using UUID v4
-    final athleteId = const Uuid().v4();
-
-    // Derive goal_class from goal_type (simplified mapping)
-    final goalClass = _goalClassFrom(goalType!);
-
-    // Default meso parameters (21-day mesocycle, 5 training days)
-    const mesoLength = 21;
-    final mesoTrainDays = List<int>.generate(5, (i) => i); // [0,1,2,3,4]
-    const mesoOffDays = [5, 6];
-    final mesoMinutes = (weeklyHours! * 60).round();
-
-    final profile = <String, dynamic>{
-      'athlete_id': athleteId,
+    final inputs = <String, dynamic>{
+      'athlete_id': const Uuid().v4(),
       'age': age,
       'sex': sex,
       'level': level,
-      'goal_type': goalType,
-      'goal_class': goalClass,
       'sport': sport,
+      'goal_type': goalType,
       'weekly_hours': weeklyHours,
       'training_years': trainingYears,
-      'recent_activity': 'trained', // default assumption
+      // Raw anchors — the engine gates them per sport. Unknown stays null.
       'threshold_hr': thresholdHr,
-      // Sport-specific anchors — null if unknown
-      'ftp_watts': sport == 'cycling' ? ftpWatts : null,
-      'threshold_pace_sec_km': sport == 'running' ? thresholdPaceSecKm : null,
-      'power_profile': null, // Not collected in onboarding
-      // Meso parameters
-      'meso_length': mesoLength,
-      'meso_train_days': mesoTrainDays,
-      'meso_off_days': mesoOffDays,
-      'meso_minutes': mesoMinutes,
-      'availability': <String, int>{},
+      'ftp_watts': ftpWatts,
+      'threshold_pace_sec_km': thresholdPaceSecKm,
     };
-
-    return jsonEncode(profile);
-  }
-
-  /// Map goal_type to goal_class.
-  String _goalClassFrom(String goalType) {
-    switch (goalType) {
-      case 'general_fitness':
-      case 'stay_fit':
-        return 'stay_fit';
-      case 'weight_loss':
-        return 'weight_loss';
-      case 'endurance':
-      case 'base_building':
-        return 'endurance';
-      case 'performance':
-      case 'race_preparation':
-        return 'performance';
-      default:
-        return 'endurance';
-    }
+    return jsonEncode(inputs);
   }
 }
 

@@ -132,6 +132,15 @@ Future<String> processManualObservation({
   rpe: rpe,
 );
 
+/// `gatc_ffi::build_onboarding_profile(...)` — PURE TRANSPORT (FL-16).
+///
+/// Stateless: onboarding has no engine instance yet. The client marshals the
+/// RAW onboarding inputs into `inputs_json` and the ENGINE derives everything
+/// (`goal_class`, the mesocycle + availability + `meso_minutes`, per-sport
+/// anchor gating). The client computes nothing.
+Future<String> buildOnboardingProfile({required String inputsJson}) =>
+    RustLib.instance.api.crateApiBuildOnboardingProfile(inputsJson: inputsJson);
+
 /// `AdvisorEngine::recommend_workout(...)` — PURE TRANSPORT (FL-1).
 ///
 /// The shim forwards the engine's OWN readiness signals to the engine, which

@@ -30,16 +30,35 @@ export 'src/rust/api.dart' show BridgeError, EnginesHandle;
 class RustEngineBinding {
   RustEngineBinding._();
 
+  /// FRB init is one-shot (calling `RustLib.init()` twice throws). Guard it so
+  /// any entry point (bootstrap, or the stateless onboarding builder) can ensure
+  /// the runtime is up without ordering assumptions.
+  static bool _rustInited = false;
+  static Future<void> ensureRustInit() async {
+    if (_rustInited) return;
+    if (!Platform.isAndroid) {
+      throw UnsupportedError('Mivalta-flutter spike is Android-only');
+    }
+    await RustLib.init();
+    _rustInited = true;
+  }
+
   /// Initialise the FRB runtime and return a ready-to-use binding.
   /// Day-2 review WARNING 3: gated on Platform.isAndroid — host runs
   /// throw a clear error instead of segfaulting on a missing
   /// `libmivalta_rust_bridge.so`.
   static Future<RustEngineBinding> bootstrap() async {
-    if (!Platform.isAndroid) {
-      throw UnsupportedError('Mivalta-flutter spike is Android-only');
-    }
-    await RustLib.init();
+    await ensureRustInit();
     return RustEngineBinding._();
+  }
+
+  /// FL-16: complete an onboarding profile from RAW inputs. Stateless — no
+  /// engine handle needed — so onboarding can call it before any engine exists.
+  /// The ENGINE derives goal_class, the mesocycle, meso_minutes, and per-sport
+  /// anchor gating; the client computed none of it.
+  static Future<String> buildOnboardingProfile(String inputsJson) async {
+    await ensureRustInit();
+    return rust_api.buildOnboardingProfile(inputsJson: inputsJson);
   }
 
   /// Day-2 smoke test — `gatc_ffi::hello_uniffi()`.

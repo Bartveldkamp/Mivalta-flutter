@@ -51,6 +51,9 @@ class _AppEntryPoint extends StatefulWidget {
 class _AppEntryPointState extends State<_AppEntryPoint> {
   bool _loading = true;
   String? _profileJson;
+  // FL-16: raw onboarding inputs for a fresh user; ReadinessScreen engine-
+  // completes + persists them.
+  String? _onboardingInputsJson;
 
   @override
   void initState() {
@@ -86,10 +89,11 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
     );
 
     if (result != null && mounted) {
-      // Save the profile and proceed to ReadinessScreen
-      await ProfileService.saveProfile(result.profileJson);
+      // FL-16: the onboarding result is RAW inputs, not a built profile.
+      // ReadinessScreen completes them via the engine and persists the result
+      // (the FRB runtime is up there). main.dart saves/computes nothing.
       setState(() {
-        _profileJson = result.profileJson;
+        _onboardingInputsJson = result.inputsJson;
       });
     }
   }
@@ -120,7 +124,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    if (_profileJson == null) {
+    if (_profileJson == null && _onboardingInputsJson == null) {
       // Still showing onboarding, show placeholder
       return Scaffold(
         backgroundColor: MivaltaColors.surfaceBackground,
@@ -132,7 +136,11 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    // Profile loaded — show ReadinessScreen with the profile
-    return ReadinessScreen(profileJson: _profileJson);
+    // Returning user → complete persisted profile; fresh user → raw onboarding
+    // inputs the engine completes in ReadinessScreen.
+    return ReadinessScreen(
+      profileJson: _profileJson,
+      onboardingInputsJson: _onboardingInputsJson,
+    );
   }
 }
