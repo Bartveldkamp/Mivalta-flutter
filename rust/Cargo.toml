@@ -35,10 +35,10 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "63cc273" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "04c2457" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "63cc273" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "04c2457" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
