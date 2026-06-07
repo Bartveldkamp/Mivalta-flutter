@@ -31,8 +31,9 @@ class RustEngineBinding {
   RustEngineBinding._();
 
   /// FRB init is one-shot (calling `RustLib.init()` twice throws). Guard it so
-  /// any entry point (bootstrap, or the stateless onboarding builder) can ensure
-  /// the runtime is up without ordering assumptions.
+  /// the two sequential entry points work regardless of order: main.dart's
+  /// onboarding completion (which may run before any engine is built) and
+  /// [bootstrap]. They are not concurrent, so the plain bool guard is safe here.
   static bool _rustInited = false;
   static Future<void> ensureRustInit() async {
     if (_rustInited) return;

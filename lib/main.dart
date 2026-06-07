@@ -14,6 +14,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'rust_engine.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/readiness_screen.dart';
 import 'services/profile_service.dart';
@@ -51,9 +52,6 @@ class _AppEntryPoint extends StatefulWidget {
 class _AppEntryPointState extends State<_AppEntryPoint> {
   bool _loading = true;
   String? _profileJson;
-  // FL-16: raw onboarding inputs for a fresh user; ReadinessScreen engine-
-  // completes + persists them.
-  String? _onboardingInputsJson;
 
   @override
   void initState() {
@@ -89,12 +87,27 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
     );
 
     if (result != null && mounted) {
-      // FL-16: the onboarding result is RAW inputs, not a built profile.
-      // ReadinessScreen completes them via the engine and persists the result
-      // (the FRB runtime is up there). main.dart saves/computes nothing.
-      setState(() {
-        _onboardingInputsJson = result.inputsJson;
-      });
+      // FL-16: the onboarding result is RAW inputs. The ENGINE completes them
+      // into a full profile (goal_class, mesocycle, anchors) — the client
+      // computes nothing — then we persist it and proceed. Completing + saving
+      // here (where onboarding navigation lives) keeps the two together and
+      // gives a clean retry path on failure.
+      try {
+        await RustEngineBinding.ensureRustInit();
+        final profileJson =
+            await RustEngineBinding.buildOnboardingProfile(result.inputsJson);
+        await ProfileService.saveProfile(profileJson);
+        if (mounted) setState(() => _profileJson = profileJson);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Setup could not be completed. Please try again.'),
+          ),
+        );
+        // Inputs were not persisted; re-show onboarding so the user can retry.
+        _showOnboarding();
+      }
     }
   }
 
@@ -124,7 +137,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    if (_profileJson == null && _onboardingInputsJson == null) {
+    if (_profileJson == null) {
       // Still showing onboarding, show placeholder
       return Scaffold(
         backgroundColor: MivaltaColors.surfaceBackground,
@@ -136,11 +149,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    // Returning user → complete persisted profile; fresh user → raw onboarding
-    // inputs the engine completes in ReadinessScreen.
-    return ReadinessScreen(
-      profileJson: _profileJson,
-      onboardingInputsJson: _onboardingInputsJson,
-    );
+    // Profile ready (loaded, or engine-completed from onboarding) — show home.
+    return ReadinessScreen(profileJson: _profileJson);
   }
 }

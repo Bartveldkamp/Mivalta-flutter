@@ -27,7 +27,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
-import '../services/profile_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/readiness_ring.dart';
@@ -118,18 +117,15 @@ class _HomeData {
 }
 
 class ReadinessScreen extends StatefulWidget {
-  /// PR-F: Accept profileJson from persistence (a COMPLETE AthleteProfile).
-  /// FL-16: a FRESH onboarding instead passes [onboardingInputsJson] (raw
-  /// inputs); the engine completes it here, where the FRB runtime is up.
-  const ReadinessScreen({super.key, this.profileJson, this.onboardingInputsJson});
+  /// PR-F: Accept profileJson from onboarding or persistence.
+  /// The profile is used to construct engines — no longer uses canonical_seed.
+  /// FL-16: this is always a COMPLETE AthleteProfile — a fresh onboarding is
+  /// engine-completed in main.dart before this screen is shown.
+  const ReadinessScreen({super.key, this.profileJson});
 
-  /// A complete persisted AthleteProfile JSON (returning user). If null and
-  /// [onboardingInputsJson] is also null, falls back to a minimal default.
+  /// The athlete profile JSON. If null, falls back to a minimal default
+  /// (should not happen in production — onboarding always provides a profile).
   final String? profileJson;
-
-  /// FL-16: raw onboarding inputs for a NEW user. The engine derives the full
-  /// profile (goal_class, mesocycle, anchors) and the result is persisted.
-  final String? onboardingInputsJson;
 
   @override
   State<ReadinessScreen> createState() => _ReadinessScreenState();
@@ -140,9 +136,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   _HomeData _data = _HomeData();
   bool _loading = true;
   bool _syncing = false;
-  // FL-16: the effective complete profile JSON, resolved once in _fetch
-  // (persisted, engine-completed from onboarding inputs, or fallback).
-  String? _resolvedProfileJson;
 
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
@@ -211,24 +204,10 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final vaultDir = Directory('${support.path}/mivalta-vault');
       if (!await vaultDir.exists()) await vaultDir.create(recursive: true);
 
-      // FL-16: resolve the effective COMPLETE profile (bootstrap above has the
-      // FRB runtime up).
-      //   - Returning user → the persisted complete profile.
-      //   - Fresh onboarding → the ENGINE completes the raw inputs (goal_class,
-      //     mesocycle, anchors), then we persist it. No coaching math in Dart.
-      //   - Neither → minimal fallback (should not happen in production).
-      final String profileJson;
-      if (widget.profileJson != null) {
-        profileJson = widget.profileJson!;
-      } else if (widget.onboardingInputsJson != null) {
-        profileJson = await RustEngineBinding.buildOnboardingProfile(
-          widget.onboardingInputsJson!,
-        );
-        await ProfileService.saveProfile(profileJson);
-      } else {
-        profileJson = _fallbackProfile();
-      }
-      _resolvedProfileJson = profileJson;
+      // PR-F: Use the provided profile JSON (from onboarding or persistence).
+      // FL-16: a fresh onboarding profile is engine-completed in main.dart
+      // before this screen, so `profileJson` is always a complete profile here.
+      final profileJson = widget.profileJson ?? _fallbackProfile();
 
       // Continuity: check for persisted state and restore if it exists
       final persistedState = await binding.readPersistedState(
@@ -503,8 +482,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         builder: (_) => SettingsScreen(
           binding: binding,
           handle: handle,
-          profileJson:
-              _resolvedProfileJson ?? widget.profileJson ?? _fallbackProfile(),
+          profileJson: widget.profileJson ?? _fallbackProfile(),
           onDataCleared: () {
             // After data erasure, navigate back to the app entry point
             // which will detect no profile and show onboarding.
