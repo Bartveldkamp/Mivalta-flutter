@@ -162,7 +162,10 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      // Best-effort save; fire-and-forget since the callback is synchronous.
+      // The callback is synchronous, so this is a fire-and-forget async save.
+      // `paused` is the reliable window (the app is backgrounded but alive);
+      // on `detached` the isolate may be torn down before the write completes,
+      // so that path is genuinely best-effort, not a guarantee (#52 review).
       final handle = _handle;
       final binding = _binding;
       if (handle != null && binding != null) {
@@ -264,9 +267,13 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         _healthService = healthService;
 
         final syncResult = await healthService.syncHealthData(days: 7);
-        if (kDebugMode && syncResult.observationsProcessed > 0) {
+        if (kDebugMode &&
+            (syncResult.observationsProcessed > 0 ||
+                syncResult.skippedDays > 0)) {
           // ignore: avoid_print
-          print('PR-E: Health sync processed ${syncResult.observationsProcessed} days');
+          print('PR-E: Health sync processed '
+              '${syncResult.observationsProcessed} days'
+              '${syncResult.skippedDays > 0 ? ', skipped ${syncResult.skippedDays}' : ''}');
         }
       }
 
@@ -532,9 +539,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
 
       if (mounted) {
         if (result.success && result.observationsProcessed > 0) {
+          // FL-4: surface skipped days so a partial sync is visible, not silent.
+          final skipped = result.skippedDays > 0
+              ? ' (${result.skippedDays} skipped)'
+              : '';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Synced ${result.observationsProcessed} days of health data'),
+              content: Text(
+                  'Synced ${result.observationsProcessed} days of health data$skipped'),
             ),
           );
           // Refresh display with new data
