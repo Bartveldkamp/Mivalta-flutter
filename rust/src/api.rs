@@ -86,7 +86,6 @@ pub struct EnginesHandle {
     /// Post-activity producer pipeline — drives `compute_time_in_zone`
     /// (per-zone dwell binned through MiValta's own zone_anchors scale).
     postprocess: Arc<gatc_ffi::PostProcessEngine>,
-    profile_json: String,
     athlete_id: String,
 }
 
@@ -140,7 +139,6 @@ pub fn construct_engines_fresh(
         normalizer,
         cp,
         postprocess,
-        profile_json: athlete_profile_json,
         athlete_id,
     })
 }
@@ -193,7 +191,6 @@ pub fn construct_engines_from_state(
         normalizer,
         cp,
         postprocess,
-        profile_json: athlete_profile_json,
         athlete_id,
     })
 }
@@ -421,15 +418,27 @@ pub fn recommend_workout(
         .ok_or_else(|| BridgeError::RoundTripFailed("get_readiness missing 'state'".into()))?
         .to_string();
 
-    // Daily availability is real athlete data carried on the bound profile;
-    // pass it through. A non-positive / absent value lets the ENGINE apply its
-    // own default — the shim no longer invents one.
-    let profile: serde_json::Value = serde_json::from_str(&handle.profile_json)
-        .map_err(|e| BridgeError::InputError(format!("profile re-parse: {e}")))?;
-    let duration_minutes = profile
-        .get("available_minutes_per_day")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0) as i32;
+    // Daily session length: pass 0 so the ENGINE derives it from the athlete's
+    // real availability on the bound profile (B2). The shim does not read or
+    // invent a duration — the previous `available_minutes_per_day` field does
+    // not exist on AthleteProfile, so it always read 0 anyway; now the engine
+    // honors the real `availability` map.
+    let duration_minutes: i32 = 0;
+
+    // Read-only decoupling signal (R2): forward the vault's rolling-mean aerobic
+    // decoupling (14-day window) so the engine can enforce the decoupling_policy
+    // high-intensity block. `None` when there is no reading in the window — the
+    // engine treats that as "no signal". The shim only transports the number;
+    // the engine owns the policy.
+    let recent_decoupling_pct = {
+        let dc = handle
+            .vault
+            .recent_decoupling_pct(14)
+            .map_err(BridgeError::from)?;
+        serde_json::from_str::<serde_json::Value>(&dc)
+            .ok()
+            .and_then(|v| v.get("mean_decoupling_pct").and_then(|m| m.as_f64()))
+    };
 
     let today_iso = chrono::Utc::now()
         .date_naive()
@@ -449,6 +458,7 @@ pub fn recommend_workout(
             mood,
             equipment,
             terrain,
+            recent_decoupling_pct,
         )
         .map_err(Into::into)
 }
