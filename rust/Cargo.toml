@@ -13,7 +13,10 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Git-rev pin (re-pinned to rust-engine main @ 793bb44).
+# Git-rev pin: rust-engine main @ 47af641 (2026-06-08). Carries the MONITOR/ADVISOR
+# audit fixes: restart-continuity (observations persisted), worst-state REST,
+# decoupling high-intensity block + signal wiring (recommend_workout gains
+# recent_decoupling_pct), real-availability session duration, sport-guard.
 # Bump d79fbd3 -> 793bb44 carries the BLOCKER-1 dashboard honesty fix:
 #   - fix(rust): dashboard surfaces unreadable state, never a fabricated
 #     reading (PR #205) — get_dashboard/widgets now carry
@@ -35,10 +38,10 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "84de8e7" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "47af641" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "84de8e7" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "47af641" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
