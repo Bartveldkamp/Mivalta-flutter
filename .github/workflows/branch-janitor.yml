@@ -1,0 +1,68 @@
+# Lineage: No V10 ancestor. Authored fresh on 2026-06-09.
+name: branch-janitor
+
+# Deletes branches whose pull request is MERGED — authoritative and safe:
+# a branch is only removed once its work is provably in the base branch.
+# Branches with an OPEN pr, a CLOSED-unmerged pr, or NO pr are KEPT (left for
+# human review) — the janitor never deletes potentially-unmerged work.
+# Complements the repo setting "Automatically delete head branches" (real-time);
+# this sweeps the backlog + anything the setting missed.
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'      # Mondays 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview only — list what would be deleted, delete nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-janitor
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // workflow_dispatch inputs arrive on context.payload.inputs (strings);
+            // scheduled runs have no inputs and always execute for real.
+            const DRY = context.eventName === 'workflow_dispatch'
+              ? ((context.payload.inputs && context.payload.inputs.dry_run) ?? 'true') === 'true'
+              : false;
+            const { owner, repo } = context.repo;
+            const PROTECT = new Set(['main', 'master', 'develop', 'release']);
+            const branches = await github.paginate(github.rest.repos.listBranches, {
+              owner, repo, per_page: 100,
+            });
+            const deleted = [], kept = [];
+            for (const b of branches) {
+              const name = b.name;
+              if (PROTECT.has(name) || b.protected) { kept.push(`${name} (protected)`); continue; }
+              const prs = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'all', head: `${owner}:${name}`, per_page: 100,
+              });
+              if (prs.length === 0) { kept.push(`${name} (no PR — review manually)`); continue; }
+              if (prs.some(p => p.state === 'open')) { kept.push(`${name} (open PR)`); continue; }
+              if (!prs.some(p => p.merged_at)) { kept.push(`${name} (PR closed unmerged — review)`); continue; }
+              if (DRY) { deleted.push(`${name} (would delete)`); continue; }
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${name}` });
+                deleted.push(name);
+              } catch (e) { kept.push(`${name} (delete failed: ${e.message})`); }
+            }
+            core.summary
+              .addHeading(DRY ? 'Branch janitor — DRY RUN' : 'Branch janitor')
+              .addRaw(`\n**Deleted (${deleted.length}):**\n` + (deleted.map(x => `- ${x}`).join('\n') || '_none_'))
+              .addRaw(`\n\n**Kept (${kept.length}):**\n` + (kept.map(x => `- ${x}`).join('\n') || '_none_'))
+              .write();
+            console.log(`Deleted ${deleted.length}:`, deleted);
+            console.log(`Kept ${kept.length}:`, kept);
