@@ -13,10 +13,18 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Git-rev pin: rust-engine main @ 47af641 (2026-06-08). Carries the MONITOR/ADVISOR
-# audit fixes: restart-continuity (observations persisted), worst-state REST,
-# decoupling high-intensity block + signal wiring (recommend_workout gains
-# recent_decoupling_pct), real-availability session duration, sport-guard.
+# Git-rev pin: rust-engine main @ 81bddd6 (2026-06-09, registry v2.23). Re-pinned
+# from 47af641 (v2.20). The 47af641..81bddd6 delta is ADDITIVE on the FFI surface
+# (registry diff = +set_rpe_hr_drift_emission, +get_rpe_hr_drift_emission only;
+# every method the shim already calls is unchanged), plus internal engine
+# improvements: M2 mental_state wired into the readiness_indicator psychological
+# axis, the RPE↔HR drift 10th emission, and gatc-josi {state}/{session} string
+# slots. No bound-FFI signature changed → the shim in src/api.rs and the FRB
+# bindings in lib/src/rust/ need NO regen; this is a pure rev-SHA + Cargo.lock
+# update (regenerate the lock on the build executor where ssh resolves).
+#
+# Earlier (47af641) carried: restart-continuity, worst-state REST, decoupling
+# high-intensity block + signal wiring, real-availability duration, sport-guard.
 # Bump d79fbd3 -> 793bb44 carries the BLOCKER-1 dashboard honesty fix:
 #   - fix(rust): dashboard surfaces unreadable state, never a fabricated
 #     reading (PR #205) — get_dashboard/widgets now carry
@@ -38,10 +46,10 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "47af641" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "81bddd6" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "47af641" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "81bddd6" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

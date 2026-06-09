@@ -41,7 +41,7 @@ The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi ph
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` to revision `47af641` (engine_registry v2.20) — carries the MONITOR/ADVISOR audit fixes (restart-continuity, worst-state REST, decoupling block + signal, real-availability duration, sport-guard).
+`rust/Cargo.toml` pins `gatc-ffi` to revision `81bddd6` (rust-engine `main`, engine_registry **v2.23**) — adds, over v2.20: M2 mental→readiness psychological axis, the RPE↔HR drift 10th HMM emission, and gatc-josi `{state}`/`{session}` string slots. The 47af641→81bddd6 FFI delta is **additive** (registry +`set_/get_rpe_hr_drift_emission`; no bound signature changed), so the shim + FRB bindings need no regen — but `UniversalObservation` gained three `#[serde(default)]` fields, so the shim's manual-entry literal now uses `..Default::default()` (compile-verified against v2.23). Regenerate `Cargo.lock` on the build executor (where `ssh` resolves) + rebuild the `.so`/APK.
 
 ## Repository Structure
 

@@ -333,6 +333,12 @@ pub fn process_manual_observation(
         user_note: None,
         altitude_m: None,
         utc_offset_minutes: None,
+        // v2.23 additive observation fields (M2 mental_state, M1
+        // chronotropic_suppression_pct, RPE↔HR drift rpe_hr_drift_pct) are not
+        // captured by basic manual entry yet → default to None. `..Default` also
+        // future-proofs the shim against further additive UniversalObservation
+        // fields so an engine re-pin can't break the bridge at compile time again.
+        ..Default::default()
     };
 
     // Serialize to JSON and process
@@ -1045,6 +1051,8 @@ mod tests {
             user_note: None,
             altitude_m: None,
             utc_offset_minutes: None,
+            // v2.23 additive fields default to None (see production literal above).
+            ..Default::default()
         };
 
         let obs_json = serde_json::to_string(&obs)
