@@ -33,8 +33,10 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
+            // workflow_dispatch inputs arrive on context.payload.inputs (strings);
+            // scheduled runs have no inputs and always execute for real.
             const DRY = context.eventName === 'workflow_dispatch'
-              ? (core.getInput('dry_run') || 'true') === 'true'
+              ? ((context.payload.inputs && context.payload.inputs.dry_run) ?? 'true') === 'true'
               : false;
             const { owner, repo } = context.repo;
             const PROTECT = new Set(['main', 'master', 'develop', 'release']);
