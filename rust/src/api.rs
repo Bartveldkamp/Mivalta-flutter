@@ -40,7 +40,9 @@ impl std::fmt::Display for BridgeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BridgeError::LibraryNotLoaded => write!(f, "library not loaded"),
-            BridgeError::EngineConstructionFailed(m) => write!(f, "engine construction failed: {m}"),
+            BridgeError::EngineConstructionFailed(m) => {
+                write!(f, "engine construction failed: {m}")
+            }
             BridgeError::VaultError(m) => write!(f, "vault error: {m}"),
             BridgeError::InputError(m) => write!(f, "input error: {m}"),
             BridgeError::StateError(m) => write!(f, "state error: {m}"),
@@ -58,7 +60,9 @@ impl From<gatc_ffi::BridgeError> for BridgeError {
             gatc_ffi::BridgeError::Input(m) => BridgeError::InputError(m),
             gatc_ffi::BridgeError::State(m) => BridgeError::StateError(m),
             gatc_ffi::BridgeError::Policy(m) => BridgeError::StateError(format!("policy: {m}")),
-            gatc_ffi::BridgeError::Consistency(m) => BridgeError::StateError(format!("consistency: {m}")),
+            gatc_ffi::BridgeError::Consistency(m) => {
+                BridgeError::StateError(format!("consistency: {m}"))
+            }
             gatc_ffi::BridgeError::General(m) => BridgeError::RoundTripFailed(m),
         }
     }
@@ -242,7 +246,10 @@ pub fn viterbi_fatigue_state(handle: &EnginesHandle) -> Result<String, BridgeErr
 
 /// `ViterbiEngine::zone_cap_with_advisories()`.
 pub fn zone_cap_with_advisories(handle: &EnginesHandle) -> Result<String, BridgeError> {
-    handle.viterbi.zone_cap_with_advisories().map_err(Into::into)
+    handle
+        .viterbi
+        .zone_cap_with_advisories()
+        .map_err(Into::into)
 }
 
 /// `ViterbiEngine::save_state()` — serialize the current HMM state to JSON.
@@ -307,9 +314,9 @@ pub fn process_manual_observation(
         source: "manual".to_string(),
         tier: DataTier::Minimal,
         load_method: LoadMethod::SessionRpe, // Manual entry uses session RPE
-        load_score: 0.0,      // Not calculated from manual entry
-        recovery_score: 0.0,  // Will be computed by HMM
-        readiness_score: 0.0, // Will be computed by HMM
+        load_score: 0.0,                     // Not calculated from manual entry
+        recovery_score: 0.0,                 // Will be computed by HMM
+        readiness_score: 0.0,                // Will be computed by HMM
         hrv: None,
         hrv_rmssd,
         resting_hr,
@@ -469,6 +476,111 @@ pub fn recommend_workout(
         .map_err(Into::into)
 }
 
+/// `AdvisorEngine::recommend_workout_with_history(...)` — PURE TRANSPORT.
+///
+/// The Phase-2 tail (GATC roadmap): identical to [`recommend_workout`] plus the
+/// recent completed-activity window, so the engine can rotate the PRIMARY option
+/// toward the athlete's most-needed energy system (`TrainingState`, 6-system
+/// model). The shim reads `VaultEngine::read_recent_activities` and forwards the
+/// raw JSON untouched — the engine parses it, classifies each session by
+/// (zone, duration), diffs against the card-driven phase target, and applies the
+/// card-driven rotation gate. Zero coaching logic here.
+///
+/// The 14-row window mirrors the existing shim precedent
+/// (`recent_decoupling_pct(14)`): it transports a documented window size, not a
+/// policy — the actionability gate (min sessions / min deficit) lives in the
+/// engine's `phase_energy_system_signatures:rotation_gate` card.
+// Planned wiring: goes live when flutter_rust_bridge_codegen regenerates
+// lib/src/rust/ on the build executor — the generated frb code is this fn's
+// caller, exactly as for every other shim fn. Until that regen the crate-local
+// lint cannot see the caller.
+#[allow(dead_code)]
+pub fn recommend_workout_with_history(
+    handle: &EnginesHandle,
+    mood: Option<String>,
+    equipment: Option<String>,
+    terrain: Option<String>,
+) -> Result<String, BridgeError> {
+    // Engine-authored readiness blend: score + canonical level + posterior
+    // confidence, all from one call. No recomputation in the shim.
+    let indicator_str = handle
+        .viterbi
+        .readiness_indicator()
+        .map_err(BridgeError::from)?;
+    let indicator: serde_json::Value = serde_json::from_str(&indicator_str)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("readiness_indicator JSON: {e}")))?;
+    let readiness_score = indicator
+        .get("score")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| BridgeError::RoundTripFailed("readiness_indicator missing 'score'".into()))?
+        as i32;
+    let readiness_level = indicator
+        .get("level")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| BridgeError::RoundTripFailed("readiness_indicator missing 'level'".into()))?
+        .to_string();
+    let confidence = indicator
+        .get("confidence")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| {
+            BridgeError::RoundTripFailed("readiness_indicator missing 'confidence'".into())
+        })?;
+
+    // Engine-decided fatigue state.
+    let readiness_str = handle.viterbi.get_readiness().map_err(BridgeError::from)?;
+    let readiness: serde_json::Value = serde_json::from_str(&readiness_str)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("get_readiness JSON: {e}")))?;
+    let state = readiness
+        .get("state")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| BridgeError::RoundTripFailed("get_readiness missing 'state'".into()))?
+        .to_string();
+
+    // Engine derives session length from the athlete's real availability (B2).
+    let duration_minutes: i32 = 0;
+
+    // Read-only decoupling signal (R2), same as recommend_workout.
+    let recent_decoupling_pct = {
+        let dc = handle
+            .vault
+            .recent_decoupling_pct(14)
+            .map_err(BridgeError::from)?;
+        serde_json::from_str::<serde_json::Value>(&dc)
+            .ok()
+            .and_then(|v| v.get("mean_decoupling_pct").and_then(|m| m.as_f64()))
+    };
+
+    // The recent completed-activity window, transported as raw JSON. The engine
+    // extracts (planned_zone, planned_ntiz, load_uls) per activity itself.
+    let recent_activities_json = handle
+        .vault
+        .read_recent_activities(14)
+        .map_err(BridgeError::from)?;
+
+    let today_iso = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
+
+    handle
+        .advisor
+        .recommend_workout_with_history(
+            handle.athlete_id.clone(),
+            today_iso,
+            readiness_level,
+            readiness_score,
+            state,
+            confidence,
+            duration_minutes,
+            mood,
+            equipment,
+            terrain,
+            recent_decoupling_pct,
+            recent_activities_json,
+        )
+        .map_err(Into::into)
+}
+
 // =============================================================================
 // VAULT ENGINE — on-device encrypted storage
 // =============================================================================
@@ -495,7 +607,10 @@ pub fn last_observation_source_tier(handle: &EnginesHandle) -> Result<String, Br
 /// `VaultEngine::read_readiness_history(days)` — series of readiness
 /// snapshots for the past N days, driving the home/detail trend chart.
 pub fn read_readiness_history(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
-    handle.vault.read_readiness_history(days).map_err(Into::into)
+    handle
+        .vault
+        .read_readiness_history(days)
+        .map_err(Into::into)
 }
 
 /// `VaultEngine::read_daily_loads(days)` — daily training load (`load_uls`
@@ -701,12 +816,27 @@ pub fn write_minimal_biometric(
 /// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,
 /// and DashboardEngine. The Vault profile is updated via `write_profile`.
 /// Call this when the user edits their profile in Settings.
-pub fn update_profile(handle: &EnginesHandle, athlete_profile_json: String) -> Result<(), BridgeError> {
+pub fn update_profile(
+    handle: &EnginesHandle,
+    athlete_profile_json: String,
+) -> Result<(), BridgeError> {
     // Update all engines that support profile rebinding
-    handle.viterbi.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
-    handle.advisor.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
-    handle.normalizer.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
-    handle.dashboard.update_profile(athlete_profile_json.clone()).map_err(BridgeError::from)?;
+    handle
+        .viterbi
+        .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
+    handle
+        .advisor
+        .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
+    handle
+        .normalizer
+        .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
+    handle
+        .dashboard
+        .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
     Ok(())
 }
 
@@ -761,11 +891,20 @@ pub fn export_biometrics_csv(handle: &EnginesHandle, days: i32) -> Result<String
 /// (row counts, bundle counts, etc.) for the confirmation receipt.
 ///
 /// **IRREVERSIBLE.** Dart must show a confirm dialog before calling.
-pub fn clear_all_user_data(handle: &EnginesHandle, athlete_id: String) -> Result<String, BridgeError> {
+pub fn clear_all_user_data(
+    handle: &EnginesHandle,
+    athlete_id: String,
+) -> Result<String, BridgeError> {
     // First erase the cache layer
-    handle.vault.crypto_erase_cache().map_err(BridgeError::from)?;
+    handle
+        .vault
+        .crypto_erase_cache()
+        .map_err(BridgeError::from)?;
     // Then clear the vault (which also destroys the vault key)
-    handle.vault.clear_all_user_data(athlete_id).map_err(Into::into)
+    handle
+        .vault
+        .clear_all_user_data(athlete_id)
+        .map_err(Into::into)
 }
 
 /// Cryptographically erase only the sealed cache key.
@@ -827,7 +966,10 @@ pub fn normalize_observation(
 /// into a quality tier. Returns JSON with tier, tier_code, and
 /// confidence_acceleration.
 pub fn classify_source(handle: &EnginesHandle, source: String) -> Result<String, BridgeError> {
-    handle.normalizer.classify_source(source).map_err(Into::into)
+    handle
+        .normalizer
+        .classify_source(source)
+        .map_err(Into::into)
 }
 
 /// `NormalizerEngine::build_source_overview(sources_json)` — build a
@@ -860,7 +1002,9 @@ pub fn has_persisted_state(
     let athlete_id = extract_athlete_id(&athlete_profile_json)?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json, vault_path)
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
-    let state_json = vault.read_viterbi_state(athlete_id).map_err(BridgeError::from)?;
+    let state_json = vault
+        .read_viterbi_state(athlete_id)
+        .map_err(BridgeError::from)?;
     // Engine returns JSON "null" if no state exists
     Ok(state_json != "null" && !state_json.is_empty())
 }
@@ -875,7 +1019,9 @@ pub fn read_persisted_state(
     let athlete_id = extract_athlete_id(&athlete_profile_json)?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json, vault_path)
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
-    let state_json = vault.read_viterbi_state(athlete_id).map_err(BridgeError::from)?;
+    let state_json = vault
+        .read_viterbi_state(athlete_id)
+        .map_err(BridgeError::from)?;
     if state_json == "null" || state_json.is_empty() {
         Ok(None)
     } else {
@@ -958,7 +1104,9 @@ pub fn write_profile_to_vault(
 ) -> Result<(), BridgeError> {
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path)
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
-    vault.write_profile(athlete_profile_json).map_err(Into::into)
+    vault
+        .write_profile(athlete_profile_json)
+        .map_err(Into::into)
 }
 
 #[cfg(test)]
@@ -987,7 +1135,8 @@ mod tests {
             "meso_off_days": [5, 6],
             "meso_minutes": 360,
             "availability": {}
-        }).to_string()
+        })
+        .to_string()
     }
 
     /// Construct a minimal test handle with just ViterbiEngine (no AdvisorEngine)
@@ -1065,10 +1214,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _athlete_id) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _athlete_id) = construct_viterbi_only_handle(test_profile(), vault_path)
+            .expect("viterbi should construct");
 
         // Act: process a manual observation
         let result = process_manual_with_viterbi(
@@ -1081,26 +1228,38 @@ mod tests {
         );
 
         // Assert: observation processed without error
-        assert!(result.is_ok(), "process_manual_observation failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "process_manual_observation failed: {:?}",
+            result.err()
+        );
 
         // Assert: result contains expected fields
-        let json: serde_json::Value = serde_json::from_str(&result.unwrap())
-            .expect("result should be valid JSON");
+        let json: serde_json::Value =
+            serde_json::from_str(&result.unwrap()).expect("result should be valid JSON");
 
         // The HMM returns state in snapshot.state
         let snapshot = json.get("snapshot").expect("result should have snapshot");
-        assert!(snapshot.get("state").is_some(),
-            "snapshot should contain state, got: {json}");
-        assert!(snapshot.get("score").is_some(),
-            "snapshot should contain score, got: {json}");
+        assert!(
+            snapshot.get("state").is_some(),
+            "snapshot should contain state, got: {json}"
+        );
+        assert!(
+            snapshot.get("score").is_some(),
+            "snapshot should contain score, got: {json}"
+        );
 
         // FL-9 regression: the observation must be timestamped on the SUPPLIED
         // date (2026-06-02), not wall-clock "today". snapshot.timestamp mirrors
         // obs.timestamp, which the HMM keys its window/gap decode off.
-        let ts = snapshot.get("timestamp").and_then(|v| v.as_str())
+        let ts = snapshot
+            .get("timestamp")
+            .and_then(|v| v.as_str())
             .expect("snapshot should contain timestamp");
-        assert!(ts.starts_with("2026-06-02"),
-            "manual entry must be anchored to its iso_date, got timestamp {ts}");
+        assert!(
+            ts.starts_with("2026-06-02"),
+            "manual entry must be anchored to its iso_date, got timestamp {ts}"
+        );
     }
 
     #[test]
@@ -1108,21 +1267,24 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _) = construct_viterbi_only_handle(test_profile(), vault_path)
+            .expect("viterbi should construct");
 
         // Bad date format
         let result = process_manual_with_viterbi(
             &viterbi,
             "not-a-date".to_string(),
             Some(55.0),
-            None, None, None,
+            None,
+            None,
+            None,
         );
 
-        assert!(matches!(result, Err(BridgeError::InvalidDate(_))),
-            "expected InvalidDate error, got: {:?}", result);
+        assert!(
+            matches!(result, Err(BridgeError::InvalidDate(_))),
+            "expected InvalidDate error, got: {:?}",
+            result
+        );
     }
 
     #[test]
@@ -1130,17 +1292,19 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _) = construct_viterbi_only_handle(test_profile(), vault_path)
+            .expect("viterbi should construct");
 
         // Feed a manual observation
         let result = process_manual_with_viterbi(
             &viterbi,
             "2026-06-02".to_string(),
-            Some(52.0), Some(45.0), Some(8.0), None,
-        ).expect("process_manual_observation");
+            Some(52.0),
+            Some(45.0),
+            Some(8.0),
+            None,
+        )
+        .expect("process_manual_observation");
 
         // Parse the result
         let result_json: serde_json::Value = serde_json::from_str(&result).unwrap();
@@ -1148,12 +1312,17 @@ mod tests {
         let score = snapshot.get("score").and_then(|v| v.as_i64());
 
         // The engine should have processed the observation and produced a score
-        assert!(score.is_some(), "after feeding observation, snapshot should have a score");
+        assert!(
+            score.is_some(),
+            "after feeding observation, snapshot should have a score"
+        );
 
         // Score should be reasonable (0-100 range)
         let score_val = score.unwrap();
-        assert!(score_val >= 0 && score_val <= 100,
-            "score should be in 0-100 range, got: {score_val}");
+        assert!(
+            score_val >= 0 && score_val <= 100,
+            "score should be in 0-100 range, got: {score_val}"
+        );
 
         // Check state is set
         let state = snapshot.get("state").and_then(|v| v.as_str());
@@ -1170,31 +1339,44 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _athlete_id) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path.clone(),
-        ).expect("viterbi should construct");
+        let (viterbi, _athlete_id) =
+            construct_viterbi_only_handle(test_profile(), vault_path.clone())
+                .expect("viterbi should construct");
 
         // Feed an observation to move the HMM off its initial state
         let _ = process_manual_with_viterbi(
             &viterbi,
             "2026-06-02".to_string(),
-            Some(55.0), Some(42.0), Some(7.5), Some(5),
-        ).expect("observation should process");
+            Some(55.0),
+            Some(42.0),
+            Some(7.5),
+            Some(5),
+        )
+        .expect("observation should process");
 
         // Get the state directly from get_readiness()
         let readiness_json = viterbi.get_readiness().expect("get_readiness should work");
         let readiness: serde_json::Value = serde_json::from_str(&readiness_json).unwrap();
-        let engine_state = readiness.get("state").and_then(|v| v.as_str())
+        let engine_state = readiness
+            .get("state")
+            .and_then(|v| v.as_str())
             .expect("get_readiness should have state");
 
         // Now verify extract_real_state would return the same state
         // We can't call it directly (private), but we can verify the engine returns a valid state
         assert!(!engine_state.is_empty(), "engine state should not be empty");
         // Valid states per CLAUDE.md: Recovered, Productive, Accumulated, Overreached, IllnessRisk
-        let valid_states = ["Recovered", "Productive", "Accumulated", "Overreached", "IllnessRisk"];
-        assert!(valid_states.contains(&engine_state),
-            "engine state should be a valid fatigue state, got: {engine_state}");
+        let valid_states = [
+            "Recovered",
+            "Productive",
+            "Accumulated",
+            "Overreached",
+            "IllnessRisk",
+        ];
+        assert!(
+            valid_states.contains(&engine_state),
+            "engine state should be a valid fatigue state, got: {engine_state}"
+        );
     }
 
     #[test]
@@ -1202,26 +1384,39 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _) = construct_viterbi_only_handle(test_profile(), vault_path)
+            .expect("viterbi should construct");
 
         // Get confidence from readiness_indicator()
-        let indicator_json = viterbi.readiness_indicator().expect("readiness_indicator should work");
+        let indicator_json = viterbi
+            .readiness_indicator()
+            .expect("readiness_indicator should work");
         let indicator: serde_json::Value = serde_json::from_str(&indicator_json).unwrap();
         let confidence = indicator.get("confidence").and_then(|v| v.as_f64());
 
         // Confidence should be present and in valid range
-        assert!(confidence.is_some(), "readiness_indicator should have confidence");
+        assert!(
+            confidence.is_some(),
+            "readiness_indicator should have confidence"
+        );
         let conf_val = confidence.unwrap();
-        assert!(conf_val >= 0.0 && conf_val <= 1.0,
-            "confidence should be in 0..1 range, got: {conf_val}");
+        assert!(
+            conf_val >= 0.0 && conf_val <= 1.0,
+            "confidence should be in 0..1 range, got: {conf_val}"
+        );
 
         // Verify the bucketing logic: <0.4 "low", <0.7 "medium", else "high"
-        let bucket = if conf_val < 0.4 { "low" } else if conf_val < 0.7 { "medium" } else { "high" };
-        assert!(["low", "medium", "high"].contains(&bucket),
-            "bucket should be valid, got: {bucket}");
+        let bucket = if conf_val < 0.4 {
+            "low"
+        } else if conf_val < 0.7 {
+            "medium"
+        } else {
+            "high"
+        };
+        assert!(
+            ["low", "medium", "high"].contains(&bucket),
+            "bucket should be valid, got: {bucket}"
+        );
     }
 
     #[test]
@@ -1238,41 +1433,61 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let vault_path = dir.path().to_str().unwrap().to_string();
 
-        let (viterbi, _) = construct_viterbi_only_handle(
-            test_profile(),
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _) = construct_viterbi_only_handle(test_profile(), vault_path)
+            .expect("viterbi should construct");
 
         // Feed an observation to move the HMM state
         let _ = process_manual_with_viterbi(
             &viterbi,
             "2026-06-02".to_string(),
-            Some(55.0), Some(42.0), Some(7.5), Some(5),
-        ).expect("observation should process");
+            Some(55.0),
+            Some(42.0),
+            Some(7.5),
+            Some(5),
+        )
+        .expect("observation should process");
 
         // Verify get_readiness() returns the state that extract_real_state would use
         let readiness_json = viterbi.get_readiness().expect("get_readiness");
         let readiness: serde_json::Value = serde_json::from_str(&readiness_json).unwrap();
-        let engine_state = readiness.get("state").and_then(|v| v.as_str())
+        let engine_state = readiness
+            .get("state")
+            .and_then(|v| v.as_str())
             .expect("should have state");
 
         // Verify readiness_indicator() returns the confidence that extract_real_confidence would use
         let indicator_json = viterbi.readiness_indicator().expect("readiness_indicator");
         let indicator: serde_json::Value = serde_json::from_str(&indicator_json).unwrap();
-        let engine_confidence = indicator.get("confidence").and_then(|v| v.as_f64())
+        let engine_confidence = indicator
+            .get("confidence")
+            .and_then(|v| v.as_f64())
             .expect("should have confidence");
 
         // The state should be valid
-        let valid_states = ["Recovered", "Productive", "Accumulated", "Overreached", "IllnessRisk"];
-        assert!(valid_states.contains(&engine_state),
-            "state should be valid, got: {engine_state}");
+        let valid_states = [
+            "Recovered",
+            "Productive",
+            "Accumulated",
+            "Overreached",
+            "IllnessRisk",
+        ];
+        assert!(
+            valid_states.contains(&engine_state),
+            "state should be valid, got: {engine_state}"
+        );
 
         // The confidence should bucket correctly
-        let bucket = if engine_confidence < 0.4 { "low" }
-                     else if engine_confidence < 0.7 { "medium" }
-                     else { "high" };
-        assert!(["low", "medium", "high"].contains(&bucket),
-            "confidence bucket should be valid");
+        let bucket = if engine_confidence < 0.4 {
+            "low"
+        } else if engine_confidence < 0.7 {
+            "medium"
+        } else {
+            "high"
+        };
+        assert!(
+            ["low", "medium", "high"].contains(&bucket),
+            "confidence bucket should be valid"
+        );
 
         // Log for debugging
         eprintln!("PR-D.1 test: state={engine_state}, confidence={engine_confidence:.2} -> bucket={bucket}");
@@ -1286,7 +1501,13 @@ mod tests {
     /// Construct NormalizerEngine + ViterbiEngine for testing Health Connect flow.
     fn construct_normalizer_viterbi_handles(
         profile_json: String,
-    ) -> Result<(Arc<gatc_ffi::NormalizerEngine>, Arc<gatc_ffi::ViterbiEngine>), BridgeError> {
+    ) -> Result<
+        (
+            Arc<gatc_ffi::NormalizerEngine>,
+            Arc<gatc_ffi::ViterbiEngine>,
+        ),
+        BridgeError,
+    > {
         let normalizer = gatc_ffi::NormalizerEngine::new(profile_json.clone())
             .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
         let viterbi = gatc_ffi::ViterbiEngine::new(profile_json)
@@ -1300,8 +1521,8 @@ mod tests {
         // This is the test that must pass after fixing the payload schema.
 
         let profile = test_profile();
-        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, viterbi) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // Build a representative Health Connect payload matching the schema
         // from gatc-normalizer/src/health_connect.rs
@@ -1320,45 +1541,69 @@ mod tests {
         });
 
         // Act: Normalize through the Health Connect normalizer
-        let normalized_result = normalizer.normalize_observation(
-            "health_connect".to_string(),
-            hc_payload.to_string(),
+        let normalized_result =
+            normalizer.normalize_observation("health_connect".to_string(), hc_payload.to_string());
+        assert!(
+            normalized_result.is_ok(),
+            "normalize_observation should succeed, got: {:?}",
+            normalized_result.err()
         );
-        assert!(normalized_result.is_ok(),
-            "normalize_observation should succeed, got: {:?}", normalized_result.err());
 
         let normalized_json = normalized_result.unwrap();
 
         // Assert: Parse the normalized observation and verify expected fields
-        let normalized: serde_json::Value = serde_json::from_str(&normalized_json)
-            .expect("normalized output should be valid JSON");
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalized_json).expect("normalized output should be valid JSON");
 
         // The normalized observation must have these fields (drives readiness)
-        assert!(normalized.get("hrv_rmssd").and_then(|v| v.as_f64()).is_some(),
-            "normalized observation should have hrv_rmssd, got: {normalized}");
-        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
-            "normalized observation should have resting_hr, got: {normalized}");
+        assert!(
+            normalized
+                .get("hrv_rmssd")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "normalized observation should have hrv_rmssd, got: {normalized}"
+        );
+        assert!(
+            normalized
+                .get("resting_hr")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "normalized observation should have resting_hr, got: {normalized}"
+        );
         assert!(normalized.get("sleep_hours").and_then(|v| v.as_f64()).is_some(),
             "normalized observation should have sleep_hours (aggregated from stages), got: {normalized}");
 
         // Verify source is correct
         let source = normalized.get("source").and_then(|v| v.as_str());
-        assert_eq!(source, Some("health_connect"),
-            "source should be 'health_connect', got: {:?}", source);
+        assert_eq!(
+            source,
+            Some("health_connect"),
+            "source should be 'health_connect', got: {:?}",
+            source
+        );
 
         // Act: Process the normalized observation through ViterbiEngine
         let process_result = viterbi.process_observation(normalized_json);
-        assert!(process_result.is_ok(),
-            "process_observation should succeed, got: {:?}", process_result.err());
+        assert!(
+            process_result.is_ok(),
+            "process_observation should succeed, got: {:?}",
+            process_result.err()
+        );
 
         // Assert: The HMM processed the observation and returned a valid snapshot
         let result_json: serde_json::Value = serde_json::from_str(&process_result.unwrap())
             .expect("process result should be valid JSON");
-        let snapshot = result_json.get("snapshot").expect("result should have snapshot");
-        assert!(snapshot.get("state").and_then(|v| v.as_str()).is_some(),
-            "snapshot should have state");
-        assert!(snapshot.get("score").is_some(),
-            "snapshot should have score");
+        let snapshot = result_json
+            .get("snapshot")
+            .expect("result should have snapshot");
+        assert!(
+            snapshot.get("state").and_then(|v| v.as_str()).is_some(),
+            "snapshot should have state"
+        );
+        assert!(
+            snapshot.get("score").is_some(),
+            "snapshot should have score"
+        );
 
         eprintln!("PR-E: Health Connect round-trip passed. Normalized hrv_rmssd, resting_hr, sleep_hours present.");
     }
@@ -1369,8 +1614,8 @@ mod tests {
         // This matches the honest sync result: only count observations with real biometric content.
 
         let profile = test_profile();
-        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, viterbi) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // Payload with only resting heart rate (no HRV, no sleep)
         let hc_payload = serde_json::json!({
@@ -1379,31 +1624,41 @@ mod tests {
             "steps": 5000
         });
 
-        let normalized_result = normalizer.normalize_observation(
-            "health_connect".to_string(),
-            hc_payload.to_string(),
+        let normalized_result =
+            normalizer.normalize_observation("health_connect".to_string(), hc_payload.to_string());
+        assert!(
+            normalized_result.is_ok(),
+            "normalize should succeed with partial biometrics"
         );
-        assert!(normalized_result.is_ok(),
-            "normalize should succeed with partial biometrics");
 
         let normalized_json = normalized_result.unwrap();
         let normalized: serde_json::Value = serde_json::from_str(&normalized_json).unwrap();
 
         // resting_hr should be present
-        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
-            "resting_hr should be present");
+        assert!(
+            normalized
+                .get("resting_hr")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "resting_hr should be present"
+        );
 
         // hrv_rmssd and sleep_hours should be None/null (not fabricated)
         // The normalizer sets them to null if not provided — zero fabrication
         let hrv = normalized.get("hrv_rmssd").and_then(|v| v.as_f64());
         let sleep = normalized.get("sleep_hours").and_then(|v| v.as_f64());
         // These may be null or absent — that's correct (zero fabrication)
-        eprintln!("Partial biometrics: hrv_rmssd={:?}, sleep_hours={:?}", hrv, sleep);
+        eprintln!(
+            "Partial biometrics: hrv_rmssd={:?}, sleep_hours={:?}",
+            hrv, sleep
+        );
 
         // Should still process through Viterbi
         let process_result = viterbi.process_observation(normalized_json);
-        assert!(process_result.is_ok(),
-            "process_observation should succeed with partial biometrics");
+        assert!(
+            process_result.is_ok(),
+            "process_observation should succeed with partial biometrics"
+        );
     }
 
     #[test]
@@ -1411,8 +1666,8 @@ mod tests {
         // Test that sleep_stages are aggregated to sleep_hours by the normalizer.
 
         let profile = test_profile();
-        let (normalizer, _) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, _) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // 4 sleep stage records totaling 6.75 hours:
         //   00:15-02:30 = 2.25h (Light)
@@ -1429,20 +1684,24 @@ mod tests {
             ]
         });
 
-        let normalized_result = normalizer.normalize_observation(
-            "health_connect".to_string(),
-            hc_payload.to_string(),
-        );
+        let normalized_result =
+            normalizer.normalize_observation("health_connect".to_string(), hc_payload.to_string());
         assert!(normalized_result.is_ok());
 
-        let normalized: serde_json::Value = serde_json::from_str(&normalized_result.unwrap()).unwrap();
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalized_result.unwrap()).unwrap();
         let sleep_hours = normalized.get("sleep_hours").and_then(|v| v.as_f64());
 
-        assert!(sleep_hours.is_some(), "sleep_hours should be aggregated from stages");
+        assert!(
+            sleep_hours.is_some(),
+            "sleep_hours should be aggregated from stages"
+        );
         let hours = sleep_hours.unwrap();
         // Expected: ~6.75 hours (may vary slightly due to aggregation logic)
-        assert!(hours > 6.0 && hours < 8.0,
-            "sleep_hours should be ~6.75h from stages, got: {hours}");
+        assert!(
+            hours > 6.0 && hours < 8.0,
+            "sleep_hours should be ~6.75h from stages, got: {hours}"
+        );
 
         eprintln!("PR-E: sleep_stages aggregated to {hours:.2} hours");
     }
@@ -1475,7 +1734,8 @@ mod tests {
             "meso_off_days": [5, 6],
             "meso_minutes": 360,
             "availability": {}
-        }).to_string()
+        })
+        .to_string()
     }
 
     /// Profile with unknown anchors (user selected "I don't know").
@@ -1501,7 +1761,8 @@ mod tests {
             "meso_off_days": [5, 6],
             "meso_minutes": 180,
             "availability": {}
-        }).to_string()
+        })
+        .to_string()
     }
 
     #[test]
@@ -1510,21 +1771,23 @@ mod tests {
         let vault_path = dir.path().to_str().unwrap().to_string();
 
         let profile = onboarding_profile_with_anchors();
-        let (viterbi, athlete_id) = construct_viterbi_only_handle(
-            profile,
-            vault_path,
-        ).expect("viterbi should construct from onboarding profile with anchors");
+        let (viterbi, athlete_id) = construct_viterbi_only_handle(profile, vault_path)
+            .expect("viterbi should construct from onboarding profile with anchors");
 
         // Verify athlete_id was extracted correctly
         assert_eq!(athlete_id, "onboarding-test-001");
 
         // Verify the engine is functional by calling readiness_indicator
-        let indicator = viterbi.readiness_indicator().expect("readiness_indicator should work");
+        let indicator = viterbi
+            .readiness_indicator()
+            .expect("readiness_indicator should work");
         let indicator_json: serde_json::Value = serde_json::from_str(&indicator).unwrap();
 
         // Should have standard indicator fields
-        assert!(indicator_json.get("confidence").is_some(),
-            "indicator should have confidence field");
+        assert!(
+            indicator_json.get("confidence").is_some(),
+            "indicator should have confidence field"
+        );
     }
 
     #[test]
@@ -1537,14 +1800,13 @@ mod tests {
         let vault_path = dir.path().to_str().unwrap().to_string();
 
         let profile = onboarding_profile_null_anchors();
-        let result = construct_viterbi_only_handle(
-            profile,
-            vault_path,
-        );
+        let result = construct_viterbi_only_handle(profile, vault_path);
 
-        assert!(result.is_ok(),
+        assert!(
+            result.is_ok(),
             "ZERO-FABRICATION: profile with null anchors must construct engines, got: {:?}",
-            result.err());
+            result.err()
+        );
 
         let (viterbi, athlete_id) = result.unwrap();
         assert_eq!(athlete_id, "onboarding-test-002");
@@ -1565,12 +1827,18 @@ mod tests {
         let profile: serde_json::Value = serde_json::from_str(&profile_json).unwrap();
 
         // Check that null anchors are actually null, not 0 or empty
-        assert!(profile.get("threshold_hr").unwrap().is_null(),
-            "threshold_hr should be null, not fabricated");
-        assert!(profile.get("ftp_watts").unwrap().is_null(),
-            "ftp_watts should be null, not fabricated");
-        assert!(profile.get("threshold_pace_sec_km").unwrap().is_null(),
-            "threshold_pace_sec_km should be null, not fabricated");
+        assert!(
+            profile.get("threshold_hr").unwrap().is_null(),
+            "threshold_hr should be null, not fabricated"
+        );
+        assert!(
+            profile.get("ftp_watts").unwrap().is_null(),
+            "ftp_watts should be null, not fabricated"
+        );
+        assert!(
+            profile.get("threshold_pace_sec_km").unwrap().is_null(),
+            "threshold_pace_sec_km should be null, not fabricated"
+        );
 
         // Also verify that a 0 would be different from null
         // (this is a sanity check on the JSON representation)
@@ -1588,32 +1856,38 @@ mod tests {
         let vault_path = dir.path().to_str().unwrap().to_string();
 
         let profile = onboarding_profile_null_anchors();
-        let (viterbi, _) = construct_viterbi_only_handle(
-            profile,
-            vault_path,
-        ).expect("viterbi should construct");
+        let (viterbi, _) =
+            construct_viterbi_only_handle(profile, vault_path).expect("viterbi should construct");
 
         // Process a manual observation (no power data, using HR/RPE)
         let result = process_manual_with_viterbi(
             &viterbi,
             "2026-06-02".to_string(),
-            Some(58.0),  // resting_hr
-            Some(48.0),  // hrv_rmssd
-            Some(7.0),   // sleep_hours
-            Some(5),     // rpe
+            Some(58.0), // resting_hr
+            Some(48.0), // hrv_rmssd
+            Some(7.0),  // sleep_hours
+            Some(5),    // rpe
         );
 
-        assert!(result.is_ok(),
-            "observation should process with null anchors, got: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "observation should process with null anchors, got: {:?}",
+            result.err()
+        );
 
         let result_json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
         let snapshot = result_json.get("snapshot").expect("should have snapshot");
         let score = snapshot.get("score").and_then(|v| v.as_i64());
 
-        assert!(score.is_some(), "should produce a readiness score with null anchors");
+        assert!(
+            score.is_some(),
+            "should produce a readiness score with null anchors"
+        );
         let score_val = score.unwrap();
-        assert!(score_val >= 0 && score_val <= 100,
-            "score should be in valid range, got: {score_val}");
+        assert!(
+            score_val >= 0 && score_val <= 100,
+            "score should be in valid range, got: {score_val}"
+        );
 
         eprintln!("PR-F: Null-anchor profile processed observation, score={score_val}");
     }
@@ -1633,8 +1907,8 @@ mod tests {
         // - Keys: hrv_sdnn, sleep_samples (not hrv_rmssd, sleep_stages)
 
         let profile = test_profile();
-        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, viterbi) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // Build a HealthKit payload matching the schema from healthkit.rs.
         // Uses numeric value codes for sleep_samples per healthkit.rs:
@@ -1654,54 +1928,84 @@ mod tests {
         });
 
         // Act: Normalize through the "apple" vendor path
-        let normalized_result = normalizer.normalize_observation(
-            "apple".to_string(),
-            healthkit_payload.to_string(),
+        let normalized_result =
+            normalizer.normalize_observation("apple".to_string(), healthkit_payload.to_string());
+        assert!(
+            normalized_result.is_ok(),
+            "apple normalize_observation should succeed, got: {:?}",
+            normalized_result.err()
         );
-        assert!(normalized_result.is_ok(),
-            "apple normalize_observation should succeed, got: {:?}", normalized_result.err());
 
         let normalized_json = normalized_result.unwrap();
 
         // Assert: Parse the normalized observation and verify expected fields
-        let normalized: serde_json::Value = serde_json::from_str(&normalized_json)
-            .expect("normalized output should be valid JSON");
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalized_json).expect("normalized output should be valid JSON");
 
         // resting_hr must be present and correct
-        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
-            "resting_hr must be present, got: {normalized}");
+        assert!(
+            normalized
+                .get("resting_hr")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "resting_hr must be present, got: {normalized}"
+        );
         let resting_hr = normalized["resting_hr"].as_f64().unwrap();
-        assert!((resting_hr - 58.0).abs() < 0.1,
-            "resting_hr should be 58, got: {resting_hr}");
+        assert!(
+            (resting_hr - 58.0).abs() < 0.1,
+            "resting_hr should be 58, got: {resting_hr}"
+        );
 
         // HRV should land (the normalizer may store SDNN or convert to hrv field)
-        assert!(normalized.get("hrv").is_some() || normalized.get("hrv_rmssd").is_some(),
-            "HRV must be present (hrv or hrv_rmssd), got: {normalized}");
+        assert!(
+            normalized.get("hrv").is_some() || normalized.get("hrv_rmssd").is_some(),
+            "HRV must be present (hrv or hrv_rmssd), got: {normalized}"
+        );
 
         // sleep_hours must be present (aggregated from sleep_samples)
-        assert!(normalized.get("sleep_hours").and_then(|v| v.as_f64()).is_some(),
-            "sleep_hours must be aggregated from sleep_samples, got: {normalized}");
+        assert!(
+            normalized
+                .get("sleep_hours")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "sleep_hours must be aggregated from sleep_samples, got: {normalized}"
+        );
 
         // Source must be "apple_health"
         let source = normalized.get("source").and_then(|v| v.as_str());
-        assert_eq!(source, Some("apple_health"),
-            "source should be 'apple_health', got: {:?}", source);
+        assert_eq!(
+            source,
+            Some("apple_health"),
+            "source should be 'apple_health', got: {:?}",
+            source
+        );
 
         // Act: Process the normalized observation through ViterbiEngine
         let process_result = viterbi.process_observation(normalized_json);
-        assert!(process_result.is_ok(),
-            "process_observation should succeed, got: {:?}", process_result.err());
+        assert!(
+            process_result.is_ok(),
+            "process_observation should succeed, got: {:?}",
+            process_result.err()
+        );
 
         // Assert: The HMM processed the observation and returned a valid snapshot
         let result_json: serde_json::Value = serde_json::from_str(&process_result.unwrap())
             .expect("process result should be valid JSON");
-        let snapshot = result_json.get("snapshot").expect("result should have snapshot");
-        assert!(snapshot.get("state").and_then(|v| v.as_str()).is_some(),
-            "snapshot should have state");
-        assert!(snapshot.get("score").is_some(),
-            "snapshot should have score");
+        let snapshot = result_json
+            .get("snapshot")
+            .expect("result should have snapshot");
+        assert!(
+            snapshot.get("state").and_then(|v| v.as_str()).is_some(),
+            "snapshot should have state"
+        );
+        assert!(
+            snapshot.get("score").is_some(),
+            "snapshot should have score"
+        );
 
-        eprintln!("PR-E2: Apple HealthKit round-trip passed. SDNN, resting_hr, sleep_samples processed.");
+        eprintln!(
+            "PR-E2: Apple HealthKit round-trip passed. SDNN, resting_hr, sleep_samples processed."
+        );
     }
 
     #[test]
@@ -1709,8 +2013,8 @@ mod tests {
         // Test that partial biometrics from HealthKit (e.g., only RHR) normalize successfully.
 
         let profile = test_profile();
-        let (normalizer, viterbi) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, viterbi) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // Payload with only resting heart rate (no HRV, no sleep)
         let healthkit_payload = serde_json::json!({
@@ -1718,24 +2022,31 @@ mod tests {
             "resting_heart_rate": 62.0
         });
 
-        let normalized_result = normalizer.normalize_observation(
-            "apple".to_string(),
-            healthkit_payload.to_string(),
+        let normalized_result =
+            normalizer.normalize_observation("apple".to_string(), healthkit_payload.to_string());
+        assert!(
+            normalized_result.is_ok(),
+            "normalize should succeed with partial biometrics"
         );
-        assert!(normalized_result.is_ok(),
-            "normalize should succeed with partial biometrics");
 
         let normalized_json = normalized_result.unwrap();
         let normalized: serde_json::Value = serde_json::from_str(&normalized_json).unwrap();
 
         // resting_hr should be present
-        assert!(normalized.get("resting_hr").and_then(|v| v.as_f64()).is_some(),
-            "resting_hr should be present");
+        assert!(
+            normalized
+                .get("resting_hr")
+                .and_then(|v| v.as_f64())
+                .is_some(),
+            "resting_hr should be present"
+        );
 
         // Should still process through Viterbi
         let process_result = viterbi.process_observation(normalized_json);
-        assert!(process_result.is_ok(),
-            "process_observation should succeed with partial biometrics");
+        assert!(
+            process_result.is_ok(),
+            "process_observation should succeed with partial biometrics"
+        );
 
         eprintln!("PR-E2: Apple HealthKit partial biometrics test passed.");
     }
@@ -1745,8 +2056,8 @@ mod tests {
         // Test that HealthKit sleep_samples are aggregated to sleep_hours.
 
         let profile = test_profile();
-        let (normalizer, _) = construct_normalizer_viterbi_handles(profile)
-            .expect("engines should construct");
+        let (normalizer, _) =
+            construct_normalizer_viterbi_handles(profile).expect("engines should construct");
 
         // Sleep samples totaling ~7.5 hours:
         //   22:00-22:30 = 0.5h (InBed)
@@ -1766,20 +2077,24 @@ mod tests {
             ]
         });
 
-        let normalized_result = normalizer.normalize_observation(
-            "apple".to_string(),
-            healthkit_payload.to_string(),
-        );
+        let normalized_result =
+            normalizer.normalize_observation("apple".to_string(), healthkit_payload.to_string());
         assert!(normalized_result.is_ok());
 
-        let normalized: serde_json::Value = serde_json::from_str(&normalized_result.unwrap()).unwrap();
+        let normalized: serde_json::Value =
+            serde_json::from_str(&normalized_result.unwrap()).unwrap();
         let sleep_hours = normalized.get("sleep_hours").and_then(|v| v.as_f64());
 
-        assert!(sleep_hours.is_some(), "sleep_hours should be aggregated from sleep_samples");
+        assert!(
+            sleep_hours.is_some(),
+            "sleep_hours should be aggregated from sleep_samples"
+        );
         let hours = sleep_hours.unwrap();
         // Expected: ~7.5 hours (may vary slightly due to aggregation logic)
-        assert!(hours > 6.0 && hours < 9.0,
-            "sleep_hours should be ~7.5h from samples, got: {hours}");
+        assert!(
+            hours > 6.0 && hours < 9.0,
+            "sleep_hours should be ~7.5h from samples, got: {hours}"
+        );
 
         eprintln!("PR-E2: Apple HealthKit sleep_samples aggregated to {hours:.2} hours");
     }
@@ -1820,7 +2135,8 @@ mod tests {
             "source": "test_encryption_marker_xyzzy",
             "resting_hr": 58,
         });
-        vault.write_biometric(payload.to_string())
+        vault
+            .write_biometric(payload.to_string())
             .expect("write_biometric should succeed");
 
         // Read the raw vault.db bytes
@@ -1863,10 +2179,11 @@ mod tests {
             .expect("VaultEngine should construct");
 
         // Read back the profile to verify round-trip
-        let read_profile = vault.read_default_profile()
+        let read_profile = vault
+            .read_default_profile()
             .expect("read_default_profile should succeed");
-        let _read_value: serde_json::Value = serde_json::from_str(&read_profile)
-            .expect("profile should be valid JSON");
+        let _read_value: serde_json::Value =
+            serde_json::from_str(&read_profile).expect("profile should be valid JSON");
 
         // The profile's key fields should match
         let age = profile_value.get("age").and_then(|v| v.as_i64());
@@ -1909,7 +2226,8 @@ mod tests {
 
             // Write profile to make the athlete "active" in the vault
             // (required by clear_all_user_data's policy check)
-            vault.write_profile(profile.clone())
+            vault
+                .write_profile(profile.clone())
                 .expect("write_profile should succeed");
 
             // Write some biometric data
@@ -1919,22 +2237,27 @@ mod tests {
                 "resting_hr": 55,
                 "hrv_rmssd": 42.0,
             });
-            vault.write_biometric(payload.to_string())
+            vault
+                .write_biometric(payload.to_string())
                 .expect("write_biometric should succeed");
 
             // Verify data is readable
-            let history = vault.read_biometric_history(30)
+            let history = vault
+                .read_biometric_history(30)
                 .expect("read_biometric_history should succeed");
-            assert!(history.contains("erasure_test_marker"),
-                "biometric should be readable before erasure");
+            assert!(
+                history.contains("erasure_test_marker"),
+                "biometric should be readable before erasure"
+            );
 
             // Step 2: Erase everything
-            let report = vault.clear_all_user_data(athlete_id.clone())
+            let report = vault
+                .clear_all_user_data(athlete_id.clone())
                 .expect("clear_all_user_data should succeed");
 
             // The report should be valid JSON
-            let report_json: serde_json::Value = serde_json::from_str(&report)
-                .expect("erasure report should be valid JSON");
+            let report_json: serde_json::Value =
+                serde_json::from_str(&report).expect("erasure report should be valid JSON");
             eprintln!("Erasure report: {report_json}");
         }
 
@@ -1944,13 +2267,16 @@ mod tests {
         let vault2 = gatc_ffi::VaultEngine::new(profile, vault_path)
             .expect("VaultEngine should construct with new key");
 
-        let history2 = vault2.read_biometric_history(30)
+        let history2 = vault2
+            .read_biometric_history(30)
             .expect("read_biometric_history should succeed (empty vault)");
 
         // The old marker should NOT appear — either the vault is empty
         // or it contains only data written after the new key was generated.
-        assert!(!history2.contains("erasure_test_marker"),
-            "old biometric data must be gone after clear_all_user_data");
+        assert!(
+            !history2.contains("erasure_test_marker"),
+            "old biometric data must be gone after clear_all_user_data"
+        );
 
         eprintln!("PR-G: Data erasure test passed");
         eprintln!("  - Data written to vault");
@@ -2014,8 +2340,10 @@ mod tests {
         );
 
         eprintln!("PR-H: Profile-in-vault round-trip test passed");
-        eprintln!("  - Profile written to vault: age={}, sport={}",
-            original["age"], original["sport"]);
+        eprintln!(
+            "  - Profile written to vault: age={}, sport={}",
+            original["age"], original["sport"]
+        );
         eprintln!("  - Profile read back using athlete_id only");
         eprintln!("  - All key fields preserved through encryption round-trip");
     }
