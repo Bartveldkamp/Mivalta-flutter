@@ -219,8 +219,8 @@ retention answer, not gamification).
 ## 5. In-app screens (shared)
 
 The in-app surface is one Flutter codebase, identical layout on both platforms (use-mode changes
-content, not the spine — direction 14.1). Canonical wiring lives in `docs/UI_FLOW.md`; this spec
-only adds the material/ambient treatment on top of it.
+content, not the spine — direction 14.1). Canonical wiring + flow lives in
+`docs/FRONTEND_FLOW_AND_STORIES.md`; this spec only adds the material/ambient treatment on top of it.
 
 - **Three-zone home** (`ReadinessScreen`): Zone 1 STATE as the light field (§1.4) over an opaque
   detail stack; Zone 2 TODAY (session + "Why this session?" collapsed); Zone 3 CONTEXT (three

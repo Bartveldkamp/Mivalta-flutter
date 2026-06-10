@@ -1,8 +1,11 @@
 # MiValta Flutter — Frontend Flow, Screens & User Stories
 
-Status: living map. Date: 2026-06-06. Source: **read from `lib/`** (current code, not spec).
-Companion to `UI_FLOW.md` (wiring detail) and `UI_UX_DIRECTION.md` v1.4 (design intent, in
-mivalta-rust-engine). Engine pin: `rust/Cargo.toml` → `gatc-ffi @ f5ab740`.
+Status: living map (single canonical Flutter UI doc). Date: 2026-06-09. Source: **read
+from `lib/`** (current code, not spec). **Absorbed the former `UI_FLOW.md`** (wiring
+detail) on 2026-06-09 so there is one source of truth, not two near-identical maps.
+Design-intent SoT is `UI_UX_DIRECTION.md` v1.4 (in mivalta-rust-engine); platform design
+is `UI_UX_DESIGN_IOS_ANDROID.md`. Engine pin: `rust/Cargo.toml` (see the file for the
+current `gatc-ffi` rev).
 
 **Purpose of this doc:** give a single, honest picture of *what the app does today*, *as user
 stories*, and *where Monitor + Advisory are heading* — so scope and progress are legible at a glance.
@@ -207,5 +210,3 @@ flowchart LR
 ---
 
 *This is a living map. Update it from `lib/` whenever a screen or surface lands — not from memory.*
-</content>
-</invoke>
