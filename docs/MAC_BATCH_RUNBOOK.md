@@ -94,6 +94,40 @@ This is what makes the unified brain actually drive the app: system rotation,
 dose progression, and the B5 calibration sequence only engage on the history
 path.
 
+## Step 4b — Two FFI-coverage gaps found in the 2026-06-10 audit
+
+A full `gatc-ffi → shim → facade` diff (Web Claude, 2026-06-10) found the
+shim↔facade layer essentially complete (49/50 functions wired) EXCEPT the
+history method in Step 3 — plus two engine capabilities that exist in
+`gatc-ffi` but the shim never exposes, so they are **dark on the phone today**.
+These need a SHIM addition first (the shim has no binding for them), then the
+FRB regen in Step 2 surfaces them, then a facade method. Both are in MVP scope.
+
+### 4b-i — Activate the HMM emission signals (HIGH — built but dormant)
+
+`construct_engines*` calls `ViterbiEngine::new(...)` and nothing else, so the
+four advanced emission signals you built are never switched on in the app:
+`set_decoupling_emission`, `set_mental_emission` (M2), `set_chronotropic_emission`
+(M1), `set_rpe_hr_drift_emission`. Until these are called, the phone runs the
+basic HRV/RHR/sleep HMM only — the mental-disturbance, chronotropic, RPE↔HR
+drift, and decoupling axes contribute nothing.
+
+Fix: in `rust/src/api.rs`, right after `ViterbiEngine::new` in BOTH
+`construct_engines_fresh` and `construct_engines_from_state`, call the four
+`set_*_emission` methods with the card-driven configs (the engine exposes the
+DRAFT defaults; pass them straight through — no Dart-side config). This is
+still pure transport: the shim turns the signals on, it computes nothing.
+No new facade method needed (it happens at construction). Verify with
+`viterbi.personalization_diagnostics()` showing the emission metrics populated
+after a few observations.
+
+### 4b-ii — Privacy "pause learning" control (MEDIUM — spec'd, unwired)
+
+`pause_learning` / `resume_learning` / `is_learning_paused` (V4 global privacy
+setting, MIVALTA_FINAL_SPEC) have no shim binding and no facade method, so the
+Settings screen has nothing to call. Add three one-line shim fns + three facade
+methods (mirror the `save_state` pattern), then wire the Settings toggle.
+
 ## Step 5 — Build + smoke test
 
 ```bash
@@ -107,7 +141,9 @@ flutter build apk --debug --target-platform android-arm64
 Smoke on a device: a fresh profile shows the calibration framing
 ("Calibration 1 of 5 …") for the first sessions; after ~5 logged workouts the
 selector takes over and the offered zones rotate (not Z2 every day); a stated
-hilly terrain surfaces the `expression` field ("Climb Repeats").
+hilly terrain surfaces the `expression` field ("Climb Repeats"); and
+`personalization_diagnostics` shows the M1/M2/decoupling/RPE-drift emission
+metrics populated (Step 4b-i) rather than absent.
 
 ## Step 6 — Commit + (optionally) PR
 
