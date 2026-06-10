@@ -13,15 +13,21 @@ crate-type = ["cdylib", "staticlib"]
 # Pinned to the exact pub.dev release used on the Dart side (2.12.0).
 flutter_rust_bridge = "=2.12.0"
 
-# Git-rev pin: rust-engine main @ 81bddd6 (2026-06-09, registry v2.23). Re-pinned
-# from 47af641 (v2.20). The 47af641..81bddd6 delta is ADDITIVE on the FFI surface
-# (registry diff = +set_rpe_hr_drift_emission, +get_rpe_hr_drift_emission only;
-# every method the shim already calls is unchanged), plus internal engine
-# improvements: M2 mental_state wired into the readiness_indicator psychological
-# axis, the RPE↔HR drift 10th emission, and gatc-josi {state}/{session} string
-# slots. No bound-FFI signature changed → the shim in src/api.rs and the FRB
-# bindings in lib/src/rust/ need NO regen; this is a pure rev-SHA + Cargo.lock
-# update (regenerate the lock on the build executor where ssh resolves).
+# Git-rev pin: rust-engine main @ 90dd3a4 (2026-06-10, registry v2.24). Re-pinned
+# from 81bddd6 (v2.23). The 81bddd6..90dd3a4 delta is ADDITIVE on the FFI surface
+# (registry diff = +AdvisorEngine::recommend_workout_with_history only; every
+# method the shim already called is unchanged), plus: the 6-system energy model +
+# TrainingState advisor rotation (#240) and the phase_energy_system_signatures
+# card promotion (#241 — phase targets + rotation gate now card-driven, knowledge
+# tables 245→247). The shim adds `recommend_workout_with_history` (the Phase-2
+# tail: vault history → system rotation), so the FRB bindings in lib/src/rust/
+# DO need a regen on the build executor (flutter_rust_bridge_codegen), along
+# with the Cargo.lock update (regenerate where ssh resolves). The Dart facade
+# call-through lands with that regen.
+#
+# Earlier (81bddd6) carried, over 47af641 (v2.20): +set/get_rpe_hr_drift_emission,
+# M2 mental_state in the readiness_indicator psychological axis, the RPE↔HR
+# drift 10th emission, and gatc-josi {state}/{session} string slots.
 #
 # Earlier (47af641) carried: restart-continuity, worst-state REST, decoupling
 # high-intensity block + signal wiring, real-availability duration, sport-guard.
@@ -46,10 +52,10 @@ flutter_rust_bridge = "=2.12.0"
 # refetching from git, set the local patch in `.cargo/config.toml`
 # at the repo root (see README — `[patch."ssh://git@github.com/..."]`
 # survives `cargo update` because patches live outside the lock file).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "81bddd6" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "90dd3a4" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "81bddd6" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "90dd3a4" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
