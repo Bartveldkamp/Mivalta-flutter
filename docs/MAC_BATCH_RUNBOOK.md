@@ -1,18 +1,19 @@
 # Mac-Executor Batch — bring Flutter onto the validated engine
 
-> **Line-up checklist (verified 2026-06-11 against rust-engine `8c3a662` +
+> **Line-up checklist (verified 2026-06-11 against rust-engine `b603b5e` +
 > Flutter `main` `2f41d95`).** The shipped app pins an OLD engine (`90dd3a4`)
 > and runs a thinner slice than what's validated on rust `main`:
 >
-> - [ ] **1. Re-pin** `rust/Cargo.toml` `90dd3a4` -> **`8c3a662`** (both deps) — §1
+> - [ ] **1. Re-pin** `rust/Cargo.toml` `90dd3a4` -> **`b603b5e`** (both deps) — §1
 > - [ ] **2. FRB codegen regen** — §2 (surfaces the new shim methods)
 > - [ ] **3. `recommendWorkoutWithHistory` facade + screen wiring** — §3/§4
 >       (unlocks system rotation, dose progression, B5 calibration, `expression`)
-> - [ ] ~~4. Activate the 4 emission setters~~ — ⛔ **BLOCKED engine-side** (§4b-i);
->       emissions are validated-OFF — do not enable in-app (rust NEXT_WORK P1.0)
-> - [ ] **4. `pauseLearning` facade** (V4 privacy) — §4b-ii
-> - [ ] **5. Render new payload fields** — `expression`, calibration framing in `why`
-> - [ ] **6. Build `.so`/APK + smoke** — §5
+> - [ ] **4. Arm the 3 card-backed emissions** — §4b-i: ONE call,
+>       `enable_card_emissions(tables)` after each construct (validated ON
+>       2026-06-11: matrix 1152/1152 + sim PASS; rust PR #250)
+> - [ ] **5. `pauseLearning` facade** (V4 privacy) — §4b-ii
+> - [ ] **6. Render new payload fields** — `expression`, calibration framing in `why`
+> - [ ] **7. Build `.so`/APK + smoke** — §5
 >
 > Items 1–2 + the build are Mac-only (no toolchain in the cloud container);
 > 3–6 are Dart/shim edits spelled out below.
@@ -25,7 +26,7 @@ order.
 
 ## Why now
 
-Engine `main` (rust-engine `8c3a662`, post-PR #245–#248) carries, on top of the
+Engine `main` (rust-engine `b603b5e`, post-PR #245–#248) carries, on top of the
 older `90dd3a4` pin the app currently uses:
 - the unified advisor→GATC system selector (the Z2-forever fix) + B5
   calibration probes + the `expression` option field;
@@ -41,11 +42,11 @@ method signature changed), EXCEPT the Dart facade does not yet expose
 In `rust/Cargo.toml`, both deps:
 
 ```toml
-gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8c3a662" }
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8c3a662" }
+gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b603b5e" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b603b5e" }
 ```
 
-(`8c3a662` = rust-engine `main` after #245–#248: unification + B5 + expression
+(`b603b5e` = rust-engine `main` after #245–#248: unification + B5 + expression
 + the Viterbi safety chain + APIM-B fatigue typing + risk-factors. Verified the
 current app pin is the older `90dd3a4`, which predates all of it.)
 
@@ -122,30 +123,38 @@ history method in Step 3 — plus two engine capabilities that exist in
 These need a SHIM addition first (the shim has no binding for them), then the
 FRB regen in Step 2 surfaces them, then a facade method. Both are in MVP scope.
 
-### 4b-i — HMM emission signals — ⛔ DO NOT WIRE IN-APP YET (blocked engine-side)
+### 4b-i — HMM emission signals — ✅ UNBLOCKED 2026-06-11: ONE call, validated
 
-`construct_engines*` calls `ViterbiEngine::new(...)` only, so the four advanced
-emission signals (`set_decoupling_emission`, `set_mental_emission` M2,
-`set_chronotropic_emission` M1, `set_rpe_hr_drift_emission`) are off on the
-phone. **The earlier version of this step said to switch them on at
-construction. That is now BLOCKED — do not do it.**
+**History:** this step was briefly blocked (2026-06-11 AM) because the
+emissions were `enabled:false` everywhere and no harness had ever validated
+them ON. That engine-side work is now DONE and merged (rust-engine PR #250,
+`b603b5e`): both harnesses feed coherent `aerobic_decoupling_pct` /
+`chronotropic_suppression_pct` signals and run with the emissions ARMED —
+**matrix 1152/1152 PASS, double-blind sim PASS (safety 12/12, responsive 89 %,
+no regression)**. The validated configuration now INCLUDES the three
+card-backed emissions.
 
-Why (found 2026-06-11; tracked in rust-engine `docs/NEXT_WORK.md` P1.0):
-these emissions are `enabled:false` at every construction site and **no
-validation harness ever enabled them** — every matrix (1152/1152) and
-double-blind (safety 12/12) PASS ran with them OFF. The synthetic generators
-feed `mental_state` but NOT `aerobic_decoupling_pct` /
-`chronotropic_suppression_pct` / `rpe_hr_drift_pct` (0 of 2 harnesses), and
-`rpe_hr_drift` has no card. So turning them on in the app would ship a
-configuration **no test has ever exercised** — the exact validated-config ≠
-shipped-config drift this runbook exists to prevent.
+**What Mac does (replaces the old four-setter instruction):** in
+`rust/src/api.rs`, in BOTH `construct_engines_fresh` and
+`construct_engines_from_state`, right after `ViterbiEngine::new(...)`, add
+exactly one call:
 
-The fix belongs **engine-side, not here**: extend the harnesses to feed the
-inputs → build configs from the resolver (not the stale `*_card_cfg()` helpers)
-→ re-validate ON → then make default-on at construction so no client ever has
-to flip a switch. Until that lands on rust-engine `main`, Flutter leaves these
-off and the phone runs the validated HRV/RHR/sleep + (fed) mental config. Track
-the unblock in rust-engine NEXT_WORK P1.0.
+```rust
+viterbi.enable_card_emissions(compiled_tables_json.clone())?;
+```
+
+That single engine-side method resolves the emission cards and arms
+decoupling + mental (M2) + chronotropic (M1) with the card-faithful configs —
+the same call both validation harnesses use, so the phone runs the exact
+validated configuration. Notes:
+
+- `rpe_hr_drift` is intentionally NOT armed: it has no card SoT yet
+  (rust NEXT_WORK P1.0). The method skips it; nothing to do client-side.
+- Idempotent; an absent/incomplete card leaves that emission off (fail-safe).
+- Still pure transport: the shim adds one pass-through call, computes nothing.
+- Requires the Step-1 re-pin (the method exists from rust-engine `b603b5e`).
+- Smoke check: after a few observations with decoupling/mental inputs,
+  `personalization_diagnostics()` shows the emission metrics populated.
 
 ### 4b-ii — Privacy "pause learning" control (MEDIUM — spec'd, unwired)
 
@@ -168,8 +177,8 @@ Smoke on a device: a fresh profile shows the calibration framing
 ("Calibration 1 of 5 …") for the first sessions; after ~5 logged workouts the
 selector takes over and the offered zones rotate (not Z2 every day); a stated
 hilly terrain surfaces the `expression` field ("Climb Repeats"). (The
-M1/M2/decoupling/RPE-drift emission metrics stay **absent by design** — 4b-i
-is blocked engine-side until the emissions are validated ON; rust NEXT_WORK P1.0.)
+decoupling/mental/chronotropic emission metrics are **populated** once their
+inputs flow — §4b-i smoke check; RPE↔HR drift stays absent (no card yet, P1.0).)
 
 ## Step 6 — Commit + (optionally) PR
 
