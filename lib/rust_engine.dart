@@ -156,6 +156,22 @@ class RustEngineBinding {
   /// to [constructEnginesFromState] to restore continuity.
   Future<String> saveState(EnginesHandle handle) =>
       rust_api.saveState(handle: handle);
+  /// `ViterbiEngine::pause_learning()` — V4 global privacy setting: stop ALL
+  /// personal adaptation (HMM, ceiling intelligence, OutcomeTracker) until
+  /// [resumeLearning] is called. The engine still processes observations but
+  /// does not update learned parameters.
+  Future<void> pauseLearning(EnginesHandle handle) =>
+      rust_api.pauseLearning(handle: handle);
+
+  /// `ViterbiEngine::resume_learning()` — lift the V4 privacy pause.
+  Future<void> resumeLearning(EnginesHandle handle) =>
+      rust_api.resumeLearning(handle: handle);
+
+  /// `ViterbiEngine::is_learning_paused()` — read the V4 pause flag for the
+  /// Settings toggle state.
+  Future<bool> isLearningPaused(EnginesHandle handle) =>
+      rust_api.isLearningPaused(handle: handle);
+
 
   /// `ViterbiEngine::process_observation(observation_json)` — feed a
   /// UniversalObservation (JSON) to the HMM. Returns the updated assessment
@@ -217,6 +233,24 @@ class RustEngineBinding {
         equipment: equipment,
         terrain: terrain,
       );
+  /// `AdvisorEngine::recommend_workout_with_history(...)` — Phase-2 unified
+  /// selector using the activity history window. The shim reads recent
+  /// activities from the vault internally, so no history JSON is passed from
+  /// Dart. This is the path that enables system rotation, dose progression,
+  /// and B5 calibration.
+  Future<String> recommendWorkoutWithHistory(
+    EnginesHandle handle, {
+    String? mood,
+    String? equipment,
+    String? terrain,
+  }) =>
+      rust_api.recommendWorkoutWithHistory(
+        handle: handle,
+        mood: mood,
+        equipment: equipment,
+        terrain: terrain,
+      );
+
 
   // ===========================================================================
   // VAULT ENGINE — on-device encrypted storage

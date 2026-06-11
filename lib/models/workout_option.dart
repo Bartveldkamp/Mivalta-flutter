@@ -22,6 +22,7 @@ class WorkoutOption {
   final int? durationMin;
   final int? targetWatts;
   final String? targetPaceMss;
+  final String? expression;
 
   WorkoutOption({
     required this.optionId,
@@ -32,6 +33,7 @@ class WorkoutOption {
     this.durationMin,
     this.targetWatts,
     this.targetPaceMss,
+    this.expression,
   });
 
   factory WorkoutOption.fromJson(dynamic json) {

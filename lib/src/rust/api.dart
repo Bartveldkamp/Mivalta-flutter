@@ -93,6 +93,21 @@ Future<String> zoneCapWithAdvisories({required EnginesHandle handle}) =>
 Future<String> saveState({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiSaveState(handle: handle);
 
+/// `ViterbiEngine::pause_learning()` — V4 global privacy setting: stop ALL
+/// model mutation (baselines, windows, transitions). The engine still reads
+/// state; it learns nothing while paused. Pure transport (4b-ii).
+Future<void> pauseLearning({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiPauseLearning(handle: handle);
+
+/// `ViterbiEngine::resume_learning()` — lift the V4 privacy pause.
+Future<void> resumeLearning({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiResumeLearning(handle: handle);
+
+/// `ViterbiEngine::is_learning_paused()` — read the V4 pause flag for the
+/// Settings toggle.
+Future<bool> isLearningPaused({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiIsLearningPaused(handle: handle);
+
 /// `ViterbiEngine::process_observation(observation_json)` — feed a
 /// UniversalObservation (JSON) to the HMM. Returns the updated assessment
 /// JSON including fatigue_state, readiness_level, confidence, etc.
@@ -162,6 +177,32 @@ Future<String> recommendWorkout({
   String? equipment,
   String? terrain,
 }) => RustLib.instance.api.crateApiRecommendWorkout(
+  handle: handle,
+  mood: mood,
+  equipment: equipment,
+  terrain: terrain,
+);
+
+/// `AdvisorEngine::recommend_workout_with_history(...)` — PURE TRANSPORT.
+///
+/// The Phase-2 tail (GATC roadmap): identical to [`recommend_workout`] plus the
+/// recent completed-activity window, so the engine can rotate the PRIMARY option
+/// toward the athlete's most-needed energy system (`TrainingState`, 6-system
+/// model). The shim reads `VaultEngine::read_recent_activities` and forwards the
+/// raw JSON untouched — the engine parses it, classifies each session by
+/// (zone, duration), diffs against the card-driven phase target, and applies the
+/// card-driven rotation gate. Zero coaching logic here.
+///
+/// The 14-row window mirrors the existing shim precedent
+/// (`recent_decoupling_pct(14)`): it transports a documented window size, not a
+/// policy — the actionability gate (min sessions / min deficit) lives in the
+/// engine's `phase_energy_system_signatures:rotation_gate` card.
+Future<String> recommendWorkoutWithHistory({
+  required EnginesHandle handle,
+  String? mood,
+  String? equipment,
+  String? terrain,
+}) => RustLib.instance.api.crateApiRecommendWorkoutWithHistory(
   handle: handle,
   mood: mood,
   equipment: equipment,
