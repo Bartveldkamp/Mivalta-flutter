@@ -370,29 +370,33 @@ In **this** repo's `docs/`: `MVP1_BUILD_BRIEF.md` (current milestone), `TIERS.md
 
 ---
 
-## 10. Doc drift found while writing this (verify before trusting older prose)
+## 10. Doc drift found while writing this (and what was fixed)
 
-These are accurate-as-of-source corrections to the repo's older docs; flagged so a
-new dev isn't misled. Source files were read directly to confirm each:
+Writing this handover surfaced stale prose in the repo's older docs. The
+`CLAUDE.md` / `README.md` items below were **fixed on this branch** (commit
+`58d9256`); the rest remain open and are flagged so a new dev isn't misled:
 
-- **Engine pin.** `rust/Cargo.toml` actually pins `gatc-ffi`/`gatc-viterbi` to
-  **`b603b5e`** with the rust-engine registry at **v2.24**. `CLAUDE.md` says
-  `81bddd6` (v2.23); `README.md` says `4dab6cb` (v2.18). Both are stale. (The
-  Cargo.toml's own comment header also references `90dd3a4`/v2.24, so the comment
-  prose lags the `rev =` line — trust the `rev =` value.)
-- **V10 LLM screen.** `CLAUDE.md` and `README.md` list a `kDebugMode`-only
-  `V10SpikeScreen` in `main.dart` as a key entry point. **`main.dart` does not
-  reference it** on this branch — first-launch detection routes to
-  `OnboardingScreen` or `ReadinessScreen` only. The LLM layer is fully deferred;
-  the only `kDebugMode` screen reachable is `debug_swatch_exerciser.dart`.
-- **Repo is richer than `CLAUDE.md`'s tree.** `CLAUDE.md` lists only
-  "readiness, debug exerciser" under `lib/screens/`. There are actually 8 screens
-  (§2), plus `lib/models/`, `lib/widgets/analytics/`, and `lib/services/` that the
-  CLAUDE.md tree omits entirely.
-- **`recommend_workout_with_history` dead-code note.** `rust/src/api.rs` marks it
-  `#[allow(dead_code)]` "until FRB regen"; the regen has since happened — it is
-  generated in `lib/src/rust/` and is the live caller in `advisor_screen.dart`, so
-  that allow-attribute comment is now stale.
-- **`README.md` CI/build prose** still references the V10.1 native stack
-  (`libllama.so` etc.) in the `smoke-build` asset assertions and a "Grounded Josi +
-  on-device LLM" PR-F row — historical, not reflective of the shipped no-LLM build.
+- **Engine pin (fixed).** `rust/Cargo.toml` pins `gatc-ffi`/`gatc-viterbi` to
+  **`b603b5e`** (registry **v2.24**). `CLAUDE.md` and `README.md` previously
+  named two different older revs; both now state the real pin. The Cargo.toml's
+  own comment header still narrates an earlier re-pin — **the `rev =` line is
+  authoritative**.
+- **Purged legacy LLM spike (fixed).** Older prose listed a `kDebugMode`-only
+  LLM spike screen as a key entry point. That spike was purged (PR-J, enforced
+  by `.github/workflows/lineage-guard.yml`); `main.dart` routes only to
+  `OnboardingScreen` / `ReadinessScreen`, and the only `kDebugMode` screen is
+  `debug_swatch_exerciser.dart`. The on-device messenger is deferred to the
+  grounded-Josi phase (PR-F) and ships as model W via Play Asset Delivery.
+- **Repo tree (fixed).** `CLAUDE.md`'s structure tree now reflects the real
+  `lib/` layout: 8 screens plus `models/`, `widgets/analytics/`, `services/`,
+  `copy/`.
+- **OPEN — `recommend_workout_with_history` dead-code note.** `rust/src/api.rs`
+  still marks it `#[allow(dead_code)]` "until FRB regen"; the regen has since
+  happened (it's the live caller in `advisor_screen.dart`), so the attribute +
+  comment are removable in a future shim PR (FFI scope discipline — not touched
+  here).
+- **OPEN — `smoke-build.yml` stale asset assertions.** The workflow still
+  hard-asserts the purged legacy native libraries in the APK (lines ~126–128).
+  The build verifiably no longer packs them (jniLibs contains only
+  `libmivalta_rust_bridge.so`), so that step would fail if the deploy-key secret
+  were set. Needs its own workflow fix.
