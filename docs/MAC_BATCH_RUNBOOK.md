@@ -8,11 +8,11 @@
 > - [ ] **2. FRB codegen regen** — §2 (surfaces the new shim methods)
 > - [ ] **3. `recommendWorkoutWithHistory` facade + screen wiring** — §3/§4
 >       (unlocks system rotation, dose progression, B5 calibration, `expression`)
-> - [ ] **4. Activate the 4 `set_*_emission` setters at construction** — §4b-i
->       (M1/M2/decoupling/RPE-drift are currently DARK on the phone)
-> - [ ] **5. `pauseLearning` facade** (V4 privacy) — §4b-ii
-> - [ ] **6. Render new payload fields** — `expression`, calibration framing in `why`
-> - [ ] **7. Build `.so`/APK + smoke** — §5
+> - [ ] ~~4. Activate the 4 emission setters~~ — ⛔ **BLOCKED engine-side** (§4b-i);
+>       emissions are validated-OFF — do not enable in-app (rust NEXT_WORK P1.0)
+> - [ ] **4. `pauseLearning` facade** (V4 privacy) — §4b-ii
+> - [ ] **5. Render new payload fields** — `expression`, calibration framing in `why`
+> - [ ] **6. Build `.so`/APK + smoke** — §5
 >
 > Items 1–2 + the build are Mac-only (no toolchain in the cloud container);
 > 3–6 are Dart/shim edits spelled out below.
@@ -122,23 +122,30 @@ history method in Step 3 — plus two engine capabilities that exist in
 These need a SHIM addition first (the shim has no binding for them), then the
 FRB regen in Step 2 surfaces them, then a facade method. Both are in MVP scope.
 
-### 4b-i — Activate the HMM emission signals (HIGH — built but dormant)
+### 4b-i — HMM emission signals — ⛔ DO NOT WIRE IN-APP YET (blocked engine-side)
 
-`construct_engines*` calls `ViterbiEngine::new(...)` and nothing else, so the
-four advanced emission signals you built are never switched on in the app:
-`set_decoupling_emission`, `set_mental_emission` (M2), `set_chronotropic_emission`
-(M1), `set_rpe_hr_drift_emission`. Until these are called, the phone runs the
-basic HRV/RHR/sleep HMM only — the mental-disturbance, chronotropic, RPE↔HR
-drift, and decoupling axes contribute nothing.
+`construct_engines*` calls `ViterbiEngine::new(...)` only, so the four advanced
+emission signals (`set_decoupling_emission`, `set_mental_emission` M2,
+`set_chronotropic_emission` M1, `set_rpe_hr_drift_emission`) are off on the
+phone. **The earlier version of this step said to switch them on at
+construction. That is now BLOCKED — do not do it.**
 
-Fix: in `rust/src/api.rs`, right after `ViterbiEngine::new` in BOTH
-`construct_engines_fresh` and `construct_engines_from_state`, call the four
-`set_*_emission` methods with the card-driven configs (the engine exposes the
-DRAFT defaults; pass them straight through — no Dart-side config). This is
-still pure transport: the shim turns the signals on, it computes nothing.
-No new facade method needed (it happens at construction). Verify with
-`viterbi.personalization_diagnostics()` showing the emission metrics populated
-after a few observations.
+Why (found 2026-06-11; tracked in rust-engine `docs/NEXT_WORK.md` P1.0):
+these emissions are `enabled:false` at every construction site and **no
+validation harness ever enabled them** — every matrix (1152/1152) and
+double-blind (safety 12/12) PASS ran with them OFF. The synthetic generators
+feed `mental_state` but NOT `aerobic_decoupling_pct` /
+`chronotropic_suppression_pct` / `rpe_hr_drift_pct` (0 of 2 harnesses), and
+`rpe_hr_drift` has no card. So turning them on in the app would ship a
+configuration **no test has ever exercised** — the exact validated-config ≠
+shipped-config drift this runbook exists to prevent.
+
+The fix belongs **engine-side, not here**: extend the harnesses to feed the
+inputs → build configs from the resolver (not the stale `*_card_cfg()` helpers)
+→ re-validate ON → then make default-on at construction so no client ever has
+to flip a switch. Until that lands on rust-engine `main`, Flutter leaves these
+off and the phone runs the validated HRV/RHR/sleep + (fed) mental config. Track
+the unblock in rust-engine NEXT_WORK P1.0.
 
 ### 4b-ii — Privacy "pause learning" control (MEDIUM — spec'd, unwired)
 
@@ -160,9 +167,9 @@ flutter build apk --debug --target-platform android-arm64
 Smoke on a device: a fresh profile shows the calibration framing
 ("Calibration 1 of 5 …") for the first sessions; after ~5 logged workouts the
 selector takes over and the offered zones rotate (not Z2 every day); a stated
-hilly terrain surfaces the `expression` field ("Climb Repeats"); and
-`personalization_diagnostics` shows the M1/M2/decoupling/RPE-drift emission
-metrics populated (Step 4b-i) rather than absent.
+hilly terrain surfaces the `expression` field ("Climb Repeats"). (The
+M1/M2/decoupling/RPE-drift emission metrics stay **absent by design** — 4b-i
+is blocked engine-side until the emissions are validated ON; rust NEXT_WORK P1.0.)
 
 ## Step 6 — Commit + (optionally) PR
 
