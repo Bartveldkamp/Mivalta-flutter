@@ -63,10 +63,20 @@ and is flagged for alignment. Build new advisor UI to **lead-with-A / offer-C**.
 
 ## Build & test (quickstart)
 
+`flutter pub get`, `analyze`, and `test` work immediately. **Building the APK
+does NOT** — it needs the Rust engine compiled into
+`libmivalta_rust_bridge.so` first. That step requires: a Rust toolchain +
+`cargo-ndk`, **Android NDK 28**, and **SSH access to the private
+`mivalta-rust-engine` repo** (Cargo resolves the git-pinned `gatc-ffi` over
+SSH — it fails without the key). See **`README.md` → "Quick start"** for the
+exact `cargo ndk … build` recipe (and the stray-`.so` cleanup). Don't expect
+`flutter build apk` to work until you've done that.
+
 ```bash
 flutter pub get
-flutter analyze          # CI runs `flutter analyze --fatal-infos` — stricter than tests
+flutter analyze          # CI gate: `flutter analyze --fatal-infos` — stricter than tests
 flutter test
+# APK build — only AFTER the Rust .so is built (see README.md Quick start):
 flutter build apk --debug --target-platform android-arm64
 ```
 CI gate is `flutter analyze --fatal-infos`: **local `flutter test` passing is not
