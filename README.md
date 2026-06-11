@@ -12,12 +12,16 @@ architecture rules.
 - Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
 - Headline: `readiness_indicator()` — the 4-axis readiness blend.
 - Continuity: persisted ViterbiEngine state survives app restarts.
-- V10.1 LLM spike: retained as kDebugMode-only route for grounded-Josi phase (PR-F).
+- LLM layer: fully deferred to the grounded-Josi phase (PR-F). The V10.1
+  spike was purged (PR-J); the shipped build contains no native LLM stack.
 - No cloud round-trips; on-device only.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` to revision `4dab6cb` (engine_registry v2.18).
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `b603b5e`
+(rust-engine `main`, engine_registry v2.24). The `rev = "..."` line in
+`rust/Cargo.toml` is the source of truth; see `CLAUDE.md` for what the pin
+provides.
 
 ## Quick start (Hetzner / founder laptop)
 
@@ -89,9 +93,12 @@ Steps performed:
 3. `flutter analyze`
 4. `flutter test`
 5. `cargo ndk … build` and `flutter build apk --debug --target-platform android-arm64`
-6. `unzip -l` asserts `libmivalta_rust_bridge.so` + the V10.1 native
-   stack (`libllama.so` + `libggml*.so` + `libmtmd.so`) and
+6. `unzip -l` asserts `libmivalta_rust_bridge.so` and
    `assets/flutter_assets/assets/compiled_tables.json` are packed.
+   (Historical note: the workflow file still also asserts the V10.1-era
+   native LLM stack — `libllama.so` + `libggml*.so` + `libmtmd.so` —
+   which was purged in PR-J and is no longer part of the shipped build;
+   those stale assertions in `smoke-build.yml` are pending removal.)
 
 ## MVP-1 build sequence
 

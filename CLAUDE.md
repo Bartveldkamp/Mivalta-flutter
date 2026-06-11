@@ -26,7 +26,10 @@ MiValta's production Flutter frontend. Replaces `mivalta-android-client` over
 ~2-4 months.
 
 **Core principle**: on-device first. The Rust engine DECIDES. Flutter DISPLAYS.
-The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi phase (PR-F).
+The LLM is the messenger, not the coach — fully deferred to the grounded-Josi
+phase (PR-F). The V10.1 spike was purged (PR-J, enforced by
+`.github/workflows/lineage-guard.yml`); its replacement (model W) ships via
+Play Asset Delivery with a clean-slate architecture.
 
 ## Current milestone
 
@@ -36,21 +39,27 @@ The LLM (V10.1) is the messenger, not the coach — deferred to grounded-Josi ph
 - Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
 - Headline: `readiness_indicator()` — the 4-axis readiness blend.
 - Continuity: persisted ViterbiEngine state survives app restarts.
-- V10.1 LLM spike: retained as kDebugMode-only route for grounded-Josi phase.
+- LLM layer: fully deferred (V10.1 spike purged in PR-J). The only
+  kDebugMode-only screen is `debug_swatch_exerciser.dart`.
 - No cloud round-trips; on-device only.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` to revision `81bddd6` (rust-engine `main`, engine_registry **v2.23**) — adds, over v2.20: M2 mental→readiness psychological axis, the RPE↔HR drift 10th HMM emission, and gatc-josi `{state}`/`{session}` string slots. The 47af641→81bddd6 FFI delta is **additive** (registry +`set_/get_rpe_hr_drift_emission`; no bound signature changed), so the shim + FRB bindings need no regen — but `UniversalObservation` gained three `#[serde(default)]` fields, so the shim's manual-entry literal now uses `..Default::default()` (compile-verified against v2.23). Regenerate `Cargo.lock` on the build executor (where `ssh` resolves) + rebuild the `.so`/APK.
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `b603b5e` (rust-engine `main` after #245–#248, engine_registry **v2.24** per `engine_registry.json` at that rev). This pin provides the unified advisor→GATC system selector (Z2-forever fix), `AdvisorEngine::recommend_workout_with_history` (vault history → energy-system rotation), B5 calibration probes, the `expression` option field for workout variations, and the Viterbi safety chain. The shim binds `recommend_workout_with_history` in `rust/src/api.rs`, the FRB bindings in `lib/src/rust/` are regenerated for it, and `advisor_screen.dart` is the live caller. Note: the comment header in `rust/Cargo.toml` still narrates an earlier re-pin (`90dd3a4`) — the `rev = "b603b5e"` line is authoritative.
 
 ## Repository Structure
 
 ```
 Mivalta-flutter/
 ├── lib/                # Dart source
-│   ├── main.dart       # Entry point — routes to ReadinessScreen
+│   ├── main.dart       # Entry point — first-launch detection → OnboardingScreen or ReadinessScreen
 │   ├── rust_engine.dart # Dart facade over FRB bindings
-│   ├── screens/        # UI screens (readiness, debug exerciser)
+│   ├── screens/        # 8 UI screens (readiness, readiness detail, advisor, explore,
+│   │                   # manual entry, onboarding, settings, debug swatch exerciser)
+│   ├── models/         # Display-side parse models (activity, power curve, trends, …)
+│   ├── widgets/        # readiness_ring + analytics/ chart cards
+│   ├── services/       # health_ingest, profile_service
+│   ├── copy/           # Locked copy strings (F1)
 │   ├── theme/          # LOCKED design tokens (SourceTier swatches)
 │   └── src/rust/       # Auto-generated FRB bindings (do not edit)
 ├── rust/               # Rust shim bridging flutter_rust_bridge ↔ gatc-ffi
@@ -81,8 +90,10 @@ flutter run                                              # Launch on attached de
   in `mivalta-rust-engine` are compiled into `libmivalta_rust_bridge.so` via
   the `rust/` shim crate. Every shim function is one `gatc_ffi::*` call →
   raw JSON string. No UniFFI record types cross the FRB boundary.
-- **V10.1 LLM via `llama_cpp_dart`** — deferred to grounded-Josi phase (PR-F).
-  The llama_cpp_dart dep is retained but the V10SpikeScreen is kDebugMode-only.
+- **LLM layer: none in the current build.** The V10.1 spike (and its
+  llama_cpp_dart dep) was purged in PR-J; the on-device messenger is deferred
+  to the grounded-Josi phase (PR-F) and will ship as model W via Play Asset
+  Delivery.
 - **Continuity**: ViterbiEngine state is persisted to the vault on every
   state-changing operation and restored on subsequent launches. The app
   MUST call `constructEnginesFromState()` when persisted state exists, or
@@ -100,9 +111,9 @@ flutter run                                              # Launch on attached de
    token; never hardcode hex.
 5. **F1 no-data copy is locked verbatim**: "We need more data to
    predict recovery." Do not paraphrase, do not soften.
-6. **No cloud round-trips in the LLM path.** On-device only.
-   Model download from `http://144.76.62.249/models/*` is the only
-   HTTP exception, and only on first launch.
+6. **No cloud round-trips.** On-device only. (The V10-era first-launch
+   model-download HTTP exception was removed with the PR-J purge; the
+   replacement messenger ships via Play Asset Delivery.)
 7. **No dead code.** Every new public Dart symbol has a call site
    reachable from production within one PR.
 8. **New behaviour needs a test.** `flutter test` / widget test /
@@ -115,7 +126,6 @@ flutter run                                              # Launch on attached de
 - `lib/rust_engine.dart` — Dart facade over FRB bindings.
 - `rust/src/api.rs` — shim bindings (one gatc_ffi::* call per fn).
 - `lib/screens/debug_swatch_exerciser.dart` — kDebugMode-only SourceTier tester.
-- `V10SpikeScreen` (main.dart) — kDebugMode-only V10.1 LLM screen.
 
 ## Commit Convention
 
