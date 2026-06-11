@@ -1,5 +1,22 @@
 # Mac-Executor Batch — bring Flutter onto the validated engine
 
+> **Line-up checklist (verified 2026-06-11 against rust-engine `8c3a662` +
+> Flutter `main` `2f41d95`).** The shipped app pins an OLD engine (`90dd3a4`)
+> and runs a thinner slice than what's validated on rust `main`:
+>
+> - [ ] **1. Re-pin** `rust/Cargo.toml` `90dd3a4` -> **`8c3a662`** (both deps) — §1
+> - [ ] **2. FRB codegen regen** — §2 (surfaces the new shim methods)
+> - [ ] **3. `recommendWorkoutWithHistory` facade + screen wiring** — §3/§4
+>       (unlocks system rotation, dose progression, B5 calibration, `expression`)
+> - [ ] **4. Activate the 4 `set_*_emission` setters at construction** — §4b-i
+>       (M1/M2/decoupling/RPE-drift are currently DARK on the phone)
+> - [ ] **5. `pauseLearning` facade** (V4 privacy) — §4b-ii
+> - [ ] **6. Render new payload fields** — `expression`, calibration framing in `why`
+> - [ ] **7. Build `.so`/APK + smoke** — §5
+>
+> Items 1–2 + the build are Mac-only (no toolchain in the cloud container);
+> 3–6 are Dart/shim edits spelled out below.
+
 Web Claude built and validated the engine but cannot run the Flutter / Android
 / FRB toolchain (no `flutter`, `dart`, `cargo-ndk`, or `flutter_rust_bridge_codegen`
 in the cloud container; the `gatc-ffi` git deps are ssh-pinned). These steps
@@ -8,8 +25,8 @@ order.
 
 ## Why now
 
-Engine `main` (rust-engine, post-PR #246) carries, on top of the v2.24 pin the
-app currently uses:
+Engine `main` (rust-engine `8c3a662`, post-PR #245–#248) carries, on top of the
+older `90dd3a4` pin the app currently uses:
 - the unified advisor→GATC system selector (the Z2-forever fix) + B5
   calibration probes + the `expression` option field;
 - the Viterbi safety chain (multi-scale suppression floor, acute HRV crash
@@ -24,11 +41,13 @@ method signature changed), EXCEPT the Dart facade does not yet expose
 In `rust/Cargo.toml`, both deps:
 
 ```toml
-gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "<POST_#246_MAIN_SHA>" }
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "<POST_#246_MAIN_SHA>" }
+gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8c3a662" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8c3a662" }
 ```
 
-(Use the squash-merge commit SHA of #246 on rust-engine `main`.)
+(`8c3a662` = rust-engine `main` after #245–#248: unification + B5 + expression
++ the Viterbi safety chain + APIM-B fatigue typing + risk-factors. Verified the
+current app pin is the older `90dd3a4`, which predates all of it.)
 
 ```bash
 cd rust && cargo update -p gatc-ffi -p gatc-viterbi && cd ..
