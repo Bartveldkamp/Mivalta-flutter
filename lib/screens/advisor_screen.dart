@@ -530,7 +530,7 @@ class _WorkoutCard extends StatelessWidget {
                 vertical: MivaltaSpace.x1,
               ),
               decoration: BoxDecoration(
-                color: MivaltaColors.tertiaryTeal.withOpacity(0.15),
+                color: MivaltaColors.tertiaryTeal.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: MivaltaColors.tertiaryTeal,
