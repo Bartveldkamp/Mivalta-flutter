@@ -92,7 +92,7 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
     });
 
     try {
-      final json = await widget.binding.recommendWorkout(
+      final json = await widget.binding.recommendWorkoutWithHistory(
         widget.handle,
         mood: _selectedMood,
         equipment: _selectedEquipment,
@@ -517,6 +517,42 @@ class _WorkoutCard extends StatelessWidget {
               option.why,
               style: textTheme.bodyMedium?.copyWith(
                 color: MivaltaColors.textSecondary,
+              ),
+            ),
+          ],
+
+          // Expression (workout variation, e.g. "Climb Repeats")
+          if (option.expression != null && option.expression!.isNotEmpty) ...[
+            const SizedBox(height: MivaltaSpace.x2),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MivaltaSpace.x2,
+                vertical: MivaltaSpace.x1,
+              ),
+              decoration: BoxDecoration(
+                color: MivaltaColors.tertiaryTeal.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: MivaltaColors.tertiaryTeal,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.terrain_rounded,
+                    size: 16,
+                    color: MivaltaColors.primaryGreen,
+                  ),
+                  const SizedBox(width: MivaltaSpace.x1),
+                  Text(
+                    option.expression!,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: MivaltaColors.primaryGreen,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
