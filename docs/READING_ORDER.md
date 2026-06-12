@@ -1,5 +1,11 @@
 # START HERE — Reading Order for External Frontend Developers
 
+> **Agency / Apadmi:** the project hand-in + scope statement is
+> [`APADMI_HANDOFF.md`](APADMI_HANDOFF.md) — read it first. It states the beta
+> scope (MONITOR + ADVISOR, **no Josi chat**), the design north star (the
+> next-gen "training buddy", not a dashboard — and that the **canonical design is
+> the docs, not the older Okapion Figma**), and the read-in-order map.
+
 You're building (or designing) the MiValta Flutter app. This is the **one page to
 read first**, then the ordered list of what to read next and why. The product is
 **on-device, privacy-first**, and built on one hard principle:

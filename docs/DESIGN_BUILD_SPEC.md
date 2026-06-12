@@ -16,6 +16,34 @@ later phase). COACH (multi-day plans) is deferred.
 
 ---
 
+## ★ Design north star — a next-generation "training buddy," not a dashboard
+
+This is the single principle that should override the look of every typical
+training app, and it's the differentiator:
+
+> **MiValta feels like an intuitive health/training *buddy* — calm by default,
+> with all the depth there but revealed only when the user chooses to go deeper.**
+
+- **Lead with what matters *now*.** The home is the buddy's read: one clear
+  readiness (today), one clear suggestion (today's session), one calm line of
+  context. Not a wall of graphs. The athlete should *glance* and know.
+- **Progressive disclosure — every number is available, none is in your face.**
+  The engine can produce a huge amount (full analytics, the 4-axis "why",
+  biometric history, power curves, trends, load math). **All of it is reachable —
+  one tap deeper, never on the front.** The home is the buddy; the depth is a
+  drawer (the *Explore* / *detail* screens) the user *opens on purpose*. This is
+  the opposite of the screen-and-graph overload of typical training apps, and it's
+  the point of difference.
+- **Honest, never alarming.** The quiet state is the product working; confidence
+  is always visible ("still learning you" early on); the athlete can always go
+  deeper or override. Color carries urgency; the numbers stay calm.
+
+Every layout decision below should be tested against one question: *does this feel
+like a buddy telling me what I need, or like a dashboard dumping data at me?* If
+it's the latter, push the data one layer deeper.
+
+---
+
 ## 0. The three "scores" — resolve the headline question first
 
 The app surfaces **three distinct numbers**, each with a different job and home.
