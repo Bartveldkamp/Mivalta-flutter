@@ -80,3 +80,9 @@ never as a flat menu.
 17. Founder Figma reference (next session: review against canon — note prior
     finding: Okapion file predates no-chat beta scope):
     https://www.figma.com/design/mAiucTGUjP8bP1T2cAute0/MIV---Design
+18. **WEATHERKIT — YES (founder).** Weather wiring approved via Apple
+    WeatherKit (included in the Developer Program, 500k calls/mo): the
+    privacy-compatible OS-level exception to the no-cloud rule — fetched by
+    the OS frame, never MiValta servers; document the exception explicitly
+    in CLAUDE.md rule 6 when wiring. Form per item 11: one condition icon
+    top-right, tap → 7-day forecast. Android equivalent t.b.d. at wiring.
