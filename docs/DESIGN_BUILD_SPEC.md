@@ -100,6 +100,16 @@ spatially distinct.
 - **Readiness = number-as-hero.** The 0–100 is the largest element on the home.
 - **Advisor = lead-with-A.** Emphasize option A (the recommended session); offer C
   as the easy fallback; de-emphasize B. Not a flat equal-weight menu.
+- **Verdict → reasons → data (A4, locked).** Every explanatory surface orders:
+  the engine's verdict prose first, then the *reasons* (the 4-axis
+  `contributions[]`, card-sourced meaning), then raw data (trends, stats) — raw
+  data last and usually behind a tap, **never first**. Applied today: Josi's
+  why-reveal (rationale → axis bars → confidence note), the readiness detail
+  screen (hero → axis breakdown → biometric trends), and the post-workout
+  report (quality verdict → what it built → collapsible stats).
+- **Rest is content, not absence (A2).** A rest/recovery prescription renders as
+  a full styled card with the same prominence as a workout — rest-specific
+  presentation (recovery icon, recovered-state accent), never an empty state.
 - **Every screen handles four "off-happy-path" states** (§4) — designers forget
   these; the engine produces them constantly early on.
 

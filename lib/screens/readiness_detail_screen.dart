@@ -12,6 +12,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../copy/axis_labels.dart';
 import '../models/critical_power.dart';
 import '../models/decoupling_trend.dart';
 import '../models/fitness_trend.dart';
@@ -33,17 +34,6 @@ import '../widgets/analytics/power_curve_chart.dart';
 import '../widgets/analytics/time_in_zone_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
 import '../widgets/analytics/workout_detail_card.dart';
-
-/// Humanize axis names for display. Engine field → user-friendly label.
-String _humanizeAxisName(String? name) {
-  return switch ((name ?? '').toLowerCase()) {
-    'hmm_posteriors' => 'Fatigue model',
-    'banister' => 'Fitness & freshness',
-    'physio_zscore' => 'Body signals',
-    'psychological' => 'How you feel',
-    _ => name ?? '—',
-  };
-}
 
 /// Detail screen data from engine
 class _DetailData {
@@ -481,7 +471,7 @@ class _AxisBreakdownSection extends StatelessWidget {
         children: [
           for (final c in contributions) ...[
             _AxisBar(
-              name: _humanizeAxisName(c['name']?.toString()),
+              name: humanizeAxisName(c['name']?.toString()),
               rawScore: (c['raw_score'] as num?)?.toDouble(),
               weight: (c['weight'] as num?)?.toDouble(),
               weighted: (c['weighted'] as num?)?.toDouble(),

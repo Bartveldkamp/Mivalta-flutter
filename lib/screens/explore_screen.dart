@@ -17,12 +17,11 @@ import 'package:flutter/material.dart';
 import '../models/activity_summary.dart';
 import '../models/biometric_series.dart';
 import '../models/load_context.dart';
-import '../models/workout_detail.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/biometric_chart.dart';
 import '../widgets/analytics/load_strain_card.dart';
-import '../widgets/analytics/workout_detail_card.dart';
+import 'workout_detail_page.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key, required this.binding, required this.handle});
@@ -104,7 +103,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _openWorkout(ActivitySummary a) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _WorkoutDetailPage(
+        builder: (_) => WorkoutDetailPage(
           binding: widget.binding,
           handle: widget.handle,
           date: a.date,
@@ -298,65 +297,4 @@ class _WorkoutRow extends StatelessWidget {
 
   static String _titleCase(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-}
-
-/// On-tap per-workout detail — loads `get_workout_detail(date)` on demand.
-class _WorkoutDetailPage extends StatelessWidget {
-  const _WorkoutDetailPage({
-    required this.binding,
-    required this.handle,
-    required this.date,
-  });
-
-  final RustEngineBinding binding;
-  final EnginesHandle handle;
-  final String date;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: MivaltaColors.surfaceBackground,
-      appBar: AppBar(
-        backgroundColor: MivaltaColors.surfaceBackground,
-        foregroundColor: MivaltaColors.textPrimary,
-        title: const Text('Workout'),
-      ),
-      body: FutureBuilder<String>(
-        future: binding.getWorkoutDetail(handle, date: date),
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          Widget unavailable() => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(MivaltaSpace.x5),
-                  child: Text(
-                    'Workout detail unavailable.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: MivaltaColors.textMuted),
-                  ),
-                ),
-              );
-          if (snap.hasError || snap.data == null) {
-            return unavailable();
-          }
-          // FL-5: parse defensively — engine schema drift (version skew vs the
-          // pinned rev) would otherwise throw inside build() and show a red
-          // screen. Degrade to the same "unavailable" state on parse failure.
-          final WorkoutDetail detail;
-          try {
-            detail = WorkoutDetail.fromJson(jsonDecode(snap.data!));
-          } catch (_) {
-            return unavailable();
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(MivaltaSpace.x4),
-            child: WorkoutDetailCard(detail: detail),
-          );
-        },
-      ),
-    );
-  }
 }

@@ -38,6 +38,7 @@ import 'debug_swatch_exerciser.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
 import 'settings_screen.dart';
+import 'workout_detail_page.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
 /// never recomputes the state itself.
@@ -82,6 +83,8 @@ class _HomeData {
   int? readinessScore;           // from indicator['score'], rounded
   String? readinessLevel;        // indicator['level'] verbatim
   double? confidence;            // indicator['confidence']
+  // Item 4: indicator['contributions'] — 4-axis reasons for Josi's why-reveal
+  List<Map<String, dynamic>> contributions = const [];
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
   String? confidenceAdvisory;    // FIXED: stateWidget['confidence_advisory']
   String? fatigueState;          // viterbiFatigueState().state
@@ -296,6 +299,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       d.readinessLevel = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
+      // Item 4: 4-axis contributions for the why-reveal (same shape the
+      // detail screen renders; Josi shows the compact cut).
+      final contributions = indicator['contributions'];
+      if (contributions is List) {
+        d.contributions =
+            contributions.whereType<Map<String, dynamic>>().toList();
+      }
+
       // Check for insufficient data via readinessScore advisories
       final readinessJson = await binding.readinessScore(handle);
       final readiness = jsonDecode(readinessJson) as Map<String, dynamic>;
@@ -508,7 +519,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     if (handle == null || binding == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _WorkoutDetailPage(
+        builder: (_) => WorkoutDetailPage(
           binding: binding,
           handle: handle,
           date: date,
@@ -747,6 +758,7 @@ class _ThreeZoneHome extends StatelessWidget {
             durationMin: data.durationMin,
             sessionZone: data.sessionZone,
             rationaleProse: data.rationaleProse,
+            contributions: data.contributions,
           ),
           const SizedBox(height: MivaltaSpace.x5),
 
@@ -870,6 +882,13 @@ class _Zone2Today extends StatelessWidget {
   final TextTheme textTheme;
   final VoidCallback onTapAdvisor;
 
+  /// A2 (rest with equal visual weight): a rest day is content, not absence.
+  /// When the engine prescribes rest (session zone 'R'), the same full card
+  /// renders with rest-specific presentation — recovery icon + recovered-state
+  /// accent — instead of the generic workout dumbbell. Presentation mapping
+  /// of an engine value only (same pattern as the advisor's zone colors).
+  bool get _isRest => (data.sessionZone ?? '').toUpperCase() == 'R';
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -906,7 +925,12 @@ class _Zone2Today extends StatelessWidget {
                 // Title + duration
                 Row(
                   children: [
-                    Icon(Icons.fitness_center, color: MivaltaColors.textSecondary),
+                    Icon(
+                      _isRest ? Icons.self_improvement : Icons.fitness_center,
+                      color: _isRest
+                          ? MivaltaColors.stateRecovered
+                          : MivaltaColors.textSecondary,
+                    ),
                     const SizedBox(width: MivaltaSpace.x3),
                     Expanded(
                       child: Text(
@@ -929,7 +953,12 @@ class _Zone2Today extends StatelessWidget {
                 Row(
                   children: [
                     if (data.sessionZone != null)
-                      _Badge(label: data.sessionZone!, color: MivaltaColors.textMuted),
+                      _Badge(
+                        label: data.sessionZone!,
+                        color: _isRest
+                            ? MivaltaColors.stateRecovered
+                            : MivaltaColors.textMuted,
+                      ),
                     const SizedBox(width: MivaltaSpace.x2),
                     if (data.targetWatts != null)
                       Text(
@@ -1430,158 +1459,4 @@ class _LatestWorkoutRow extends StatelessWidget {
 
   static String _titleCase(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-}
-
-/// On-tap per-workout detail page — loads `get_workout_detail(date)` on demand.
-/// (Shared pattern with ExploreScreen's _WorkoutDetailPage.)
-class _WorkoutDetailPage extends StatelessWidget {
-  const _WorkoutDetailPage({
-    required this.binding,
-    required this.handle,
-    required this.date,
-  });
-
-  final RustEngineBinding binding;
-  final EnginesHandle handle;
-  final String date;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: MivaltaColors.surfaceBackground,
-      appBar: AppBar(
-        backgroundColor: MivaltaColors.surfaceBackground,
-        foregroundColor: MivaltaColors.textPrimary,
-        title: const Text('Workout'),
-      ),
-      body: FutureBuilder<String>(
-        future: binding.getWorkoutDetail(handle, date: date),
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          Widget unavailable() => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(MivaltaSpace.x5),
-                  child: Text(
-                    'Workout detail unavailable.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: MivaltaColors.textMuted),
-                  ),
-                ),
-              );
-          if (snap.hasError || snap.data == null) {
-            return unavailable();
-          }
-          // Parse defensively — schema drift would otherwise show a red screen.
-          final dynamic decoded;
-          try {
-            decoded = jsonDecode(snap.data!);
-          } catch (_) {
-            return unavailable();
-          }
-          // Import the full card only when data is valid
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(MivaltaSpace.x4),
-            child: _WorkoutDetailCard(detail: decoded),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Inline workout detail card — mirrors WorkoutDetailCard pattern but inline here
-/// to keep the file self-contained for the home's on-tap detail flow.
-class _WorkoutDetailCard extends StatelessWidget {
-  const _WorkoutDetailCard({required this.detail});
-  final dynamic detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final d = detail as Map<String, dynamic>?;
-    if (d == null) return const SizedBox.shrink();
-
-    final activityType = d['activity_type']?.toString() ?? 'Workout';
-    final date = d['date']?.toString() ?? '';
-    final durationMin = d['duration_minutes'] as int?;
-    final avgHr = d['avg_heart_rate'] as int?;
-    final loadUls = (d['load_uls'] as num?)?.toDouble();
-
-    return Container(
-      padding: const EdgeInsets.all(MivaltaSpace.x4),
-      decoration: BoxDecoration(
-        color: MivaltaColors.surface1,
-        borderRadius: BorderRadius.circular(MivaltaRadii.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title
-          Text(
-            activityType.isEmpty
-                ? 'Workout'
-                : activityType[0].toUpperCase() + activityType.substring(1),
-            style: textTheme.titleLarge?.copyWith(
-              color: MivaltaColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: MivaltaSpace.x1),
-          Text(
-            date,
-            style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-          ),
-          const SizedBox(height: MivaltaSpace.x4),
-
-          // Metrics row
-          Row(
-            children: [
-              if (durationMin != null) ...[
-                _MetricTile(label: 'Duration', value: '$durationMin min'),
-                const SizedBox(width: MivaltaSpace.x4),
-              ],
-              if (avgHr != null) ...[
-                _MetricTile(label: 'Avg HR', value: '$avgHr bpm'),
-                const SizedBox(width: MivaltaSpace.x4),
-              ],
-              if (loadUls != null)
-                _MetricTile(label: 'Load', value: '${loadUls.round()}'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Simple metric tile for workout detail display.
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-        ),
-        Text(
-          value,
-          style: textTheme.bodyLarge?.copyWith(
-            color: MivaltaColors.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -52,7 +52,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _knowsFtp = true;
   bool _knowsPace = true;
 
-  static const _totalPages = 6;
+  static const _totalPages = 7;
 
   @override
   void dispose() {
@@ -101,6 +101,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         return _weeklyHoursController.text.isNotEmpty;
       case 5: // Anchors
         return true; // All anchor fields are optional ("I don't know" is valid)
+      case 6: // Privacy moment (A1) — informational, nothing to fill in
+        return true;
       default:
         return false;
     }
@@ -222,6 +224,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   paceMinController: _paceMinController,
                   paceSecController: _paceSecController,
                 ),
+                const PrivacyMomentPage(),
               ],
             ),
           ),
@@ -861,6 +864,102 @@ class _DontKnowCheckbox extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PAGE 7: Privacy moment (NEXT_UPDATE_V2_ADOPTIONS A1)
+// =============================================================================
+
+/// The airplane-mode privacy moment — onboarding's final step.
+///
+/// Engines don't exist yet during onboarding (they're constructed after this
+/// flow returns), so the "live compute as proof" IS the next screen: tapping
+/// Get Started boots the engine and computes readiness fully on-device — with
+/// airplane mode still on if the user enabled it.
+///
+/// ⚠ FOUNDER REVIEW: copy below is a draft per the A1 brief; goes through
+/// founder review before lock.
+///
+/// PUBLIC so the privacy copy is pinned by widget test (same precedent as
+/// AdvisorOptionsList); production call site is this screen's PageView.
+class PrivacyMomentPage extends StatelessWidget {
+  const PrivacyMomentPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(MivaltaSpace.x5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: MivaltaSpace.x6),
+          Center(
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: MivaltaColors.surface1,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.airplanemode_active,
+                size: 36,
+                color: MivaltaColors.primaryGreen,
+              ),
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x6),
+          Text(
+            'Turn on airplane mode.',
+            style: textTheme.headlineSmall?.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x3),
+          Text(
+            'Watch: the engine still works. '
+            'Your data never leaves this phone.',
+            style: textTheme.bodyLarge?.copyWith(
+              color: MivaltaColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x5),
+          Container(
+            padding: const EdgeInsets.all(MivaltaSpace.x4),
+            decoration: BoxDecoration(
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.md),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 20,
+                  color: MivaltaColors.primaryGreen,
+                ),
+                const SizedBox(width: MivaltaSpace.x3),
+                Expanded(
+                  child: Text(
+                    'Tap Get Started and your readiness is computed right '
+                    'here, on this phone. No cloud. No account. '
+                    'Nothing leaves.',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -23,6 +23,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../copy/axis_labels.dart';
 import '../copy/f1.dart';
 import '../theme/tokens.dart';
 
@@ -39,6 +40,7 @@ class JosiPresenter extends StatefulWidget {
     this.durationMin,
     this.sessionZone,
     this.rationaleProse,
+    this.contributions = const [],
   });
 
   /// No observations yet — Josi honestly presents the locked F1 no-data line.
@@ -58,6 +60,12 @@ class JosiPresenter extends StatefulWidget {
   /// Engine `session_widget.rationale_prose` — revealed under "why?".
   final String? rationaleProse;
 
+  /// Engine `readiness_indicator.contributions[]` — the 4-axis reasons,
+  /// revealed under "why?" (founder feedback 2026-06-12 item 4: the why-tap
+  /// shows WHICH SIGNALS MOVED, same data the detail screen renders).
+  /// Each map carries `name`, `raw_score`, `weight`, `weighted` verbatim.
+  final List<Map<String, dynamic>> contributions;
+
   @override
   State<JosiPresenter> createState() => _JosiPresenterState();
 }
@@ -69,8 +77,14 @@ class _JosiPresenterState extends State<JosiPresenter> {
     final rationale = widget.rationaleProse;
     final advisory = widget.confidenceAdvisory;
     return (rationale != null && rationale.isNotEmpty) ||
-        (advisory != null && advisory.isNotEmpty);
+        (advisory != null && advisory.isNotEmpty) ||
+        _revealContributions.isNotEmpty;
   }
+
+  /// Contributions shown in the reveal. Gated on data sufficiency (feedback
+  /// item 1): with no observations the signals are priors, so stay silent.
+  List<Map<String, dynamic>> get _revealContributions =>
+      widget.insufficientData ? const [] : widget.contributions;
 
   String? _sessionLine() {
     final title = widget.workoutTitle;
@@ -198,6 +212,9 @@ class _JosiPresenterState extends State<JosiPresenter> {
               child: _showWhy
                   ? Padding(
                       padding: const EdgeInsets.only(top: MivaltaSpace.x2),
+                      // Ordering rule (verdict → reasons → data): the engine's
+                      // explainer prose first, then the 4-axis signal reasons,
+                      // then the confidence note. Never raw data first.
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -209,6 +226,15 @@ class _JosiPresenterState extends State<JosiPresenter> {
                                 height: 1.35,
                               ),
                             ),
+                          // Which signals moved — the engine's 4-axis
+                          // contributions, rendered verbatim (item 4).
+                          if (_revealContributions.isNotEmpty) ...[
+                            const SizedBox(height: MivaltaSpace.x3),
+                            _ContributionRows(
+                              contributions: _revealContributions,
+                              textTheme: textTheme,
+                            ),
+                          ],
                           if (advisory != null && advisory.isNotEmpty) ...[
                             const SizedBox(height: MivaltaSpace.x2),
                             Text(
@@ -226,6 +252,70 @@ class _JosiPresenterState extends State<JosiPresenter> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Compact "which signals moved" rows for the why-reveal — a lighter cut of
+/// the detail screen's axis breakdown. Display-only: names humanized at the
+/// label layer, values verbatim; bars scaled by the engine's own `weighted`
+/// values (presentation normalization, no derived numbers shown).
+class _ContributionRows extends StatelessWidget {
+  const _ContributionRows({
+    required this.contributions,
+    required this.textTheme,
+  });
+
+  final List<Map<String, dynamic>> contributions;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    // Scale bars against the largest weighted contribution.
+    double maxWeighted = 0;
+    for (final c in contributions) {
+      final w = (c['weighted'] as num?)?.toDouble() ?? 0;
+      if (w > maxWeighted) maxWeighted = w;
+    }
+    if (maxWeighted <= 0) maxWeighted = 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final c in contributions) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  humanizeAxisName(c['name']?.toString()),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: MivaltaColors.textSecondary,
+                  ),
+                ),
+              ),
+              if (c['raw_score'] is num)
+                Text(
+                  '${(c['raw_score'] as num).round()}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: MivaltaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+            child: LinearProgressIndicator(
+              value: ((c['weighted'] as num?)?.toDouble() ?? 0) / maxWeighted,
+              minHeight: 3,
+              backgroundColor: MivaltaColors.surface2,
+              color: MivaltaColors.primaryGreen,
+            ),
+          ),
+          if (c != contributions.last) const SizedBox(height: MivaltaSpace.x2),
+        ],
+      ],
     );
   }
 }

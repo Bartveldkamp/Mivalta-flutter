@@ -374,6 +374,25 @@ void main() {
     });
   });
 
+  // A2 (NEXT_UPDATE_V2_ADOPTIONS): rest is content, not absence. The home's
+  // Today card gives an engine-prescribed rest session ('R' zone) the same
+  // full card with rest presentation (recovery icon + recovered accent).
+  group('Rest-as-content (A2) contract', () {
+    test('rest presentation gates on the engine session zone R, case-insensitive', () {
+      // Mirrors _Zone2Today._isRest — a presentation mapping of an engine
+      // value only; no Dart decides whether today is rest.
+      bool isRest(String? sessionZone) =>
+          (sessionZone ?? '').toUpperCase() == 'R';
+
+      expect(isRest('R'), isTrue);
+      expect(isRest('r'), isTrue);
+      expect(isRest('Z2'), isFalse);
+      expect(isRest('Z1'), isFalse); // recovery ride is still a session
+      expect(isRest(''), isFalse);
+      expect(isRest(null), isFalse);
+    });
+  });
+
   // PR-C: Tokens-only compliance — ring color must come from tokens layer
   group('Tokens-only compliance', () {
     testWidgets(
