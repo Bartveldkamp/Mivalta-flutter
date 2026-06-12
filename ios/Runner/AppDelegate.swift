@@ -77,7 +77,10 @@ class MivaltaWeatherChannel: NSObject, CLLocationManagerDelegate {
   }
 
   func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-    guard pending != nil else { return }
+    // This delegate method only fires on iOS 14+; the guard exists purely to
+    // satisfy availability checking with the app's lower deployment target.
+    // The feature itself is iOS 16+ (gated in getWeather).
+    guard #available(iOS 14.0, *), pending != nil else { return }
     switch manager.authorizationStatus {
     case .authorizedWhenInUse, .authorizedAlways:
       manager.requestLocation()
