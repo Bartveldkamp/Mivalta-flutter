@@ -56,8 +56,9 @@ void main() {
   // ⚠ FL-17: the profile Sport enum stays cycling/running only (pinned in
   // profile_service_test.dart) — this picker never touches it.
   group('SensorCheckScreen — activity picker (item 23)', () {
-    testWidgets('renders the founder list: all running, walking, all cycling '
-        'variants under ACTIVITY', (tester) async {
+    testWidgets('renders the founder list in a horizontal SCROLLER: all '
+        'running, walking, all cycling variants under ACTIVITY',
+        (tester) async {
       await _pump(tester);
 
       expect(find.text(kActivitySectionLabel), findsOneWidget);
@@ -70,6 +71,18 @@ void main() {
       expect(find.text('Virtual ride'), findsOneWidget);
       expect(find.text('Mountain bike'), findsOneWidget);
 
+      // Night-round polish: the picker is a horizontal scroller, not a
+      // wrapped chip cloud.
+      final scroller = tester.widget<SingleChildScrollView>(
+        find
+            .ancestor(
+              of: find.text('Outdoor run'),
+              matching: find.byType(SingleChildScrollView),
+            )
+            .first,
+      );
+      expect(scroller.scrollDirection, Axis.horizontal);
+
       // Raw engine activity_type strings never reach the user.
       expect(find.text('run'), findsNothing);
       expect(find.text('walk'), findsNothing);
@@ -80,21 +93,27 @@ void main() {
         'selection (single-select)', (tester) async {
       await _pump(tester);
 
-      ChoiceChip chipFor(String label) => tester.widget<ChoiceChip>(
-            find.ancestor(
-              of: find.text(label),
-              matching: find.byType(ChoiceChip),
-            ),
-          );
+      // Selection language: green glyph on the chosen card (item-20 subtle
+      // selection — the green lives in the glyph and hairline, not a fill).
+      Color iconColorFor(String label) => tester
+          .widget<Icon>(find.descendant(
+            of: find
+                .ancestor(of: find.text(label), matching: find.byType(InkWell))
+                .first,
+            matching: find.byType(Icon),
+          ))
+          .color!;
 
-      expect(chipFor('Outdoor run').selected, isTrue);
-      expect(chipFor('Mountain bike').selected, isFalse);
+      expect(iconColorFor('Outdoor run'), MivaltaColors.primaryGreen);
+      expect(iconColorFor('Mountain bike'), MivaltaColors.textMuted);
 
+      // The last card sits off the right edge of the scroller — bring it in.
+      await tester.ensureVisible(find.text('Mountain bike'));
       await tester.tap(find.text('Mountain bike'));
       await tester.pumpAndSettle();
 
-      expect(chipFor('Mountain bike').selected, isTrue);
-      expect(chipFor('Outdoor run').selected, isFalse);
+      expect(iconColorFor('Mountain bike'), MivaltaColors.primaryGreen);
+      expect(iconColorFor('Outdoor run'), MivaltaColors.textMuted);
     });
 
     test('engine contract: variants map to the ingest path activity_type '

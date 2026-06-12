@@ -135,17 +135,24 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
               ),
             ),
             const SizedBox(height: MivaltaSpace.x3),
-            Wrap(
-              spacing: MivaltaSpace.x2,
-              runSpacing: MivaltaSpace.x2,
-              children: [
-                for (var i = 0; i < kActivityChoices.length; i++)
-                  _ActivityChip(
-                    choice: kActivityChoices[i],
-                    selected: i == _selectedIndex,
-                    onSelected: () => setState(() => _selectedIndex = i),
-                  ),
-              ],
+            // Founder night-round polish: a horizontal SCROLLER of activity
+            // cards, not a wrapped chip cloud. SingleChildScrollView (not a
+            // lazy list) so every card exists for tests and a11y.
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              child: Row(
+                children: [
+                  for (var i = 0; i < kActivityChoices.length; i++) ...[
+                    if (i > 0) const SizedBox(width: MivaltaSpace.x2),
+                    _ActivityCard(
+                      choice: kActivityChoices[i],
+                      selected: i == _selectedIndex,
+                      onSelected: () => setState(() => _selectedIndex = i),
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: MivaltaSpace.x6),
 
@@ -223,10 +230,11 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
   }
 }
 
-/// One activity chip — quiet by default, green hairline + check when chosen
-/// (same subtle language as the start control, round 3-final item 20).
-class _ActivityChip extends StatelessWidget {
-  const _ActivityChip({
+/// One activity card in the horizontal scroller — glyph over label, quiet by
+/// default, green hairline + green glyph when chosen (same subtle selection
+/// language as the start control, round 3-final item 20).
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({
     required this.choice,
     required this.selected,
     required this.onSelected,
@@ -240,30 +248,48 @@ class _ActivityChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      avatar: Icon(
-        activityGlyph(choice.activityType),
-        size: 16,
-        color:
-            selected ? MivaltaColors.primaryGreen : MivaltaColors.textMuted,
-      ),
-      label: Text(choice.label),
-      labelStyle: textTheme.bodySmall?.copyWith(
-        color: selected
-            ? MivaltaColors.textPrimary
-            : MivaltaColors.textSecondary,
-      ),
-      backgroundColor: MivaltaColors.surface1,
-      selectedColor: MivaltaColors.surface2,
-      showCheckmark: false,
-      side: BorderSide(
-        color:
-            selected ? MivaltaColors.primaryGreen : MivaltaColors.surface2,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+    return Material(
+      color: selected ? MivaltaColors.surface2 : MivaltaColors.surface1,
+      borderRadius: BorderRadius.circular(MivaltaRadii.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MivaltaRadii.md),
+        onTap: onSelected,
+        child: AnimatedContainer(
+          duration: MivaltaMotion.fast,
+          padding: const EdgeInsets.symmetric(
+            horizontal: MivaltaSpace.x4,
+            vertical: MivaltaSpace.x3,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(MivaltaRadii.md),
+            border: Border.all(
+              color: selected
+                  ? MivaltaColors.primaryGreen
+                  : MivaltaColors.surface2,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                activityGlyph(choice.activityType),
+                size: 24,
+                color: selected
+                    ? MivaltaColors.primaryGreen
+                    : MivaltaColors.textMuted,
+              ),
+              const SizedBox(height: MivaltaSpace.x2),
+              Text(
+                choice.label,
+                style: textTheme.bodySmall?.copyWith(
+                  color: selected
+                      ? MivaltaColors.textPrimary
+                      : MivaltaColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
