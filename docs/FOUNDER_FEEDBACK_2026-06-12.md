@@ -86,3 +86,15 @@ never as a flat menu.
     the OS frame, never MiValta servers; document the exception explicitly
     in CLAUDE.md rule 6 when wiring. Form per item 11: one condition icon
     top-right, tap → 7-day forecast. Android equivalent t.b.d. at wiring.
+19. **Item 14 RESOLVED — Plan tab becomes "Journey" (founder).** Since beta is
+    MONITOR+ADVISORY (no real planning), the 2nd anchor renders the athlete's
+    JOURNEY per the North Star docx idea: the calibration/learning arc
+    ("model learning you — day X of ~28"), baseline evolution, milestones,
+    week-in-review — past+becoming, not future planning. Engine-grounded
+    only; honest empty states; rename tab label accordingly.
+
+## UPDATE ROUND 3 — scope (one clear round, founder 2026-06-12 evening)
+Implement together, each with widget tests + 4-state screenshot notes:
+items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
+11+18 (WeatherKit icon top-right, tap=7-day) · 12 (user-configurable tiles) ·
+13 (extended trust-story "why") · 19 (Plan→Journey). Dark-first (16) locked.
