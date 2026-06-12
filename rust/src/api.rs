@@ -118,6 +118,14 @@ pub fn construct_engines_fresh(
 
     let viterbi = gatc_ffi::ViterbiEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("viterbi: {e}")))?;
+    // P1.0 (validated 2026-06-11, rust-engine #250): arm the card-faithful HMM
+    // emissions (decoupling, mental M2, chronotropic M1) — the same one-call
+    // path both validation harnesses use (matrix 1152/1152 + double-blind sim
+    // PASS with emissions ON), so the phone runs the exact validated
+    // configuration. Pure transport: the engine resolves the cards itself.
+    viterbi
+        .enable_card_emissions(tables_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("emissions: {e}")))?;
     let advisor = gatc_ffi::AdvisorEngine::new(athlete_profile_json.clone(), tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
@@ -169,6 +177,12 @@ pub fn construct_engines_from_state(
         viterbi_state_json,
     )
     .map_err(|e| BridgeError::EngineConstructionFailed(format!("viterbi restore: {e}")))?;
+    // P1.0: same card-faithful emission arming as the fresh path — restored
+    // engines must run the identical validated configuration (the persisted
+    // state carries the HMM, not the emission configs).
+    viterbi
+        .enable_card_emissions(tables_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("emissions: {e}")))?;
 
     let advisor = gatc_ffi::AdvisorEngine::new(athlete_profile_json.clone(), tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
@@ -258,6 +272,24 @@ pub fn zone_cap_with_advisories(handle: &EnginesHandle) -> Result<String, Bridge
 /// to `construct_engines_from_state()` to restore continuity.
 pub fn save_state(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle.viterbi.save_state().map_err(Into::into)
+}
+
+/// `ViterbiEngine::pause_learning()` — V4 global privacy setting: stop ALL
+/// model mutation (baselines, windows, transitions). The engine still reads
+/// state; it learns nothing while paused. Pure transport (4b-ii).
+pub fn pause_learning(handle: &EnginesHandle) -> Result<(), BridgeError> {
+    handle.viterbi.pause_learning().map_err(Into::into)
+}
+
+/// `ViterbiEngine::resume_learning()` — lift the V4 privacy pause.
+pub fn resume_learning(handle: &EnginesHandle) -> Result<(), BridgeError> {
+    handle.viterbi.resume_learning().map_err(Into::into)
+}
+
+/// `ViterbiEngine::is_learning_paused()` — read the V4 pause flag for the
+/// Settings toggle.
+pub fn is_learning_paused(handle: &EnginesHandle) -> Result<bool, BridgeError> {
+    handle.viterbi.is_learning_paused().map_err(Into::into)
 }
 
 /// `ViterbiEngine::process_observation(observation_json)` — feed a

@@ -1,5 +1,23 @@
 # Mac-Executor Batch — bring Flutter onto the validated engine
 
+> **Line-up checklist (verified 2026-06-11 against rust-engine `b603b5e` +
+> Flutter `main` `2f41d95`).** The shipped app pins an OLD engine (`90dd3a4`)
+> and runs a thinner slice than what's validated on rust `main`:
+>
+> - [ ] **1. Re-pin** `rust/Cargo.toml` `90dd3a4` -> **`b603b5e`** (both deps) — §1
+> - [ ] **2. FRB codegen regen** — §2 (surfaces the new shim methods)
+> - [ ] **3. `recommendWorkoutWithHistory` facade + screen wiring** — §3/§4
+>       (unlocks system rotation, dose progression, B5 calibration, `expression`)
+> - [ ] **4. Arm the 3 card-backed emissions** — §4b-i: ONE call,
+>       `enable_card_emissions(tables)` after each construct (validated ON
+>       2026-06-11: matrix 1152/1152 + sim PASS; rust PR #250)
+> - [ ] **5. `pauseLearning` facade** (V4 privacy) — §4b-ii
+> - [ ] **6. Render new payload fields** — `expression`, calibration framing in `why`
+> - [ ] **7. Build `.so`/APK + smoke** — §5
+>
+> Items 1–2 + the build are Mac-only (no toolchain in the cloud container);
+> 3–6 are Dart/shim edits spelled out below.
+
 Web Claude built and validated the engine but cannot run the Flutter / Android
 / FRB toolchain (no `flutter`, `dart`, `cargo-ndk`, or `flutter_rust_bridge_codegen`
 in the cloud container; the `gatc-ffi` git deps are ssh-pinned). These steps
@@ -8,8 +26,8 @@ order.
 
 ## Why now
 
-Engine `main` (rust-engine, post-PR #246) carries, on top of the v2.24 pin the
-app currently uses:
+Engine `main` (rust-engine `b603b5e`, post-PR #245–#248) carries, on top of the
+older `90dd3a4` pin the app currently uses:
 - the unified advisor→GATC system selector (the Z2-forever fix) + B5
   calibration probes + the `expression` option field;
 - the Viterbi safety chain (multi-scale suppression floor, acute HRV crash
@@ -24,11 +42,13 @@ method signature changed), EXCEPT the Dart facade does not yet expose
 In `rust/Cargo.toml`, both deps:
 
 ```toml
-gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "<POST_#246_MAIN_SHA>" }
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "<POST_#246_MAIN_SHA>" }
+gatc-ffi    = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b603b5e" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b603b5e" }
 ```
 
-(Use the squash-merge commit SHA of #246 on rust-engine `main`.)
+(`b603b5e` = rust-engine `main` after #245–#248: unification + B5 + expression
++ the Viterbi safety chain + APIM-B fatigue typing + risk-factors. Verified the
+current app pin is the older `90dd3a4`, which predates all of it.)
 
 ```bash
 cd rust && cargo update -p gatc-ffi -p gatc-viterbi && cd ..
@@ -103,23 +123,38 @@ history method in Step 3 — plus two engine capabilities that exist in
 These need a SHIM addition first (the shim has no binding for them), then the
 FRB regen in Step 2 surfaces them, then a facade method. Both are in MVP scope.
 
-### 4b-i — Activate the HMM emission signals (HIGH — built but dormant)
+### 4b-i — HMM emission signals — ✅ UNBLOCKED 2026-06-11: ONE call, validated
 
-`construct_engines*` calls `ViterbiEngine::new(...)` and nothing else, so the
-four advanced emission signals you built are never switched on in the app:
-`set_decoupling_emission`, `set_mental_emission` (M2), `set_chronotropic_emission`
-(M1), `set_rpe_hr_drift_emission`. Until these are called, the phone runs the
-basic HRV/RHR/sleep HMM only — the mental-disturbance, chronotropic, RPE↔HR
-drift, and decoupling axes contribute nothing.
+**History:** this step was briefly blocked (2026-06-11 AM) because the
+emissions were `enabled:false` everywhere and no harness had ever validated
+them ON. That engine-side work is now DONE and merged (rust-engine PR #250,
+`b603b5e`): both harnesses feed coherent `aerobic_decoupling_pct` /
+`chronotropic_suppression_pct` signals and run with the emissions ARMED —
+**matrix 1152/1152 PASS, double-blind sim PASS (safety 12/12, responsive 89 %,
+no regression)**. The validated configuration now INCLUDES the three
+card-backed emissions.
 
-Fix: in `rust/src/api.rs`, right after `ViterbiEngine::new` in BOTH
-`construct_engines_fresh` and `construct_engines_from_state`, call the four
-`set_*_emission` methods with the card-driven configs (the engine exposes the
-DRAFT defaults; pass them straight through — no Dart-side config). This is
-still pure transport: the shim turns the signals on, it computes nothing.
-No new facade method needed (it happens at construction). Verify with
-`viterbi.personalization_diagnostics()` showing the emission metrics populated
-after a few observations.
+**What Mac does (replaces the old four-setter instruction):** in
+`rust/src/api.rs`, in BOTH `construct_engines_fresh` and
+`construct_engines_from_state`, right after `ViterbiEngine::new(...)`, add
+exactly one call:
+
+```rust
+viterbi.enable_card_emissions(compiled_tables_json.clone())?;
+```
+
+That single engine-side method resolves the emission cards and arms
+decoupling + mental (M2) + chronotropic (M1) with the card-faithful configs —
+the same call both validation harnesses use, so the phone runs the exact
+validated configuration. Notes:
+
+- `rpe_hr_drift` is intentionally NOT armed: it has no card SoT yet
+  (rust NEXT_WORK P1.0). The method skips it; nothing to do client-side.
+- Idempotent; an absent/incomplete card leaves that emission off (fail-safe).
+- Still pure transport: the shim adds one pass-through call, computes nothing.
+- Requires the Step-1 re-pin (the method exists from rust-engine `b603b5e`).
+- Smoke check: after a few observations with decoupling/mental inputs,
+  `personalization_diagnostics()` shows the emission metrics populated.
 
 ### 4b-ii — Privacy "pause learning" control (MEDIUM — spec'd, unwired)
 
@@ -141,9 +176,9 @@ flutter build apk --debug --target-platform android-arm64
 Smoke on a device: a fresh profile shows the calibration framing
 ("Calibration 1 of 5 …") for the first sessions; after ~5 logged workouts the
 selector takes over and the offered zones rotate (not Z2 every day); a stated
-hilly terrain surfaces the `expression` field ("Climb Repeats"); and
-`personalization_diagnostics` shows the M1/M2/decoupling/RPE-drift emission
-metrics populated (Step 4b-i) rather than absent.
+hilly terrain surfaces the `expression` field ("Climb Repeats"). (The
+decoupling/mental/chronotropic emission metrics are **populated** once their
+inputs flow — §4b-i smoke check; RPE↔HR drift stays absent (no card yet, P1.0).)
 
 ## Step 6 — Commit + (optionally) PR
 

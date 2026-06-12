@@ -123,9 +123,13 @@ jobs:
           test -f "$APK" || { echo "APK missing at $APK"; exit 1; }
           unzip -l "$APK" | grep -q 'lib/arm64-v8a/libmivalta_rust_bridge\.so' \
             || { echo "::error::libmivalta_rust_bridge.so missing from APK"; exit 1; }
+          # PR-J purge guard: the legacy LLM-spike native libs must NOT be
+          # packed. The messenger (model W) ships via Play Asset Delivery,
+          # never as bundled .so files.
           for so in libllama libggml libggml-base libggml-cpu libmtmd; do
-            unzip -l "$APK" | grep -q "lib/arm64-v8a/${so}\.so" \
-              || { echo "::error::${so}.so missing from APK"; exit 1; }
+            if unzip -l "$APK" | grep -q "lib/arm64-v8a/${so}\.so"; then
+              echo "::error::${so}.so found in APK — purged legacy lib re-entered the build (PR-J)"; exit 1
+            fi
           done
           unzip -l "$APK" | grep -q 'assets/flutter_assets/assets/compiled_tables\.json' \
             || { echo "::error::compiled_tables.json missing from APK"; exit 1; }
