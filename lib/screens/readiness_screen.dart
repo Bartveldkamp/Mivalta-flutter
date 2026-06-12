@@ -5,7 +5,10 @@
 // Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
 //   Zone 1 — State (hero): ReadinessRing + state_recommendation prose + fatigue badge
 //   Zone 2 — Today: SessionWidget fields (workout_title, zone, target, focus_cue, rationale)
-//   Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier swatch
+//   Zone 3 — Context: alerts + sparkline + latest workout + source tier swatch
+//   (step 3, HOME_REDESIGN_BRIEF §5: raw ACWR/monotony/strain moved OFF this
+//   screen — the human-language today-facts tiles replace them; depth lives
+//   in Explore)
 //
 // On insufficient data (no observations yet → advisories.last_observation_at
 // == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
@@ -32,6 +35,7 @@ import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_ring.dart';
+import '../widgets/today_facts.dart';
 import 'advisor_screen.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
@@ -100,14 +104,16 @@ class HomeData {
   String? rationaleProse;        // sessionWidget['rationale_prose']
   String? zoneCap;               // zoneCapWithAdvisories().zone
 
-  // Zone 3 — Context (from ContextWidget)
-  double? acwr;                  // contextWidget['acwr']
+  // Today-facts tiles (step 3, HOME_REDESIGN_BRIEF §5) — labelled via the
+  // fixed dictionaries in lib/copy/today_facts_labels.dart, never shown raw.
+  // Raw acwr/monotony/strain scalars are no longer fetched for the home;
+  // Explore's LoadContext model surfaces them in depth independently.
   String? acwrZone;              // contextWidget['acwr_zone']
   String? acwrRecommendation;    // contextWidget['acwr_recommendation']
-  double? monotony;              // contextWidget['monotony']
-  double? strain;                // contextWidget['strain']
-  String? monotonyZone;          // contextWidget['monotony_zone']
-  String? monotonyRecommendation;// contextWidget['monotony_recommendation']
+  String? dataStatus;            // contextWidget['data_status']
+  double? lastNightSleepHours;   // readBiometricHistory sleep_hours, last night
+
+  // Zone 3 — Context (from ContextWidget)
   String? lastWorkout;           // contextWidget['last_workout']
   List<String> reactiveAlerts = const [];    // contextWidget['reactive_alerts']
   List<String> patternAdvisories = const []; // contextWidget['pattern_advisories']
@@ -356,6 +362,28 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             .whereType<String>()
             .toSet()
             .length;
+
+        // Step 3 (brief §5): last night's sleep for the sleep tile. The row
+        // dated today carries this morning's record of last night; fall back
+        // to yesterday's row. Date matching is presentation; the engine's
+        // sleep_hours value renders verbatim.
+        double? sleepFor(String date) {
+          for (final row in bio.whereType<Map>()) {
+            if (row['date']?.toString() == date) {
+              final s = row['sleep_hours'];
+              if (s is num) return s.toDouble();
+            }
+          }
+          return null;
+        }
+
+        final now = DateTime.now();
+        final todayStr = now.toIso8601String().substring(0, 10);
+        final yesterdayStr = now
+            .subtract(const Duration(days: 1))
+            .toIso8601String()
+            .substring(0, 10);
+        d.lastNightSleepHours = sleepFor(todayStr) ?? sleepFor(yesterdayStr);
       }
 
       // ---------- Zone 2: Today ----------
@@ -384,13 +412,11 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final contextWidgetJson = await binding.getContextWidget(handle);
       final contextWidget = jsonDecode(contextWidgetJson);
       if (contextWidget is Map) {
-        d.acwr = (contextWidget['acwr'] as num?)?.toDouble();
+        // Step 3: only the fields the today-facts copy layer keys on — raw
+        // acwr/monotony/strain scalars stay off the home (brief §5).
         d.acwrZone = contextWidget['acwr_zone']?.toString();
         d.acwrRecommendation = contextWidget['acwr_recommendation']?.toString();
-        d.monotony = (contextWidget['monotony'] as num?)?.toDouble();
-        d.strain = (contextWidget['strain'] as num?)?.toDouble();
-        d.monotonyZone = contextWidget['monotony_zone']?.toString();
-        d.monotonyRecommendation = contextWidget['monotony_recommendation']?.toString();
+        d.dataStatus = contextWidget['data_status']?.toString();
         d.lastWorkout = contextWidget['last_workout']?.toString();
 
         final alerts = contextWidget['reactive_alerts'];
@@ -742,6 +768,18 @@ class ThreeZoneHome extends StatelessWidget {
 
           // ============ ZONE 1: STATE (HERO) ============
           _Zone1State(data: data, textTheme: textTheme, onTapRing: onTapRing),
+          const SizedBox(height: MivaltaSpace.x6),
+
+          // ============ TODAY-FACTS TILES (step 3) ============
+          // Sleep / training load / today's load / weather stub — plain human
+          // words via the fixed dictionaries; raw enums never reach here.
+          TodayFacts(
+            sleepHours: data.lastNightSleepHours,
+            acwrZone: data.acwrZone,
+            acwrRecommendation: data.acwrRecommendation,
+            dataStatus: data.dataStatus,
+            todayLoad: data.todayLoad,
+          ),
           const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 2: TODAY ============
@@ -1101,7 +1139,8 @@ class _Zone2Today extends StatelessWidget {
   }
 }
 
-/// Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier
+/// Zone 3 — Context: sparkline + latest workout + alerts/advisories + source
+/// tier. Raw ACWR/monotony/strain moved off the home in step 3 (brief §5).
 class _Zone3Context extends StatelessWidget {
   const _Zone3Context({
     required this.data,
@@ -1136,65 +1175,9 @@ class _Zone3Context extends StatelessWidget {
           ),
         const SizedBox(height: MivaltaSpace.x4),
 
-        // ACWR block
-        if (data.acwr != null) ...[
-          _MetricRow(
-            label: 'ACWR',
-            value: data.acwr!.toStringAsFixed(2),
-            zone: data.acwrZone,
-            textTheme: textTheme,
-          ),
-          if (data.acwrRecommendation != null &&
-              data.acwrRecommendation!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(
-                top: MivaltaSpace.x1,
-                bottom: MivaltaSpace.x2,
-              ),
-              child: Text(
-                data.acwrRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              ),
-            ),
-        ],
-
-        // Monotony + Strain block
-        if (data.monotony != null || data.strain != null) ...[
-          Row(
-            children: [
-              if (data.monotony != null)
-                Expanded(
-                  child: _MetricRow(
-                    label: 'Monotony',
-                    value: data.monotony!.toStringAsFixed(2),
-                    zone: data.monotonyZone,
-                    textTheme: textTheme,
-                  ),
-                ),
-              if (data.strain != null)
-                Expanded(
-                  child: _MetricRow(
-                    label: 'Strain',
-                    value: data.strain!.toStringAsFixed(0),
-                    zone: null,
-                    textTheme: textTheme,
-                  ),
-                ),
-            ],
-          ),
-          if (data.monotonyRecommendation != null &&
-              data.monotonyRecommendation!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(
-                top: MivaltaSpace.x1,
-                bottom: MivaltaSpace.x2,
-              ),
-              child: Text(
-                data.monotonyRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              ),
-            ),
-        ],
+        // Step 3 (brief §5): the raw ACWR / monotony / strain rows that lived
+        // here moved off the home — the today-facts tiles present the load in
+        // human language; depth lives in Explore's load & strain card.
 
         // Item 2: Latest workout row (tappable → detail)
         // Shows duration · load; replaces the old static "Last: ..." text
@@ -1296,61 +1279,6 @@ class _Zone3Context extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Metric row for ACWR/monotony/strain display
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({
-    required this.label,
-    required this.value,
-    required this.zone,
-    required this.textTheme,
-  });
-  final String label;
-  final String value;
-  final String? zone;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    // Use Wrap to handle narrow constraints (e.g. when inside Expanded in the
-    // Monotony/Strain row). Prevents 75px overflow on smaller screens.
-    return Wrap(
-      spacing: MivaltaSpace.x1,
-      runSpacing: MivaltaSpace.x1,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Text(
-          '$label: ',
-          style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-        ),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        if (zone != null)
-          _Badge(label: zone!, color: _zoneColor(zone)),
-      ],
-    );
-  }
-
-  /// Zone color from token constants. Maps ACWR/monotony zone strings to the
-  /// appropriate level color. Engine decides the zone; we just render it.
-  Color _zoneColor(String? zone) {
-    switch (zone?.toLowerCase()) {
-      case 'optimal':
-      case 'green':
-        return MivaltaColors.levelGreen;
-      case 'caution':
-      case 'yellow':
-        return MivaltaColors.levelYellow;
-      case 'danger':
-      case 'red':
-        return MivaltaColors.levelRed;
-      default:
-        return MivaltaColors.textMuted;
-    }
   }
 }
 

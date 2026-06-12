@@ -21,6 +21,7 @@ import 'package:mivalta_flutter/theme/source_tier.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/josi_presenter.dart';
 import 'package:mivalta_flutter/widgets/readiness_ring.dart';
+import 'package:mivalta_flutter/widgets/today_facts.dart';
 
 void main() {
   testWidgets(
@@ -697,6 +698,68 @@ void main() {
 
       expect(find.text("I'm still learning you."), findsOneWidget);
       expect(find.textContaining('— day'), findsNothing);
+    });
+  });
+
+  // Step 3 (HOME_REDESIGN_BRIEF §5): the today-facts tiles sit between the
+  // state element and the session card, and raw engine enums NEVER render on
+  // Today — the data is deliberately seeded with raw zone/status strings to
+  // prove the suppression, not just the happy path.
+  group('Today-facts tiles on the home (step 3)', () {
+    Widget pumpableHome(HomeData data) => MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: ThreeZoneHome(
+              data: data,
+              onTapRing: () {},
+              onTapAdvisor: () {},
+              onTapLatestWorkout: (_) {},
+              onTapStartWorkout: () {},
+            ),
+          ),
+        );
+
+    testWidgets('engine context renders as human tiles (zone → fixed label, '
+        'sleep + load verbatim numbers)', (tester) async {
+      final data = HomeData()
+        ..insufficientData = false
+        ..readinessScore = 78
+        ..readinessLevel = 'green'
+        ..confidence = 0.9
+        ..stateRecommendation = 'Recovered — fully charged.'
+        ..lastNightSleepHours = 7.5
+        ..acwrZone = 'optimal'
+        ..acwrRecommendation = 'Load is well balanced.'
+        ..dataStatus = 'ok'
+        ..todayLoad = 156.0;
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(find.byType(TodayFacts), findsOneWidget);
+      expect(find.text('7.5 h sleep'), findsOneWidget);
+      expect(find.text('Steady'), findsOneWidget);
+      expect(find.text('Trained today'), findsOneWidget);
+      expect(find.text('156'), findsOneWidget);
+      expect(find.text('Weather — soon'), findsOneWidget);
+      // Raw enums never user-visible on Today.
+      expect(find.text('optimal'), findsNothing);
+      expect(find.textContaining('ACWR'), findsNothing);
+    });
+
+    testWidgets('raw enum/status strings are suppressed — honest learning '
+        'copy instead', (tester) async {
+      final data = HomeData()
+        ..insufficientData = true
+        ..acwrZone = 'insufficient_data'
+        ..dataStatus = 'state_unavailable';
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(find.textContaining('insufficient_data'), findsNothing);
+      expect(find.textContaining('state_unavailable'), findsNothing);
+      expect(find.textContaining('Monotony'), findsNothing);
+      expect(find.textContaining('Strain'), findsNothing);
+      expect(find.text('Still learning your load'), findsOneWidget);
+      expect(find.text('No sleep data yet'), findsOneWidget);
+      expect(find.text('Nothing logged yet'), findsOneWidget);
     });
   });
 
