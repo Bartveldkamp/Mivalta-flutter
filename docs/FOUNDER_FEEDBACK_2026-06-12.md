@@ -62,3 +62,12 @@ never as a flat menu.
 1 (honest silence) → 7 (today-load chip) → 4 (why prose, engine) →
 2+6 (after ingest lands) → 8 (engine option variety) →
 5 (after naming card approved) → 3 (after decision).
+
+## Round 2 — evening, on the redesigned 3-anchor home ("much better!!!!!")
+9. Big green "+" FAB: remove/redesign — not nice, not useful (manual entry needs a calmer home).
+10. Start workout: smaller/stylish, top-LEFT corner beside the centered MiValta title (title stays centered — liked).
+11. Weather (next-gen form): one local-condition icon top-RIGHT (sun/cloud/rain); tap → 7-day forecast drops down. Wiring still pending the no-cloud decision (WeatherKit = the privacy-true path).
+12. The 4 today-facts tiles become USER-CONFIGURABLE (user chooses which tiles show).
+13. The "why" under the F1 line must EXPLAIN: what data is needed, how the model works, how it earns trust over the first weeks (calibration story, plain language, card-sourced).
+14. Plan tab: rethink for beta — only MONITOR+ADVISORY exist, so "planning" is thin. Propose alternative content (e.g., week-in-review / recovery timeline) — founder decides naming/content.
+15. Founder design doc to review: uploads/63315832-MiValta_UIUX_Design_North_Star_v1.0.docx — assess against canon next session.
