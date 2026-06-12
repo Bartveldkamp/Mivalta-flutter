@@ -15,8 +15,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'rust_engine.dart';
+import 'screens/app_shell.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/readiness_screen.dart';
 import 'services/profile_service.dart';
 import 'theme/tokens.dart';
 
@@ -142,7 +142,8 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    if (_profileJson == null) {
+    final profileJson = _profileJson;
+    if (profileJson == null) {
       // Still showing onboarding, show placeholder
       return Scaffold(
         backgroundColor: MivaltaColors.surfaceBackground,
@@ -154,7 +155,8 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
       );
     }
 
-    // Profile ready (loaded, or engine-completed from onboarding) — show home.
-    return ReadinessScreen(profileJson: _profileJson);
+    // Profile ready (loaded, or engine-completed from onboarding) — show the
+    // three-anchor shell (Today / Plan / You, HOME_REDESIGN_BRIEF §3).
+    return AppShell(profileJson: profileJson);
   }
 }

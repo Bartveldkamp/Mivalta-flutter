@@ -33,11 +33,8 @@ import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_ring.dart';
 import 'advisor_screen.dart';
-import 'explore_screen.dart';
-import 'debug_swatch_exerciser.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
-import 'settings_screen.dart';
 import 'workout_detail_page.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
@@ -134,11 +131,18 @@ class ReadinessScreen extends StatefulWidget {
   /// The profile is used to construct engines — no longer uses canonical_seed.
   /// FL-16: this is always a COMPLETE AthleteProfile — a fresh onboarding is
   /// engine-completed in main.dart before this screen is shown.
-  const ReadinessScreen({super.key, this.profileJson});
+  const ReadinessScreen({super.key, this.profileJson, this.onEngineReady});
 
   /// The athlete profile JSON. If null, falls back to a minimal default
   /// (should not happen in production — onboarding always provides a profile).
   final String? profileJson;
+
+  /// Nav-shell hook (HOME_REDESIGN_BRIEF step 1): this screen owns engine
+  /// construction (ONE instance per app); the shell needs the same
+  /// binding/handle for the You tab's settings/trends entries. Called once
+  /// bootstrap succeeds. Null when pumped standalone (tests, pre-shell).
+  final void Function(RustEngineBinding binding, EnginesHandle handle)?
+      onEngineReady;
 
   @override
   State<ReadinessScreen> createState() => _ReadinessScreenState();
@@ -430,6 +434,12 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       _handle = localHandle;
       _binding = localBinding;
     });
+    // Nav shell: share the ONE engine instance with the You tab.
+    final readyBinding = localBinding;
+    final readyHandle = localHandle;
+    if (readyBinding != null && readyHandle != null) {
+      widget.onEngineReady?.call(readyBinding, readyHandle);
+    }
     // FL-3: surface the one-time history reset non-silently after the frame.
     if (d.historyReset) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -457,12 +467,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
           binding: binding,
         ),
       ),
-    );
-  }
-
-  void _openDebugExerciser() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const DebugSwatchExerciser()),
     );
   }
 
@@ -501,21 +505,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     );
   }
 
-  /// Open the on-request Explore view (biometrics + workout history).
-  void _openExplore() {
-    final handle = _handle;
-    final binding = _binding;
-    if (handle == null || binding == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ExploreScreen(
-          binding: binding,
-          handle: handle,
-        ),
-      ),
-    );
-  }
-
   /// Item 2: Open workout detail for a specific date.
   void _openWorkoutDetail(String date) {
     final handle = _handle;
@@ -527,27 +516,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
           binding: binding,
           handle: handle,
           date: date,
-        ),
-      ),
-    );
-  }
-
-  /// PR-G: Open settings screen.
-  void _openSettings() {
-    final handle = _handle;
-    final binding = _binding;
-    if (handle == null || binding == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(
-          binding: binding,
-          handle: handle,
-          profileJson: widget.profileJson ?? _fallbackProfile(),
-          onDataCleared: () {
-            // After data erasure, navigate back to the app entry point
-            // which will detect no profile and show onboarding.
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
         ),
       ),
     );
@@ -644,14 +612,10 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
         title: const Text('MiValta'),
+        // Step-1 slimdown (HOME_REDESIGN_BRIEF §3): settings/trends/debug
+        // actions migrated to the You tab. Sync stays — it's a Today data
+        // action, not a settings one.
         actions: [
-          // Explore — on-request biometrics + workout history
-          if (!_loading)
-            IconButton(
-              icon: const Icon(Icons.insights_outlined),
-              tooltip: 'Explore',
-              onPressed: _openExplore,
-            ),
           // PR-E: Health sync button (Android only for now)
           if (Platform.isAndroid && !_loading)
             _syncing
@@ -668,20 +632,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
-          // PR-G: Settings button
-          if (!_loading)
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: 'Settings',
-              onPressed: _openSettings,
-            ),
-          // Debug menu (debug mode only)
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report),
-              tooltip: 'SourceTier exerciser',
-              onPressed: _openDebugExerciser,
-            ),
         ],
       ),
       body: _loading
