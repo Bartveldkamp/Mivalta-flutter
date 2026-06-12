@@ -1,6 +1,7 @@
 // Step-1 nav-shell tests (HOME_REDESIGN_BRIEF §3/§6): three anchors
-// Today / Plan / You on a Material 3 NavigationBar, Plan as an honest
-// placeholder, You as a hub of entries into existing screens.
+// Today / Journey / You on a Material 3 NavigationBar (round 3 item 19:
+// Plan became Journey), You as a hub of entries into existing screens.
+// Journey's own content contract lives in journey_screen_test.dart.
 //
 // FFI path is gated; on the host harness `RustEngineBinding.bootstrap()`
 // throws UnsupportedError which the Today tab catches and surfaces inline
@@ -13,8 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mivalta_flutter/copy/journey_labels.dart';
 import 'package:mivalta_flutter/screens/app_shell.dart';
-import 'package:mivalta_flutter/screens/plan_screen.dart';
 import 'package:mivalta_flutter/screens/sensor_check_screen.dart';
 import 'package:mivalta_flutter/screens/you_screen.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
@@ -50,7 +51,7 @@ Future<void> pumpShell(WidgetTester tester) async {
 
 void main() {
   group('AppShell navigation', () {
-    testWidgets('shows three anchors: Today, Plan, You', (tester) async {
+    testWidgets('shows three anchors: Today, Journey, You', (tester) async {
       await pumpShell(tester);
 
       expect(find.byType(NavigationBar), findsOneWidget);
@@ -61,13 +62,15 @@ void main() {
         ),
         findsOneWidget,
       );
+      // Round 3 item 19: the 2nd anchor is Journey — no Plan tab anywhere.
       expect(
         find.descendant(
           of: find.byType(NavigationBar),
-          matching: find.text('Plan'),
+          matching: find.text(kJourneyTitle),
         ),
         findsOneWidget,
       );
+      expect(find.text('Plan'), findsNothing);
       expect(
         find.descendant(
           of: find.byType(NavigationBar),
@@ -80,17 +83,20 @@ void main() {
       expect(find.text('MiValta'), findsWidgets);
     });
 
-    testWidgets('tabs switch: Plan shows placeholder, You shows hub, '
-        'Today restores', (tester) async {
+    testWidgets('tabs switch: Journey shows honest loading (engine not '
+        'bootstrapped on host), You shows hub, Today restores', (tester) async {
       await pumpShell(tester);
 
-      // → Plan
+      // → Journey. The host harness's bootstrap fails, so the shell never
+      // shares a binding — Journey honestly says it is not ready, no
+      // fabricated journey content.
       await tester.tap(find.descendant(
         of: find.byType(NavigationBar),
-        matching: find.text('Plan'),
+        matching: find.text(kJourneyTitle),
       ));
       await tester.pumpAndSettle();
-      expect(find.text(kPlanPlaceholderTitle), findsOneWidget);
+      expect(find.text(kJourneyLoadingCopy), findsOneWidget);
+      expect(find.text(kJourneyLearningHeading), findsNothing);
 
       // → You
       await tester.tap(find.descendant(
@@ -264,30 +270,6 @@ void main() {
       await tester.tap(find.byTooltip('Weather'));
       await tester.pumpAndSettle();
       expect(find.text('14° / 9°'), findsNothing);
-    });
-  });
-
-  group('PlanScreen (honest placeholder)', () {
-    testWidgets('renders calm copy verbatim, no fabricated plan content',
-        (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(theme: mivaltaDarkTheme(), home: const PlanScreen()),
-      );
-
-      expect(find.text('Your plan will live here.'), findsOneWidget);
-      expect(
-        find.text(
-          'Josi builds it from how you actually train and recover — no '
-          'guesses. Keep logging workouts and morning check-ins, and a '
-          'week-by-week plan takes shape here.',
-        ),
-        findsOneWidget,
-      );
-      // No fake roadmap/calendar widgets.
-      expect(find.byType(Table), findsNothing);
-      expect(find.byType(GridView), findsNothing);
-
-      expectNoRawEngineIdentifiers(tester);
     });
   });
 

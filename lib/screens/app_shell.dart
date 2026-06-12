@@ -1,18 +1,21 @@
 // App shell — three-anchor navigation (HOME_REDESIGN_BRIEF §3, founder
-// directive 2026-06-12): Today / Plan / You on a Material 3 NavigationBar,
-// state preserved per tab via IndexedStack. Existing detail screens keep
-// their push routes (they sit ABOVE the shell on the root navigator).
+// directive 2026-06-12): Today / Journey / You on a Material 3
+// NavigationBar, state preserved per tab via IndexedStack. Existing detail
+// screens keep their push routes (they sit ABOVE the shell on the root
+// navigator). Round 3 item 19: the 2nd anchor is the athlete's JOURNEY
+// (Plan placeholder retired — beta is MONITOR+ADVISORY, no planning).
 //
 // Engine ownership stays with the Today tab (ReadinessScreen) — ONE engine
 // instance per app. The shell receives the binding/handle via
-// [ReadinessScreen.onEngineReady] and shares them with the You tab; it
-// computes nothing itself.
+// [ReadinessScreen.onEngineReady] and shares them with the Journey and You
+// tabs; it computes nothing itself.
 
 import 'package:flutter/material.dart';
 
+import '../copy/journey_labels.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
-import 'plan_screen.dart';
+import 'journey_screen.dart';
 import 'readiness_screen.dart';
 import 'you_screen.dart';
 
@@ -53,7 +56,7 @@ class _AppShellState extends State<AppShell> {
             profileJson: widget.profileJson,
             onEngineReady: _onEngineReady,
           ),
-          const PlanScreen(),
+          JourneyScreen(binding: _binding, handle: _handle),
           YouScreen(
             binding: _binding,
             handle: _handle,
@@ -80,7 +83,7 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.route_outlined),
             selectedIcon: Icon(Icons.route),
-            label: 'Plan',
+            label: kJourneyTitle,
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
