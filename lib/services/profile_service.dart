@@ -237,12 +237,18 @@ class ProfileBuilder {
   }
 }
 
-/// Supported sports per v1.3 (strength deferred).
+/// Sports the app supports END-TO-END (advisor + monitor): cycling and
+/// running only.
+///
+/// FL-17 (2026-06-12): walking and hiking were removed from this enum. The
+/// engine has no advisor cards or HMM emission baseline for them — picking
+/// one built a profile that persisted fine and then dead-ended every engine
+/// construction ("Setup could not be completed", the 2-week onboarding bug).
+/// Do NOT re-add a sport here before the engine supports it end-to-end; the
+/// engine-side regression test is gatc-ffi/tests/onboarding_combos.rs.
 enum Sport {
   cycling('cycling', 'Cycling'),
-  running('running', 'Running'),
-  walking('walking', 'Walking'),
-  hiking('hiking', 'Hiking');
+  running('running', 'Running');
 
   const Sport(this.value, this.label);
   final String value;
