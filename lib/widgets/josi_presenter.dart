@@ -65,10 +65,12 @@ class JosiPresenter extends StatefulWidget {
 class _JosiPresenterState extends State<JosiPresenter> {
   bool _showWhy = false;
 
-  bool get _hasWhy =>
-      (widget.rationaleProse != null && widget.rationaleProse!.isNotEmpty) ||
-      (widget.confidenceAdvisory != null &&
-          widget.confidenceAdvisory!.isNotEmpty);
+  bool get _hasWhy {
+    final rationale = widget.rationaleProse;
+    final advisory = widget.confidenceAdvisory;
+    return (rationale != null && rationale.isNotEmpty) ||
+        (advisory != null && advisory.isNotEmpty);
+  }
 
   String? _sessionLine() {
     final title = widget.workoutTitle;
@@ -96,6 +98,10 @@ class _JosiPresenterState extends State<JosiPresenter> {
     if (headline.isEmpty) return const SizedBox.shrink();
 
     final sessionLine = widget.insufficientData ? null : _sessionLine();
+    // Local copies so null-safety is promotion-checked, not `!`-asserted
+    // (adversarial review, PR #74).
+    final rationale = widget.rationaleProse;
+    final advisory = widget.confidenceAdvisory;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -195,20 +201,18 @@ class _JosiPresenterState extends State<JosiPresenter> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (widget.rationaleProse != null &&
-                              widget.rationaleProse!.isNotEmpty)
+                          if (rationale != null && rationale.isNotEmpty)
                             Text(
-                              widget.rationaleProse!,
+                              rationale,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: MivaltaColors.textSecondary,
                                 height: 1.35,
                               ),
                             ),
-                          if (widget.confidenceAdvisory != null &&
-                              widget.confidenceAdvisory!.isNotEmpty) ...[
+                          if (advisory != null && advisory.isNotEmpty) ...[
                             const SizedBox(height: MivaltaSpace.x2),
                             Text(
-                              widget.confidenceAdvisory!,
+                              advisory,
                               style: textTheme.bodySmall?.copyWith(
                                 color: MivaltaColors.textMuted,
                               ),
