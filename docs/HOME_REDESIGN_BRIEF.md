@@ -166,3 +166,26 @@ file pumps all four with engine-shaped values).
 - **Post-session sRPE prompt within ~30 minutes**, not at bedtime.
 - **You-screen risk = two slow diverging lines** (load trend vs
   recovery-capacity trend), no red badges.
+
+---
+
+## 8. Sport-science display rules (founder-adopted 2026-06-12)
+
+1. **Deviation-first, always**: every signal renders vs the athlete's OWN
+   band ("sleep 1.2h under your norm"); raw absolutes are the third tap.
+2. **Every screen = glance / decision / capture zones** (top <1s read ·
+   middle: what to do · bottom thumb-zone: give data back).
+3. **Morning capture BEFORE verdict reveal**: the 4-slider wellness swipe
+   (fatigue/soreness/sleep/mood, ~5s) comes first; state reveals after —
+   never bias the self-report.
+4. **Why-panel ordered by evidence weight**: wellness deviation → HRV trend
+   inside the personal band (line-in-band, not a score) → resting HR → 72h
+   load residue; honest band-width note while calibrating.
+5. **Post-session sRPE prompt within ~30 minutes**, not at bedtime.
+6. **You-screen risk = two slow diverging lines** (load vs recovery-capacity
+   trend); no red badges.
+7. **No naked numbers — visual + number, one-second meaning (founder).**
+   Every number ships with an instant-read visual (band position, gauge,
+   spark, fill) so meaning lands in <1s without reading. Less is more:
+   fewer elements, each carrying more meaning. A value the user must
+   interpret unaided is a design bug.
