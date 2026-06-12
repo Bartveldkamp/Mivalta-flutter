@@ -6,7 +6,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mivalta_flutter/copy/axis_labels.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/copy/trust_story.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
@@ -243,29 +242,23 @@ void main() {
       expect(find.text(kTrustStoryCalibration), findsNothing);
     });
 
-    test('copy stays plain and card-grounded: the four axis names in the '
-        'how-it-works paragraph match lib/copy/axis_labels.dart verbatim', () {
-      for (final axis in [
-        'hmm_posteriors',
-        'banister',
-        'physio_zscore',
-        'psychological',
-      ]) {
-        expect(
-          kTrustStoryHowItWorks.contains(humanizeAxisName(axis)),
-          isTrue,
-          reason: 'trust story must name "${humanizeAxisName(axis)}"',
-        );
-      }
+    test('copy says it PLAINLY (round 3-final item 22): ~28 days of your '
+        'data builds a personal profile — no jargon, no raw identifiers', () {
       // The calibration arc names the ~28-day window.
       expect(kTrustStoryCalibration.contains('28 days'), isTrue);
-      // No raw engine identifiers leak into user-facing copy.
+      // The framing is the personal profile of level + status.
+      expect(kTrustStoryHowItWorks.contains('personal profile'), isTrue);
+      // No raw engine identifiers or jargon leak into user-facing copy.
       const all = kTrustStoryWhatData +
           kTrustStoryHowItWorks +
           kTrustStoryCalibration;
       expect(all.contains('hmm'), isFalse);
       expect(all.contains('zscore'), isFalse);
       expect(all.contains('_'), isFalse);
+      expect(all.toLowerCase().contains('model'), isFalse,
+          reason: 'founder: simple human words — no model talk');
+      expect(all.toLowerCase().contains('calibrat'), isFalse,
+          reason: 'founder: simple human words — no calibration jargon');
     });
   });
 }

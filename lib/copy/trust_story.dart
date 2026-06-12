@@ -1,29 +1,28 @@
-// Round 3 item 13 (docs/FOUNDER_FEEDBACK_2026-06-12.md): the "why" under the
-// locked F1 line tells the TRUST STORY — what data is needed, how the model
-// works, and how it earns confidence over the first ~28 days.
+// Round 3 item 13 + round 3-final item 22
+// (docs/FOUNDER_FEEDBACK_2026-06-12.md): the "why" under the locked F1 line
+// tells the trust story PLAINLY — the model needs ~28 days of your data to
+// build a real personalized profile of your level and status before its
+// reads are trustworthy. What it's collecting, why it takes time, how trust
+// grows. Simple human words, no jargon.
 //
 // FIXED COPY, label layer only (same contract as lib/copy/f1.dart): these
 // strings are locked explanations of how the product behaves — grounded in
-// the engine's card-backed design (four-axis readiness fusion, on-device
-// inference, honest-confidence calibration window) — NOT engine output and
-// NOT science claims invented in Dart. The axis names quoted in
-// [kTrustStoryHowItWorks] are the humanized labels from
-// lib/copy/axis_labels.dart, pinned by test so they cannot drift apart.
+// the engine's card-backed design (on-device inference, honest-confidence
+// ~28-day calibration window) — NOT engine output and NOT science claims
+// invented in Dart.
 
-/// Part 1 — what data the model needs from the athlete.
+/// Part 1 — what it's collecting.
 const String kTrustStoryWhatData =
-    'To predict your recovery, MiValta needs to see your days: '
-    'morning check-ins, last night\u2019s sleep, and the workouts you log.';
+    'MiValta is collecting your days: how you slept, how you feel each '
+    'morning, and the training you do.';
 
-/// Part 2 — how the model works, in plain words. The four axis names match
-/// lib/copy/axis_labels.dart verbatim (test-pinned).
+/// Part 2 — what it builds from that, in plain words.
 const String kTrustStoryHowItWorks =
-    'On your phone, a model combines four views of you \u2014 '
-    'Fatigue model, Fitness & freshness, Body signals, and How you feel '
-    '\u2014 into one recovery picture. Nothing is sent to a server.';
+    'From those days it builds a personal profile of your level and your '
+    'day-to-day status \u2014 all on your phone, never on a server.';
 
-/// Part 3 — the calibration story: how confidence is earned.
+/// Part 3 — why it takes time, and how trust grows.
 const String kTrustStoryCalibration =
-    'It starts cautious on purpose. Over roughly the first 28 days it '
-    'calibrates to your normal, and its confidence grows with every day of '
-    'data. Until then, it says so honestly instead of guessing.';
+    'A profile you can trust takes about 28 days of your own data. Until '
+    'then it holds back instead of guessing \u2014 every day you log makes '
+    'its reads more yours.';
