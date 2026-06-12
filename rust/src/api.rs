@@ -697,6 +697,80 @@ pub fn read_recent_activities(handle: &EnginesHandle, limit: i32) -> Result<Stri
         .map_err(Into::into)
 }
 
+/// `VaultEngine::write_activity(activity_json)` — persist a completed activity
+/// to the vault. The activity JSON is `VaultActivity` (must include `completed_at`,
+/// `activity_type`, `duration_minutes`, `load_uls`, `load_method`).
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 1).
+pub fn write_activity(handle: &EnginesHandle, activity_json: String) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .write_activity(activity_json)
+        .map_err(Into::into)
+}
+
+/// `PostProcessEngine::process_activity(...)` — run the post-activity producer
+/// pipeline on a completed activity. Takes:
+/// - `activity_json`: `{"completed_at": "<rfc3339>", "power_samples": [..], "hr_samples": [..]?, "sample_rate_hz": 1.0}`
+/// - `history_json`: prior `MmpHistory` (use `{"points": []}` on first run)
+/// - `current_fit_json`: prior `{"cp_watts":..,"w_prime_joules":..}` or `"null"`
+/// - `policy_json`: serialized `PostProcessPolicy` (defaults_v0 shape)
+///
+/// Returns `PostProcessResult` JSON: mmp_after, power_profile_update?, wbal_series?, decoupling?, events.
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 3).
+pub fn process_activity(
+    handle: &EnginesHandle,
+    activity_json: String,
+    history_json: String,
+    current_fit_json: String,
+    policy_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .postprocess
+        .process_activity(activity_json, history_json, current_fit_json, policy_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_power_profile(athlete_id)` — read the persisted PowerProfile
+/// (CP, W', fit metadata). Returns JSON `null` if no profile saved (no CP test yet).
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 2).
+pub fn read_power_profile(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_power_profile(handle.athlete_id.clone())
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::write_power_profile(athlete_id, profile_json)` — persist the
+/// athlete's PowerProfile after a CP refit. Pure pass-through. Activity ingestion
+/// flow (Recipe 4, step 4).
+pub fn write_power_profile(handle: &EnginesHandle, profile_json: String) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .write_power_profile(handle.athlete_id.clone(), profile_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::write_mmp_history(athlete_id, history_json)` — persist the rolling
+/// MMP curve history after process_activity. Pure pass-through. Activity ingestion
+/// flow (Recipe 4, step 4).
+pub fn write_mmp_history(handle: &EnginesHandle, history_json: String) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .write_mmp_history(handle.athlete_id.clone(), history_json)
+        .map_err(Into::into)
+}
+
+/// `ViterbiEngine::record_activity(load_json)` — tell the HMM that a training load
+/// happened. `load_json` is `UniversalLoadScore` JSON. Updates internal state; call
+/// `save_state()` afterward to persist. Pure pass-through. Activity ingestion flow
+/// (Recipe 4, step 5).
+pub fn record_activity(handle: &EnginesHandle, load_json: String) -> Result<(), BridgeError> {
+    handle
+        .viterbi
+        .record_activity(load_json)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
 /// (actuals + engine-graded quality via `grade_workout`) for a date. JSON
 /// matches the Flutter `WorkoutDetail` contract, or JSON `null` when no activity

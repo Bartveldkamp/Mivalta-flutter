@@ -283,6 +283,60 @@ class RustEngineBinding {
   Future<String> readMmpHistory(EnginesHandle handle) =>
       rust_api.readMmpHistory(handle: handle);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Activity ingestion (Recipe 4) — write completed workouts to vault
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// `VaultEngine::write_activity` — persist a completed activity to the vault.
+  /// The [activityJson] is VaultActivity JSON (completed_at, activity_type,
+  /// duration_minutes, load_uls, load_method). Activity ingestion flow (Recipe 4).
+  Future<void> writeActivity(EnginesHandle handle,
+          {required String activityJson}) =>
+      rust_api.writeActivity(handle: handle, activityJson: activityJson);
+
+  /// `PostProcessEngine::process_activity` — run the post-activity producer
+  /// pipeline. Takes the activity wire + prior MMP + prior CP fit + policy.
+  /// Returns PostProcessResult JSON with updated MMP, power_profile_update,
+  /// wbal_series, decoupling, events. Activity ingestion flow (Recipe 4).
+  Future<String> processActivity(
+    EnginesHandle handle, {
+    required String activityJson,
+    required String historyJson,
+    required String currentFitJson,
+    required String policyJson,
+  }) =>
+      rust_api.processActivity(
+        handle: handle,
+        activityJson: activityJson,
+        historyJson: historyJson,
+        currentFitJson: currentFitJson,
+        policyJson: policyJson,
+      );
+
+  /// `VaultEngine::read_power_profile` — read the persisted PowerProfile
+  /// (CP, W', fit metadata). Returns `null` JSON if no profile saved.
+  Future<String> readPowerProfile(EnginesHandle handle) =>
+      rust_api.readPowerProfile(handle: handle);
+
+  /// `VaultEngine::write_power_profile` — persist the athlete's PowerProfile
+  /// after a CP refit. Activity ingestion flow (Recipe 4).
+  Future<void> writePowerProfile(EnginesHandle handle,
+          {required String profileJson}) =>
+      rust_api.writePowerProfile(handle: handle, profileJson: profileJson);
+
+  /// `VaultEngine::write_mmp_history` — persist the rolling MMP curve history
+  /// after process_activity. Activity ingestion flow (Recipe 4).
+  Future<void> writeMmpHistory(EnginesHandle handle,
+          {required String historyJson}) =>
+      rust_api.writeMmpHistory(handle: handle, historyJson: historyJson);
+
+  /// `ViterbiEngine::record_activity` — tell the HMM that a training load
+  /// happened. [loadJson] is UniversalLoadScore JSON. Call save_state() after.
+  /// Activity ingestion flow (Recipe 4).
+  Future<void> recordActivity(EnginesHandle handle,
+          {required String loadJson}) =>
+      rust_api.recordActivity(handle: handle, loadJson: loadJson);
+
   /// `CpEngine::fit_cp_default(mmpCurveJson)` — Critical Power + W′ fit over the
   /// MMP curve (Monod-Scherrer / Hill). Feed the JSON [readMmpHistory] returns;
   /// yields `{cp_watts, w_prime_joules, r_squared, n_points}`. Monitor
