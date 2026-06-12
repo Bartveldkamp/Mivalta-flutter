@@ -9,7 +9,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../copy/f1.dart';
 import '../theme/tokens.dart';
 
 /// Calm readiness hero. All inputs come verbatim from
@@ -32,12 +31,36 @@ class ReadinessRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (noData) {
-      return Padding(
-        padding: const EdgeInsets.all(MivaltaSpace.x5),
-        child: Text(
-          kF1NoDataCopy, // LOCKED F1 copy
-          style: theme.textTheme.titleMedium,
-          textAlign: TextAlign.center,
+      // No-data hero (founder 2026-06-12 no-data redesign): the ring renders
+      // in its CALM muted state — empty track, quiet em-dash, no color, no
+      // fabricated score. The LOCKED F1 copy is carried by Josi's card and
+      // must appear exactly ONCE on the home, so it does NOT repeat here.
+      // Never bare floating text as the hero.
+      return SizedBox(
+        width: 220,
+        height: 220,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 220,
+              height: 220,
+              child: CircularProgressIndicator(
+                value: 0, // nothing to claim — track only, no arc
+                strokeWidth: 14,
+                backgroundColor:
+                    MivaltaColors.textMuted.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  MivaltaColors.textMuted,
+                ),
+              ),
+            ),
+            Text(
+              '—',
+              style: theme.textTheme.displayLarge
+                  ?.copyWith(color: MivaltaColors.textMuted),
+            ),
+          ],
         ),
       );
     }

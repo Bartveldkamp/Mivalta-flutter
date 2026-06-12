@@ -111,8 +111,12 @@ void main() {
     );
 
     testWidgets(
-      'noData=true → renders F1 copy, no ring, no score',
+      'noData=true → calm muted ring hero, em-dash, NO F1 text (Josi carries it)',
       (WidgetTester tester) async {
+        // Founder 2026-06-12 no-data redesign: the ring renders in its calm
+        // muted state as the hero — never bare floating text. The locked F1
+        // copy appears exactly once on the home, in Josi's card, so the ring
+        // must NOT repeat it.
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
@@ -126,11 +130,21 @@ void main() {
           ),
         );
 
-        // F1 no-data copy renders (honest empty state)
-        expect(find.text(kF1NoDataCopy), findsOneWidget);
+        // The hero ring renders — empty track, zero arc.
+        final indicator = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        expect(indicator.value, 0);
+        // Muted, colorless: no readiness-level color claimed.
+        final color =
+            (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+        expect(color, MivaltaColors.textMuted);
 
-        // No CircularProgressIndicator (no ring)
-        expect(find.byType(CircularProgressIndicator), findsNothing);
+        // Quiet em-dash center — no fabricated score.
+        expect(find.text('—'), findsOneWidget);
+
+        // F1 copy does NOT repeat here (exactly-once rule; Josi's card has it).
+        expect(find.text(kF1NoDataCopy), findsNothing);
 
         // No score text
         expect(find.text('85'), findsNothing);
@@ -390,6 +404,129 @@ void main() {
       expect(isRest('Z1'), isFalse); // recovery ride is still a session
       expect(isRest(''), isFalse);
       expect(isRest(null), isFalse);
+    });
+  });
+
+  // Founder 2026-06-12 no-data home redesign: with insufficient data the home
+  // makes NO prescriptions from priors and the F1 copy + confidence advisory
+  // each appear EXACTLY ONCE (Josi's card carries them). ThreeZoneHome and
+  // HomeData are public so the full home body can be pumped with engine-shaped
+  // values; the data is deliberately seeded with prior-derived prescription
+  // values to prove the gating, not just the absence of data.
+  group('No-data home (insufficientData=true)', () {
+    HomeData seededNoData() => HomeData()
+      ..insufficientData = true
+      // Prior-derived values that must all be suppressed:
+      ..stateRecommendation = 'Prior-based state prose'
+      ..confidenceAdvisory = 'Confidence is low — still learning you.'
+      ..fatigueState = 'Recovered'
+      ..workoutTitle = 'Endurance Ride'
+      ..durationMin = 60
+      ..sessionZone = 'Z2'
+      ..targetWatts = 156
+      ..focusCue = 'Keep it conversational.'
+      ..rationaleProse = 'Your body is responding well.'
+      ..zoneCap = 'Z8';
+
+    Widget pumpableHome(HomeData data) => MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: ThreeZoneHome(
+              data: data,
+              onTapRing: () {},
+              onTapAdvisor: () {},
+              onTapLatestWorkout: (_) {},
+              onTapStartWorkout: () {},
+            ),
+          ),
+        );
+
+    testWidgets('F1 copy renders EXACTLY once (Josi card)', (tester) async {
+      await tester.pumpWidget(pumpableHome(seededNoData()));
+      expect(find.text(kF1NoDataCopy), findsOneWidget);
+    });
+
+    testWidgets('zero session prescription, zero cap chip — calm placeholder instead',
+        (tester) async {
+      await tester.pumpWidget(pumpableHome(seededNoData()));
+
+      // No prescription from priors anywhere on the home.
+      expect(find.text('Endurance Ride'), findsNothing);
+      expect(find.text('156W'), findsNothing);
+      expect(find.textContaining('Endurance Ride'), findsNothing);
+      // No zone-cap chip.
+      expect(find.text('Up to Z8'), findsNothing);
+      // No advisor entry (the advisor surfaces prior-derived prescriptions).
+      expect(find.text('See workout options'), findsNothing);
+      // No prior-based state prose.
+      expect(find.text('Prior-based state prose'), findsNothing);
+
+      // Zone 2 keeps its rhythm: TODAY label + calm learn-you placeholder.
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(
+        find.text("First, let's learn you — log a few days."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('hero is the calm ring, not bare floating text', (tester) async {
+      await tester.pumpWidget(pumpableHome(seededNoData()));
+      // The ReadinessRing mounts in its no-data state (ring present).
+      expect(find.byType(ReadinessRing), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ReadinessRing),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      // And it carries no F1 text (Josi's card is the one source).
+      expect(
+        find.descendant(
+          of: find.byType(ReadinessRing),
+          matching: find.text(kF1NoDataCopy),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+        'why-reveal: advisory appears exactly once, rationale stays gated',
+        (tester) async {
+      await tester.pumpWidget(pumpableHome(seededNoData()));
+
+      // Advisory not visible before the reveal (Zone 1 no longer repeats it).
+      expect(
+        find.text('Confidence is low — still learning you.'),
+        findsNothing,
+      );
+
+      // Open Josi's why-reveal.
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
+
+      // Advisory appears exactly ONCE (in the reveal).
+      expect(
+        find.text('Confidence is low — still learning you.'),
+        findsOneWidget,
+      );
+      // Prior-derived session rationale stays gated.
+      expect(find.text('Your body is responding well.'), findsNothing);
+    });
+
+    testWidgets('sufficient data keeps prescriptions (regression guard)',
+        (tester) async {
+      final data = seededNoData()..insufficientData = false;
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(find.text('Endurance Ride'), findsWidgets);
+      expect(find.text('Up to Z8'), findsOneWidget);
+      expect(find.text('See workout options'), findsOneWidget);
+      expect(
+        find.text("First, let's learn you — log a few days."),
+        findsNothing,
+      );
+      expect(find.text(kF1NoDataCopy), findsNothing);
     });
   });
 

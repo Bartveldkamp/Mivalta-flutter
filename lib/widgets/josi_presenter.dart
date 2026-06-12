@@ -74,7 +74,7 @@ class _JosiPresenterState extends State<JosiPresenter> {
   bool _showWhy = false;
 
   bool get _hasWhy {
-    final rationale = widget.rationaleProse;
+    final rationale = _revealRationale;
     final advisory = widget.confidenceAdvisory;
     return (rationale != null && rationale.isNotEmpty) ||
         (advisory != null && advisory.isNotEmpty) ||
@@ -85,6 +85,14 @@ class _JosiPresenterState extends State<JosiPresenter> {
   /// item 1): with no observations the signals are priors, so stay silent.
   List<Map<String, dynamic>> get _revealContributions =>
       widget.insufficientData ? const [] : widget.contributions;
+
+  /// Rationale shown in the reveal. Gated the same way (founder 2026-06-12
+  /// no-data redesign): the session rationale is prior-derived prose, so with
+  /// no observations Josi does not present it. The confidence advisory stays —
+  /// "still learning you" is honest on no data, and Josi is its ONE home
+  /// surface.
+  String? get _revealRationale =>
+      widget.insufficientData ? null : widget.rationaleProse;
 
   String? _sessionLine() {
     final title = widget.workoutTitle;
@@ -114,7 +122,7 @@ class _JosiPresenterState extends State<JosiPresenter> {
     final sessionLine = widget.insufficientData ? null : _sessionLine();
     // Local copies so null-safety is promotion-checked, not `!`-asserted
     // (adversarial review, PR #74).
-    final rationale = widget.rationaleProse;
+    final rationale = _revealRationale;
     final advisory = widget.confidenceAdvisory;
 
     return Container(

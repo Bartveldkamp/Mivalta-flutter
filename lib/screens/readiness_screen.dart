@@ -78,7 +78,11 @@ String _fallbackProfile() {
   });
 }
 
-class _HomeData {
+/// Display-only snapshot of engine output for the home. Public (not
+/// underscore-private) so widget tests can pump [ThreeZoneHome] directly —
+/// same precedent as [AdvisorOptionsList] and [PrivacyMomentPage]. Production
+/// call site: [_ReadinessScreenState.build].
+class HomeData {
   // Zone 1 — State (hero)
   int? readinessScore;           // from indicator['score'], rounded
   String? readinessLevel;        // indicator['level'] verbatim
@@ -142,7 +146,7 @@ class ReadinessScreen extends StatefulWidget {
 
 class _ReadinessScreenState extends State<ReadinessScreen>
     with WidgetsBindingObserver {
-  _HomeData _data = _HomeData();
+  HomeData _data = HomeData();
   bool _loading = true;
   bool _syncing = false;
 
@@ -199,7 +203,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     // Local non-null snapshot, mirroring the Day-3 BLOCKER 2 fix —
     // multiple awaits with State mutation in between is reentrancy bait
     // unless the work happens against a local capture.
-    final d = _HomeData();
+    final d = HomeData();
     RustEngineBinding? localBinding;
     EnginesHandle? localHandle;
     try {
@@ -682,7 +686,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _ThreeZoneHome(
+          : ThreeZoneHome(
               data: _data,
               onTapRing: _openReadinessDetail,
               onTapAdvisor: _openAdvisor,
@@ -703,15 +707,20 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   }
 }
 
-class _ThreeZoneHome extends StatelessWidget {
-  const _ThreeZoneHome({
+/// The home body — Josi (presenter) above the three-zone PULL layout
+/// (DESIGN_BUILD_SPEC §3). Public so widget tests can pump it with a seeded
+/// [HomeData] (the screen itself needs the FFI binding). Production call
+/// site: [_ReadinessScreenState.build].
+class ThreeZoneHome extends StatelessWidget {
+  const ThreeZoneHome({
+    super.key,
     required this.data,
     required this.onTapRing,
     required this.onTapAdvisor,
     required this.onTapLatestWorkout,
     required this.onTapStartWorkout,
   });
-  final _HomeData data;
+  final HomeData data;
   final VoidCallback onTapRing;
   final VoidCallback onTapAdvisor;
   final void Function(String date) onTapLatestWorkout; // Item 2
@@ -791,7 +800,7 @@ class _Zone1State extends StatelessWidget {
     required this.textTheme,
     required this.onTapRing,
   });
-  final _HomeData data;
+  final HomeData data;
   final TextTheme textTheme;
   final VoidCallback onTapRing;
 
@@ -829,8 +838,12 @@ class _Zone1State extends StatelessWidget {
             ),
           ),
 
-        // Confidence advisory (honest-confidence, shown when non-null)
-        if (data.confidenceAdvisory != null &&
+        // Confidence advisory (honest-confidence, shown when non-null).
+        // No-data redesign (founder 2026-06-12): with insufficient data the
+        // advisory appears exactly ONCE on the home — Josi's card carries it —
+        // so Zone 1 stays silent here too.
+        if (!data.insufficientData &&
+            data.confidenceAdvisory != null &&
             data.confidenceAdvisory!.isNotEmpty) ...[
           const SizedBox(height: MivaltaSpace.x2),
           Padding(
@@ -878,7 +891,7 @@ class _Zone2Today extends StatelessWidget {
     required this.textTheme,
     required this.onTapAdvisor,
   });
-  final _HomeData data;
+  final HomeData data;
   final TextTheme textTheme;
   final VoidCallback onTapAdvisor;
 
@@ -902,6 +915,37 @@ class _Zone2Today extends StatelessWidget {
           ),
         ),
         const SizedBox(height: MivaltaSpace.x3),
+
+        // No-data redesign (founder 2026-06-12): with insufficient data there
+        // are NO prescriptions from priors — no cap chip, no session card, no
+        // workout options. Zone 2 keeps its rhythm (DESIGN_BUILD_SPEC §3) with
+        // a calm learn-you placeholder instead of going empty or error-y.
+        if (data.insufficientData) ...[
+          Container(
+            padding: const EdgeInsets.all(MivaltaSpace.x4),
+            decoration: BoxDecoration(
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.md),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.edit_note, color: MivaltaColors.textMuted),
+                const SizedBox(width: MivaltaSpace.x3),
+                Expanded(
+                  child: Text(
+                    // Placeholder copy from the founder's 2026-06-12 no-data
+                    // redesign brief ("first, let's learn you — log a few
+                    // days"), sentence-cased. Flagged for founder review.
+                    "First, let's learn you — log a few days.",
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
 
         // Zone cap chip
         if (data.zoneCap != null)
@@ -1001,7 +1045,9 @@ class _Zone2Today extends StatelessWidget {
             ),
           ),
 
-        // PR-D: "See Options" button to open advisor
+        // PR-D: "See Options" button to open advisor. Hidden on insufficient
+        // data — the advisor surfaces prior-derived prescriptions, and the
+        // no-data home makes no prescriptions from priors.
         const SizedBox(height: MivaltaSpace.x4),
         OutlinedButton(
           onPressed: onTapAdvisor,
@@ -1019,6 +1065,7 @@ class _Zone2Today extends StatelessWidget {
             ),
           ),
         ),
+        ],
       ],
     );
   }
@@ -1032,7 +1079,7 @@ class _Zone3Context extends StatelessWidget {
     required this.onTapLatestWorkout,
     required this.onTapStartWorkout,
   });
-  final _HomeData data;
+  final HomeData data;
   final TextTheme textTheme;
   final void Function(String date) onTapLatestWorkout; // Item 2
   final VoidCallback onTapStartWorkout;                // Item 6
