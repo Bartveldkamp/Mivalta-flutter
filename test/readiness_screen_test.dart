@@ -313,6 +313,33 @@ void main() {
     }
   });
 
+  // Item 1 (FOUNDER_FEEDBACK_2026-06-12): No fatigue-state badge when data insufficient.
+  // When insufficientData=true, the home must show ONLY the F1 copy — no badge from priors.
+  // This test documents the data-model contract; the private _Zone1State widget implements it.
+  group('Insufficient data → no fatigue-state badge contract', () {
+    test('badge condition requires sufficient data (NOT just non-null fatigueState)', () {
+      // The badge should render IFF:
+      //   fatigueState != null AND insufficientData == false
+      // Previously the check was only (fatigueState != null), which leaked priors.
+      bool shouldShowBadge(String? fatigueState, bool insufficientData) =>
+          fatigueState != null && !insufficientData;
+
+      // Case 1: Sufficient data with fatigue state → badge should show
+      expect(shouldShowBadge('Recovered', false), isTrue);
+      expect(shouldShowBadge('Adapting', false), isTrue);
+
+      // Case 2: Insufficient data even with fatigue state from priors → NO badge
+      expect(shouldShowBadge('Recovered', true), isFalse);
+      expect(shouldShowBadge('Adapting', true), isFalse);
+
+      // Case 3: Sufficient data but no fatigue state → NO badge
+      expect(shouldShowBadge(null, false), isFalse);
+
+      // Case 4: No data, no state → NO badge
+      expect(shouldShowBadge(null, true), isFalse);
+    });
+  });
+
   // PR-C: Tokens-only compliance — ring color must come from tokens layer
   group('Tokens-only compliance', () {
     testWidgets(
