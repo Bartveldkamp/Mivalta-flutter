@@ -746,8 +746,12 @@ class _Zone1State extends StatelessWidget {
         ),
         const SizedBox(height: MivaltaSpace.x4),
 
-        // State recommendation prose (verbatim from engine)
-        if (data.stateRecommendation != null &&
+        // State recommendation prose (verbatim from engine). Founder feedback
+        // 2026-06-12 item 1: with insufficient data the state layer says
+        // NOTHING — no prior-based prose, no badge. Honest silence; the F1
+        // copy in the ring is the only voice.
+        if (!data.insufficientData &&
+            data.stateRecommendation != null &&
             data.stateRecommendation!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
@@ -773,8 +777,9 @@ class _Zone1State extends StatelessWidget {
         ],
         const SizedBox(height: MivaltaSpace.x3),
 
-        // Fatigue state badge — color via fatigueStateColor() from tokens.dart
-        if (data.fatigueState != null)
+        // Fatigue state badge — color via fatigueStateColor() from tokens.dart.
+        // Gated on data sufficiency (feedback item 1): no state from priors.
+        if (!data.insufficientData && data.fatigueState != null)
           _Badge(
             label: _humanizeFatigueState(data.fatigueState),
             color: fatigueStateColor(data.fatigueState),
