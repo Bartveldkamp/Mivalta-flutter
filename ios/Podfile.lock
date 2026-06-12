@@ -26,7 +26,7 @@ SPEC CHECKSUMS:
   device_info_plus: 71ffc6ab7634ade6267c7a93088ed7e4f74e5896
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   health: a4ddeac72091000e94776864d0028f6be31ec7a5
-  MivaltaRustBridge: d20d671a3d6752a46e7616801830c6b69694be28
+  MivaltaRustBridge: ac2ecb1e66aca9ecde10bfdf276fb6f638b57d8a
 
 PODFILE CHECKSUM: 37d51ba363080e89cdc6ce4c54ae6bd7eff38b21
 

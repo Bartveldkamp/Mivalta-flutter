@@ -20,6 +20,9 @@
 import 'dart:io' show Platform;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show ExternalLibrary;
+
 import 'src/rust/api.dart' as rust_api;
 import 'src/rust/api.dart' show BridgeError, EnginesHandle;
 import 'src/rust/frb_generated.dart';
@@ -37,17 +40,28 @@ class RustEngineBinding {
   static bool _rustInited = false;
   static Future<void> ensureRustInit() async {
     if (_rustInited) return;
-    if (!Platform.isAndroid) {
-      throw UnsupportedError('Mivalta-flutter spike is Android-only');
+    if (Platform.isAndroid) {
+      // Android: dynamic library loaded via dlopen (default FRB behavior)
+      await RustLib.init();
+    } else if (Platform.isIOS) {
+      // iOS: static linking via CocoaPods — symbols are in the executable.
+      // The xcframework is embedded via MivaltaRustBridge.podspec.
+      // ExternalLibrary.process uses DynamicLibrary.process() which looks up
+      // symbols linked into the running process (static linking), not dlopen.
+      await RustLib.init(
+        externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
+      );
+    } else {
+      throw UnsupportedError(
+        'Mivalta-flutter requires Android or iOS; '
+        'host/desktop not supported (no native library)',
+      );
     }
-    await RustLib.init();
     _rustInited = true;
   }
 
   /// Initialise the FRB runtime and return a ready-to-use binding.
-  /// Day-2 review WARNING 3: gated on Platform.isAndroid — host runs
-  /// throw a clear error instead of segfaulting on a missing
-  /// `libmivalta_rust_bridge.so`.
+  /// Host runs (desktop/test) throw a clear error — no native library.
   static Future<RustEngineBinding> bootstrap() async {
     await ensureRustInit();
     return RustEngineBinding._();

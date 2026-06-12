@@ -22,8 +22,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../rust_engine.dart' show RustEngineBinding;
 import '../src/rust/api.dart' as rust_api;
-import '../src/rust/frb_generated.dart';
 
 /// Service for persisting and loading the user's athlete profile.
 ///
@@ -65,8 +65,8 @@ class ProfileService {
       final pointerJson = await pointer.readAsString();
       final athleteId = _extractAthleteId(pointerJson);
       if (athleteId != null) {
-        // Ensure RustLib is initialized
-        await RustLib.init();
+        // Ensure RustLib is initialized (platform-aware: iOS uses static linking)
+        await RustEngineBinding.ensureRustInit();
         // Read from vault
         final profile = await rust_api.readProfileFromVault(
           athleteId: athleteId,
@@ -95,8 +95,8 @@ class ProfileService {
     final support = await getApplicationSupportDirectory();
     final vaultPath = support.path;
 
-    // Ensure RustLib is initialized
-    await RustLib.init();
+    // Ensure RustLib is initialized (platform-aware: iOS uses static linking)
+    await RustEngineBinding.ensureRustInit();
 
     // Write to vault
     await rust_api.writeProfileToVault(
