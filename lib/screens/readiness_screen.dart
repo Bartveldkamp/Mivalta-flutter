@@ -28,9 +28,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
+import '../copy/today_facts_labels.dart';
 import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
+import '../services/today_tiles_prefs.dart';
 import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
@@ -174,6 +176,11 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   WeatherReport? _weather;
   bool _showForecast = false;
 
+  // Round 3 item 12: which today-facts tiles the user wants on the home.
+  // Pure UI preference — persisted as plain JSON, defaults to all on.
+  final TodayTilesPrefs _tilesPrefs = TodayTilesPrefs();
+  Set<String> _visibleTiles = Set.of(kDefaultTodayTiles);
+
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
   RustEngineBinding? _binding;
@@ -190,6 +197,34 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     WidgetsBinding.instance.addObserver(this);
     _fetch();
     _loadWeather();
+    _loadTilePrefs();
+  }
+
+  /// Item 12: restore the user's tile choices (any failure → defaults).
+  Future<void> _loadTilePrefs() async {
+    final tiles = await _tilesPrefs.load();
+    if (!mounted) return;
+    setState(() => _visibleTiles = tiles);
+  }
+
+  /// Item 12: the tile-picker sheet — one switch per tile, persisted on
+  /// every toggle (best-effort).
+  void _openTilePicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: MivaltaColors.surface2,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
+      ),
+      builder: (_) => TodayTilePicker(
+        visibleTiles: _visibleTiles,
+        onChanged: (next) {
+          setState(() => _visibleTiles = next);
+          _tilesPrefs.save(next);
+        },
+      ),
+    );
   }
 
   /// Items 11+18: fetch local weather through the OS frame (WeatherKit via
@@ -775,6 +810,11 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     onTapRing: _openReadinessDetail,
                     onTapAdvisor: _openAdvisor,
                     onTapLatestWorkout: _openWorkoutDetail,
+                    // Item 12: user-chosen tiles + the picker entry point.
+                    visibleTiles: _visibleTiles,
+                    onEditTiles: _openTilePicker,
+                    // Items 11+18: the weather tile shares the OS report.
+                    weather: _weather,
                   ),
                 ),
               ],
@@ -797,11 +837,19 @@ class ThreeZoneHome extends StatelessWidget {
     required this.onTapRing,
     required this.onTapAdvisor,
     required this.onTapLatestWorkout,
+    this.visibleTiles = kDefaultTodayTiles,
+    this.onEditTiles,
+    this.weather,
   });
   final HomeData data;
   final VoidCallback onTapRing;
   final VoidCallback onTapAdvisor;
   final void Function(String date) onTapLatestWorkout; // Item 2
+  // Item 12: which today-facts tiles render + the picker entry point.
+  final Set<String> visibleTiles;
+  final VoidCallback? onEditTiles;
+  // Items 11+18: OS weather report for the weather tile (null = honest empty).
+  final WeatherReport? weather;
 
   @override
   Widget build(BuildContext context) {
@@ -849,15 +897,20 @@ class ThreeZoneHome extends StatelessWidget {
           _Zone1State(data: data, textTheme: textTheme, onTapRing: onTapRing),
           const SizedBox(height: MivaltaSpace.x6),
 
-          // ============ TODAY-FACTS TILES (step 3) ============
-          // Sleep / training load / today's load / weather stub — plain human
+          // ============ TODAY-FACTS TILES (step 3, item 12) ============
+          // Sleep / training load / today's load / weather — plain human
           // words via the fixed dictionaries; raw enums never reach here.
+          // User-configurable: [visibleTiles] picks the grid, the tune
+          // affordance opens the picker.
           TodayFacts(
             sleepHours: data.lastNightSleepHours,
             acwrZone: data.acwrZone,
             acwrRecommendation: data.acwrRecommendation,
             dataStatus: data.dataStatus,
             todayLoad: data.todayLoad,
+            weather: weather,
+            visibleTiles: visibleTiles,
+            onEditTiles: onEditTiles,
           ),
           const SizedBox(height: MivaltaSpace.x6),
 

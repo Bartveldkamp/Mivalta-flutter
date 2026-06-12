@@ -1,8 +1,8 @@
 // Today-facts tiles (HOME_REDESIGN_BRIEF §4 item 3, §5) — sleep last night,
-// training load, today's load, plus the reserved weather slot. Plain human
-// words/numbers ONLY: every engine value passes through the fixed
-// dictionaries in lib/copy/today_facts_labels.dart; raw enums, ACWR ratios
-// and monotony scalars are FORBIDDEN here (depth lives in Explore).
+// training load, today's load, and local weather. Plain human words/numbers
+// ONLY: every engine value passes through the fixed dictionaries in
+// lib/copy/today_facts_labels.dart; raw enums, ACWR ratios and monotony
+// scalars are FORBIDDEN here (depth lives in Explore).
 //
 // DISPLAY ONLY: the engine decides zones and statuses; this widget renders
 // fixed copy keyed on them. Number formatting is presentation. The
@@ -10,15 +10,25 @@
 // `acwr_recommendation` prose VERBATIM — verdict→reasons ordering, no
 // invented text.
 //
+// Round 3 item 12: the grid is USER-CONFIGURABLE — [visibleTiles] picks which
+// tiles render (order fixed by kTodayTileIds), and [onEditTiles] surfaces the
+// picker affordance. Defaults keep every existing call site/test unchanged.
+//
+// Round 3 items 11+18: the weather tile is wired to the OS report ([weather]);
+// when the OS returned nothing it shows kWeatherEmptyCopy — honest absence,
+// never fabricated conditions.
+//
 // §9 no-naked-numbers: every tile pairs its value with an icon so the
 // one-second read lands without parsing digits.
 
 import 'package:flutter/material.dart';
 
 import '../copy/today_facts_labels.dart';
+import '../services/weather_service.dart';
 import '../theme/tokens.dart';
+import 'weather.dart';
 
-/// The 2×2 today-facts grid under the state element. Production call site:
+/// The today-facts grid under the state element. Production call site:
 /// [ThreeZoneHome]. Public so widget tests can pump it with engine-shaped
 /// values directly.
 class TodayFacts extends StatefulWidget {
@@ -29,6 +39,9 @@ class TodayFacts extends StatefulWidget {
     this.acwrRecommendation,
     this.dataStatus,
     this.todayLoad,
+    this.weather,
+    this.visibleTiles = kDefaultTodayTiles,
+    this.onEditTiles,
   });
 
   /// Last night's `sleep_hours` row from the engine's biometric history
@@ -48,6 +61,17 @@ class TodayFacts extends StatefulWidget {
 
   /// Engine `readDailyLoads` row for today (null → nothing logged).
   final double? todayLoad;
+
+  /// OS weather report (items 11+18) — null → honest empty tile.
+  final WeatherReport? weather;
+
+  /// Which tiles render (item 12). Ids from [kTodayTileIds]; unknown ids are
+  /// ignored. Display order is fixed by [kTodayTileIds], not set order.
+  final Set<String> visibleTiles;
+
+  /// When non-null, a small edit affordance renders above the grid and
+  /// invokes this (the tile-picker sheet lives in the screen).
+  final VoidCallback? onEditTiles;
 
   @override
   State<TodayFacts> createState() => _TodayFactsState();
@@ -72,74 +96,96 @@ class _TodayFactsState extends State<TodayFacts> {
         ? trainingLoadLabel(widget.acwrZone)
         : null;
     final recommendation = widget.acwrRecommendation;
-    final hasLoadWhy = loadLabel != null &&
+    final loadTileVisible = widget.visibleTiles.contains('load');
+    final hasLoadWhy = loadTileVisible &&
+        loadLabel != null &&
         recommendation != null &&
         recommendation.isNotEmpty;
 
     // Today's load — presence of an engine row = trained; else honest empty.
     final todayLoad = widget.todayLoad;
 
+    // Weather — OS report verbatim (rounded for presentation) or honest empty.
+    final weather = widget.weather;
+
+    // Item 12: build the enabled tiles in the fixed kTodayTileIds order.
+    final tiles = <Widget>[
+      for (final id in kTodayTileIds)
+        if (widget.visibleTiles.contains(id))
+          switch (id) {
+            'sleep' => _FactTile(
+                icon: Icons.bedtime_outlined,
+                label: kSleepTileLabel,
+                value: sleepValue,
+                muted: sleep == null,
+              ),
+            'load' => _FactTile(
+                icon: Icons.show_chart,
+                label: kTrainingLoadTileLabel,
+                value: loadLabel ?? kTrainingLoadLearningCopy,
+                muted: loadLabel == null,
+                onTap: hasLoadWhy
+                    ? () => setState(() => _showLoadWhy = !_showLoadWhy)
+                    : null,
+              ),
+            'today' => _FactTile(
+                icon: Icons.bolt_outlined,
+                label: kTodayLoadTileLabel,
+                value: todayLoad != null
+                    ? kTodayLoadTrainedCopy
+                    : kTodayLoadEmptyCopy,
+                detail: todayLoad?.round().toString(),
+                muted: todayLoad == null,
+              ),
+            'weather' => _FactTile(
+                icon: weather != null
+                    ? weatherGlyph(weather.symbol)
+                    : Icons.cloud_outlined,
+                label: kWeatherTileLabel,
+                value: weather != null
+                    ? '${weather.condition} · '
+                        '${weather.temperatureC.round()}°'
+                    : kWeatherEmptyCopy,
+                muted: weather == null,
+              ),
+            _ => const SizedBox.shrink(),
+          },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Item 12: the edit affordance — quiet, right-aligned, only when the
+        // screen wired a picker.
+        if (widget.onEditTiles != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.tune, size: 18),
+              tooltip: kTilePickerTooltip,
+              color: MivaltaColors.textMuted,
+              visualDensity: VisualDensity.compact,
+              onPressed: widget.onEditTiles,
+            ),
+          ),
         // IntrinsicHeight: equal-height tile pairs without unbounded-stretch
         // constraints inside the scroll column.
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _FactTile(
-                  icon: Icons.bedtime_outlined,
-                  label: kSleepTileLabel,
-                  value: sleepValue,
-                  muted: sleep == null,
-                ),
-              ),
-              const SizedBox(width: MivaltaSpace.x3),
-              Expanded(
-                child: _FactTile(
-                  icon: Icons.show_chart,
-                  label: kTrainingLoadTileLabel,
-                  value: loadLabel ?? kTrainingLoadLearningCopy,
-                  muted: loadLabel == null,
-                  onTap: hasLoadWhy
-                      ? () => setState(() => _showLoadWhy = !_showLoadWhy)
-                      : null,
-                ),
-              ),
-            ],
+        for (var i = 0; i < tiles.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: MivaltaSpace.x3),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: tiles[i]),
+                const SizedBox(width: MivaltaSpace.x3),
+                if (i + 1 < tiles.length)
+                  Expanded(child: tiles[i + 1])
+                else
+                  const Expanded(child: SizedBox()),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: MivaltaSpace.x3),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _FactTile(
-                  icon: Icons.bolt_outlined,
-                  label: kTodayLoadTileLabel,
-                  value: todayLoad != null
-                      ? kTodayLoadTrainedCopy
-                      : kTodayLoadEmptyCopy,
-                  detail: todayLoad?.round().toString(),
-                  muted: todayLoad == null,
-                ),
-              ),
-              const SizedBox(width: MivaltaSpace.x3),
-              // Weather — reserved slot, no wiring (decision pending, §7).
-              const Expanded(
-                child: _FactTile(
-                  icon: Icons.cloud_outlined,
-                  label: kWeatherTileLabel,
-                  value: kWeatherSoonCopy,
-                  muted: true,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
         // Tap-through: the engine's load recommendation prose, verbatim.
         if (hasLoadWhy)
           AnimatedSize(
@@ -159,6 +205,70 @@ class _TodayFactsState extends State<TodayFacts> {
                 : const SizedBox(width: double.infinity),
           ),
       ],
+    );
+  }
+}
+
+/// Item 12: the tile-picker sheet body — one switch per tile id, names from
+/// the fixed dictionary. Pure UI preference; nothing engine-derived. The
+/// parent owns persistence via [onChanged]. Production call site:
+/// ReadinessScreen's picker bottom sheet.
+class TodayTilePicker extends StatefulWidget {
+  const TodayTilePicker({
+    super.key,
+    required this.visibleTiles,
+    required this.onChanged,
+  });
+
+  /// The currently enabled tile ids (copied into local sheet state).
+  final Set<String> visibleTiles;
+
+  /// Fired with the full updated set on every toggle.
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  State<TodayTilePicker> createState() => _TodayTilePickerState();
+}
+
+class _TodayTilePickerState extends State<TodayTilePicker> {
+  late final Set<String> _enabled = Set.of(widget.visibleTiles);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MivaltaSpace.x4,
+          vertical: MivaltaSpace.x4,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              kTilePickerTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: MivaltaSpace.x2),
+            for (final id in kTodayTileIds)
+              SwitchListTile(
+                title: Text(todayTileName(id)),
+                value: _enabled.contains(id),
+                contentPadding: EdgeInsets.zero,
+                onChanged: (on) {
+                  setState(() {
+                    if (on) {
+                      _enabled.add(id);
+                    } else {
+                      _enabled.remove(id);
+                    }
+                  });
+                  widget.onChanged(Set.of(_enabled));
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
