@@ -70,9 +70,10 @@ Two design decisions you must build to (founder, 2026-06-11):
    features show empty until this lands. The executable fix is
    `MAC_BRIEF_WORKOUT_INGEST.md`. Don't debug "report never appears" — it's
    this.
-2. **Advisor screen still equal-weight.** `lib/screens/advisor_screen.dart`
-   predates the lead-with-A decision above; build new advisor UI to
-   **lead-with-A / offer-C** (`MAC_BRIEF_ADVISOR_LEAD_A.md`).
+2. ~~Advisor screen still equal-weight~~ **RESOLVED (2026-06-12):**
+   `AdvisorOptionsList` now leads with A ("Recommended for today"), offers C
+   as "or take it easy", and tucks B behind "More options" — pinned by
+   `test/advisor_options_test.dart`.
 3. **Manual entry covers 4 fields** (RHR/HRV/sleep/RPE). Engine-supported
    optional inputs — mental-state VAS, sick flag, cycle day, wellness, body
    temp — have no UI yet; the related HMM emissions run silent until supplied.
