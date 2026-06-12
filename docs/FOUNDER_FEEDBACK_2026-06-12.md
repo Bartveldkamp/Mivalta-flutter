@@ -109,3 +109,18 @@ items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
     build a real personalized profile of your level and status before its
     reads are trustworthy — what it's collecting, why it takes time, how trust
     grows. Simple human words, card-grounded, no jargon.
+
+## LAST TWO TODAY (founder, 20:50)
+23. **Start workout → sport picker + connected devices.** On start: choose the
+    ACTIVITY — all kinds of running (outdoor/trail/treadmill), walking, all
+    types of cycling (road/indoor/virtual/MTB) — and show which tracking
+    devices are connected to THIS workout (honest states, no fabricated
+    sensors). ⚠ FL-17 NUANCE: this picker sets the workout's activity_type
+    (ingest path — engine's allowlist handles walk etc. via universal
+    baseline); it does NOT change the profile sport (still cycling/running
+    only). Do not re-add walking to the profile Sport enum.
+24. **Weather icon properly (missing in current build):** condition icon WITH
+    temperature ("☀ 18°"), nicely designed, right of the centered title.
+    Tap → GLASSY week overlay over the home (main screen stays visible
+    beneath), swipe horizontally day-by-day. Glass per UI_UX §15.5 rules:
+    the ONE glass surface, never nested, never animated blur, solid fallback.
