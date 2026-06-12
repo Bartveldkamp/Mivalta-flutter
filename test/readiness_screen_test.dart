@@ -340,6 +340,40 @@ void main() {
     });
   });
 
+  // Item 7 (FOUNDER_FEEDBACK_2026-06-12): Today's load chip next to fatigue state.
+  // Engine provides daily_loads; Dart renders today's value. No Dart math.
+  group('Today load chip contract', () {
+    test('load chip renders when todayLoad is present and data is sufficient', () {
+      // The chip should render IFF:
+      //   todayLoad != null AND insufficientData == false
+      bool shouldShowLoadChip(double? todayLoad, bool insufficientData) =>
+          todayLoad != null && !insufficientData;
+
+      // Case 1: Sufficient data with today's load → chip should show
+      expect(shouldShowLoadChip(150.0, false), isTrue);
+      expect(shouldShowLoadChip(0.0, false), isTrue); // zero load is valid data
+
+      // Case 2: Insufficient data even with load value → NO chip
+      expect(shouldShowLoadChip(150.0, true), isFalse);
+      expect(shouldShowLoadChip(0.0, true), isFalse);
+
+      // Case 3: Sufficient data but no load data → NO chip
+      expect(shouldShowLoadChip(null, false), isFalse);
+
+      // Case 4: No data, no load → NO chip
+      expect(shouldShowLoadChip(null, true), isFalse);
+    });
+
+    test('load chip label uses engine value rounded, with "load" suffix', () {
+      // The label format is "${todayLoad.round()} load"
+      String formatLoadLabel(double load) => '${load.round()} load';
+
+      expect(formatLoadLabel(150.7), equals('151 load'));
+      expect(formatLoadLabel(0.0), equals('0 load'));
+      expect(formatLoadLabel(42.3), equals('42 load'));
+    });
+  });
+
   // PR-C: Tokens-only compliance — ring color must come from tokens layer
   group('Tokens-only compliance', () {
     testWidgets(

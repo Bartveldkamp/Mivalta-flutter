@@ -108,6 +108,7 @@ class _HomeData {
   List<String> patternAdvisories = const []; // contextWidget['pattern_advisories']
   List<double> historyScores = const [];     // FIXED: readReadinessHistory['readiness_score']
   SourceTier? sourceTier;        // lastObservationSourceTier()
+  double? todayLoad;             // readDailyLoads()[today] — cumulative load today
 
   // State
   bool insufficientData = false;
@@ -372,6 +373,21 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             })
             .whereType<double>()
             .toList();
+      }
+
+      // Today's load chip (Item 7) — engine-computed cumulative load for today
+      // No Dart math: engine sums the day's load_uls; we just select today's row.
+      final loadsJson = await binding.readDailyLoads(handle, days: 7);
+      final loads = jsonDecode(loadsJson);
+      if (loads is List && loads.isNotEmpty) {
+        // Engine returns [[date, load], ...] most-recent-last; find today's row
+        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+        for (final row in loads.reversed) {
+          if (row is List && row.length >= 2 && row[0] == todayStr) {
+            d.todayLoad = (row[1] as num?)?.toDouble();
+            break;
+          }
+        }
       }
 
       // Source tier swatch
@@ -777,12 +793,27 @@ class _Zone1State extends StatelessWidget {
         ],
         const SizedBox(height: MivaltaSpace.x3),
 
-        // Fatigue state badge — color via fatigueStateColor() from tokens.dart.
+        // Fatigue state badge + today's load chip (Item 7: load next to state)
         // Gated on data sufficiency (feedback item 1): no state from priors.
-        if (!data.insufficientData && data.fatigueState != null)
-          _Badge(
-            label: _humanizeFatigueState(data.fatigueState),
-            color: fatigueStateColor(data.fatigueState),
+        if ((data.fatigueState != null || data.todayLoad != null) &&
+            !data.insufficientData)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (data.fatigueState != null)
+                _Badge(
+                  label: _humanizeFatigueState(data.fatigueState),
+                  color: fatigueStateColor(data.fatigueState),
+                ),
+              if (data.fatigueState != null && data.todayLoad != null)
+                const SizedBox(width: MivaltaSpace.x2),
+              // Today's load chip — engine value, no Dart math
+              if (data.todayLoad != null)
+                _Badge(
+                  label: '${data.todayLoad!.round()} load',
+                  color: MivaltaColors.textMuted,
+                ),
+            ],
           ),
       ],
     );
