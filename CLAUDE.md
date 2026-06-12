@@ -118,6 +118,12 @@ flutter run                                              # Launch on attached de
    reachable from production within one PR.
 8. **New behaviour needs a test.** `flutter test` / widget test /
    integration test, with a concrete-value assertion.
+9. **Josi is a PRESENTER, locked (founder 2026-06-12).** She renders as
+   on-screen TEXT — no chat box, no text input, no open Q&A, and **no
+   TTS/audio layer** in the beta. "Voice" is a tone, not audio. The user's
+   only interactions: the "why?" disclosure tap and choosing among engine
+   suggestions on the Advisor screen. Open conversation is Coach tier
+   (post-beta). See `docs/DESIGN_BUILD_SPEC.md` → "Josi's role".
 
 ## Key Entry Points
 
