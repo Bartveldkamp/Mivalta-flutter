@@ -677,7 +677,27 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       appBar: AppBar(
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
+        // Round 3 item 10 (founder): title stays CENTERED — liked.
+        centerTitle: true,
         title: const Text('MiValta'),
+        // Round 3 item 10: Start workout as a compact, stylish control in the
+        // top-LEFT corner beside the centered title (was a full-width button
+        // in the scroll column). Same destination: sensor check (step 4).
+        leading: _loading
+            ? null
+            : Center(
+                child: IconButton.filled(
+                  style: IconButton.styleFrom(
+                    backgroundColor: MivaltaColors.primaryGreen,
+                    foregroundColor: MivaltaColors.textPrimary,
+                    minimumSize: const Size(36, 36),
+                    padding: EdgeInsets.zero,
+                  ),
+                  tooltip: 'Start workout',
+                  icon: const Icon(Icons.play_arrow, size: 20),
+                  onPressed: _openSensorCheck,
+                ),
+              ),
         // Step-1 slimdown (HOME_REDESIGN_BRIEF §3): settings/trends/debug
         // actions migrated to the You tab. Sync stays — it's a Today data
         // action, not a settings one.
@@ -707,8 +727,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
               onTapRing: _openReadinessDetail,
               onTapAdvisor: _openAdvisor,
               onTapLatestWorkout: _openWorkoutDetail,
-              // Step 4: start = sensor check (was advisor) — brief §4 item 5.
-              onTapStartWorkout: _openSensorCheck,
             ),
       // Round 3 item 9: the green "+" FAB is GONE (founder: not nice, not
       // useful — the home stays calm). Manual logging lives behind Start
@@ -728,13 +746,11 @@ class ThreeZoneHome extends StatelessWidget {
     required this.onTapRing,
     required this.onTapAdvisor,
     required this.onTapLatestWorkout,
-    required this.onTapStartWorkout,
   });
   final HomeData data;
   final VoidCallback onTapRing;
   final VoidCallback onTapAdvisor;
   final void Function(String date) onTapLatestWorkout; // Item 2
-  final VoidCallback onTapStartWorkout;                // Item 6
 
   @override
   Widget build(BuildContext context) {
@@ -798,24 +814,9 @@ class ThreeZoneHome extends StatelessWidget {
           _Zone2Today(data: data, textTheme: textTheme, onTapAdvisor: onTapAdvisor),
           const SizedBox(height: MivaltaSpace.x6),
 
-          // ============ START WORKOUT (step 4) ============
-          // Brief §4 item 5: button → sensor check → (staged) live screen.
-          // Always visible — starting/logging a workout is user agency, not a
-          // prior-derived prescription, so no insufficient-data gate here.
-          FilledButton.icon(
-            onPressed: onTapStartWorkout,
-            style: FilledButton.styleFrom(
-              backgroundColor: MivaltaColors.primaryGreen,
-              foregroundColor: MivaltaColors.textPrimary,
-              padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MivaltaRadii.md),
-              ),
-            ),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Start workout'),
-          ),
-          const SizedBox(height: MivaltaSpace.x6),
+          // Round 3 item 10: the in-column Start-workout button moved to a
+          // compact control in the home app bar's top-left (founder request);
+          // the scroll column stays calm.
 
           // ============ ZONE 3: CONTEXT ============
           _Zone3Context(

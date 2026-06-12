@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mivalta_flutter/screens/app_shell.dart';
 import 'package:mivalta_flutter/screens/plan_screen.dart';
+import 'package:mivalta_flutter/screens/sensor_check_screen.dart';
 import 'package:mivalta_flutter/screens/you_screen.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 
@@ -122,6 +123,57 @@ void main() {
 
       expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.byTooltip('Log today'), findsNothing);
+    });
+
+    testWidgets('Start workout is a compact control in the app bar TOP-LEFT '
+        '(round 3 item 10) — and the in-column button is gone', (tester) async {
+      await pumpShell(tester);
+
+      final control = find.byTooltip('Start workout');
+      expect(control, findsOneWidget);
+      expect(
+        find.ancestor(of: control, matching: find.byType(AppBar)),
+        findsOneWidget,
+        reason: 'the start control must live in the home app bar',
+      );
+
+      // Top-left: sits in the leading slot, left of the title.
+      final controlCenter = tester.getCenter(control);
+      final titleCenter = tester.getCenter(
+        find
+            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .first,
+      );
+      expect(controlCenter.dx, lessThan(titleCenter.dx));
+      expect(tester.getTopLeft(control).dx, lessThan(100),
+          reason: 'compact control hugs the top-left corner');
+
+      // The full-width in-column button is gone from the body.
+      expect(find.text('Start workout'), findsNothing);
+    });
+
+    testWidgets('MiValta title stays CENTERED beside the start control '
+        '(round 3 item 10, founder: liked)', (tester) async {
+      await pumpShell(tester);
+
+      final appBarRect = tester.getRect(find.byType(AppBar));
+      final titleCenter = tester.getCenter(
+        find
+            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .first,
+      );
+      expect(titleCenter.dx, closeTo(appBarRect.center.dx, 1.0));
+    });
+
+    testWidgets('tapping the start control opens the sensor-check screen '
+        '(same step-4 destination)', (tester) async {
+      await pumpShell(tester);
+
+      await tester.tap(find.byTooltip('Start workout'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SensorCheckScreen), findsOneWidget);
+      expect(find.text(kSensorSectionLabel), findsOneWidget);
     });
   });
 

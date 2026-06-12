@@ -450,7 +450,6 @@ void main() {
               onTapRing: () {},
               onTapAdvisor: () {},
               onTapLatestWorkout: (_) {},
-              onTapStartWorkout: () {},
             ),
           ),
         );
@@ -561,7 +560,6 @@ void main() {
               onTapRing: () {},
               onTapAdvisor: () {},
               onTapLatestWorkout: (_) {},
-              onTapStartWorkout: () {},
             ),
           ),
         );
@@ -714,7 +712,6 @@ void main() {
               onTapRing: () {},
               onTapAdvisor: () {},
               onTapLatestWorkout: (_) {},
-              onTapStartWorkout: () {},
             ),
           ),
         );
@@ -763,11 +760,13 @@ void main() {
     });
   });
 
-  // Step 4 (HOME_REDESIGN_BRIEF §4 item 5): the Start-workout button lives on
-  // Today (between the session card and context) and replaces the old Zone-3
-  // quick link. It is user agency — visible in every data state.
-  group('Start workout entry on the home (step 4)', () {
-    Widget pumpableHome(HomeData data, {VoidCallback? onStart}) => MaterialApp(
+  // Round 3 item 10 (founder): Start workout migrated from a full-width
+  // in-column button (step 4) to a compact control in the home app bar's
+  // top-left. The scroll column must stay calm — no start button in the body.
+  // The app-bar control itself is pinned in app_shell_test.dart (it needs the
+  // real ReadinessScreen scaffold, not just ThreeZoneHome).
+  group('Start workout on the home body (round 3 item 10)', () {
+    Widget pumpableHome(HomeData data) => MaterialApp(
           theme: mivaltaDarkTheme(),
           home: Scaffold(
             body: ThreeZoneHome(
@@ -775,46 +774,30 @@ void main() {
               onTapRing: () {},
               onTapAdvisor: () {},
               onTapLatestWorkout: (_) {},
-              onTapStartWorkout: onStart ?? () {},
             ),
           ),
         );
 
-    testWidgets('button renders and fires onTapStartWorkout', (tester) async {
-      var fired = 0;
+    testWidgets('no in-column start button — moved to the app bar',
+        (tester) async {
       final data = HomeData()
         ..insufficientData = false
         ..readinessScore = 78
         ..readinessLevel = 'green'
         ..confidence = 0.9
         ..stateRecommendation = 'Recovered — fully charged.';
-      await tester.pumpWidget(pumpableHome(data, onStart: () => fired++));
-
-      await tester.ensureVisible(find.text('Start workout'));
-      await tester.tap(find.text('Start workout'));
-      await tester.pumpAndSettle();
-      expect(fired, 1);
-    });
-
-    testWidgets('old Zone-3 quick link is gone', (tester) async {
-      final data = HomeData()
-        ..insufficientData = false
-        ..readinessScore = 78
-        ..readinessLevel = 'green'
-        ..confidence = 0.9;
       await tester.pumpWidget(pumpableHome(data));
 
+      expect(find.text('Start workout'), findsNothing);
+      // Old Zone-3 quick link stays gone too (step 4 regression guard).
       expect(find.text('Start a workout'), findsNothing);
-      expect(find.text('Start workout'), findsOneWidget);
     });
 
-    testWidgets('button stays visible on the no-data home (user agency, '
-        'not a prescription)', (tester) async {
+    testWidgets('no start button in the no-data body either', (tester) async {
       final data = HomeData()..insufficientData = true;
       await tester.pumpWidget(pumpableHome(data));
 
-      await tester.ensureVisible(find.text('Start workout'));
-      expect(find.text('Start workout'), findsOneWidget);
+      expect(find.text('Start workout'), findsNothing);
     });
   });
 
