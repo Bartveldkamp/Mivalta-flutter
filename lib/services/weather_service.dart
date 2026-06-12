@@ -8,6 +8,7 @@
 // denied, WeatherKit error, Android = no implementation yet) returns null and
 // the UI renders honest absence — no icon, no fabricated conditions.
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 
 /// One day of the 7-day forecast, parsed from the native payload.
@@ -59,9 +60,13 @@ class WeatherService {
       final raw = await _channel.invokeMethod<dynamic>('getWeather');
       if (raw is! Map) return null;
       return _parse(raw);
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      // Honest absence either way — but say WHY in debug builds so a
+      // missing icon is diagnosable (permission? WeatherKit auth? location?).
+      debugPrint('weather unavailable — ${e.code}: ${e.message}');
       return null;
     } on MissingPluginException {
+      debugPrint('weather unavailable — no platform implementation');
       return null;
     }
   }

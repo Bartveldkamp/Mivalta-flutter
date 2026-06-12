@@ -148,3 +148,15 @@ items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
     is not yet visible in the build: ship the condition-icon+temperature next
     to the title (with the glassy 7-day overlay) as a priority in the current
     round; founder is checking for it specifically.
+
+## NIGHT ROUND — resolution notes (2026-06-12 ~23:15, on the LAST-TWO build)
+- Item 27 (sport-picker scroller): DONE same night — horizontal SCROLLER of
+  activity cards (glyph over label) replacing the wrapped chip cloud.
+- Item 28 (weather still missing, sim): root cause was a STALE NATIVE BINARY —
+  the running `flutter run` session predated the round-3 Swift weather
+  channel, and hot restart never swaps native code (MissingPluginException).
+  Debug-only failure logging added to WeatherService so a missing icon is
+  diagnosable; full rebuild required. NOT an Info.plist issue — the location
+  usage description was already present.
+- Items 25–26 QUEUED (next round): units toggle + Privacy & Data insights;
+  advisor cards+chips per the adopted no-chat-box pattern above.
