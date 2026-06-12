@@ -121,7 +121,7 @@
     {
       "readiness": "red",
       "source": "meeusen_2013",
-      "zone_cap": "Z2"
+      "zone_cap": "R"
     }
   ],
   "biometric_trends_interpretation:confidence_language": [
@@ -252,6 +252,221 @@
       "field": "readiness_7d",
       "meaning": "Last 7 days of readiness",
       "values": "array of Green/Yellow/Orange/Red"
+    }
+  ],
+  "calibration_probes:calibration_gate": [
+    {
+      "min_completed_workouts": 5,
+      "min_days": 14
+    }
+  ],
+  "calibration_probes:probe_catalog": [
+    {
+      "duration_min": 40,
+      "level": "beginner",
+      "probe_type": "aerobic_durability",
+      "sequence": 1,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 55,
+      "level": "novice",
+      "probe_type": "aerobic_durability",
+      "sequence": 1,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 75,
+      "level": "intermediate",
+      "probe_type": "aerobic_durability",
+      "sequence": 1,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 90,
+      "level": "advanced",
+      "probe_type": "aerobic_durability",
+      "sequence": 1,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 105,
+      "level": "elite",
+      "probe_type": "aerobic_durability",
+      "sequence": 1,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 40,
+      "level": "beginner",
+      "probe_type": "threshold_response",
+      "sequence": 2,
+      "zone": "Z3"
+    },
+    {
+      "duration_min": 45,
+      "level": "novice",
+      "probe_type": "threshold_response",
+      "sequence": 2,
+      "zone": "Z4"
+    },
+    {
+      "duration_min": 60,
+      "level": "intermediate",
+      "probe_type": "threshold_response",
+      "sequence": 2,
+      "zone": "Z4"
+    },
+    {
+      "duration_min": 70,
+      "level": "advanced",
+      "probe_type": "threshold_response",
+      "sequence": 2,
+      "zone": "Z4"
+    },
+    {
+      "duration_min": 75,
+      "level": "elite",
+      "probe_type": "threshold_response",
+      "sequence": 2,
+      "zone": "Z4"
+    },
+    {
+      "duration_min": 0,
+      "level": "beginner",
+      "probe_type": "recovery_observation",
+      "sequence": 3,
+      "zone": "R"
+    },
+    {
+      "duration_min": 0,
+      "level": "novice",
+      "probe_type": "recovery_observation",
+      "sequence": 3,
+      "zone": "R"
+    },
+    {
+      "duration_min": 0,
+      "level": "intermediate",
+      "probe_type": "recovery_observation",
+      "sequence": 3,
+      "zone": "R"
+    },
+    {
+      "duration_min": 0,
+      "level": "advanced",
+      "probe_type": "recovery_observation",
+      "sequence": 3,
+      "zone": "R"
+    },
+    {
+      "duration_min": 0,
+      "level": "elite",
+      "probe_type": "recovery_observation",
+      "sequence": 3,
+      "zone": "R"
+    },
+    {
+      "duration_min": 30,
+      "level": "beginner",
+      "probe_type": "neuromuscular_load",
+      "sequence": 4,
+      "zone": "Z5"
+    },
+    {
+      "duration_min": 35,
+      "level": "novice",
+      "probe_type": "neuromuscular_load",
+      "sequence": 4,
+      "zone": "Z6"
+    },
+    {
+      "duration_min": 45,
+      "level": "intermediate",
+      "probe_type": "neuromuscular_load",
+      "sequence": 4,
+      "zone": "Z6"
+    },
+    {
+      "duration_min": 50,
+      "level": "advanced",
+      "probe_type": "neuromuscular_load",
+      "sequence": 4,
+      "zone": "Z6"
+    },
+    {
+      "duration_min": 50,
+      "level": "elite",
+      "probe_type": "neuromuscular_load",
+      "sequence": 4,
+      "zone": "Z6"
+    },
+    {
+      "duration_min": 30,
+      "level": "beginner",
+      "probe_type": "consistency",
+      "sequence": 5,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 40,
+      "level": "novice",
+      "probe_type": "consistency",
+      "sequence": 5,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 50,
+      "level": "intermediate",
+      "probe_type": "consistency",
+      "sequence": 5,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 60,
+      "level": "advanced",
+      "probe_type": "consistency",
+      "sequence": 5,
+      "zone": "Z2"
+    },
+    {
+      "duration_min": 60,
+      "level": "elite",
+      "probe_type": "consistency",
+      "sequence": 5,
+      "zone": "Z2"
+    }
+  ],
+  "chronotropic_viterbi_emission:chronotropic_viterbi_emission": [
+    {
+      "key": "emission_weight",
+      "notes": "contribution to fatigue likelihood (0..1); at decoupling's level — an objective physiological signal, unlike the deliberately-lower subjective mental axis",
+      "value": 0.4
+    },
+    {
+      "key": "viterbi_state_pull",
+      "notes": "semicolon-separated state:weight pairs (z-score means); max abs pull 0.6 = decoupling reference",
+      "value": "\"IllnessRisk:0.6;Overreached:0.5;Accumulated:0.3;Productive:-0.2;Recovered:-0.3\""
+    },
+    {
+      "key": "min_sessions_for_signal",
+      "notes": "require at least 3 eligible sessions with a valid suppression % in the window before contributing",
+      "value": 3
+    },
+    {
+      "key": "sample_window_days",
+      "notes": "rolling-mean window (matches the decoupling emission)",
+      "value": 14
+    },
+    {
+      "key": "pct_anchor",
+      "notes": "suppression % mapped to z = 0 (0 % = at personal baseline)",
+      "value": 0.0
+    },
+    {
+      "key": "pct_per_sd",
+      "notes": "suppression percentage-points per standard deviation in the z-map",
+      "value": 5.0
     }
   ],
   "coach_cues:default_focus_cue": [
@@ -1845,6 +2060,56 @@
       "system_id": "long_endurance"
     }
   ],
+  "energy_systems:risk_factors": [
+    {
+      "caution_injury_return": true,
+      "caution_masters": true,
+      "caution_youth": false,
+      "primary_risk": "cumulative_fatigue_glycogen_depletion",
+      "risk_level": "low",
+      "system_id": "long_endurance"
+    },
+    {
+      "caution_injury_return": false,
+      "caution_masters": false,
+      "caution_youth": false,
+      "primary_risk": "none_significant",
+      "risk_level": "low",
+      "system_id": "endurance"
+    },
+    {
+      "caution_injury_return": true,
+      "caution_masters": true,
+      "caution_youth": false,
+      "primary_risk": "autonomic_load_overreach",
+      "risk_level": "moderate",
+      "system_id": "steady_state_threshold"
+    },
+    {
+      "caution_injury_return": true,
+      "caution_masters": true,
+      "caution_youth": true,
+      "primary_risk": "cardiac_autonomic_strain",
+      "risk_level": "high",
+      "system_id": "aerobic_power"
+    },
+    {
+      "caution_injury_return": true,
+      "caution_masters": true,
+      "caution_youth": true,
+      "primary_risk": "metabolic_acidosis_form_breakdown",
+      "risk_level": "high",
+      "system_id": "anaerobic_power"
+    },
+    {
+      "caution_injury_return": true,
+      "caution_masters": true,
+      "caution_youth": true,
+      "primary_risk": "musculotendinous_strain_cns_load",
+      "risk_level": "high",
+      "system_id": "neuromuscular"
+    }
+  ],
   "energy_systems:system_recovery": [
     {
       "max_per_meso_21": 6,
@@ -2369,6 +2634,56 @@
       "work_min_max": 0.17,
       "work_min_min": 0.05,
       "zone": "Z8"
+    }
+  ],
+  "expression_catalog:expressions": [
+    {
+      "expression_id": "hill_fartlek_z4",
+      "instructions": "By feel on terrain: surge {work_min} min strong uphill at 10k–5k effort, jog {rest_min} min easy. Repeat ~{reps}× until you have banked {ntiz} min of hard running. Same dose as the track set — the hill does the pacing.",
+      "sport": "running",
+      "terrain": "hills",
+      "title": "Hill Fartlek",
+      "zone": "Z4"
+    },
+    {
+      "expression_id": "hill_surges_z5",
+      "instructions": "Find a steady climb: {reps}× {work_min} min hard uphill at 3k effort, walk/jog {rest_min} min down. {ntiz} min of VO₂ work total — let the gradient force the intensity.",
+      "sport": "running",
+      "terrain": "hills",
+      "title": "Hill Surge Session",
+      "zone": "Z5"
+    },
+    {
+      "expression_id": "progression_z3",
+      "instructions": "Continuous run finishing strong: start easy and wind the pace up so the final {ntiz} min sit at comfortably-hard tempo effort. No stopping — the progression IS the workout.",
+      "sport": "running",
+      "terrain": "flat",
+      "title": "Progression Run",
+      "zone": "Z3"
+    },
+    {
+      "expression_id": "climb_repeats_z4",
+      "instructions": "On a steady climb: {reps}× {work_min} min strong climbing at threshold effort, spin {rest_min} min easy back down. {ntiz} min of climbing work — same dose as the structured set.",
+      "sport": "cycling",
+      "terrain": "hills",
+      "title": "Climb Repeats",
+      "zone": "Z4"
+    },
+    {
+      "expression_id": "hill_attacks_z5",
+      "instructions": "Short climb or rolling terrain: {reps}× {work_min} min hard uphill efforts at VO₂ effort, {rest_min} min easy spinning between. {ntiz} min total above threshold.",
+      "sport": "cycling",
+      "terrain": "hills",
+      "title": "Hill Attacks",
+      "zone": "Z5"
+    },
+    {
+      "expression_id": "tempo_progression_z3",
+      "instructions": "Continuous ride building pressure: settle in easy, then hold the final {ntiz} min at steady tempo — smooth, controlled, no surges.",
+      "sport": "cycling",
+      "terrain": "flat",
+      "title": "Tempo Progression",
+      "zone": "Z3"
     }
   ],
   "fatigue_policy:state_to_override": [
@@ -2953,28 +3268,36 @@
   ],
   "feasibility_policy:tier_thresholds": [
     {
+      "max_zone": "Z8",
       "plan_mode": "performance_path",
+      "quality_sessions_mult": 1.0,
       "recheck_after_meso": 0,
       "score_max": 1.0,
       "score_min": 0.85,
       "tier": "A"
     },
     {
+      "max_zone": "Z6",
       "plan_mode": "finish_path",
+      "quality_sessions_mult": 0.9,
       "recheck_after_meso": 0,
       "score_max": 0.84,
       "score_min": 0.7,
       "tier": "B"
     },
     {
+      "max_zone": "Z5",
       "plan_mode": "finish_path",
+      "quality_sessions_mult": 0.75,
       "recheck_after_meso": 1,
       "score_max": 0.69,
       "score_min": 0.5,
       "tier": "C"
     },
     {
+      "max_zone": "Z3",
       "plan_mode": "maintenance_path",
+      "quality_sessions_mult": 0.5,
       "recheck_after_meso": 1,
       "score_max": 0.49,
       "score_min": 0.0,
@@ -5191,6 +5514,26 @@
       "template": "Moderate readiness. {zone} keeps intensity appropriate while matching your {mood} request."
     },
     {
+      "context": "primary_green_nomood",
+      "template": "Your body is responding well, and {zone} is the most valuable work for you today."
+    },
+    {
+      "context": "primary_yellow_nomood",
+      "template": "Moderate readiness. {zone} keeps today productive without overreaching."
+    },
+    {
+      "context": "primary_orange_nomood",
+      "template": "Recovery is building, so keeping it lighter. {zone} is a smart choice."
+    },
+    {
+      "context": "primary_red_nomood",
+      "template": "Rest mode. Easy {zone} work supports recovery without adding stress."
+    },
+    {
+      "context": "calibration_probe",
+      "template": "Calibration {probe_seq} of {probe_total}: the engine is learning your patterns through five structured workouts. Today's {probe_type} probe shows how you respond, so every read becomes personal."
+    },
+    {
       "context": "primary_orange",
       "template": "Recovery is building, so keeping it lighter. {zone} is a smart choice."
     },
@@ -5624,6 +5967,38 @@
     {
       "parameter": "base_step_increment",
       "value": 0.05
+    }
+  ],
+  "mental_viterbi_emission:mental_viterbi_emission": [
+    {
+      "key": "emission_weight",
+      "notes": "contribution to fatigue likelihood (0..1); deliberately **below** decoupling's 0.4 so a single new subjective axis cannot out-vote the physiological emissions",
+      "value": 0.3
+    },
+    {
+      "key": "viterbi_state_pull",
+      "notes": "semicolon-separated state:weight pairs (z-score means); max abs pull 0.5 ≤ decoupling's 0.6 (magnitude cap)",
+      "value": "\"IllnessRisk:0.5;Overreached:0.4;Accumulated:0.2;Productive:-0.2;Recovered:-0.3\""
+    },
+    {
+      "key": "min_sessions_for_signal",
+      "notes": "require at least 3 eligible `mental_state` observations in the window before contributing",
+      "value": 3
+    },
+    {
+      "key": "sample_window_days",
+      "notes": "rolling-mean window (matches the decoupling emission)",
+      "value": 14
+    },
+    {
+      "key": "vas_neutral",
+      "notes": "VAS (1–10) value mapped to z = 0; inverted map `z = (vas_neutral − mean_vas) / vas_per_sd`, so a value *below* neutral yields positive (fatigue-direction) z",
+      "value": 7.0
+    },
+    {
+      "key": "vas_per_sd",
+      "notes": "VAS points per standard deviation in the z-map",
+      "value": 2.0
     }
   ],
   "meso_dance_policy:deload_rules": [
@@ -6631,48 +7006,48 @@
   ],
   "monotony_policy:load_factors": [
     {
-      "bucket": "recovery",
       "load_factor": 0.0,
+      "primary_system": "endurance",
       "zone": "R"
     },
     {
-      "bucket": "volume",
       "load_factor": 0.25,
+      "primary_system": "endurance",
       "zone": "Z1"
     },
     {
-      "bucket": "volume",
       "load_factor": 0.49,
+      "primary_system": "endurance",
       "zone": "Z2"
     },
     {
-      "bucket": "threshold",
       "load_factor": 0.7225,
+      "primary_system": "steady_state_threshold",
       "zone": "Z3"
     },
     {
-      "bucket": "vo2max",
       "load_factor": 1.0,
+      "primary_system": "aerobic_power",
       "zone": "Z4"
     },
     {
-      "bucket": "vo2max",
       "load_factor": 1.21,
+      "primary_system": "aerobic_power",
       "zone": "Z5"
     },
     {
-      "bucket": "anaerobic",
       "load_factor": 1.44,
+      "primary_system": "anaerobic_power",
       "zone": "Z6"
     },
     {
-      "bucket": "neuromuscular",
       "load_factor": 1.69,
+      "primary_system": "neuromuscular",
       "zone": "Z7"
     },
     {
-      "bucket": "neuromuscular",
       "load_factor": 1.96,
+      "primary_system": "neuromuscular",
       "zone": "Z8"
     }
   ],
@@ -9192,6 +9567,167 @@
       "max_meso_increase_pct": 40,
       "max_slice_increase_pct": 15,
       "volume_tolerance": "high"
+    }
+  ],
+  "personal_response_learning:spacing_learning": [
+    {
+      "extend_mult": 1.25,
+      "min_sessions": 3,
+      "mult_max": 1.5,
+      "mult_min": 0.85,
+      "shorten_mult": 0.9
+    }
+  ],
+  "phase_energy_system_signatures:phase_signatures": [
+    {
+      "pct_max": 22.0,
+      "pct_min": 15.0,
+      "phase": "base",
+      "system": "long_endurance"
+    },
+    {
+      "pct_max": 60.0,
+      "pct_min": 50.0,
+      "phase": "base",
+      "system": "endurance"
+    },
+    {
+      "pct_max": 18.0,
+      "pct_min": 12.0,
+      "phase": "base",
+      "system": "steady_state_threshold"
+    },
+    {
+      "pct_max": 10.0,
+      "pct_min": 5.0,
+      "phase": "base",
+      "system": "aerobic_power"
+    },
+    {
+      "pct_max": 4.0,
+      "pct_min": 1.0,
+      "phase": "base",
+      "system": "anaerobic_power"
+    },
+    {
+      "pct_max": 4.0,
+      "pct_min": 1.0,
+      "phase": "base",
+      "system": "neuromuscular"
+    },
+    {
+      "pct_max": 15.0,
+      "pct_min": 8.0,
+      "phase": "build",
+      "system": "long_endurance"
+    },
+    {
+      "pct_max": 52.0,
+      "pct_min": 42.0,
+      "phase": "build",
+      "system": "endurance"
+    },
+    {
+      "pct_max": 26.0,
+      "pct_min": 18.0,
+      "phase": "build",
+      "system": "steady_state_threshold"
+    },
+    {
+      "pct_max": 16.0,
+      "pct_min": 10.0,
+      "phase": "build",
+      "system": "aerobic_power"
+    },
+    {
+      "pct_max": 5.0,
+      "pct_min": 2.0,
+      "phase": "build",
+      "system": "anaerobic_power"
+    },
+    {
+      "pct_max": 4.0,
+      "pct_min": 1.0,
+      "phase": "build",
+      "system": "neuromuscular"
+    },
+    {
+      "pct_max": 12.0,
+      "pct_min": 5.0,
+      "phase": "peak",
+      "system": "long_endurance"
+    },
+    {
+      "pct_max": 48.0,
+      "pct_min": 38.0,
+      "phase": "peak",
+      "system": "endurance"
+    },
+    {
+      "pct_max": 26.0,
+      "pct_min": 18.0,
+      "phase": "peak",
+      "system": "steady_state_threshold"
+    },
+    {
+      "pct_max": 24.0,
+      "pct_min": 16.0,
+      "phase": "peak",
+      "system": "aerobic_power"
+    },
+    {
+      "pct_max": 7.0,
+      "pct_min": 3.0,
+      "phase": "peak",
+      "system": "anaerobic_power"
+    },
+    {
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "peak",
+      "system": "neuromuscular"
+    },
+    {
+      "pct_max": 18.0,
+      "pct_min": 10.0,
+      "phase": "unload",
+      "system": "long_endurance"
+    },
+    {
+      "pct_max": 62.0,
+      "pct_min": 52.0,
+      "phase": "unload",
+      "system": "endurance"
+    },
+    {
+      "pct_max": 18.0,
+      "pct_min": 10.0,
+      "phase": "unload",
+      "system": "steady_state_threshold"
+    },
+    {
+      "pct_max": 12.0,
+      "pct_min": 6.0,
+      "phase": "unload",
+      "system": "aerobic_power"
+    },
+    {
+      "pct_max": 4.0,
+      "pct_min": 1.0,
+      "phase": "unload",
+      "system": "anaerobic_power"
+    },
+    {
+      "pct_max": 4.0,
+      "pct_min": 1.0,
+      "phase": "unload",
+      "system": "neuromuscular"
+    }
+  ],
+  "phase_energy_system_signatures:rotation_gate": [
+    {
+      "min_deficit_pct": 12.0,
+      "min_sessions": 4
     }
   ],
   "planner_policy_v4:default_values": [
@@ -12451,6 +12987,177 @@
       "zone_band": "Z7_Z8"
     }
   ],
+  "system_selection_policy:dose_progression": [
+    {
+      "max_steps": 4,
+      "regression_gap_days": 14,
+      "step_pct": 5,
+      "success_completion_pct": 90,
+      "success_rpe_margin": 1,
+      "successes_per_step": 2
+    }
+  ],
+  "system_selection_policy:goal_relevance": [
+    {
+      "aerobic_power": 0.4,
+      "anaerobic_power": 0.2,
+      "archetype": "general",
+      "endurance": 0.6,
+      "long_endurance": 0.5,
+      "long_ride_target_days": 10,
+      "neuromuscular": 0.2,
+      "steady_state_threshold": 0.5
+    },
+    {
+      "aerobic_power": 0.3,
+      "anaerobic_power": 0.1,
+      "archetype": "marathon_endurance",
+      "endurance": 0.8,
+      "long_endurance": 1.0,
+      "long_ride_target_days": 7,
+      "neuromuscular": 0.1,
+      "steady_state_threshold": 0.7
+    },
+    {
+      "aerobic_power": 0.5,
+      "anaerobic_power": 0.2,
+      "archetype": "long_endurance",
+      "endurance": 0.8,
+      "long_endurance": 0.9,
+      "long_ride_target_days": 7,
+      "neuromuscular": 0.2,
+      "steady_state_threshold": 0.7
+    },
+    {
+      "aerobic_power": 0.7,
+      "anaerobic_power": 0.4,
+      "archetype": "short_endurance",
+      "endurance": 0.6,
+      "long_endurance": 0.5,
+      "long_ride_target_days": 14,
+      "neuromuscular": 0.3,
+      "steady_state_threshold": 0.8
+    },
+    {
+      "aerobic_power": 1.0,
+      "anaerobic_power": 0.6,
+      "archetype": "speed_endurance",
+      "endurance": 0.5,
+      "long_endurance": 0.3,
+      "long_ride_target_days": 14,
+      "neuromuscular": 0.5,
+      "steady_state_threshold": 0.8
+    },
+    {
+      "aerobic_power": 0.4,
+      "anaerobic_power": 0.1,
+      "archetype": "endurance_event",
+      "endurance": 0.8,
+      "long_endurance": 1.0,
+      "long_ride_target_days": 7,
+      "neuromuscular": 0.1,
+      "steady_state_threshold": 0.7
+    },
+    {
+      "aerobic_power": 0.7,
+      "anaerobic_power": 0.3,
+      "archetype": "threshold_event",
+      "endurance": 0.6,
+      "long_endurance": 0.5,
+      "long_ride_target_days": 10,
+      "neuromuscular": 0.2,
+      "steady_state_threshold": 1.0
+    }
+  ],
+  "system_selection_policy:recommendation_caps": [
+    {
+      "max_zone": "Z6",
+      "readiness": "green"
+    },
+    {
+      "max_zone": "Z4",
+      "readiness": "yellow"
+    },
+    {
+      "max_zone": "Z2",
+      "readiness": "orange"
+    },
+    {
+      "max_zone": "R",
+      "readiness": "red"
+    },
+    {
+      "max_zone": "Z6",
+      "readiness": "recovered"
+    },
+    {
+      "max_zone": "Z6",
+      "readiness": "productive"
+    },
+    {
+      "max_zone": "Z3",
+      "readiness": "accumulated"
+    },
+    {
+      "max_zone": "R",
+      "readiness": "overreached"
+    },
+    {
+      "max_zone": "R",
+      "readiness": "illnessrisk"
+    }
+  ],
+  "system_selection_policy:system_params": [
+    {
+      "fatigue_type": "muscular",
+      "recovery_base_hours": 48,
+      "representative_duration_min": 120,
+      "system": "long_endurance"
+    },
+    {
+      "fatigue_type": "muscular",
+      "recovery_base_hours": 24,
+      "representative_duration_min": 60,
+      "system": "endurance"
+    },
+    {
+      "fatigue_type": "metabolic",
+      "recovery_base_hours": 36,
+      "representative_duration_min": 40,
+      "system": "steady_state_threshold"
+    },
+    {
+      "fatigue_type": "metabolic",
+      "recovery_base_hours": 30,
+      "representative_duration_min": 30,
+      "system": "aerobic_power"
+    },
+    {
+      "fatigue_type": "metabolic",
+      "recovery_base_hours": 48,
+      "representative_duration_min": 20,
+      "system": "anaerobic_power"
+    },
+    {
+      "fatigue_type": "nervous",
+      "recovery_base_hours": 48,
+      "representative_duration_min": 15,
+      "system": "neuromuscular"
+    }
+  ],
+  "system_selection_policy:weights": [
+    {
+      "cost_norm_days": 3.0,
+      "cost_w": 0.1,
+      "cross_type_spacing_h": 24.0,
+      "goal_w": 0.2,
+      "intensity_spacing_h": 36.0,
+      "need_norm_pp": 25.0,
+      "need_w": 0.4,
+      "recency_cap_days": 10.0,
+      "recency_w": 0.3
+    }
+  ],
   "training_load_model:banister_defaults": [
     {
       "parameter": "fitness_time_constant_days",
@@ -13976,24 +14683,28 @@
   "zone_anchors:anchor_resolution": [
     {
       "anchor_type": "power",
+      "default_hrmax_bpm": null,
       "priority": 1,
       "source": "FTP test",
       "use_case": "Cycling primary"
     },
     {
       "anchor_type": "pace",
+      "default_hrmax_bpm": null,
       "priority": 2,
       "source": "Threshold pace",
       "use_case": "Running primary"
     },
     {
       "anchor_type": "hr_lthr",
+      "default_hrmax_bpm": null,
       "priority": 3,
       "source": "LTHR test",
       "use_case": "Validation or fallback"
     },
     {
       "anchor_type": "hr_max",
+      "default_hrmax_bpm": 190,
       "priority": 4,
       "source": "HRmax test or formula",
       "use_case": "Last-resort fallback"
