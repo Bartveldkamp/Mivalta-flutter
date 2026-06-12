@@ -124,3 +124,20 @@ items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
     Tap → GLASSY week overlay over the home (main screen stays visible
     beneath), swipe horizontally day-by-day. Glass per UI_UX §15.5 rules:
     the ONE glass surface, never nested, never animated blur, solid fallback.
+25. **Settings: units + privacy insights.** (a) Metric/imperial toggle
+    (display-layer formatting only — engine stays SI). (b) "Privacy & data"
+    grows into an INSIGHTS surface: where each datum comes from (source
+    overview + tier badges — engine's V4 memory-transparency/source APIs
+    already exist), proof it's all on-device/under control, and what the
+    user can DO (export, granular revoke, delete-everything with receipt).
+26. **ADOPTED — "Josi speaks in cards, you answer in chips" (no chat box).**
+    Josi renders as authored verdict text INSIDE components (small signature,
+    no avatar bubbles, no thread, no input bar — ever). Interaction = choice
+    CHIPS under the suggestion card: Less time · Different sport · Feeling
+    worse · Feeling better → max ONE follow-up level (e.g. 30/45/60 min) →
+    engine recomputes → card updates with a one-line diff. NOTE: the engine
+    ALREADY accepts these as optional advisor params (time available,
+    mood/feeling, equipment, terrain — the four optional args of
+    recommend_workout) — chips are pure bounded UI over existing inputs, no
+    engine change. Migration intact: Coach tier later adds a "something
+    else…" chip that opens input; everything else survives.
