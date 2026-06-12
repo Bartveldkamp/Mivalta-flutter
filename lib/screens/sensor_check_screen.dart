@@ -2,6 +2,17 @@
 // the Start-workout button on Today lands here. Staged flow: sensor check
 // first, optional GPS map + minimal live screen as the follow-up.
 //
+// LAST-TWO item 23 (docs/FOUNDER_FEEDBACK_2026-06-12.md): on start, choose
+// the ACTIVITY — running variants (outdoor/trail/treadmill), walking, cycling
+// variants (road/indoor/virtual/MTB) — and see which tracking devices are
+// connected to THIS workout.
+//
+// ⚠ FL-17 NUANCE: the picker sets the WORKOUT's activity_type (the ingest
+// path — the same engine strings health_ingest.dart maps to: 'run' / 'walk'
+// / 'ride'; the engine's allowlist handles walk via the universal baseline).
+// It does NOT touch the profile Sport enum (still cycling/running only) —
+// do not re-add walking there.
+//
 // HONEST STATES ONLY (brief §4: "No fabricated sensor states — honest 'not
 // connected'"): this app has no BLE or GPS plumbing yet, so the only truthful
 // rows are "Not connected" / "coming with the live screen". No fake scanning,
@@ -20,7 +31,8 @@ import '../theme/tokens.dart';
 /// Screen + section copy. Fixed strings so tests pin them and reviews can
 /// diff wording in one place.
 const kSensorCheckTitle = 'Start workout';
-const kSensorSectionLabel = 'SENSORS';
+const kActivitySectionLabel = 'ACTIVITY';
+const kSensorSectionLabel = 'DEVICES FOR THIS WORKOUT';
 const kSensorHrLabel = 'Heart rate monitor';
 const kSensorHrNotConnectedCopy = 'Not connected';
 const kSensorGpsLabel = 'GPS';
@@ -31,16 +43,69 @@ const kLiveWorkoutStagedNote =
     'it counts just the same.';
 const kLogManuallyButtonLabel = 'Log a workout manually';
 
+/// One pickable activity for the start flow (item 23).
+///
+/// [activityType] is the engine's `VaultActivity.activity_type` string for
+/// THE WORKOUT being started — the exact values the ingest path already
+/// writes (see health_ingest.dart's mapping table). Variants are a display
+/// distinction; the engine contract stays the base string.
+class ActivityChoice {
+  const ActivityChoice(this.label, this.activityType);
+
+  /// User-facing label (display layer).
+  final String label;
+
+  /// Engine activity_type for the ingest path — never user-visible.
+  final String activityType;
+}
+
+/// The founder's item-23 list, in order: all kinds of running, walking,
+/// all types of cycling. Fixed display dictionary — engine strings verified
+/// against health_ingest.dart's production mapping, never invented.
+const List<ActivityChoice> kActivityChoices = [
+  ActivityChoice('Outdoor run', 'run'),
+  ActivityChoice('Trail run', 'run'),
+  ActivityChoice('Treadmill run', 'run'),
+  ActivityChoice('Walk', 'walk'),
+  ActivityChoice('Road ride', 'ride'),
+  ActivityChoice('Indoor ride', 'ride'),
+  ActivityChoice('Virtual ride', 'ride'),
+  ActivityChoice('Mountain bike', 'ride'),
+];
+
+/// Fixed glyph per engine activity_type — display dictionary only.
+IconData activityGlyph(String activityType) {
+  switch (activityType) {
+    case 'run':
+      return Icons.directions_run;
+    case 'walk':
+      return Icons.directions_walk;
+    case 'ride':
+      return Icons.directions_bike;
+  }
+  return Icons.fitness_center;
+}
+
 /// The sensor-check screen between the Today Start-workout button and the
 /// (staged) live screen. Production call site: [ReadinessScreen]'s
 /// `_openSensorCheck`. Public so widget tests can pump it directly.
-class SensorCheckScreen extends StatelessWidget {
+class SensorCheckScreen extends StatefulWidget {
   const SensorCheckScreen({super.key, this.onLogManually});
 
   /// Working capture path while the live screen is staged — production
   /// wires this to the home's manual-entry flow. Null hides the action
   /// (the screen stays honest either way).
   final VoidCallback? onLogManually;
+
+  @override
+  State<SensorCheckScreen> createState() => _SensorCheckScreenState();
+}
+
+class _SensorCheckScreenState extends State<SensorCheckScreen> {
+  /// Selected activity for THIS workout (item 23). Defaults to the first
+  /// choice; the selection is what the live-start path will stamp as the
+  /// workout's activity_type when live tracking lands.
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +126,29 @@ class SensorCheckScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Item 23: choose the activity for THIS workout.
+            Text(
+              kActivitySectionLabel,
+              style: textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.2,
+                color: MivaltaColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+            Wrap(
+              spacing: MivaltaSpace.x2,
+              runSpacing: MivaltaSpace.x2,
+              children: [
+                for (var i = 0; i < kActivityChoices.length; i++)
+                  _ActivityChip(
+                    choice: kActivityChoices[i],
+                    selected: i == _selectedIndex,
+                    onSelected: () => setState(() => _selectedIndex = i),
+                  ),
+              ],
+            ),
+            const SizedBox(height: MivaltaSpace.x6),
+
             Text(
               kSensorSectionLabel,
               style: textTheme.labelSmall?.copyWith(
@@ -111,10 +199,10 @@ class SensorCheckScreen extends StatelessWidget {
 
             // The working path today: give data back via manual logging
             // (§9 capture zone) — this screen is never a dead end.
-            if (onLogManually != null) ...[
+            if (widget.onLogManually != null) ...[
               const SizedBox(height: MivaltaSpace.x6),
               OutlinedButton.icon(
-                onPressed: onLogManually,
+                onPressed: widget.onLogManually,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: MivaltaColors.primaryGreen,
                   side: const BorderSide(color: MivaltaColors.surface2),
@@ -130,6 +218,52 @@ class SensorCheckScreen extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One activity chip — quiet by default, green hairline + check when chosen
+/// (same subtle language as the start control, round 3-final item 20).
+class _ActivityChip extends StatelessWidget {
+  const _ActivityChip({
+    required this.choice,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final ActivityChoice choice;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return ChoiceChip(
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      avatar: Icon(
+        activityGlyph(choice.activityType),
+        size: 16,
+        color:
+            selected ? MivaltaColors.primaryGreen : MivaltaColors.textMuted,
+      ),
+      label: Text(choice.label),
+      labelStyle: textTheme.bodySmall?.copyWith(
+        color: selected
+            ? MivaltaColors.textPrimary
+            : MivaltaColors.textSecondary,
+      ),
+      backgroundColor: MivaltaColors.surface1,
+      selectedColor: MivaltaColors.surface2,
+      showCheckmark: false,
+      side: BorderSide(
+        color:
+            selected ? MivaltaColors.primaryGreen : MivaltaColors.surface2,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MivaltaRadii.sm),
       ),
     );
   }
