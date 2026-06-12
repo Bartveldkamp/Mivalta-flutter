@@ -1208,7 +1208,12 @@ class _MetricRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Use Wrap to handle narrow constraints (e.g. when inside Expanded in the
+    // Monotony/Strain row). Prevents 75px overflow on smaller screens.
+    return Wrap(
+      spacing: MivaltaSpace.x1,
+      runSpacing: MivaltaSpace.x1,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           '$label: ',
@@ -1218,10 +1223,8 @@ class _MetricRow extends StatelessWidget {
           value,
           style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
-        if (zone != null) ...[
-          const SizedBox(width: MivaltaSpace.x2),
+        if (zone != null)
           _Badge(label: zone!, color: _zoneColor(zone)),
-        ],
       ],
     );
   }
