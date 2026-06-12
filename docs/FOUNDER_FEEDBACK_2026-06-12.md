@@ -98,3 +98,14 @@ Implement together, each with widget tests + 4-state screenshot notes:
 items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
 11+18 (WeatherKit icon top-right, tap=7-day) · 12 (user-configurable tiles) ·
 13 (extended trust-story "why") · 19 (Plan→Journey). Dark-first (16) locked.
+
+## ROUND 3-FINAL — three fixes, then call it a day (founder, on Round-3 screenshot)
+20. Start-workout control (top-left): more stylish, LESS BOLD — subtle/refined,
+    not a solid green disc.
+21. Weather: NOT a tile — one stylish ICON of today's local condition, placed
+    RIGHT of the centered "MiValta" title in the app bar (tap → 7-day, per 11).
+    Remove the weather tile from the grid.
+22. The F1 "why" must say it PLAINLY: the model needs ~28 days of your data to
+    build a real personalized profile of your level and status before its
+    reads are trustworthy — what it's collecting, why it takes time, how trust
+    grows. Simple human words, card-grounded, no jargon.
