@@ -100,9 +100,14 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
         if (mounted) setState(() => _profileJson = profileJson);
       } catch (e) {
         if (!mounted) return;
+        // FL-17: surface the REAL error. The silent `catch (e)` swallow hid
+        // the engine's rejection for two weeks — "Setup could not be
+        // completed" with no cause is undiagnosable. No silent fallbacks.
+        debugPrint('onboarding: profile build/save failed: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Setup could not be completed. Please try again.'),
+          SnackBar(
+            duration: const Duration(seconds: 10),
+            content: Text('Setup could not be completed: $e'),
           ),
         );
         // Inputs were not persisted; re-show onboarding so the user can retry.

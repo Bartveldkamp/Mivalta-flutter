@@ -50,7 +50,9 @@ The single most-repeated and most-misread point. Build to this exactly:
 
 - **Josi is a PRESENTER (autocue).** She *reads out and emphasises what's
   happening* — today's readiness, today's session, one line of context — in a
-  warm spoken voice. She is the face/voice of the home.
+  warm coach voice. "Voice" is a tone, not audio: **Josi renders as on-screen
+  text; there is NO TTS/audio layer in the beta.** She is the face/voice of
+  the home.
 - **There is NO chat box. No text input. No open Q&A. No conversation.** This is
   non-negotiable for beta. (Open conversation was the entire trap the model work
   fell into.) The user does not "talk to" Josi.

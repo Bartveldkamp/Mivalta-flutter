@@ -99,6 +99,38 @@ is proven. (The new safety behavior is also testable here: a profile with real
 4. Any FRB-iOS loader config change needed (commit it — it's the boundary).
 5. Verdict: does the MONITOR + ADVISORY path work on iOS, yes/no?
 
+## 2026-06-12 addendum — Apple Developer account exists (founder confirmed)
+
+The paid account removes the last administrative blockers. Three things it
+unlocks, in execution order:
+
+1. **Device signing (step 4 above).** Xcode ▸ Runner ▸ Signing & Capabilities ▸
+   select the MiValta Team. Year-long provisioning instead of 7-day free-account
+   profiles. Simulator still needs none — do simulator first regardless.
+2. **HealthKit — capability + privacy strings (VERIFIED MISSING).**
+   `lib/services/health_ingest.dart` + the engine's `healthkit.rs` normalizer
+   are already written, but `ios/Runner/Info.plist` has **no**
+   `NSHealthShareUsageDescription` and the Runner has no HealthKit capability —
+   iOS will hard-deny health reads without them. Add:
+   - Xcode ▸ Runner ▸ Signing & Capabilities ▸ **+ HealthKit** (read-only;
+     no Clinical Health Records).
+   - Info.plist: `NSHealthShareUsageDescription` — honest copy, e.g. "MiValta
+     reads your resting heart rate, HRV, sleep and workouts on-device to
+     estimate recovery. Nothing leaves your phone."
+   (We only READ; `NSHealthUpdateUsageDescription` not needed.)
+3. **TestFlight — the real n=1 beta channel** (after the device run proves FFI):
+   - App Store Connect ▸ register the app record with the Runner's bundle id.
+   - `flutter build ipa` ▸ upload (Xcode Organizer or `xcrun altool`/Transporter).
+   - Internal Testing group with Bart's Apple ID → the beta installs from the
+     TestFlight app, 90-day builds, updates push over the air — no cable, no
+     re-provisioning. This is how the founder carries the beta day-to-day.
+   - Later: add Apadmi to the App Store Connect team (Developer role) for
+     production CI uploads.
+
+**What the account does NOT change:** the xcframework build, the FRB-iOS
+loader risk (#2 above), and the simulator-first sequence. Toolchain before
+paperwork.
+
 ## Out of scope / guardrails
 - Do **not** change the engine, the shim's Dart-facing API, or the locked design
   tokens to "make it build."

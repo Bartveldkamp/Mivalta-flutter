@@ -202,12 +202,13 @@ void main() {
           reason: 'running profile should not have ftp_watts');
     });
 
-    test('walking profile has no sport-specific anchors', () {
+    test('anchors stay null when unknown — "I don\'t know" is a valid answer',
+        () {
       final builder = ProfileBuilder()
         ..age = 55
         ..sex = 'male'
         ..level = 'beginner'
-        ..sport = 'walking'
+        ..sport = 'cycling'
         ..goalType = 'weight_loss'
         ..weeklyHours = 3.0
         ..trainingYears = 0;
@@ -247,9 +248,12 @@ void main() {
   });
 
   group('Sport enum', () {
-    test('has expected values per v1.3 spec', () {
-      expect(Sport.values.map((s) => s.value),
-          containsAll(['cycling', 'running', 'walking', 'hiking']));
+    test('offers ONLY end-to-end supported sports (FL-17)', () {
+      // Regression pin: walking/hiking were the 2-week "Setup could not be
+      // completed" dead-end — profiles built, then every engine construction
+      // failed. A sport may only appear here once the engine serves it
+      // end-to-end (see gatc-ffi/tests/onboarding_combos.rs).
+      expect(Sport.values.map((s) => s.value).toList(), ['cycling', 'running']);
     });
   });
 
