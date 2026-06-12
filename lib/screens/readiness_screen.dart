@@ -29,6 +29,7 @@ import '../rust_engine.dart';
 import '../services/health_ingest.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_ring.dart';
 import 'advisor_screen.dart';
 import 'explore_screen.dart';
@@ -686,6 +687,19 @@ class _ThreeZoneHome extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ============ JOSI — PRESENTER (autocue) ============
+          // Josi reads the situation; the zones below are the deeper layer.
+          JosiPresenter(
+            insufficientData: data.insufficientData,
+            stateRecommendation: data.stateRecommendation,
+            confidenceAdvisory: data.confidenceAdvisory,
+            workoutTitle: data.workoutTitle,
+            durationMin: data.durationMin,
+            sessionZone: data.sessionZone,
+            rationaleProse: data.rationaleProse,
+          ),
+          const SizedBox(height: MivaltaSpace.x5),
+
           // ============ ZONE 1: STATE (HERO) ============
           _Zone1State(data: data, textTheme: textTheme, onTapRing: onTapRing),
           const SizedBox(height: MivaltaSpace.x6),

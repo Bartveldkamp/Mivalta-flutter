@@ -44,6 +44,31 @@ it's the latter, push the data one layer deeper.
 
 ---
 
+## ★ Josi's role — PRESENTER, not a chat box (LOCKED, founder 2026-06-12)
+
+The single most-repeated and most-misread point. Build to this exactly:
+
+- **Josi is a PRESENTER (autocue).** She *reads out and emphasises what's
+  happening* — today's readiness, today's session, one line of context — in a
+  warm spoken voice. She is the face/voice of the home.
+- **There is NO chat box. No text input. No open Q&A. No conversation.** This is
+  non-negotiable for beta. (Open conversation was the entire trap the model work
+  fell into.) The user does not "talk to" Josi.
+- **The user's only interactions are:** progressive disclosure — a "why?" tap
+  that *reveals more of the engine's own prose* — and, on the **Advisor** screen,
+  **choosing among the engine's suggested workouts** (lead-with-A, offer-C).
+  Choosing, never chatting.
+- **Open/coaching conversation is COACH tier (Tier 3) — out of beta scope.**
+- **The engine + vault are the brains and the memory.** They learn the athlete
+  over time; Josi only presents what they know. She computes nothing, remembers
+  nothing herself, and therefore cannot fabricate. Every word she speaks is
+  engine output rendered verbatim or an engine value she sequences.
+
+Implemented in beta as `lib/widgets/josi_presenter.dart` (home-screen autocue
+over the existing grounded widgets — no model, no new engine plumbing).
+
+---
+
 ## 0. The three "scores" — resolve the headline question first
 
 The app surfaces **three distinct numbers**, each with a different job and home.
