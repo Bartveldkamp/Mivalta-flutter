@@ -159,6 +159,31 @@ void main() {
       expect(find.text('Start workout'), findsNothing);
     });
 
+    testWidgets('Start control is SUBTLE (round 3-final item 20): no solid '
+        'green fill, green glyph instead', (tester) async {
+      await pumpShell(tester);
+
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.play_arrow_rounded),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
+      final style = button.style!;
+      expect(
+        style.backgroundColor?.resolve({}),
+        isNot(MivaltaColors.primaryGreen),
+        reason: 'founder: not a solid green disc',
+      );
+      expect(
+        style.foregroundColor?.resolve({}),
+        MivaltaColors.primaryGreen,
+        reason: 'the green lives in the glyph, not the fill',
+      );
+    });
+
     testWidgets('MiValta title stays CENTERED beside the start control '
         '(round 3 item 10, founder: liked)', (tester) async {
       await pumpShell(tester);

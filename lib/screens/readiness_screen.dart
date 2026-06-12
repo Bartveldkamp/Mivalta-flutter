@@ -732,21 +732,22 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         // Round 3 item 10 (founder): title stays CENTERED — liked.
         centerTitle: true,
         title: const Text('MiValta'),
-        // Round 3 item 10: Start workout as a compact, stylish control in the
-        // top-LEFT corner beside the centered title (was a full-width button
-        // in the scroll column). Same destination: sensor check (step 4).
+        // Round 3 item 10: Start workout as a compact control in the
+        // top-LEFT corner beside the centered title. Round 3-FINAL item 20
+        // (founder): subtle/refined, NOT a solid green disc — hairline
+        // outline, green glyph, no fill. Same destination: sensor check.
         leading: _loading
             ? null
             : Center(
-                child: IconButton.filled(
+                child: IconButton.outlined(
                   style: IconButton.styleFrom(
-                    backgroundColor: MivaltaColors.primaryGreen,
-                    foregroundColor: MivaltaColors.textPrimary,
+                    foregroundColor: MivaltaColors.primaryGreen,
+                    side: const BorderSide(color: MivaltaColors.surface2),
                     minimumSize: const Size(36, 36),
                     padding: EdgeInsets.zero,
                   ),
                   tooltip: 'Start workout',
-                  icon: const Icon(Icons.play_arrow, size: 20),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
                   onPressed: _openSensorCheck,
                 ),
               ),
