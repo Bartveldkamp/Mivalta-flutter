@@ -141,3 +141,10 @@ items 9 (kill FAB) · 10 (Start workout top-left, title centered) ·
     recommend_workout) — chips are pure bounded UI over existing inputs, no
     engine change. Migration intact: Coach tier later adds a "something
     else…" chip that opens input; everything else survives.
+27. **Workout/sport picker → better design: a SCROLLER** (wheel/carousel-style
+    selector, smooth and tactile — not a flat list/grid). Applies to item 23's
+    activity choice on Start workout.
+28. **Weather icon STILL MISSING on Today (founder check, 21:16)** — item 24
+    is not yet visible in the build: ship the condition-icon+temperature next
+    to the title (with the glassy 7-day overlay) as a priority in the current
+    round; founder is checking for it specifically.
