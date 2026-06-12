@@ -115,6 +115,14 @@ void main() {
       expect(find.byIcon(Icons.insights_outlined), findsNothing);
       expect(find.byIcon(Icons.bug_report), findsNothing);
     });
+
+    testWidgets('the green "+" FAB is gone — calm home (round 3 item 9); '
+        'manual logging lives behind the start-workout flow', (tester) async {
+      await pumpShell(tester);
+
+      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(find.byTooltip('Log today'), findsNothing);
+    });
   });
 
   group('PlanScreen (honest placeholder)', () {

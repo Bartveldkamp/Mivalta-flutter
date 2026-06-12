@@ -710,16 +710,9 @@ class _ReadinessScreenState extends State<ReadinessScreen>
               // Step 4: start = sensor check (was advisor) — brief §4 item 5.
               onTapStartWorkout: _openSensorCheck,
             ),
-      // PR-D: FAB for manual entry
-      floatingActionButton: _loading
-          ? null
-          : FloatingActionButton(
-              onPressed: _openManualEntry,
-              backgroundColor: MivaltaColors.primaryGreen,
-              foregroundColor: MivaltaColors.textPrimary,
-              tooltip: 'Log today',
-              child: const Icon(Icons.add),
-            ),
+      // Round 3 item 9: the green "+" FAB is GONE (founder: not nice, not
+      // useful — the home stays calm). Manual logging lives behind Start
+      // workout → sensor check → "Log a workout manually".
     );
   }
 }
