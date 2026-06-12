@@ -1,6 +1,9 @@
-// Round 3 items 11+18: weather display widgets. Pure display — both take the
-// already-parsed [WeatherReport]/[WeatherDay], never touch the platform
-// channel, so widget tests pump them directly with seeded data.
+// Round 3 items 11+18 + LAST-TWO item 24: weather display widgets. Pure
+// display — they take the already-parsed [WeatherReport]/[WeatherDay], never
+// touch the platform channel, so widget tests pump them directly with seeded
+// data.
+
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -36,98 +39,159 @@ IconData weatherGlyph(String symbol) {
   return Icons.cloud_outlined;
 }
 
-/// The 7-day forecast that "drops down" when the app-bar condition icon is
-/// tapped (founder item 11 form). Current conditions on top, then one calm
-/// row per day: weekday · glyph · condition · high/low.
-class WeatherForecastPanel extends StatelessWidget {
-  const WeatherForecastPanel({super.key, required this.report});
+/// The semi-opaque solid under the glass blur — §15.5's MANDATORY fallback,
+/// painted ALWAYS (not conditionally): where blur is unavailable the surface
+/// still reads as an intentional solid, never broken.
+final Color kWeatherGlassFill = MivaltaColors.surface1.withAlpha(217);
+
+/// LAST-TWO item 24: the GLASSY week overlay. Floats OVER the home (the main
+/// screen stays visible beneath); swipe horizontally day-by-day.
+///
+/// Glass per UI_UX §15.5 [LOCKED]: this is the ONE glass surface region —
+/// a single [BackdropFilter] (never nested), constant blur (never animated),
+/// bound with [ClipRRect], with [kWeatherGlassFill] as the always-painted
+/// solid fallback.
+class WeatherWeekOverlay extends StatefulWidget {
+  const WeatherWeekOverlay({super.key, required this.report});
   final WeatherReport report;
+
+  @override
+  State<WeatherWeekOverlay> createState() => _WeatherWeekOverlayState();
+}
+
+class _WeatherWeekOverlayState extends State<WeatherWeekOverlay> {
+  int _page = 0;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: MivaltaColors.surface1,
-        borderRadius: BorderRadius.circular(MivaltaRadii.md),
-      ),
-      padding: const EdgeInsets.all(MivaltaSpace.x4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    final report = widget.report;
+    final days = report.daily;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(MivaltaRadii.lg),
+      child: BackdropFilter(
+        // Constant sigma — §15.5: never animated blur.
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: kWeatherGlassFill,
+            borderRadius: BorderRadius.circular(MivaltaRadii.lg),
+            border: Border.all(color: MivaltaColors.surface2),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: MivaltaSpace.x4,
+            vertical: MivaltaSpace.x4,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                weatherGlyph(report.symbol),
-                size: 18,
-                color: MivaltaColors.textSecondary,
+              // Current conditions — slim header.
+              Row(
+                children: [
+                  Icon(
+                    weatherGlyph(report.symbol),
+                    size: 18,
+                    color: MivaltaColors.textSecondary,
+                  ),
+                  const SizedBox(width: MivaltaSpace.x2),
+                  Expanded(
+                    child: Text(
+                      report.condition,
+                      style: textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '${report.temperatureC.round()}°',
+                    style: textTheme.titleMedium,
+                  ),
+                ],
               ),
-              const SizedBox(width: MivaltaSpace.x2),
-              Expanded(
-                child: Text(
-                  report.condition,
-                  style: textTheme.bodyMedium,
-                  overflow: TextOverflow.ellipsis,
+              // The week, one day per page — honest: only the days the OS
+              // returned, no fabricated rows.
+              if (days.isNotEmpty) ...[
+                const SizedBox(height: MivaltaSpace.x3),
+                SizedBox(
+                  height: 120,
+                  child: PageView(
+                    onPageChanged: (i) => setState(() => _page = i),
+                    children: [for (final day in days) _DayPage(day: day)],
+                  ),
                 ),
-              ),
-              Text(
-                '${report.temperatureC.round()}°',
-                style: textTheme.titleMedium,
-              ),
+                const SizedBox(height: MivaltaSpace.x2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < days.length; i++)
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: MivaltaSpace.x1,
+                        ),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _page
+                              ? MivaltaColors.primaryGreen
+                              : MivaltaColors.surface2,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
-          if (report.daily.isNotEmpty) ...[
-            const SizedBox(height: MivaltaSpace.x3),
-            for (final day in report.daily) _DayRow(day: day),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-class _DayRow extends StatelessWidget {
-  const _DayRow({required this.day});
+/// One swipeable day: weekday · glyph · condition · high/low.
+class _DayPage extends StatelessWidget {
+  const _DayPage({required this.day});
   final WeatherDay day;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final parsed = DateTime.tryParse(day.date);
-    // Weekday label only — calm row, the date itself is depth nobody asked for.
-    final label = parsed == null ? day.date : DateFormat.E().format(parsed);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x1),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            child: Text(
-              label,
-              style: textTheme.bodySmall
-                  ?.copyWith(color: MivaltaColors.textMuted),
-            ),
+    // Weekday label only — calm page, the date itself is depth nobody asked
+    // for.
+    final label =
+        parsed == null ? day.date : DateFormat.EEEE().format(parsed);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.2,
+            color: MivaltaColors.textMuted,
           ),
-          Icon(
-            weatherGlyph(day.symbol),
-            size: 16,
-            color: MivaltaColors.textSecondary,
-          ),
-          const SizedBox(width: MivaltaSpace.x2),
-          Expanded(
-            child: Text(
-              day.condition,
-              style: textTheme.bodySmall
-                  ?.copyWith(color: MivaltaColors.textSecondary),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text(
-            '${day.highC.round()}° / ${day.lowC.round()}°',
-            style: textTheme.bodySmall,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        Icon(
+          weatherGlyph(day.symbol),
+          size: 28,
+          color: MivaltaColors.textSecondary,
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        Text(
+          day.condition,
+          style: textTheme.bodySmall
+              ?.copyWith(color: MivaltaColors.textSecondary),
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: MivaltaSpace.x1),
+        Text(
+          '${day.highC.round()}° / ${day.lowC.round()}°',
+          style: textTheme.titleMedium,
+        ),
+      ],
     );
   }
 }

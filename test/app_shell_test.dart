@@ -16,6 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mivalta_flutter/copy/journey_labels.dart';
 import 'package:mivalta_flutter/screens/app_shell.dart';
+import 'package:mivalta_flutter/screens/readiness_screen.dart'
+    show ThreeZoneHome;
 import 'package:mivalta_flutter/screens/sensor_check_screen.dart';
 import 'package:mivalta_flutter/screens/you_screen.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
@@ -256,70 +258,105 @@ void main() {
       expect(find.text('14° / 9°'), findsNothing);
     });
 
-    testWidgets('OS weather present → ONE condition icon in the app bar '
-        'TOP-RIGHT, right of the centered title', (tester) async {
+    testWidgets('OS weather present → condition icon WITH temperature in the '
+        'app bar TOP-RIGHT, right of the centered title (item 24)',
+        (tester) async {
       mockWeather();
       await pumpShell(tester);
 
-      final icon = find.byTooltip('Weather');
-      expect(icon, findsOneWidget);
+      final control = find.byTooltip('Weather');
+      expect(control, findsOneWidget);
       expect(
-        find.ancestor(of: icon, matching: find.byType(AppBar)),
+        find.ancestor(of: control, matching: find.byType(AppBar)),
         findsOneWidget,
       );
 
-      final iconCenter = tester.getCenter(icon);
+      // Item 24: the control carries the rounded temperature ("☂ 12°").
+      expect(
+        find.descendant(of: control, matching: find.text('12°')),
+        findsOneWidget,
+      );
+
+      final controlCenter = tester.getCenter(control);
       final titleCenter = tester.getCenter(
         find
             .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
             .first,
       );
-      expect(iconCenter.dx, greaterThan(titleCenter.dx),
-          reason: 'condition icon sits top-right of the centered title');
+      expect(controlCenter.dx, greaterThan(titleCenter.dx),
+          reason: 'condition control sits top-right of the centered title');
 
-      // Forecast stays closed until tapped.
+      // The week overlay stays closed until tapped — no glass yet.
+      expect(find.byType(BackdropFilter), findsNothing);
       expect(find.text('14° / 9°'), findsNothing);
 
-      // Round 3-final item 21: stylish quiet icon — secondary tint while
-      // closed, and NO weather tile anywhere in the grid.
-      final button = tester.widget<IconButton>(
-        find
-            .ancestor(of: icon, matching: find.byType(IconButton))
-            .first,
+      // Item 21 carry: quiet secondary tint while closed, and NO weather
+      // tile anywhere in the grid.
+      final button = tester.widget<TextButton>(
+        find.descendant(of: control, matching: find.byType(TextButton)),
       );
-      expect(button.color, MivaltaColors.textSecondary);
+      expect(
+        button.style?.foregroundColor?.resolve({}),
+        MivaltaColors.textSecondary,
+      );
       expect(find.text('Weather'), findsNothing);
       expect(find.text('No weather right now'), findsNothing);
     });
 
-    testWidgets('tap → the 7-day forecast drops down; tap again → it folds '
-        'away', (tester) async {
+    testWidgets('tap → GLASSY week overlay OVER the home, one day per page, '
+        'swipe → next day; tap again → folds (item 24)', (tester) async {
       mockWeather();
       await pumpShell(tester);
 
       await tester.tap(find.byTooltip('Weather'));
       await tester.pumpAndSettle();
+
+      // The app's ONE glass surface is up (§15.5)…
+      expect(find.byType(BackdropFilter), findsOneWidget);
+      // …showing day 1 ONLY — one swipeable day per page, not a list.
       expect(find.text('14° / 9°'), findsOneWidget);
-      expect(find.text('18° / 9°'), findsOneWidget);
-      expect(find.text('Clear'), findsOneWidget);
-      // Item 21: the icon lights green while the forecast is open.
+      expect(find.text('18° / 9°'), findsNothing);
+      // The home stays visible BENEATH the overlay (founder: main screen
+      // visible underneath).
+      expect(find.byType(ThreeZoneHome), findsOneWidget);
+      // Item 21 carry: the control lights green while open.
+      final button = tester.widget<TextButton>(
+        find.descendant(
+          of: find.byTooltip('Weather'),
+          matching: find.byType(TextButton),
+        ),
+      );
       expect(
-        tester
-            .widget<IconButton>(
-              find
-                  .ancestor(
-                    of: find.byTooltip('Weather'),
-                    matching: find.byType(IconButton),
-                  )
-                  .first,
-            )
-            .color,
+        button.style?.foregroundColor?.resolve({}),
         MivaltaColors.primaryGreen,
       );
 
+      // Swipe horizontally → the next day.
+      await tester.fling(find.byType(PageView), const Offset(-300, 0), 800);
+      await tester.pumpAndSettle();
+      expect(find.text('Clear'), findsOneWidget);
+      expect(find.text('18° / 9°'), findsOneWidget);
+
+      // Tap the control again → the glass folds away.
       await tester.tap(find.byTooltip('Weather'));
       await tester.pumpAndSettle();
-      expect(find.text('14° / 9°'), findsNothing);
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.text('18° / 9°'), findsNothing);
+    });
+
+    testWidgets('tapping the home beneath (outside the glass) closes the '
+        'overlay', (tester) async {
+      mockWeather();
+      await pumpShell(tester);
+
+      await tester.tap(find.byTooltip('Weather'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BackdropFilter), findsOneWidget);
+
+      // Below the overlay card, above the NavigationBar — the scrim.
+      await tester.tapAt(const Offset(20, 480));
+      await tester.pumpAndSettle();
+      expect(find.byType(BackdropFilter), findsNothing);
     });
   });
 

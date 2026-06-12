@@ -771,55 +771,62 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
-          // Round 3 items 11+18 + 3-final item 21: ONE styled local-condition
-          // icon right of the centered title (no tile), only when the OS
-          // actually returned weather (honest absence otherwise). Quiet tint;
-          // green while the 7-day forecast is dropped down.
+          // LAST-TWO item 24 (was round 3 items 11+18 / 21): the local
+          // condition WITH temperature ("☀ 18°") right of the centered
+          // title — only when the OS actually returned weather (honest
+          // absence otherwise). Quiet tint; green while the week is open.
           if (_weather != null)
-            IconButton(
-              icon: Icon(weatherGlyph(_weather!.symbol), size: 22),
-              color: _showForecast
-                  ? MivaltaColors.primaryGreen
-                  : MivaltaColors.textSecondary,
-              tooltip: 'Weather',
-              onPressed: () =>
-                  setState(() => _showForecast = !_showForecast),
+            Tooltip(
+              message: 'Weather',
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: _showForecast
+                      ? MivaltaColors.primaryGreen
+                      : MivaltaColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MivaltaSpace.x2,
+                  ),
+                  minimumSize: const Size(0, 36),
+                ),
+                onPressed: () =>
+                    setState(() => _showForecast = !_showForecast),
+                icon: Icon(weatherGlyph(_weather!.symbol), size: 18),
+                label: Text('${_weather!.temperatureC.round()}°'),
+              ),
             ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : Stack(
+              fit: StackFit.expand,
               children: [
-                // Items 11+18: the 7-day forecast drops down from the app
-                // bar when the condition icon is tapped.
-                AnimatedSize(
-                  duration: MivaltaMotion.standard,
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.topCenter,
-                  child: (_showForecast && _weather != null)
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            MivaltaSpace.x5,
-                            MivaltaSpace.x2,
-                            MivaltaSpace.x5,
-                            0,
-                          ),
-                          child: WeatherForecastPanel(report: _weather!),
-                        )
-                      : const SizedBox.shrink(),
+                ThreeZoneHome(
+                  data: _data,
+                  onTapRing: _openReadinessDetail,
+                  onTapAdvisor: _openAdvisor,
+                  onTapLatestWorkout: _openWorkoutDetail,
+                  // Item 12: user-chosen tiles + the picker entry point.
+                  visibleTiles: _visibleTiles,
+                  onEditTiles: _openTilePicker,
                 ),
-                Expanded(
-                  child: ThreeZoneHome(
-                    data: _data,
-                    onTapRing: _openReadinessDetail,
-                    onTapAdvisor: _openAdvisor,
-                    onTapLatestWorkout: _openWorkoutDetail,
-                    // Item 12: user-chosen tiles + the picker entry point.
-                    visibleTiles: _visibleTiles,
-                    onEditTiles: _openTilePicker,
+                // Item 24: tap the condition → the GLASSY week floats over
+                // the home (the home stays visible beneath, §15.5 glass).
+                // Tapping anywhere outside it — or the icon again — closes.
+                if (_showForecast && _weather != null) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _showForecast = false),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    top: MivaltaSpace.x2,
+                    left: MivaltaSpace.x5,
+                    right: MivaltaSpace.x5,
+                    child: WeatherWeekOverlay(report: _weather!),
+                  ),
+                ],
               ],
             ),
       // Round 3 item 9: the green "+" FAB is GONE (founder: not nice, not

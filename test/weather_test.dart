@@ -51,44 +51,79 @@ void main() {
     });
   });
 
-  group('WeatherForecastPanel', () {
-    testWidgets('renders current conditions + one row per day with '
-        'rounded high/low', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: mivaltaDarkTheme(),
-          home: Scaffold(
-            body: WeatherForecastPanel(report: seededReport()),
+  // LAST-TWO item 24: the glassy week overlay, one swipeable day per page.
+  group('WeatherWeekOverlay (glassy week, item 24)', () {
+    Future<void> pumpOverlay(WidgetTester tester, WeatherReport report) =>
+        tester.pumpWidget(
+          MaterialApp(
+            theme: mivaltaDarkTheme(),
+            home: Scaffold(body: WeatherWeekOverlay(report: report)),
           ),
-        ),
-      );
+        );
 
-      // Current conditions: text + rounded temperature.
-      expect(find.text('Rain'), findsNWidgets(2)); // current + first day
+    testWidgets('glass per UI_UX §15.5: ONE BackdropFilter, ClipRRect-bound, '
+        'solid fallback ALWAYS painted', (tester) async {
+      await pumpOverlay(tester, seededReport());
+
+      // The ONE glass surface — a single, never-nested BackdropFilter.
+      expect(find.byType(BackdropFilter), findsOneWidget);
+      // Bound with ClipRRect (§15.5 mandate).
+      expect(
+        find.ancestor(
+          of: find.byType(BackdropFilter),
+          matching: find.byType(ClipRRect),
+        ),
+        findsOneWidget,
+      );
+      // Mandatory solid fallback: the semi-opaque fill is painted always,
+      // not conditionally — where blur is unavailable the surface still
+      // reads as an intentional solid.
+      final container = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(BackdropFilter),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(
+        (container.decoration! as BoxDecoration).color,
+        kWeatherGlassFill,
+      );
+    });
+
+    testWidgets('header + ONE day per page; swiping reveals the next day',
+        (tester) async {
+      await pumpOverlay(tester, seededReport());
+
+      // Header: current conditions with rounded temperature.
       expect(find.text('12°'), findsOneWidget); // 11.6 rounds to 12
-      // Daily rows: weekday labels + rounded high/low pairs.
+      // Page 1 only — Friday's rain; Saturday stays off-page.
+      expect(find.text('Friday'), findsOneWidget); // 2026-06-12
       expect(find.text('14° / 9°'), findsOneWidget); // 14.4 / 8.6
-      expect(find.text('18° / 9°'), findsOneWidget); // 18.2 / 9.1
+      expect(find.text('18° / 9°'), findsNothing);
+
+      await tester.fling(find.byType(PageView), const Offset(-300, 0), 800);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saturday'), findsOneWidget); // 2026-06-13
       expect(find.text('Clear'), findsOneWidget);
+      expect(find.text('18° / 9°'), findsOneWidget); // 18.2 / 9.1
     });
 
     testWidgets('no daily data → current conditions only, no fabricated '
-        'rows', (tester) async {
+        'pages', (tester) async {
       final report = WeatherReport(
         symbol: 'sun.max',
         condition: 'Clear',
         temperatureC: 21.0,
         daily: const [],
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: mivaltaDarkTheme(),
-          home: Scaffold(body: WeatherForecastPanel(report: report)),
-        ),
-      );
+      await pumpOverlay(tester, report);
 
       expect(find.text('Clear'), findsOneWidget);
       expect(find.text('21°'), findsOneWidget);
+      expect(find.byType(PageView), findsNothing);
       expect(find.textContaining(' / '), findsNothing);
     });
   });
