@@ -71,3 +71,12 @@ never as a flat menu.
 13. The "why" under the F1 line must EXPLAIN: what data is needed, how the model works, how it earns trust over the first weeks (calibration story, plain language, card-sourced).
 14. Plan tab: rethink for beta — only MONITOR+ADVISORY exist, so "planning" is thin. Propose alternative content (e.g., week-in-review / recovery timeline) — founder decides naming/content.
 15. Founder design doc to review: uploads/63315832-MiValta_UIUX_Design_North_Star_v1.0.docx — assess against canon next session.
+
+## Founder decisions — evening close
+16. **DARK STAYS — RESOLVED.** Dark-first remains locked canon, "like the logo."
+    The North Star docx's "warm off-white surfaces" line is OVERRIDDEN; when
+    converting the docx to docs/DESIGN_NORTH_STAR.md, replace it with the
+    dark-first material language (editorial typography & calm authority KEEP).
+17. Founder Figma reference (next session: review against canon — note prior
+    finding: Okapion file predates no-chat beta scope):
+    https://www.figma.com/design/mAiucTGUjP8bP1T2cAute0/MIV---Design
