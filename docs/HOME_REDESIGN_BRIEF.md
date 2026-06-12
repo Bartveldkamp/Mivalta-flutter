@@ -147,3 +147,22 @@ engine still calibrating) / **normal** (confident, green-ish) / **red**
 four. Simulator screenshots capture whichever states are reachable with
 on-device data; the rest are described from the widget-test seeds (the test
 file pumps all four with engine-shaped values).
+
+## 9. Sport-science display rules (founder-adopted 2026-06-12)
+
+- **Deviation-first, always**: every signal renders as deviation from the
+  athlete's own band ("sleep 1.2h under your norm"), never a raw absolute
+  first — raw numbers are the third tap. The engine already provides
+  baselines; display maps to them.
+- **Every screen = glance / decision / capture zones** (top: <1s read ·
+  middle: what to do · bottom thumb-zone: give data back).
+- **Morning capture BEFORE verdict reveal**: the 4-slider wellness swipe
+  (fatigue/soreness/sleep/mood, 5 seconds) comes first; the state reveals
+  after — never bias the self-report. This is the morning flow's sequencing
+  law.
+- **Why-panel ordered by evidence weight**: wellness deviation → HRV trend
+  inside the personal band (line-in-band, not a score) → resting HR → 72h
+  load residue; honest band-width note while calibrating.
+- **Post-session sRPE prompt within ~30 minutes**, not at bedtime.
+- **You-screen risk = two slow diverging lines** (load trend vs
+  recovery-capacity trend), no red badges.
