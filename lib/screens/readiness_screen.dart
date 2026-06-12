@@ -39,6 +39,7 @@ import '../widgets/today_facts.dart';
 import 'advisor_screen.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
+import 'sensor_check_screen.dart';
 import 'workout_detail_page.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
@@ -539,6 +540,23 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     }
   }
 
+  /// Step 4 (HOME_REDESIGN_BRIEF §4 item 5): Start workout → sensor check
+  /// (honest states), with manual logging as the working capture path until
+  /// the live screen lands. Engine-free screen; the manual path closes it
+  /// and reuses the existing manual-entry flow.
+  void _openSensorCheck() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SensorCheckScreen(
+          onLogManually: () {
+            Navigator.of(context).pop(); // close the sensor check
+            _openManualEntry();
+          },
+        ),
+      ),
+    );
+  }
+
   void _openAdvisor() {
     final handle = _handle;
     final binding = _binding;
@@ -689,7 +707,8 @@ class _ReadinessScreenState extends State<ReadinessScreen>
               onTapRing: _openReadinessDetail,
               onTapAdvisor: _openAdvisor,
               onTapLatestWorkout: _openWorkoutDetail,
-              onTapStartWorkout: _openAdvisor, // Item 6: start = advisor
+              // Step 4: start = sensor check (was advisor) — brief §4 item 5.
+              onTapStartWorkout: _openSensorCheck,
             ),
       // PR-D: FAB for manual entry
       floatingActionButton: _loading
@@ -786,12 +805,30 @@ class ThreeZoneHome extends StatelessWidget {
           _Zone2Today(data: data, textTheme: textTheme, onTapAdvisor: onTapAdvisor),
           const SizedBox(height: MivaltaSpace.x6),
 
+          // ============ START WORKOUT (step 4) ============
+          // Brief §4 item 5: button → sensor check → (staged) live screen.
+          // Always visible — starting/logging a workout is user agency, not a
+          // prior-derived prescription, so no insufficient-data gate here.
+          FilledButton.icon(
+            onPressed: onTapStartWorkout,
+            style: FilledButton.styleFrom(
+              backgroundColor: MivaltaColors.primaryGreen,
+              foregroundColor: MivaltaColors.textPrimary,
+              padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MivaltaRadii.md),
+              ),
+            ),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Start workout'),
+          ),
+          const SizedBox(height: MivaltaSpace.x6),
+
           // ============ ZONE 3: CONTEXT ============
           _Zone3Context(
             data: data,
             textTheme: textTheme,
             onTapLatestWorkout: onTapLatestWorkout,
-            onTapStartWorkout: onTapStartWorkout,
           ),
           const SizedBox(height: MivaltaSpace.x5),
         ],
@@ -1146,12 +1183,10 @@ class _Zone3Context extends StatelessWidget {
     required this.data,
     required this.textTheme,
     required this.onTapLatestWorkout,
-    required this.onTapStartWorkout,
   });
   final HomeData data;
   final TextTheme textTheme;
   final void Function(String date) onTapLatestWorkout; // Item 2
-  final VoidCallback onTapStartWorkout;                // Item 6
 
   @override
   Widget build(BuildContext context) {
@@ -1196,25 +1231,8 @@ class _Zone3Context extends StatelessWidget {
           ),
         ],
 
-        // Item 6: Quick "start workout" link
-        const SizedBox(height: MivaltaSpace.x3),
-        GestureDetector(
-          onTap: onTapStartWorkout,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
-              const SizedBox(width: MivaltaSpace.x1),
-              Text(
-                'Start a workout',
-                style: textTheme.labelLarge?.copyWith(
-                  color: MivaltaColors.primaryGreen,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Step 4: the quick "start workout" link moved up — the Today
+        // Start-workout button (→ sensor check) replaces it.
 
         // Reactive alerts (verbatim list)
         if (data.reactiveAlerts.isNotEmpty) ...[

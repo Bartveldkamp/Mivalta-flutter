@@ -763,6 +763,61 @@ void main() {
     });
   });
 
+  // Step 4 (HOME_REDESIGN_BRIEF §4 item 5): the Start-workout button lives on
+  // Today (between the session card and context) and replaces the old Zone-3
+  // quick link. It is user agency — visible in every data state.
+  group('Start workout entry on the home (step 4)', () {
+    Widget pumpableHome(HomeData data, {VoidCallback? onStart}) => MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: ThreeZoneHome(
+              data: data,
+              onTapRing: () {},
+              onTapAdvisor: () {},
+              onTapLatestWorkout: (_) {},
+              onTapStartWorkout: onStart ?? () {},
+            ),
+          ),
+        );
+
+    testWidgets('button renders and fires onTapStartWorkout', (tester) async {
+      var fired = 0;
+      final data = HomeData()
+        ..insufficientData = false
+        ..readinessScore = 78
+        ..readinessLevel = 'green'
+        ..confidence = 0.9
+        ..stateRecommendation = 'Recovered — fully charged.';
+      await tester.pumpWidget(pumpableHome(data, onStart: () => fired++));
+
+      await tester.ensureVisible(find.text('Start workout'));
+      await tester.tap(find.text('Start workout'));
+      await tester.pumpAndSettle();
+      expect(fired, 1);
+    });
+
+    testWidgets('old Zone-3 quick link is gone', (tester) async {
+      final data = HomeData()
+        ..insufficientData = false
+        ..readinessScore = 78
+        ..readinessLevel = 'green'
+        ..confidence = 0.9;
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(find.text('Start a workout'), findsNothing);
+      expect(find.text('Start workout'), findsOneWidget);
+    });
+
+    testWidgets('button stays visible on the no-data home (user agency, '
+        'not a prescription)', (tester) async {
+      final data = HomeData()..insufficientData = true;
+      await tester.pumpWidget(pumpableHome(data));
+
+      await tester.ensureVisible(find.text('Start workout'));
+      expect(find.text('Start workout'), findsOneWidget);
+    });
+  });
+
   // PR-C: Tokens-only compliance — ring color must come from tokens layer
   group('Tokens-only compliance', () {
     testWidgets(
