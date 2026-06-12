@@ -63,4 +63,16 @@ void main() {
     expect(find.text('or take it easy'), findsNothing);
     expect(find.text('More options'), findsNothing);
   });
+
+  testWidgets('lead is positional (options.first), even when first is C — '
+      'no re-sort, no duplication', (tester) async {
+    // Engine contract: options arrive RANKED; the widget must trust position
+    // for the lead and never re-sort. On a capped day the engine's top pick
+    // can itself be the easy option (id C) — it leads, and the easy section
+    // must not duplicate it.
+    await _pump(tester, [_opt('C', 'Recovery spin', 'R')]);
+    expect(find.text('RECOMMENDED FOR TODAY'), findsOneWidget);
+    expect(find.text('Recovery spin'), findsOneWidget); // exactly once
+    expect(find.text('or take it easy'), findsNothing);
+  });
 }
