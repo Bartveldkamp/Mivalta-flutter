@@ -187,7 +187,7 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
                       ? _ErrorView(error: _error!)
                       : _options.isEmpty
                           ? _EmptyView()
-                          : _OptionsList(options: _options),
+                          : AdvisorOptionsList(options: _options),
             ),
           ],
         ),
@@ -385,27 +385,116 @@ class _EmptyView extends StatelessWidget {
 }
 
 /// List of workout option cards.
-class _OptionsList extends StatelessWidget {
-  const _OptionsList({required this.options});
+/// Ranked advisor options — lead-with-A / offer-C (founder decision,
+/// UI_UX_DIRECTION v1.6). PUBLIC so the ranking presentation is pinned by
+/// widget test; production call site is this screen's build.
+///
+/// Display-only: the ENGINE ranks the options (A = the data-aligned pick,
+/// C = the easy fallback); this widget only styles that ranking — first
+/// option led, C offered as "or take it easy", anything else (B) behind a
+/// "More options" reveal. No reordering, no thresholds.
+class AdvisorOptionsList extends StatefulWidget {
+  const AdvisorOptionsList({super.key, required this.options});
   final List<WorkoutOption> options;
 
   @override
+  State<AdvisorOptionsList> createState() => _AdvisorOptionsListState();
+}
+
+class _AdvisorOptionsListState extends State<AdvisorOptionsList> {
+  bool _showMore = false;
+
+  @override
   Widget build(BuildContext context) {
-    return ListView.builder(
+    final textTheme = Theme.of(context).textTheme;
+    final options = widget.options;
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    final lead = options.first;
+    final easy = options
+        .skip(1)
+        .where((o) => o.optionId.toUpperCase() == 'C')
+        .toList();
+    final rest = options
+        .skip(1)
+        .where((o) => o.optionId.toUpperCase() != 'C')
+        .toList();
+
+    return ListView(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
-      itemCount: options.length,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
-        child: _WorkoutCard(option: options[index]),
-      ),
+      children: [
+        // ── The engine's recommended session, led. ──
+        Padding(
+          padding: const EdgeInsets.only(bottom: MivaltaSpace.x2),
+          child: Text(
+            'RECOMMENDED FOR TODAY',
+            style: textTheme.labelSmall?.copyWith(
+              color: MivaltaColors.primaryGreen,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        _WorkoutCard(option: lead, lead: true),
+
+        // ── C: the easy alternative, one calm step away. ──
+        if (easy.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
+            child: Row(
+              children: [
+                const Expanded(child: Divider(color: MivaltaColors.overlay)),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: MivaltaSpace.x3),
+                  child: Text(
+                    'or take it easy',
+                    style: textTheme.labelMedium
+                        ?.copyWith(color: MivaltaColors.textMuted),
+                  ),
+                ),
+                const Expanded(child: Divider(color: MivaltaColors.overlay)),
+              ],
+            ),
+          ),
+          for (final o in easy) _WorkoutCard(option: o),
+        ],
+
+        // ── B (and anything else): available, never competing. ──
+        if (rest.isNotEmpty) ...[
+          const SizedBox(height: MivaltaSpace.x3),
+          Center(
+            child: TextButton(
+              onPressed: () => setState(() => _showMore = !_showMore),
+              child: Text(
+                _showMore ? 'Fewer options' : 'More options',
+                style: textTheme.labelLarge
+                    ?.copyWith(color: MivaltaColors.textMuted),
+              ),
+            ),
+          ),
+          if (_showMore)
+            for (final o in rest)
+              Padding(
+                padding: const EdgeInsets.only(top: MivaltaSpace.x3),
+                child: Opacity(
+                  opacity: 0.75,
+                  child: _WorkoutCard(option: o),
+                ),
+              ),
+        ],
+        const SizedBox(height: MivaltaSpace.x4),
+      ],
     );
   }
 }
 
-/// Individual workout option card.
+/// Individual workout option card. `lead: true` gives option A the
+/// recommended-session emphasis (highlight border, raised surface).
 class _WorkoutCard extends StatelessWidget {
-  const _WorkoutCard({required this.option});
+  const _WorkoutCard({required this.option, this.lead = false});
   final WorkoutOption option;
+  final bool lead;
 
   @override
   Widget build(BuildContext context) {
@@ -414,8 +503,11 @@ class _WorkoutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
       decoration: BoxDecoration(
-        color: MivaltaColors.surface1,
+        color: lead ? MivaltaColors.surface2 : MivaltaColors.surface1,
         borderRadius: BorderRadius.circular(MivaltaRadii.md),
+        border: lead
+            ? Border.all(color: MivaltaColors.primaryGreen, width: 1.5)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
