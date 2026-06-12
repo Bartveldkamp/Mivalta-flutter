@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
+import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
 import '../theme/source_tier.dart';
@@ -109,6 +110,9 @@ class _HomeData {
   List<double> historyScores = const [];     // FIXED: readReadinessHistory['readiness_score']
   SourceTier? sourceTier;        // lastObservationSourceTier()
   double? todayLoad;             // readDailyLoads()[today] — cumulative load today
+
+  // Item 2: Latest completed workout (for home workout row)
+  ActivitySummary? latestActivity; // readRecentActivities(limit: 1)[0]
 
   // State
   bool insufficientData = false;
@@ -390,6 +394,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         }
       }
 
+      // Item 2: Latest completed workout for the home workout row
+      // (time · load, tap to detail). Engine fetch, Dart display only.
+      final activitiesJson = await binding.readRecentActivities(handle, limit: 1);
+      final activities = ActivitySummary.listFromJson(jsonDecode(activitiesJson));
+      if (activities.isNotEmpty) {
+        d.latestActivity = activities.first;
+      }
+
       // Source tier swatch
       final tierJson = await binding.lastObservationSourceTier(handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
@@ -484,6 +496,22 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         builder: (_) => ExploreScreen(
           binding: binding,
           handle: handle,
+        ),
+      ),
+    );
+  }
+
+  /// Item 2: Open workout detail for a specific date.
+  void _openWorkoutDetail(String date) {
+    final handle = _handle;
+    final binding = _binding;
+    if (handle == null || binding == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _WorkoutDetailPage(
+          binding: binding,
+          handle: handle,
+          date: date,
         ),
       ),
     );
@@ -647,6 +675,8 @@ class _ReadinessScreenState extends State<ReadinessScreen>
               data: _data,
               onTapRing: _openReadinessDetail,
               onTapAdvisor: _openAdvisor,
+              onTapLatestWorkout: _openWorkoutDetail,
+              onTapStartWorkout: _openAdvisor, // Item 6: start = advisor
             ),
       // PR-D: FAB for manual entry
       floatingActionButton: _loading
@@ -667,10 +697,14 @@ class _ThreeZoneHome extends StatelessWidget {
     required this.data,
     required this.onTapRing,
     required this.onTapAdvisor,
+    required this.onTapLatestWorkout,
+    required this.onTapStartWorkout,
   });
   final _HomeData data;
   final VoidCallback onTapRing;
   final VoidCallback onTapAdvisor;
+  final void Function(String date) onTapLatestWorkout; // Item 2
+  final VoidCallback onTapStartWorkout;                // Item 6
 
   @override
   Widget build(BuildContext context) {
@@ -725,7 +759,12 @@ class _ThreeZoneHome extends StatelessWidget {
           const SizedBox(height: MivaltaSpace.x6),
 
           // ============ ZONE 3: CONTEXT ============
-          _Zone3Context(data: data, textTheme: textTheme),
+          _Zone3Context(
+            data: data,
+            textTheme: textTheme,
+            onTapLatestWorkout: onTapLatestWorkout,
+            onTapStartWorkout: onTapStartWorkout,
+          ),
           const SizedBox(height: MivaltaSpace.x5),
         ],
       ),
@@ -958,9 +997,16 @@ class _Zone2Today extends StatelessWidget {
 
 /// Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier
 class _Zone3Context extends StatelessWidget {
-  const _Zone3Context({required this.data, required this.textTheme});
+  const _Zone3Context({
+    required this.data,
+    required this.textTheme,
+    required this.onTapLatestWorkout,
+    required this.onTapStartWorkout,
+  });
   final _HomeData data;
   final TextTheme textTheme;
+  final void Function(String date) onTapLatestWorkout; // Item 2
+  final VoidCallback onTapStartWorkout;                // Item 6
 
   @override
   Widget build(BuildContext context) {
@@ -1044,14 +1090,42 @@ class _Zone3Context extends StatelessWidget {
             ),
         ],
 
-        // Last workout
-        if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
+        // Item 2: Latest workout row (tappable → detail)
+        // Shows duration · load; replaces the old static "Last: ..." text
+        if (data.latestActivity != null) ...[
+          const SizedBox(height: MivaltaSpace.x2),
+          _LatestWorkoutRow(
+            activity: data.latestActivity!,
+            onTap: () => onTapLatestWorkout(data.latestActivity!.date),
+          ),
+        ] else if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
+          // Fallback to engine's lastWorkout string if no activity record yet
           const SizedBox(height: MivaltaSpace.x2),
           Text(
             'Last: ${data.lastWorkout}',
             style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
           ),
         ],
+
+        // Item 6: Quick "start workout" link
+        const SizedBox(height: MivaltaSpace.x3),
+        GestureDetector(
+          onTap: onTapStartWorkout,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
+              const SizedBox(width: MivaltaSpace.x1),
+              Text(
+                'Start a workout',
+                style: textTheme.labelLarge?.copyWith(
+                  color: MivaltaColors.primaryGreen,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
 
         // Reactive alerts (verbatim list)
         if (data.reactiveAlerts.isNotEmpty) ...[
@@ -1290,4 +1364,221 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+/// Item 2: Tappable latest-workout row for the home. Shows duration · load.
+/// Uses ActivitySummary from readRecentActivities(limit: 1).
+class _LatestWorkoutRow extends StatelessWidget {
+  const _LatestWorkoutRow({required this.activity, required this.onTap});
+
+  final ActivitySummary activity;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final meta = <String>[
+      if (activity.durationMin != null) '${activity.durationMin} min',
+      if (activity.loadUls != null) 'load ${activity.loadUls!.round()}',
+    ];
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(MivaltaSpace.x3),
+        decoration: BoxDecoration(
+          color: MivaltaColors.surface1,
+          borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Latest workout',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      activity.sport.isEmpty
+                          ? 'Workout'
+                          : _titleCase(activity.sport),
+                      ...meta,
+                    ].join('  ·  '),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: MivaltaColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _titleCase(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+/// On-tap per-workout detail page — loads `get_workout_detail(date)` on demand.
+/// (Shared pattern with ExploreScreen's _WorkoutDetailPage.)
+class _WorkoutDetailPage extends StatelessWidget {
+  const _WorkoutDetailPage({
+    required this.binding,
+    required this.handle,
+    required this.date,
+  });
+
+  final RustEngineBinding binding;
+  final EnginesHandle handle;
+  final String date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: MivaltaColors.surfaceBackground,
+      appBar: AppBar(
+        backgroundColor: MivaltaColors.surfaceBackground,
+        foregroundColor: MivaltaColors.textPrimary,
+        title: const Text('Workout'),
+      ),
+      body: FutureBuilder<String>(
+        future: binding.getWorkoutDetail(handle, date: date),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          Widget unavailable() => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(MivaltaSpace.x5),
+                  child: Text(
+                    'Workout detail unavailable.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: MivaltaColors.textMuted),
+                  ),
+                ),
+              );
+          if (snap.hasError || snap.data == null) {
+            return unavailable();
+          }
+          // Parse defensively — schema drift would otherwise show a red screen.
+          final dynamic decoded;
+          try {
+            decoded = jsonDecode(snap.data!);
+          } catch (_) {
+            return unavailable();
+          }
+          // Import the full card only when data is valid
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(MivaltaSpace.x4),
+            child: _WorkoutDetailCard(detail: decoded),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Inline workout detail card — mirrors WorkoutDetailCard pattern but inline here
+/// to keep the file self-contained for the home's on-tap detail flow.
+class _WorkoutDetailCard extends StatelessWidget {
+  const _WorkoutDetailCard({required this.detail});
+  final dynamic detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final d = detail as Map<String, dynamic>?;
+    if (d == null) return const SizedBox.shrink();
+
+    final activityType = d['activity_type']?.toString() ?? 'Workout';
+    final date = d['date']?.toString() ?? '';
+    final durationMin = d['duration_minutes'] as int?;
+    final avgHr = d['avg_heart_rate'] as int?;
+    final loadUls = (d['load_uls'] as num?)?.toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(MivaltaSpace.x4),
+      decoration: BoxDecoration(
+        color: MivaltaColors.surface1,
+        borderRadius: BorderRadius.circular(MivaltaRadii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title
+          Text(
+            activityType.isEmpty
+                ? 'Workout'
+                : activityType[0].toUpperCase() + activityType.substring(1),
+            style: textTheme.titleLarge?.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x1),
+          Text(
+            date,
+            style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
+          ),
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // Metrics row
+          Row(
+            children: [
+              if (durationMin != null) ...[
+                _MetricTile(label: 'Duration', value: '$durationMin min'),
+                const SizedBox(width: MivaltaSpace.x4),
+              ],
+              if (avgHr != null) ...[
+                _MetricTile(label: 'Avg HR', value: '$avgHr bpm'),
+                const SizedBox(width: MivaltaSpace.x4),
+              ],
+              if (loadUls != null)
+                _MetricTile(label: 'Load', value: '${loadUls.round()}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Simple metric tile for workout detail display.
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
+        ),
+        Text(
+          value,
+          style: textTheme.bodyLarge?.copyWith(
+            color: MivaltaColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
 }
