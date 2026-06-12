@@ -6,7 +6,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mivalta_flutter/copy/axis_labels.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
+import 'package:mivalta_flutter/copy/trust_story.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/josi_presenter.dart';
 
@@ -160,10 +162,110 @@ void main() {
           contributions: contributions,
         ),
       );
-      // F1 honest no-data presentation; no why affordance from prior-based
-      // contributions (feedback item 1: silence over fabricated state).
-      expect(find.text('Why?'), findsNothing);
+      // F1 honest no-data presentation. The "Why?" now exists (item 13 trust
+      // story) but the prior-based contributions stay silent — no axis rows,
+      // no scores (feedback item 1: silence over fabricated state).
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
       expect(find.text('Fatigue model'), findsNothing);
+      expect(find.text('72'), findsNothing);
+      expect(find.text('hmm_posteriors'), findsNothing);
+    });
+  });
+
+  // Item 13 (FOUNDER_FEEDBACK_2026-06-12): the "why" under the F1 line tells
+  // the trust story — what data is needed, how the model works, how it earns
+  // confidence over ~28 days. Fixed copy, pinned verbatim.
+  group('JosiPresenter trust story (item 13)', () {
+    testWidgets('F1 line always offers "Why?"; tap reveals the three trust '
+        'paragraphs verbatim, in founder order', (tester) async {
+      await _pump(tester, const JosiPresenter(insufficientData: true));
+
+      expect(find.text(kF1NoDataCopy), findsOneWidget);
+      expect(find.text('Why?'), findsOneWidget);
+      // Hidden until asked.
+      expect(find.text(kTrustStoryWhatData), findsNothing);
+
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(kTrustStoryWhatData), findsOneWidget);
+      expect(find.text(kTrustStoryHowItWorks), findsOneWidget);
+      expect(find.text(kTrustStoryCalibration), findsOneWidget);
+
+      // Founder order: data needed → how it works → calibration arc.
+      final dataY = tester.getTopLeft(find.text(kTrustStoryWhatData)).dy;
+      final howY = tester.getTopLeft(find.text(kTrustStoryHowItWorks)).dy;
+      final calY = tester.getTopLeft(find.text(kTrustStoryCalibration)).dy;
+      expect(dataY, lessThan(howY));
+      expect(howY, lessThan(calY));
+    });
+
+    testWidgets('advisory still renders once, BELOW the trust story',
+        (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: true,
+          confidenceAdvisory: 'Confidence is low — still learning you.',
+        ),
+      );
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Confidence is low — still learning you.'),
+        findsOneWidget,
+      );
+      final calY = tester.getTopLeft(find.text(kTrustStoryCalibration)).dy;
+      final advisoryY = tester
+          .getTopLeft(find.text('Confidence is low — still learning you.'))
+          .dy;
+      expect(calY, lessThan(advisoryY));
+    });
+
+    testWidgets('sufficient data → no trust story in the reveal',
+        (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          stateRecommendation: 'Productive — good day to build.',
+          rationaleProse: 'Fatigue is clearing.',
+        ),
+      );
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fatigue is clearing.'), findsOneWidget);
+      expect(find.text(kTrustStoryWhatData), findsNothing);
+      expect(find.text(kTrustStoryHowItWorks), findsNothing);
+      expect(find.text(kTrustStoryCalibration), findsNothing);
+    });
+
+    test('copy stays plain and card-grounded: the four axis names in the '
+        'how-it-works paragraph match lib/copy/axis_labels.dart verbatim', () {
+      for (final axis in [
+        'hmm_posteriors',
+        'banister',
+        'physio_zscore',
+        'psychological',
+      ]) {
+        expect(
+          kTrustStoryHowItWorks.contains(humanizeAxisName(axis)),
+          isTrue,
+          reason: 'trust story must name "${humanizeAxisName(axis)}"',
+        );
+      }
+      // The calibration arc names the ~28-day window.
+      expect(kTrustStoryCalibration.contains('28 days'), isTrue);
+      // No raw engine identifiers leak into user-facing copy.
+      const all = kTrustStoryWhatData +
+          kTrustStoryHowItWorks +
+          kTrustStoryCalibration;
+      expect(all.contains('hmm'), isFalse);
+      expect(all.contains('zscore'), isFalse);
+      expect(all.contains('_'), isFalse);
     });
   });
 }

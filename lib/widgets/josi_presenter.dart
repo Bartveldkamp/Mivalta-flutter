@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 
 import '../copy/axis_labels.dart';
 import '../copy/f1.dart';
+import '../copy/trust_story.dart';
 import '../theme/tokens.dart';
 
 /// Josi's autocue read at the top of the home. Presents the engine's current
@@ -70,6 +71,10 @@ class _JosiPresenterState extends State<JosiPresenter> {
   bool _showWhy = false;
 
   bool get _hasWhy {
+    // Item 13 (FOUNDER_FEEDBACK_2026-06-12): the F1 no-data line ALWAYS
+    // explains itself — its "why" is the fixed trust story (what data is
+    // needed, how the model works, the ~28-day calibration arc).
+    if (widget.insufficientData) return true;
     final rationale = _revealRationale;
     final advisory = widget.confidenceAdvisory;
     return (rationale != null && rationale.isNotEmpty) ||
@@ -199,6 +204,12 @@ class _JosiPresenterState extends State<JosiPresenter> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Item 13: on no data the why IS the trust story —
+                          // fixed copy (lib/copy/trust_story.dart), in the
+                          // founder's order: data needed → how the model
+                          // works → how confidence is earned (~28 days).
+                          if (widget.insufficientData)
+                            _TrustStory(textTheme: textTheme),
                           if (rationale != null && rationale.isNotEmpty)
                             Text(
                               rationale,
@@ -233,6 +244,33 @@ class _JosiPresenterState extends State<JosiPresenter> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Item 13: the trust story shown under the F1 line's "why" — three fixed
+/// paragraphs (lib/copy/trust_story.dart) in the founder's order. Pure copy,
+/// nothing engine-derived, so it is honest even before the first observation.
+class _TrustStory extends StatelessWidget {
+  const _TrustStory({required this.textTheme});
+
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = textTheme.bodyMedium?.copyWith(
+      color: MivaltaColors.textSecondary,
+      height: 1.35,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(kTrustStoryWhatData, style: style),
+        const SizedBox(height: MivaltaSpace.x2),
+        Text(kTrustStoryHowItWorks, style: style),
+        const SizedBox(height: MivaltaSpace.x2),
+        Text(kTrustStoryCalibration, style: style),
+      ],
     );
   }
 }
