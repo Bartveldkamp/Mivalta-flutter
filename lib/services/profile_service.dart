@@ -187,7 +187,7 @@ class ProfileBuilder {
   int? age;
   String? sex;           // 'male' | 'female'
   String? level;         // 'beginner' | 'intermediate' | 'advanced' | 'elite'
-  String? sport;         // 'cycling' | 'running' | 'walking' | 'hiking'
+  String? sport;         // 'cycling' | 'running' (end-to-end supported, FL-17)
   String? goalType;      // goal_type string
   double? weeklyHours;
   int? trainingYears;
