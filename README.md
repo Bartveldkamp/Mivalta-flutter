@@ -1,8 +1,17 @@
 # Mivalta-flutter
 
-Production Flutter frontend for MiValta. Replaces the
-`mivalta-android-client` Kotlin app. See `CLAUDE.md` for the
-architecture rules.
+Production Flutter frontend for MiValta — a privacy-first, **on-device** AI
+fitness coach. The Rust engine DECIDES; Flutter DISPLAYS. Replaces the
+`mivalta-android-client` Kotlin app.
+
+## 👋 New here? Start with the right door
+
+| You are a… | Start here |
+|---|---|
+| **Frontend developer** | [`docs/READING_ORDER.md`](docs/READING_ORDER.md) — ordered onboarding: MVP scope, repo tour, the Dart↔Rust path, what's wired vs not, build/test, known gaps |
+| **Designer** | `docs/UI_UX_DIRECTION.md` in [mivalta-rust-engine](https://github.com/Bartveldkamp/mivalta-rust-engine) — the design language + locked tokens |
+| **Anyone (1-page picture)** | `docs/MIVALTA_OVERVIEW.md` in mivalta-rust-engine — what MiValta is, the model, and all the repos |
+| **Working in the code** | `CLAUDE.md` — the architecture rules + the engine pin |
 
 ## Current milestone
 
