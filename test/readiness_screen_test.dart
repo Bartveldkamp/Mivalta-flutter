@@ -19,6 +19,7 @@ import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/screens/readiness_screen.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
+import 'package:mivalta_flutter/widgets/josi_presenter.dart';
 import 'package:mivalta_flutter/widgets/readiness_ring.dart';
 
 void main() {
@@ -60,6 +61,7 @@ void main() {
                 level: 'green',
                 confidence: 0.92,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -91,6 +93,7 @@ void main() {
                 level: 'yellow',
                 confidence: 0.75,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -125,6 +128,9 @@ void main() {
                 level: null,
                 confidence: null,
                 noData: true,
+                // No observations ⇒ the caller's learning gate is true too
+                // (brief §4: sized by data sufficiency — small muted ring).
+                learning: true,
               ),
             ),
           ),
@@ -142,6 +148,12 @@ void main() {
 
         // Quiet em-dash center — no fabricated score.
         expect(find.text('—'), findsOneWidget);
+
+        // Sized by data sufficiency (brief §4): small ring, not the hero.
+        expect(
+          tester.getSize(find.byType(ReadinessRing)),
+          const Size(120, 120),
+        );
 
         // F1 copy does NOT repeat here (exactly-once rule; Josi's card has it).
         expect(find.text(kF1NoDataCopy), findsNothing);
@@ -165,6 +177,7 @@ void main() {
                 level: null,
                 confidence: null,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -501,8 +514,12 @@ void main() {
         findsNothing,
       );
 
-      // Open Josi's why-reveal.
-      await tester.tap(find.text('Why?'));
+      // Open Josi's why-reveal. (Step 2: the learning ring has its own muted
+      // "Why?" too, so target Josi's card explicitly.)
+      await tester.tap(find.descendant(
+        of: find.byType(JosiPresenter),
+        matching: find.text('Why?'),
+      ));
       await tester.pumpAndSettle();
 
       // Advisory appears exactly ONCE (in the reveal).
@@ -530,6 +547,159 @@ void main() {
     });
   });
 
+  // Step 2 (HOME_REDESIGN_BRIEF §4 item 2): the state element is SIZED BY
+  // DATA SUFFICIENCY. Learning gate = engine signals only (insufficientData
+  // OR non-empty confidence_advisory) ⇒ small muted ring whose "why" explains
+  // "I'm still learning you — day X." Confident ⇒ the 220dp hero.
+  group('Adaptive state element (step 2)', () {
+    Widget pumpableHome(HomeData data) => MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: ThreeZoneHome(
+              data: data,
+              onTapRing: () {},
+              onTapAdvisor: () {},
+              onTapLatestWorkout: (_) {},
+              onTapStartWorkout: () {},
+            ),
+          ),
+        );
+
+    HomeData seededLowConfidence() => HomeData()
+      ..insufficientData = false
+      ..readinessScore = 62
+      ..readinessLevel = 'yellow'
+      ..confidence = 0.4
+      ..stateRecommendation = 'Early read — take it easy.'
+      // Non-empty advisory = the engine says it is still calibrating.
+      ..confidenceAdvisory = 'Still learning you.'
+      ..observationDays = 5;
+
+    HomeData seededConfident() => HomeData()
+      ..insufficientData = false
+      ..readinessScore = 78
+      ..readinessLevel = 'green'
+      ..confidence = 0.9
+      ..stateRecommendation = 'Recovered — fully charged.'
+      // Empty advisory = engine is confident.
+      ..confidenceAdvisory = null
+      ..observationDays = 21;
+
+    testWidgets(
+        'learning=true direct mount → small muted ring: score renders, '
+        'no level label, no confidence row', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ReadinessRing(
+              score: 62,
+              level: 'yellow',
+              confidence: 0.4,
+              noData: false,
+              learning: true,
+            ),
+          ),
+        ),
+      );
+
+      // Small, not the hero.
+      expect(
+        tester.getSize(find.byType(ReadinessRing)),
+        const Size(120, 120),
+      );
+      // Score still renders (§9 no-naked-numbers: ring fill + number)...
+      expect(find.text('62'), findsOneWidget);
+      // ...but muted: no level color claimed, no level label, no confidence.
+      final indicator = tester.widget<CircularProgressIndicator>(
+        find.byType(CircularProgressIndicator),
+      );
+      final color =
+          (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+      expect(color, MivaltaColors.textMuted);
+      expect(find.text('yellow'), findsNothing);
+      expect(find.text('confidence 40%'), findsNothing);
+    });
+
+    testWidgets(
+        'low-confidence home → small ring + learning why reveals '
+        '"I\'m still learning you — day 5."', (tester) async {
+      await tester.pumpWidget(pumpableHome(seededLowConfidence()));
+
+      expect(
+        tester.getSize(find.byType(ReadinessRing)),
+        const Size(120, 120),
+      );
+
+      // Learning-why copy hidden until asked.
+      expect(find.textContaining("I'm still learning you"), findsNothing);
+
+      // Two "Why?" affordances render in the Today column: Josi's card first,
+      // the learning ring's muted why second — tap the ring's.
+      await tester.tap(find.text('Why?').last);
+      await tester.pumpAndSettle();
+
+      // Day X = engine-returned observation-day count, verbatim in the copy.
+      expect(
+        find.text("I'm still learning you — day 5."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'confident home → 220dp hero with level + confidence, no learning why',
+        (tester) async {
+      await tester.pumpWidget(pumpableHome(seededConfident()));
+
+      expect(
+        tester.getSize(find.byType(ReadinessRing)),
+        const Size(220, 220),
+      );
+      expect(find.text('78'), findsOneWidget);
+      expect(find.text('green'), findsOneWidget);
+      expect(find.text('confidence 90%'), findsOneWidget);
+      expect(find.textContaining("I'm still learning you"), findsNothing);
+      // Josi's verdict renders exactly once (the ONE home surface).
+      expect(find.text('Recovered — fully charged.'), findsOneWidget);
+    });
+
+    testWidgets('confident red home → hero ring carries levelRed',
+        (tester) async {
+      final data = seededConfident()
+        ..readinessScore = 35
+        ..readinessLevel = 'red'
+        ..confidence = 0.85
+        ..stateRecommendation = 'Run down — back off today.';
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(
+        tester.getSize(find.byType(ReadinessRing)),
+        const Size(220, 220),
+      );
+      final indicator = tester.widget<CircularProgressIndicator>(
+        find.descendant(
+          of: find.byType(ReadinessRing),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+      );
+      final color =
+          (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
+      expect(color, MivaltaColors.levelRed);
+    });
+
+    testWidgets(
+        'zero observation days → learning why says '
+        '"I\'m still learning you." (no day count)', (tester) async {
+      final data = seededLowConfidence()..observationDays = 0;
+      await tester.pumpWidget(pumpableHome(data));
+
+      await tester.tap(find.text('Why?').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text("I'm still learning you."), findsOneWidget);
+      expect(find.textContaining('— day'), findsNothing);
+    });
+  });
+
   // PR-C: Tokens-only compliance — ring color must come from tokens layer
   group('Tokens-only compliance', () {
     testWidgets(
@@ -543,6 +713,7 @@ void main() {
                 level: 'green',
                 confidence: 0.9,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -568,6 +739,7 @@ void main() {
                 level: 'yellow',
                 confidence: 0.75,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -592,6 +764,7 @@ void main() {
                 level: 'orange',
                 confidence: 0.6,
                 noData: false,
+                learning: false,
               ),
             ),
           ),
@@ -616,6 +789,7 @@ void main() {
                 level: 'red',
                 confidence: 0.5,
                 noData: false,
+                learning: false,
               ),
             ),
           ),

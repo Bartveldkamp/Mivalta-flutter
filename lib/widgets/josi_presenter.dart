@@ -16,10 +16,14 @@
 //
 // DISPLAY ONLY (architecture rule 1/3): every sentence Josi speaks is engine
 // output rendered VERBATIM (state_recommendation, rationale_prose,
-// confidence_advisory) or an engine VALUE (readiness score, session
-// title/zone/duration). Josi only sequences and frames them in a spoken
+// confidence_advisory). Josi only sequences and frames them in a spoken
 // "autocue" voice — she invents nothing, so she cannot fabricate. On no data
 // she presents the LOCKED F1 copy verbatim.
+//
+// Step 2 (HOME_REDESIGN_BRIEF §4 item 1): Josi is the ONE-LINE VERDICT card —
+// one spoken line plus the why-reveal (verdict → reasons → data). The session
+// line moved out: today's session is its own card further down the Today
+// column, so Josi no longer duplicates it.
 
 import 'package:flutter/material.dart';
 
@@ -36,9 +40,6 @@ class JosiPresenter extends StatefulWidget {
     required this.insufficientData,
     this.stateRecommendation,
     this.confidenceAdvisory,
-    this.workoutTitle,
-    this.durationMin,
-    this.sessionZone,
     this.rationaleProse,
     this.contributions = const [],
   });
@@ -46,16 +47,11 @@ class JosiPresenter extends StatefulWidget {
   /// No observations yet — Josi honestly presents the locked F1 no-data line.
   final bool insufficientData;
 
-  /// Engine `state_widget.state_recommendation` — Josi's headline read.
+  /// Engine `state_widget.state_recommendation` — Josi's one-line verdict.
   final String? stateRecommendation;
 
   /// Engine `state_widget.confidence_advisory` — honest "still learning you".
   final String? confidenceAdvisory;
-
-  /// Engine `session_widget` values — today's session, presented plainly.
-  final String? workoutTitle;
-  final int? durationMin;
-  final String? sessionZone;
 
   /// Engine `session_widget.rationale_prose` — revealed under "why?".
   final String? rationaleProse;
@@ -94,22 +90,11 @@ class _JosiPresenterState extends State<JosiPresenter> {
   String? get _revealRationale =>
       widget.insufficientData ? null : widget.rationaleProse;
 
-  String? _sessionLine() {
-    final title = widget.workoutTitle;
-    if (title == null || title.isEmpty) return null;
-    final parts = <String>[title];
-    if (widget.durationMin != null) parts.add('${widget.durationMin} min');
-    if (widget.sessionZone != null && widget.sessionZone!.isNotEmpty) {
-      parts.add(widget.sessionZone!);
-    }
-    return parts.join(' · ');
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    // The headline spoken line: locked F1 copy on no-data, else the engine's
+    // The one spoken line: locked F1 copy on no-data, else the engine's
     // verbatim state recommendation.
     final headline = widget.insufficientData
         ? kF1NoDataCopy
@@ -119,7 +104,6 @@ class _JosiPresenterState extends State<JosiPresenter> {
     // invent. (Guards against an all-null transient before first load.)
     if (headline.isEmpty) return const SizedBox.shrink();
 
-    final sessionLine = widget.insufficientData ? null : _sessionLine();
     // Local copies so null-safety is promotion-checked, not `!`-asserted
     // (adversarial review, PR #74).
     final rationale = _revealRationale;
@@ -166,7 +150,7 @@ class _JosiPresenterState extends State<JosiPresenter> {
           ),
           const SizedBox(height: MivaltaSpace.x3),
 
-          // Headline read (engine prose verbatim, or locked F1 copy).
+          // The one-line verdict (engine prose verbatim, or locked F1 copy).
           Text(
             headline,
             style: textTheme.titleMedium?.copyWith(
@@ -174,17 +158,6 @@ class _JosiPresenterState extends State<JosiPresenter> {
               height: 1.35,
             ),
           ),
-
-          // Today's session, presented plainly (engine values).
-          if (sessionLine != null) ...[
-            const SizedBox(height: MivaltaSpace.x2),
-            Text(
-              'Today — $sessionLine',
-              style: textTheme.bodyMedium?.copyWith(
-                color: MivaltaColors.textSecondary,
-              ),
-            ),
-          ],
 
           // "why?" — progressive disclosure of the engine's reasoning prose.
           // A reveal, never an input. No chat box.

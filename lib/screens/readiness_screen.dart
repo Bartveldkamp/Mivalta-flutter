@@ -118,6 +118,12 @@ class HomeData {
   // Item 2: Latest completed workout (for home workout row)
   ActivitySummary? latestActivity; // readRecentActivities(limit: 1)[0]
 
+  // Step 2 (HOME_REDESIGN_BRIEF §4): days with observations the engine has
+  // returned — drives the learning ring's "day X" why line. Counting rows
+  // the engine returned is presentation only (ENGINE GAP: an explicit
+  // observation_days field is flagged in brief §7).
+  int observationDays = 0;     // readBiometricHistory distinct-date row count
+
   // State
   bool insufficientData = false;
   String? error;
@@ -335,6 +341,22 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
+
+      // Step 2: observation-day count for the learning ring's "day X" why.
+      // Engine rows in (one daily snapshot per observed day), distinct-date
+      // count out — presentation counting only, no meaning derived (brief
+      // §4; explicit observation_days engine field flagged in §7). 365-day
+      // window: generous enough to cover any calibration period honestly.
+      final bioJson = await binding.readBiometricHistory(handle, days: 365);
+      final bio = jsonDecode(bioJson);
+      if (bio is List) {
+        d.observationDays = bio
+            .whereType<Map>()
+            .map((e) => e['date']?.toString())
+            .whereType<String>()
+            .toSet()
+            .length;
+      }
 
       // ---------- Zone 2: Today ----------
 
@@ -707,15 +729,12 @@ class ThreeZoneHome extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ============ JOSI — PRESENTER (autocue) ============
-          // Josi reads the situation; the zones below are the deeper layer.
+          // ============ JOSI — ONE-LINE VERDICT (step 2) ============
+          // One spoken line + why-reveal; the session moved to its own card.
           JosiPresenter(
             insufficientData: data.insufficientData,
             stateRecommendation: data.stateRecommendation,
             confidenceAdvisory: data.confidenceAdvisory,
-            workoutTitle: data.workoutTitle,
-            durationMin: data.durationMin,
-            sessionZone: data.sessionZone,
             rationaleProse: data.rationaleProse,
             contributions: data.contributions,
           ),
@@ -743,7 +762,11 @@ class ThreeZoneHome extends StatelessWidget {
   }
 }
 
-/// Zone 1 — State (hero): ReadinessRing + state_recommendation + fatigue badge
+/// Zone 1 — the adaptive STATE ELEMENT (step 2, HOME_REDESIGN_BRIEF §4):
+/// sized by data sufficiency. Small muted ring while the engine is learning
+/// (with its own "why" — "I'm still learning you — day X."), full hero ring
+/// only when confident. Josi's card above is the ONE home surface for the
+/// verdict prose and the confidence advisory, so neither repeats here.
 class _Zone1State extends StatelessWidget {
   const _Zone1State({
     required this.data,
@@ -754,11 +777,18 @@ class _Zone1State extends StatelessWidget {
   final TextTheme textTheme;
   final VoidCallback onTapRing;
 
+  /// Sizing gate — ENGINE SIGNALS ONLY (brief §4): the engine reports it is
+  /// still calibrating via insufficient data OR a non-empty
+  /// confidence_advisory. No Dart threshold on the confidence scalar.
+  bool get _learning =>
+      data.insufficientData || ((data.confidenceAdvisory ?? '').isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
+    final learning = _learning;
     return Column(
       children: [
-        // Hero ring (or F1 no-data copy) — tap to open detail screen
+        // The state element — tap to open detail screen (data present only).
         Center(
           child: GestureDetector(
             onTap: data.insufficientData ? null : onTapRing,
@@ -767,43 +797,17 @@ class _Zone1State extends StatelessWidget {
               level: data.readinessLevel,
               confidence: data.confidence,
               noData: data.insufficientData,
+              learning: learning,
             ),
           ),
         ),
-        const SizedBox(height: MivaltaSpace.x4),
 
-        // State recommendation prose (verbatim from engine). Founder feedback
-        // 2026-06-12 item 1: with insufficient data the state layer says
-        // NOTHING — no prior-based prose, no badge. Honest silence; the F1
-        // copy in the ring is the only voice.
-        if (!data.insufficientData &&
-            data.stateRecommendation != null &&
-            data.stateRecommendation!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-            child: Text(
-              data.stateRecommendation!,
-              style: textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-        // Confidence advisory (honest-confidence, shown when non-null).
-        // No-data redesign (founder 2026-06-12): with insufficient data the
-        // advisory appears exactly ONCE on the home — Josi's card carries it —
-        // so Zone 1 stays silent here too.
-        if (!data.insufficientData &&
-            data.confidenceAdvisory != null &&
-            data.confidenceAdvisory!.isNotEmpty) ...[
+        // The learning ring's own "why" (brief §4 item 2): a quiet reveal
+        // explaining why the element is small. Verdict prose and confidence
+        // advisory live in Josi's card (exactly once on the home).
+        if (learning) ...[
           const SizedBox(height: MivaltaSpace.x2),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-            child: Text(
-              data.confidenceAdvisory!,
-              style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          _LearningWhy(observationDays: data.observationDays),
         ],
         const SizedBox(height: MivaltaSpace.x3),
 
@@ -829,6 +833,82 @@ class _Zone1State extends StatelessWidget {
                 ),
             ],
           ),
+      ],
+    );
+  }
+}
+
+/// Step 2 (HOME_REDESIGN_BRIEF §4 item 2): the learning state element's
+/// "why" — explains the small ring honestly. "I'm still learning you —
+/// day X." where X is [observationDays], the count of days with
+/// observations the engine returned (counting is presentation; explicit
+/// engine field flagged in brief §7). With zero observed days the day
+/// suffix is omitted (grammar formatting of a count, not a threshold).
+/// Copy flagged for founder review (brief §7).
+class _LearningWhy extends StatefulWidget {
+  const _LearningWhy({required this.observationDays});
+
+  final int observationDays;
+
+  @override
+  State<_LearningWhy> createState() => _LearningWhyState();
+}
+
+class _LearningWhyState extends State<_LearningWhy> {
+  bool _show = false;
+
+  String get _line => widget.observationDays > 0
+      ? "I'm still learning you — day ${widget.observationDays}."
+      : "I'm still learning you.";
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => setState(() => _show = !_show),
+          borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x2,
+              vertical: MivaltaSpace.x1,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _show ? 'Hide why' : 'Why?',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: MivaltaColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Icon(
+                  _show ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: MivaltaColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: MivaltaMotion.fast,
+          alignment: Alignment.topCenter,
+          child: _show
+              ? Padding(
+                  padding: const EdgeInsets.only(top: MivaltaSpace.x1),
+                  child: Text(
+                    _line,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
     );
   }

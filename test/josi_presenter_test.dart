@@ -18,26 +18,23 @@ Future<void> _pump(WidgetTester tester, Widget child) =>
 
 void main() {
   group('JosiPresenter', () {
-    testWidgets('presents engine state read + session line verbatim', (tester) async {
+    testWidgets('presents the engine verdict as ONE line — no session line '
+        '(step 2: session is its own card)', (tester) async {
       await _pump(
         tester,
         const JosiPresenter(
           insufficientData: false,
           stateRecommendation: 'Adapting well to the week — keep the rhythm.',
-          workoutTitle: 'Sweet-spot intervals',
-          durationMin: 50,
-          sessionZone: 'Z4',
           rationaleProse: 'A clean stimulus while you are fresh.',
         ),
       );
 
       expect(find.text('JOSI'), findsOneWidget);
-      // Headline read — engine prose, verbatim.
+      // The one-line verdict — engine prose, verbatim.
       expect(find.text('Adapting well to the week — keep the rhythm.'),
           findsOneWidget);
-      // Session line — engine values, presented plainly.
-      expect(find.text('Today — Sweet-spot intervals · 50 min · Z4'),
-          findsOneWidget);
+      // No session line in Josi's card (HOME_REDESIGN_BRIEF §4 item 1).
+      expect(find.textContaining('Today —'), findsNothing);
     });
 
     testWidgets('"why?" reveals the engine rationale on tap (no input box)', (tester) async {
@@ -72,7 +69,6 @@ void main() {
           insufficientData: true,
           // Even if upstream passes stale fields, no-data wins honestly.
           stateRecommendation: 'should not be shown',
-          workoutTitle: 'should not be shown',
         ),
       );
 
