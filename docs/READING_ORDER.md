@@ -55,11 +55,21 @@ Two design decisions you must build to (founder, 2026-06-11):
 - **The Dart↔Rust boundary is load-bearing** — changes to `rust/src/api.rs` or
   `lib/rust_engine.dart` must be surfaced before editing (see `CLAUDE.md`).
 
-## Known gap to be aware of
+## Known gaps to be aware of
 
-The current advisor screen in this repo (`lib/screens/advisor_screen.dart`) still
-treats A/B/C as **equal-weight** — that predates the lead-with-A decision above
-and is flagged for alignment. Build new advisor UI to **lead-with-A / offer-C**.
+1. **Workout ingestion is not wired yet (the big one).** No completed workout is
+   ever written to the vault (`write_activity` is not in the shim). The workout
+   *display* side IS wired — post-workout report, history-aware advisor
+   rotation, MMP/CP charts — but it reads from a table nothing fills, so those
+   features show empty until this lands. The executable fix is
+   `MAC_BRIEF_WORKOUT_INGEST.md`. Don't debug "report never appears" — it's
+   this.
+2. **Advisor screen still equal-weight.** `lib/screens/advisor_screen.dart`
+   predates the lead-with-A decision above; build new advisor UI to
+   **lead-with-A / offer-C** (`MAC_BRIEF_ADVISOR_LEAD_A.md`).
+3. **Manual entry covers 4 fields** (RHR/HRV/sleep/RPE). Engine-supported
+   optional inputs — mental-state VAS, sick flag, cycle day, wellness, body
+   temp — have no UI yet; the related HMM emissions run silent until supplied.
 
 ## Build & test (quickstart)
 
