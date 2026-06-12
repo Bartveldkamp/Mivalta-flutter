@@ -31,11 +31,13 @@ import 'package:path_provider/path_provider.dart';
 import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
+import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_ring.dart';
 import '../widgets/today_facts.dart';
+import '../widgets/weather.dart';
 import 'advisor_screen.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
@@ -167,6 +169,11 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   bool _loading = true;
   bool _syncing = false;
 
+  // Round 3 items 11+18: OS-level weather (WeatherKit). null = honest
+  // absence — no icon, no forecast, no fabricated conditions.
+  WeatherReport? _weather;
+  bool _showForecast = false;
+
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
   RustEngineBinding? _binding;
@@ -182,6 +189,16 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     // otherwise lose the advance.
     WidgetsBinding.instance.addObserver(this);
     _fetch();
+    _loadWeather();
+  }
+
+  /// Items 11+18: fetch local weather through the OS frame (WeatherKit via
+  /// the `mivalta/weather` channel). Any failure → [_weather] stays null and
+  /// the home renders honest absence.
+  Future<void> _loadWeather() async {
+    final report = await WeatherService.fetch();
+    if (!mounted || report == null) return;
+    setState(() => _weather = report);
   }
 
   @override
@@ -718,15 +735,49 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
+          // Round 3 items 11+18: ONE local-condition icon, top-RIGHT, only
+          // when the OS actually returned weather (honest absence otherwise).
+          // Tap drops the 7-day forecast down over the home.
+          if (_weather != null)
+            IconButton(
+              icon: Icon(weatherGlyph(_weather!.symbol)),
+              tooltip: 'Weather',
+              onPressed: () =>
+                  setState(() => _showForecast = !_showForecast),
+            ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ThreeZoneHome(
-              data: _data,
-              onTapRing: _openReadinessDetail,
-              onTapAdvisor: _openAdvisor,
-              onTapLatestWorkout: _openWorkoutDetail,
+          : Column(
+              children: [
+                // Items 11+18: the 7-day forecast drops down from the app
+                // bar when the condition icon is tapped.
+                AnimatedSize(
+                  duration: MivaltaMotion.standard,
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  child: (_showForecast && _weather != null)
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            MivaltaSpace.x5,
+                            MivaltaSpace.x2,
+                            MivaltaSpace.x5,
+                            0,
+                          ),
+                          child: WeatherForecastPanel(report: _weather!),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                Expanded(
+                  child: ThreeZoneHome(
+                    data: _data,
+                    onTapRing: _openReadinessDetail,
+                    onTapAdvisor: _openAdvisor,
+                    onTapLatestWorkout: _openWorkoutDetail,
+                  ),
+                ),
+              ],
             ),
       // Round 3 item 9: the green "+" FAB is GONE (founder: not nice, not
       // useful — the home stays calm). Manual logging lives behind Start

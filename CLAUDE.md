@@ -114,6 +114,15 @@ flutter run                                              # Launch on attached de
 6. **No cloud round-trips.** On-device only. (The V10-era first-launch
    model-download HTTP exception was removed with the PR-J purge; the
    replacement messenger ships via Play Asset Delivery.)
+   **OS-level weather exception (founder-approved 2026-06-12,
+   FOUNDER_FEEDBACK_2026-06-12 item 18):** local weather on the home
+   comes from Apple WeatherKit via the `mivalta/weather` platform
+   channel — the fetch is performed by Apple's OS frame (CoreLocation
+   one-shot + WeatherKit), never by MiValta servers and never as
+   MiValta-originated HTTP. Any failure renders honest absence (no
+   icon, no forecast), never fabricated conditions. Android
+   equivalent t.b.d.; until decided the channel is iOS-only and
+   Android shows nothing.
 7. **No dead code.** Every new public Dart symbol has a call site
    reachable from production within one PR.
 8. **New behaviour needs a test.** `flutter test` / widget test /

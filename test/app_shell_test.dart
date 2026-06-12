@@ -10,6 +10,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mivalta_flutter/screens/app_shell.dart';
@@ -174,6 +175,95 @@ void main() {
 
       expect(find.byType(SensorCheckScreen), findsOneWidget);
       expect(find.text(kSensorSectionLabel), findsOneWidget);
+    });
+  });
+
+  // Round 3 items 11+18: weather on the home. The OS channel is mocked here;
+  // on a real device the data comes from Apple WeatherKit (the founder-
+  // approved OS-level exception to the no-cloud rule, CLAUDE.md rule 6).
+  group('Weather on the home (round 3 items 11+18)', () {
+    const channel = MethodChannel('mivalta/weather');
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    void mockWeather() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        return {
+          'symbol': 'cloud.rain',
+          'condition': 'Rain',
+          'temperatureC': 11.6,
+          'daily': [
+            {
+              'date': '2026-06-12',
+              'symbol': 'cloud.rain',
+              'condition': 'Rain',
+              'highC': 14.4,
+              'lowC': 8.6,
+            },
+            {
+              'date': '2026-06-13',
+              'symbol': 'sun.max',
+              'condition': 'Clear',
+              'highC': 18.2,
+              'lowC': 9.1,
+            },
+          ],
+        };
+      });
+    }
+
+    testWidgets('no OS weather → honest absence: no icon, no forecast',
+        (tester) async {
+      // No mock handler — same as Android today (no implementation).
+      await pumpShell(tester);
+
+      expect(find.byTooltip('Weather'), findsNothing);
+      expect(find.text('14° / 9°'), findsNothing);
+    });
+
+    testWidgets('OS weather present → ONE condition icon in the app bar '
+        'TOP-RIGHT, right of the centered title', (tester) async {
+      mockWeather();
+      await pumpShell(tester);
+
+      final icon = find.byTooltip('Weather');
+      expect(icon, findsOneWidget);
+      expect(
+        find.ancestor(of: icon, matching: find.byType(AppBar)),
+        findsOneWidget,
+      );
+
+      final iconCenter = tester.getCenter(icon);
+      final titleCenter = tester.getCenter(
+        find
+            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .first,
+      );
+      expect(iconCenter.dx, greaterThan(titleCenter.dx),
+          reason: 'condition icon sits top-right of the centered title');
+
+      // Forecast stays closed until tapped.
+      expect(find.text('14° / 9°'), findsNothing);
+    });
+
+    testWidgets('tap → the 7-day forecast drops down; tap again → it folds '
+        'away', (tester) async {
+      mockWeather();
+      await pumpShell(tester);
+
+      await tester.tap(find.byTooltip('Weather'));
+      await tester.pumpAndSettle();
+      expect(find.text('14° / 9°'), findsOneWidget);
+      expect(find.text('18° / 9°'), findsOneWidget);
+      expect(find.text('Clear'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Weather'));
+      await tester.pumpAndSettle();
+      expect(find.text('14° / 9°'), findsNothing);
     });
   });
 

@@ -71,5 +71,9 @@
 	<string>MiValta reads your resting heart rate, heart rate variability, sleep stages, and blood oxygen to calculate your daily training readiness and personalize your coaching. This data stays on your device.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MiValta may write training sessions back to Apple Health to keep your activity records complete.</string>
+	<!-- Round 3 items 11+18: one-shot location for local weather via Apple
+	     WeatherKit (OS-level — never MiValta servers). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MiValta uses your approximate location once to show local weather through Apple WeatherKit. Your location never leaves Apple's on-device services and is never sent to MiValta.</string>
 </dict>
 </plist>
