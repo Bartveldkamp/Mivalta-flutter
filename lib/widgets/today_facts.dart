@@ -1,6 +1,6 @@
 // Today-facts tiles (HOME_REDESIGN_BRIEF §4 item 3, §5) — sleep last night,
-// training load, today's load, and local weather. Plain human words/numbers
-// ONLY: every engine value passes through the fixed dictionaries in
+// training load, and today's load. Plain human words/numbers ONLY: every
+// engine value passes through the fixed dictionaries in
 // lib/copy/today_facts_labels.dart; raw enums, ACWR ratios and monotony
 // scalars are FORBIDDEN here (depth lives in Explore).
 //
@@ -14,9 +14,8 @@
 // tiles render (order fixed by kTodayTileIds), and [onEditTiles] surfaces the
 // picker affordance. Defaults keep every existing call site/test unchanged.
 //
-// Round 3 items 11+18: the weather tile is wired to the OS report ([weather]);
-// when the OS returned nothing it shows kWeatherEmptyCopy — honest absence,
-// never fabricated conditions.
+// Round 3-final item 21: weather is NOT a tile — the single condition icon
+// lives in the home app bar (readiness_screen.dart).
 //
 // §9 no-naked-numbers: every tile pairs its value with an icon so the
 // one-second read lands without parsing digits.
@@ -24,9 +23,7 @@
 import 'package:flutter/material.dart';
 
 import '../copy/today_facts_labels.dart';
-import '../services/weather_service.dart';
 import '../theme/tokens.dart';
-import 'weather.dart';
 
 /// The today-facts grid under the state element. Production call site:
 /// [ThreeZoneHome]. Public so widget tests can pump it with engine-shaped
@@ -39,7 +36,6 @@ class TodayFacts extends StatefulWidget {
     this.acwrRecommendation,
     this.dataStatus,
     this.todayLoad,
-    this.weather,
     this.visibleTiles = kDefaultTodayTiles,
     this.onEditTiles,
   });
@@ -61,9 +57,6 @@ class TodayFacts extends StatefulWidget {
 
   /// Engine `readDailyLoads` row for today (null → nothing logged).
   final double? todayLoad;
-
-  /// OS weather report (items 11+18) — null → honest empty tile.
-  final WeatherReport? weather;
 
   /// Which tiles render (item 12). Ids from [kTodayTileIds]; unknown ids are
   /// ignored. Display order is fixed by [kTodayTileIds], not set order.
@@ -105,9 +98,6 @@ class _TodayFactsState extends State<TodayFacts> {
     // Today's load — presence of an engine row = trained; else honest empty.
     final todayLoad = widget.todayLoad;
 
-    // Weather — OS report verbatim (rounded for presentation) or honest empty.
-    final weather = widget.weather;
-
     // Item 12: build the enabled tiles in the fixed kTodayTileIds order.
     final tiles = <Widget>[
       for (final id in kTodayTileIds)
@@ -136,17 +126,6 @@ class _TodayFactsState extends State<TodayFacts> {
                     : kTodayLoadEmptyCopy,
                 detail: todayLoad?.round().toString(),
                 muted: todayLoad == null,
-              ),
-            'weather' => _FactTile(
-                icon: weather != null
-                    ? weatherGlyph(weather.symbol)
-                    : Icons.cloud_outlined,
-                label: kWeatherTileLabel,
-                value: weather != null
-                    ? '${weather.condition} · '
-                        '${weather.temperatureC.round()}°'
-                    : kWeatherEmptyCopy,
-                muted: weather == null,
               ),
             _ => const SizedBox.shrink(),
           },

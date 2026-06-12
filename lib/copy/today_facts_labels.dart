@@ -14,14 +14,15 @@
 const kSleepTileLabel = 'Last night';
 const kTrainingLoadTileLabel = 'Training load';
 const kTodayLoadTileLabel = 'Today';
-const kWeatherTileLabel = 'Weather';
 
 /// Round 3 item 12: stable tile ids for the user-configurable grid. Order
-/// here = display order on the home and in the picker sheet.
-const kTodayTileIds = ['sleep', 'load', 'today', 'weather'];
+/// here = display order on the home and in the picker sheet. Round 3-final
+/// item 21: weather is NOT a tile — it lives as one condition icon in the
+/// app bar (old persisted 'weather' ids are filtered by TodayTilesPrefs).
+const kTodayTileIds = ['sleep', 'load', 'today'];
 
 /// All tiles on — the default before the user customizes anything.
-const Set<String> kDefaultTodayTiles = {'sleep', 'load', 'today', 'weather'};
+const Set<String> kDefaultTodayTiles = {'sleep', 'load', 'today'};
 
 /// Tile id → the human name shown in the picker sheet (same words as the
 /// tile headings, so the mapping is obvious).
@@ -29,7 +30,6 @@ String todayTileName(String id) => switch (id) {
       'sleep' => kSleepTileLabel,
       'load' => kTrainingLoadTileLabel,
       'today' => kTodayLoadTileLabel,
-      'weather' => kWeatherTileLabel,
       _ => id,
     };
 
@@ -47,10 +47,6 @@ const kTrainingLoadLearningCopy = 'Still learning your load';
 /// Today's-load tile.
 const kTodayLoadTrainedCopy = 'Trained today';
 const kTodayLoadEmptyCopy = 'Nothing logged yet';
-
-/// Weather tile — wired to OS weather (items 11+18); when the OS returned
-/// nothing the tile says so honestly instead of fabricating conditions.
-const kWeatherEmptyCopy = 'No weather right now';
 
 /// Engine `acwr_zone` → human training-load label. Fixed dictionary keyed on
 /// the engine's zone strings ('optimal'/'caution' observed in engine tests;

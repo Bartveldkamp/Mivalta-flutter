@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/copy/today_facts_labels.dart';
 import 'package:mivalta_flutter/services/today_tiles_prefs.dart';
-import 'package:mivalta_flutter/services/weather_service.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/today_facts.dart';
 
@@ -147,34 +146,23 @@ void main() {
     });
   });
 
-  group('TodayFacts — weather tile (items 11+18)', () {
-    testWidgets('no OS report → honest empty copy', (tester) async {
+  // Round 3-final item 21: weather is NOT a tile anymore — the single
+  // condition icon lives in the home app bar (app_shell_test.dart pins it).
+  group('TodayFacts — no weather tile (round 3-final item 21)', () {
+    testWidgets('the grid never mentions weather', (tester) async {
       await _pump(tester, const TodayFacts());
-      expect(find.text(kWeatherEmptyCopy), findsOneWidget);
-    });
-
-    testWidgets('OS report → condition + rounded temperature, glyph icon',
-        (tester) async {
-      final report = WeatherReport(
-        symbol: 'cloud.rain',
-        condition: 'Rain',
-        temperatureC: 11.6,
-        daily: const [],
-      );
-      await _pump(tester, TodayFacts(weather: report));
-      expect(find.text('Rain · 12°'), findsOneWidget); // 11.6 rounds to 12
-      expect(find.byIcon(Icons.water_drop_outlined), findsOneWidget);
-      expect(find.text(kWeatherEmptyCopy), findsNothing);
+      expect(find.text('Weather'), findsNothing);
+      expect(find.text('No weather right now'), findsNothing);
+      expect(kTodayTileIds.contains('weather'), isFalse);
     });
   });
 
   group('TodayFacts — user-configurable grid (item 12)', () {
-    testWidgets('default: all four tiles render', (tester) async {
+    testWidgets('default: all three tiles render', (tester) async {
       await _pump(tester, const TodayFacts());
       expect(find.text(kSleepTileLabel), findsOneWidget);
       expect(find.text(kTrainingLoadTileLabel), findsOneWidget);
       expect(find.text(kTodayLoadTileLabel), findsOneWidget);
-      expect(find.text(kWeatherTileLabel), findsOneWidget);
     });
 
     testWidgets('subset: only the chosen tiles render, in fixed order',
@@ -189,7 +177,6 @@ void main() {
       expect(find.text(kSleepTileLabel), findsOneWidget);
       expect(find.text(kTodayLoadTileLabel), findsOneWidget);
       expect(find.text(kTrainingLoadTileLabel), findsNothing);
-      expect(find.text(kWeatherTileLabel), findsNothing);
       // Sleep (first in kTodayTileIds) renders left of Today.
       final sleepX = tester.getCenter(find.text(kSleepTileLabel)).dx;
       final todayX = tester.getCenter(find.text(kTodayLoadTileLabel)).dx;
@@ -204,7 +191,7 @@ void main() {
           acwrZone: 'caution',
           acwrRecommendation: 'Ramp down this week.',
           dataStatus: 'ok',
-          visibleTiles: {'sleep', 'today', 'weather'},
+          visibleTiles: {'sleep', 'today'},
         ),
       );
       expect(find.text('High'), findsNothing);
@@ -228,18 +215,17 @@ void main() {
       expect(todayTileName('sleep'), kSleepTileLabel);
       expect(todayTileName('load'), kTrainingLoadTileLabel);
       expect(todayTileName('today'), kTodayLoadTileLabel);
-      expect(todayTileName('weather'), kWeatherTileLabel);
     });
   });
 
   group('TodayTilePicker (item 12 sheet body)', () {
-    testWidgets('lists all four tiles by their human names with current '
+    testWidgets('lists all three tiles by their human names with current '
         'state; toggling fires onChanged with the full set', (tester) async {
       Set<String>? changed;
       await _pump(
         tester,
         TodayTilePicker(
-          visibleTiles: const {'sleep', 'load', 'today'},
+          visibleTiles: const {'sleep', 'load'},
           onChanged: (next) => changed = next,
         ),
       );
@@ -248,15 +234,15 @@ void main() {
       for (final id in kTodayTileIds) {
         expect(find.text(todayTileName(id)), findsOneWidget);
       }
-      // Weather starts off; flip it on.
-      await tester.tap(find.text(kWeatherTileLabel));
+      // Today starts off; flip it on.
+      await tester.tap(find.text(kTodayLoadTileLabel));
       await tester.pump();
-      expect(changed, {'sleep', 'load', 'today', 'weather'});
+      expect(changed, {'sleep', 'load', 'today'});
 
       // Flip sleep off — set shrinks.
       await tester.tap(find.text(kSleepTileLabel));
       await tester.pump();
-      expect(changed, {'load', 'today', 'weather'});
+      expect(changed, {'load', 'today'});
     });
   });
 
@@ -266,10 +252,21 @@ void main() {
       addTearDown(() => dir.delete(recursive: true));
 
       final prefs = TodayTilesPrefs(dir: dir);
-      await prefs.save({'sleep', 'weather'});
+      await prefs.save({'sleep', 'today'});
 
       final loaded = await TodayTilesPrefs(dir: dir).load();
-      expect(loaded, {'sleep', 'weather'});
+      expect(loaded, {'sleep', 'today'});
+    });
+
+    test('a persisted pre-item-21 "weather" id is migrated away (filtered '
+        'like any unknown id)', () async {
+      final dir = await Directory.systemTemp.createTemp('today_tiles_test');
+      addTearDown(() => dir.delete(recursive: true));
+      await File('${dir.path}/today_tiles.json').writeAsString(
+        '{"enabled": ["sleep", "weather"]}',
+      );
+
+      expect(await TodayTilesPrefs(dir: dir).load(), {'sleep'});
     });
 
     test('no file yet → the all-on defaults', () async {

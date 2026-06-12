@@ -279,6 +279,17 @@ void main() {
 
       // Forecast stays closed until tapped.
       expect(find.text('14° / 9°'), findsNothing);
+
+      // Round 3-final item 21: stylish quiet icon — secondary tint while
+      // closed, and NO weather tile anywhere in the grid.
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(of: icon, matching: find.byType(IconButton))
+            .first,
+      );
+      expect(button.color, MivaltaColors.textSecondary);
+      expect(find.text('Weather'), findsNothing);
+      expect(find.text('No weather right now'), findsNothing);
     });
 
     testWidgets('tap → the 7-day forecast drops down; tap again → it folds '
@@ -291,6 +302,20 @@ void main() {
       expect(find.text('14° / 9°'), findsOneWidget);
       expect(find.text('18° / 9°'), findsOneWidget);
       expect(find.text('Clear'), findsOneWidget);
+      // Item 21: the icon lights green while the forecast is open.
+      expect(
+        tester
+            .widget<IconButton>(
+              find
+                  .ancestor(
+                    of: find.byTooltip('Weather'),
+                    matching: find.byType(IconButton),
+                  )
+                  .first,
+            )
+            .color,
+        MivaltaColors.primaryGreen,
+      );
 
       await tester.tap(find.byTooltip('Weather'));
       await tester.pumpAndSettle();

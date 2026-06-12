@@ -771,12 +771,16 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
-          // Round 3 items 11+18: ONE local-condition icon, top-RIGHT, only
-          // when the OS actually returned weather (honest absence otherwise).
-          // Tap drops the 7-day forecast down over the home.
+          // Round 3 items 11+18 + 3-final item 21: ONE styled local-condition
+          // icon right of the centered title (no tile), only when the OS
+          // actually returned weather (honest absence otherwise). Quiet tint;
+          // green while the 7-day forecast is dropped down.
           if (_weather != null)
             IconButton(
-              icon: Icon(weatherGlyph(_weather!.symbol)),
+              icon: Icon(weatherGlyph(_weather!.symbol), size: 22),
+              color: _showForecast
+                  ? MivaltaColors.primaryGreen
+                  : MivaltaColors.textSecondary,
               tooltip: 'Weather',
               onPressed: () =>
                   setState(() => _showForecast = !_showForecast),
@@ -814,8 +818,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     // Item 12: user-chosen tiles + the picker entry point.
                     visibleTiles: _visibleTiles,
                     onEditTiles: _openTilePicker,
-                    // Items 11+18: the weather tile shares the OS report.
-                    weather: _weather,
                   ),
                 ),
               ],
@@ -840,7 +842,6 @@ class ThreeZoneHome extends StatelessWidget {
     required this.onTapLatestWorkout,
     this.visibleTiles = kDefaultTodayTiles,
     this.onEditTiles,
-    this.weather,
   });
   final HomeData data;
   final VoidCallback onTapRing;
@@ -849,8 +850,6 @@ class ThreeZoneHome extends StatelessWidget {
   // Item 12: which today-facts tiles render + the picker entry point.
   final Set<String> visibleTiles;
   final VoidCallback? onEditTiles;
-  // Items 11+18: OS weather report for the weather tile (null = honest empty).
-  final WeatherReport? weather;
 
   @override
   Widget build(BuildContext context) {
@@ -899,17 +898,16 @@ class ThreeZoneHome extends StatelessWidget {
           const SizedBox(height: MivaltaSpace.x6),
 
           // ============ TODAY-FACTS TILES (step 3, item 12) ============
-          // Sleep / training load / today's load / weather — plain human
-          // words via the fixed dictionaries; raw enums never reach here.
-          // User-configurable: [visibleTiles] picks the grid, the tune
-          // affordance opens the picker.
+          // Sleep / training load / today's load — plain human words via
+          // the fixed dictionaries; raw enums never reach here. User-
+          // configurable: [visibleTiles] picks the grid, the tune affordance
+          // opens the picker. (Weather is the app-bar icon, item 21.)
           TodayFacts(
             sleepHours: data.lastNightSleepHours,
             acwrZone: data.acwrZone,
             acwrRecommendation: data.acwrRecommendation,
             dataStatus: data.dataStatus,
             todayLoad: data.todayLoad,
-            weather: weather,
             visibleTiles: visibleTiles,
             onEditTiles: onEditTiles,
           ),

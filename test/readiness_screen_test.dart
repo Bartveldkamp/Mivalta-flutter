@@ -736,8 +736,9 @@ void main() {
       expect(find.text('Steady'), findsOneWidget);
       expect(find.text('Trained today'), findsOneWidget);
       expect(find.text('156'), findsOneWidget);
-      // Item 12: no OS report pumped here → the weather tile is honest-empty.
-      expect(find.text('No weather right now'), findsOneWidget);
+      // Round 3-final item 21: weather is NOT a tile (app-bar icon only).
+      expect(find.text('Weather'), findsNothing);
+      expect(find.text('No weather right now'), findsNothing);
       // Raw enums never user-visible on Today.
       expect(find.text('optimal'), findsNothing);
       expect(find.textContaining('ACWR'), findsNothing);
