@@ -142,6 +142,9 @@ flutter:
   # compiled_tables.json — not regenerated here.
   assets:
     - assets/compiled_tables.json
+    # DEBUG-ONLY simulated-athlete season (replayed through the real ingest
+    # path by lib/debug/demo_seeder.dart; only ever invoked under kDebugMode).
+    - assets/debug/demo_season.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
