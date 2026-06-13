@@ -1,7 +1,6 @@
-// Round 3 item 19 (docs/FOUNDER_FEEDBACK_2026-06-12.md): the 2nd anchor is
-// the athlete's JOURNEY — past + becoming, not future planning. Fixed copy
-// for the Journey screen, label layer only. Copy FLAGGED FOR FOUNDER REVIEW
-// before lock (same contract as the old Plan placeholder).
+// NEXT_BUILD_BRIEF §C: Journey screen copy. The 2nd anchor is the athlete's
+// JOURNEY — past + becoming, not future planning. Copy FLAGGED FOR FOUNDER
+// REVIEW before lock.
 
 /// Tab + app-bar title.
 const kJourneyTitle = 'Journey';
@@ -25,11 +24,40 @@ String journeyLearningLine(int days) => days <= 28
     ? 'Learning you \u2014 day $days of ~28.'
     : 'Learning you \u2014 day $days.';
 
-// — Week in review —
+// — Load vs Recovery (the spine) —
+const kJourneyLoadRecoveryHeading = 'LOAD VS RECOVERY';
+const kJourneyLoadRecoveryEmptyCopy =
+    'Your load and recovery trends will appear after training starts.';
+
+// — Fitness / Form / Freshness —
+const kJourneyFitnessHeading = 'FITNESS & FORM';
+const kJourneyFitnessEmptyCopy =
+    'Your fitness baseline will appear after your first workouts.';
+
+// — Biometric overviews —
+const kJourneyHrvHeading = 'HRV TREND';
+const kJourneyHrvEmptyCopy = 'HRV data will appear after morning check-ins.';
+const kJourneyRhrHeading = 'RESTING HR';
+const kJourneyRhrEmptyCopy = 'Resting HR will appear after morning check-ins.';
+const kJourneySleepHeading = 'SLEEP';
+const kJourneySleepEmptyCopy = 'Sleep data will appear after syncing.';
+
+// — Workouts list —
+const kJourneyWorkoutsHeading = 'RECENT WORKOUTS';
+const kJourneyWorkoutsEmptyCopy = 'No workouts logged yet.';
+
+// — Adaptation trends —
+const kJourneyAdaptationHeading = 'ADAPTATION';
+const kJourneyEfTrendLabel = 'Efficiency factor';
+const kJourneyHrRecoveryLabel = 'HR recovery';
+const kJourneyAdaptationEmptyCopy =
+    'Adaptation trends will appear after several workouts.';
+
+// — Week in review (legacy, now part of load) —
 const kJourneyWeekHeading = 'THIS WEEK';
 const kJourneyWeekEmptyCopy = 'No training logged this week yet.';
 
-// — Baseline evolution —
+// — Baseline evolution (legacy, now part of fitness) —
 const kJourneyBaselineHeading = 'BASELINE';
 const kJourneyBaselineEmptyCopy =
     'Your fitness baseline will appear after your first workouts.';

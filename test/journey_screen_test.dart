@@ -1,8 +1,7 @@
-// Journey tab content contract (round 3 item 19,
-// docs/FOUNDER_FEEDBACK_2026-06-12.md): the 2nd anchor renders the athlete's
-// JOURNEY — learning arc ("day X of ~28"), week-in-review, baseline
-// evolution. Engine-grounded only with honest empty states; nothing
-// fabricated (milestones have no engine surface yet — not faked).
+// Journey tab content contract (NEXT_BUILD_BRIEF §C): the 2nd anchor renders
+// the athlete's JOURNEY — learning arc, load vs recovery, fitness/form,
+// biometric overviews, workouts list, adaptation trends. Engine-grounded only
+// with honest empty states; nothing fabricated.
 //
 // JourneyView is the public display layer (same data/view split as the
 // home), so these tests pump seeded engine-shaped JourneyData directly —
@@ -46,19 +45,23 @@ void main() {
 
       expect(find.text(kJourneyLoadingCopy), findsOneWidget);
       expect(find.text(kJourneyLearningHeading), findsNothing);
-      expect(find.text(kJourneyWeekHeading), findsNothing);
-      expect(find.text(kJourneyBaselineHeading), findsNothing);
+      expect(find.text(kJourneyLoadRecoveryHeading), findsNothing);
+      expect(find.text(kJourneyFitnessHeading), findsNothing);
     });
   });
 
   group('JourneyView with seeded engine-shaped data', () {
     testWidgets('full journey: learning line verbatim + progress bar, '
-        'week rows verbatim, baseline chart', (tester) async {
+        'load-recovery, fitness/form chart', (tester) async {
       final data = JourneyData()
         ..observationDays = 12
-        ..weekLoads = const [
-          ('2026-06-08', 156.4), // a Monday
-          ('2026-06-09', 0.0),
+        ..monthLoads = const [
+          ('2026-06-08', 156.4),
+          ('2026-06-09', 80.0),
+        ]
+        ..readinessHistory = const [
+          ('2026-06-08', 72.0),
+          ('2026-06-09', 68.0),
         ]
         ..trend = const FitnessTrend(samples: [
           FitnessSample(
@@ -73,14 +76,14 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(find.text(kJourneyCalibrationCopy), findsOneWidget);
 
-      // Week in review — weekday formatting + load rounded for display.
-      expect(find.text('Mon'), findsOneWidget);
-      expect(find.text('156'), findsOneWidget);
-      expect(find.text('Tue'), findsOneWidget);
+      // Load vs Recovery card
+      expect(find.text(kJourneyLoadRecoveryHeading), findsOneWidget);
+      expect(find.text('Load'), findsOneWidget);
+      expect(find.text('Recovery'), findsOneWidget);
 
-      // Baseline — the existing fitness-trend chart renders.
+      // Fitness/Form card with chart
+      expect(find.text(kJourneyFitnessHeading), findsOneWidget);
       expect(find.byType(FitnessTrendChart), findsOneWidget);
-      expect(find.text(kJourneyBaselineEmptyCopy), findsNothing);
 
       _expectNoRawEngineIdentifiers(tester);
     });
@@ -98,11 +101,26 @@ void main() {
         'no chart, nothing fabricated', (tester) async {
       await _pumpView(tester, JourneyData());
 
+      // Visible without scrolling
       expect(find.text(kJourneyLearningEmptyCopy), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(find.text(kJourneyWeekEmptyCopy), findsOneWidget);
-      expect(find.text(kJourneyBaselineEmptyCopy), findsOneWidget);
-      expect(find.byType(FitnessTrendChart), findsNothing);
+      expect(find.text(kJourneyLoadRecoveryEmptyCopy), findsOneWidget);
+      expect(find.text(kJourneyFitnessEmptyCopy), findsOneWidget);
+
+      // Scroll to see more cards
+      await tester.scrollUntilVisible(
+        find.text(kJourneyWorkoutsEmptyCopy),
+        100,
+        scrollable: find.byType(Scrollable),
+      );
+      expect(find.text(kJourneyWorkoutsEmptyCopy), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text(kJourneyAdaptationEmptyCopy),
+        100,
+        scrollable: find.byType(Scrollable),
+      );
+      expect(find.text(kJourneyAdaptationEmptyCopy), findsOneWidget);
 
       _expectNoRawEngineIdentifiers(tester);
     });
@@ -116,20 +134,78 @@ void main() {
 
       expect(find.text(kJourneyErrorCopy), findsOneWidget);
       expect(find.text(kJourneyLearningHeading), findsNothing);
-      expect(find.text(kJourneyWeekHeading), findsNothing);
-      expect(find.text(kJourneyBaselineHeading), findsNothing);
+      expect(find.text(kJourneyLoadRecoveryHeading), findsNothing);
+      expect(find.text(kJourneyFitnessHeading), findsNothing);
       expect(find.text('boom'), findsNothing,
           reason: 'raw exception text never reaches the user');
     });
 
-    testWidgets('unparseable date falls back to the raw date string '
-        '(no crash)', (tester) async {
+    testWidgets('biometric card shows latest value + sparkline',
+        (tester) async {
       final data = JourneyData()
-        ..weekLoads = const [('not-a-date', 80.0)];
+        ..biometricHistory = const [
+          BiometricSample(date: '2026-06-08', hrvRmssd: 42.0),
+          BiometricSample(date: '2026-06-09', hrvRmssd: 45.0),
+        ];
       await _pumpView(tester, data);
 
-      expect(find.text('not-a-date'), findsOneWidget);
-      expect(find.text('80'), findsOneWidget);
+      // HRV card shows latest value
+      expect(find.text(kJourneyHrvHeading), findsOneWidget);
+      expect(find.text('45'), findsOneWidget); // Latest HRV rounded
+      expect(find.text('ms'), findsOneWidget); // Unit
+    });
+
+    testWidgets('workouts list shows activity summaries', (tester) async {
+      final data = JourneyData()
+        ..recentActivities = const [
+          ActivitySummary(
+            activityId: 'a1',
+            activityType: 'ride',
+            completedAt: '2026-06-09T10:00:00Z',
+            durationSecs: 3600,
+            loadUls: 120.0,
+          ),
+        ];
+      await _pumpView(tester, data);
+
+      // Scroll to the workouts card
+      await tester.scrollUntilVisible(
+        find.text(kJourneyWorkoutsHeading),
+        100,
+        scrollable: find.byType(Scrollable),
+      );
+
+      expect(find.text(kJourneyWorkoutsHeading), findsOneWidget);
+      expect(find.text('Ride'), findsOneWidget);
+      expect(find.textContaining('1h'), findsOneWidget); // Duration in combined text
+      expect(find.text('120'), findsOneWidget);
+    });
+
+    testWidgets('adaptation card shows EF + HR recovery trends',
+        (tester) async {
+      final data = JourneyData()
+        ..efTrend = const [
+          ('2026-06-08T10:00:00Z', 1.45),
+          ('2026-06-09T10:00:00Z', 1.52),
+        ]
+        ..hrRecoveryTrend = const [
+          ('2026-06-08T10:00:00Z', 28.0),
+          ('2026-06-09T10:00:00Z', 32.0),
+        ];
+      await _pumpView(tester, data);
+
+      // Scroll to the adaptation card
+      await tester.scrollUntilVisible(
+        find.text(kJourneyAdaptationHeading),
+        100,
+        scrollable: find.byType(Scrollable),
+      );
+
+      expect(find.text(kJourneyAdaptationHeading), findsOneWidget);
+      expect(find.text(kJourneyEfTrendLabel), findsOneWidget);
+      expect(find.text('1.52'), findsOneWidget); // Latest EF
+      expect(find.text(kJourneyHrRecoveryLabel), findsOneWidget);
+      expect(find.text('32'), findsOneWidget); // Latest HR recovery rounded
     });
   });
 }
