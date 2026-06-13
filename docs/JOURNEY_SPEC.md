@@ -170,3 +170,49 @@ absence), never faked.
 3. Persist steps (one VaultBiometric column).
 4. Persist sleep stages (column/table) — only if the stage breakdown is wanted.
 5. Pace best-efforts engine (running bests) — larger; post-beta.
+
+---
+
+## ALSO PRESENTABLE — capabilities the engine has that weren't requested
+(From the 2026-06-13 audits. Same honesty tags. Offer these in the library too.)
+
+### ✅ Build now — reachable in the shim, real data
+- **Readiness/recovery line over time** — `read_readiness_history` (the
+  "recovery" half of the load-vs-recovery spine, as its own overview).
+- **Confidence / "how sure am I" over time** — `viterbi_confidence` in
+  `read_biometric_history`; visualizes the model earning trust.
+- **The 4-axis breakdown** (fatigue model · fitness & freshness · body signals ·
+  how you feel) — `readiness_indicator.contributions`; the same reasons Josi
+  shows, as a standalone panel.
+- **FORM / freshness** (race-readiness, TSB-like) — `fitness_series` returns
+  fitness, fatigue AND **form**; you only named "load," but freshness is the
+  taper/peak signal and it's free here.
+- **Time-in-zone per workout** — `compute_time_in_zone` (R,Z1–Z8 dwell).
+- **Plan vs actual adherence** — `planned_zone`/`planned_ntiz` on VaultActivity
+  vs the actuals; "did I hit the session as prescribed."
+- **Reactive alerts / pattern advisories** — context widget; engine-flagged
+  "watch this" notes over time.
+- **Data-source & quality overview** — `build_source_overview` (which device fed
+  each signal + its tier); doubles as the privacy-insights surface (item 25).
+- **Zone cap / max-safe-zone today** — `zone_cap_with_advisories`.
+- **Critical Power + power-curve (stored)** — `fit_cp` + `read_power_profile` +
+  `read_mmp_history` appear shim-reachable (CONFIRM: distinct from live MMP
+  compute, which is not bound).
+
+### 🟡 Needs-exposure — computed + FFI, but no shim binding (high "wow", small brief)
+- **Forward fatigue FORECAST** — `forecast_states(days)`: "where your state is
+  heading." The engine predicts; nobody asked, but it's a differentiator.
+- **Recovery estimate** — `estimate_recovery`: "when you'll be fresh again."
+- **Discrete fatigue-STATE history** — `state_history` (42-day, persisted) via a
+  new `get_state_history`; the Recovered→IllnessRisk ribbon over time.
+- **W′-balance trace + time-to-failure** — `WbalEngine`; per-session anaerobic
+  depletion (cycling depth).
+- **HMM posteriors** — `get_posteriors`: probability across the 5 states (a
+  power-user / "nerd mode" panel).
+
+### 🔴 Not-stored (as before): steps, sleep stages, pace bests, per-day new-model z-scores.
+
+**Standouts you didn't ask for but should consider:** the **forecast** + **recovery
+estimate** (the engine looks FORWARD, not just back) and **form/freshness** (peak
+readiness) — all three are real engine outputs, only the first two need a shim
+binding. These are the most "next-gen coach" surfaces available.
