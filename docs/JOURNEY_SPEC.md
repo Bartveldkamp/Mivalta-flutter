@@ -1,5 +1,23 @@
 # JOURNEY (2nd anchor) — spec, code-audited 2026-06-13
 
+## ★ LOCKED SCOPE (founder 2026-06-13) — THREE PILLARS, nothing more
+Trimmed down. Annotate-the-anomaly (alcohol/stress/nutrition tags) is CUT —
+too complex (new inputs + new emissions). Journey = exactly these three,
+all Tier-1 buildable on stored data:
+  1. **Load-vs-recovery divergence over weeks** (the spine):
+     readDailyLoads + readReadinessHistory + fitnessSeries (Banister).
+  2. **Per-session detail** from the stored 21-field VaultActivity
+     (decoupling, EF, NP/IF/VI, zone-compliance, HR-recovery, RPE, planned-vs-actual).
+  3. **Adaptation proof = Efficiency-Factor trend** (+ HR-recovery trend) via
+     readMetricAcrossActivities — the "is it working" answer.
+Plus the calibration arc ("learning you — day X") already decided.
+DEFERRED (not beta): the baseline-evolution "what the engine learned" markers
+(Tier 3 — needs engine to persist baseline-history; revisit post-beta).
+DROPPED: anomaly tagging entirely.
+
+---
+
+
 Built from a 3-agent source audit of mivalta-rust-engine (not from memory).
 Every tier states what the CODE actually provides. Engine pin: b603b5e (v2.24).
 Hard rule unchanged: engine decides, app displays; no raw enums user-visible;
