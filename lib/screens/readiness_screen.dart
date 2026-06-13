@@ -5,7 +5,10 @@
 // Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
 //   Zone 1 — State (hero): ReadinessRing + state_recommendation prose + fatigue badge
 //   Zone 2 — Today: SessionWidget fields (workout_title, zone, target, focus_cue, rationale)
-//   Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier swatch
+//   Zone 3 — Context: alerts + sparkline + latest workout + source tier swatch
+//   (step 3, HOME_REDESIGN_BRIEF §5: raw ACWR/monotony/strain moved OFF this
+//   screen — the human-language today-facts tiles replace them; depth lives
+//   in Explore)
 //
 // On insufficient data (no observations yet → advisories.last_observation_at
 // == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
@@ -25,18 +28,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
+import '../copy/today_facts_labels.dart';
+import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
+import '../services/today_tiles_prefs.dart';
+import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_ring.dart';
+import '../widgets/today_facts.dart';
+import '../widgets/weather.dart';
 import 'advisor_screen.dart';
-import 'explore_screen.dart';
-import 'debug_swatch_exerciser.dart';
 import 'manual_entry_screen.dart';
 import 'readiness_detail_screen.dart';
-import 'settings_screen.dart';
+import 'sensor_check_screen.dart';
+import 'workout_detail_page.dart';
 
 /// Humanize fatigue state for display. Only transforms at the LABEL layer;
 /// never recomputes the state itself.
@@ -76,11 +84,17 @@ String _fallbackProfile() {
   });
 }
 
-class _HomeData {
+/// Display-only snapshot of engine output for the home. Public (not
+/// underscore-private) so widget tests can pump [ThreeZoneHome] directly —
+/// same precedent as [AdvisorOptionsList] and [PrivacyMomentPage]. Production
+/// call site: [_ReadinessScreenState.build].
+class HomeData {
   // Zone 1 — State (hero)
   int? readinessScore;           // from indicator['score'], rounded
   String? readinessLevel;        // indicator['level'] verbatim
   double? confidence;            // indicator['confidence']
+  // Item 4: indicator['contributions'] — 4-axis reasons for Josi's why-reveal
+  List<Map<String, dynamic>> contributions = const [];
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
   String? confidenceAdvisory;    // FIXED: stateWidget['confidence_advisory']
   String? fatigueState;          // viterbiFatigueState().state
@@ -95,19 +109,31 @@ class _HomeData {
   String? rationaleProse;        // sessionWidget['rationale_prose']
   String? zoneCap;               // zoneCapWithAdvisories().zone
 
-  // Zone 3 — Context (from ContextWidget)
-  double? acwr;                  // contextWidget['acwr']
+  // Today-facts tiles (step 3, HOME_REDESIGN_BRIEF §5) — labelled via the
+  // fixed dictionaries in lib/copy/today_facts_labels.dart, never shown raw.
+  // Raw acwr/monotony/strain scalars are no longer fetched for the home;
+  // Explore's LoadContext model surfaces them in depth independently.
   String? acwrZone;              // contextWidget['acwr_zone']
   String? acwrRecommendation;    // contextWidget['acwr_recommendation']
-  double? monotony;              // contextWidget['monotony']
-  double? strain;                // contextWidget['strain']
-  String? monotonyZone;          // contextWidget['monotony_zone']
-  String? monotonyRecommendation;// contextWidget['monotony_recommendation']
+  String? dataStatus;            // contextWidget['data_status']
+  double? lastNightSleepHours;   // readBiometricHistory sleep_hours, last night
+
+  // Zone 3 — Context (from ContextWidget)
   String? lastWorkout;           // contextWidget['last_workout']
   List<String> reactiveAlerts = const [];    // contextWidget['reactive_alerts']
   List<String> patternAdvisories = const []; // contextWidget['pattern_advisories']
   List<double> historyScores = const [];     // FIXED: readReadinessHistory['readiness_score']
   SourceTier? sourceTier;        // lastObservationSourceTier()
+  double? todayLoad;             // readDailyLoads()[today] — cumulative load today
+
+  // Item 2: Latest completed workout (for home workout row)
+  ActivitySummary? latestActivity; // readRecentActivities(limit: 1)[0]
+
+  // Step 2 (HOME_REDESIGN_BRIEF §4): days with observations the engine has
+  // returned — drives the learning ring's "day X" why line. Counting rows
+  // the engine returned is presentation only (ENGINE GAP: an explicit
+  // observation_days field is flagged in brief §7).
+  int observationDays = 0;     // readBiometricHistory distinct-date row count
 
   // State
   bool insufficientData = false;
@@ -122,11 +148,18 @@ class ReadinessScreen extends StatefulWidget {
   /// The profile is used to construct engines — no longer uses canonical_seed.
   /// FL-16: this is always a COMPLETE AthleteProfile — a fresh onboarding is
   /// engine-completed in main.dart before this screen is shown.
-  const ReadinessScreen({super.key, this.profileJson});
+  const ReadinessScreen({super.key, this.profileJson, this.onEngineReady});
 
   /// The athlete profile JSON. If null, falls back to a minimal default
   /// (should not happen in production — onboarding always provides a profile).
   final String? profileJson;
+
+  /// Nav-shell hook (HOME_REDESIGN_BRIEF step 1): this screen owns engine
+  /// construction (ONE instance per app); the shell needs the same
+  /// binding/handle for the You tab's settings/trends entries. Called once
+  /// bootstrap succeeds. Null when pumped standalone (tests, pre-shell).
+  final void Function(RustEngineBinding binding, EnginesHandle handle)?
+      onEngineReady;
 
   @override
   State<ReadinessScreen> createState() => _ReadinessScreenState();
@@ -134,9 +167,19 @@ class ReadinessScreen extends StatefulWidget {
 
 class _ReadinessScreenState extends State<ReadinessScreen>
     with WidgetsBindingObserver {
-  _HomeData _data = _HomeData();
+  HomeData _data = HomeData();
   bool _loading = true;
   bool _syncing = false;
+
+  // Round 3 items 11+18: OS-level weather (WeatherKit). null = honest
+  // absence — no icon, no forecast, no fabricated conditions.
+  WeatherReport? _weather;
+  bool _showForecast = false;
+
+  // Round 3 item 12: which today-facts tiles the user wants on the home.
+  // Pure UI preference — persisted as plain JSON, defaults to all on.
+  final TodayTilesPrefs _tilesPrefs = TodayTilesPrefs();
+  Set<String> _visibleTiles = Set.of(kDefaultTodayTiles);
 
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
@@ -153,6 +196,44 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     // otherwise lose the advance.
     WidgetsBinding.instance.addObserver(this);
     _fetch();
+    _loadWeather();
+    _loadTilePrefs();
+  }
+
+  /// Item 12: restore the user's tile choices (any failure → defaults).
+  Future<void> _loadTilePrefs() async {
+    final tiles = await _tilesPrefs.load();
+    if (!mounted) return;
+    setState(() => _visibleTiles = tiles);
+  }
+
+  /// Item 12: the tile-picker sheet — one switch per tile, persisted on
+  /// every toggle (best-effort).
+  void _openTilePicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: MivaltaColors.surface2,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
+      ),
+      builder: (_) => TodayTilePicker(
+        visibleTiles: _visibleTiles,
+        onChanged: (next) {
+          setState(() => _visibleTiles = next);
+          _tilesPrefs.save(next);
+        },
+      ),
+    );
+  }
+
+  /// Items 11+18: fetch local weather through the OS frame (WeatherKit via
+  /// the `mivalta/weather` channel). Any failure → [_weather] stays null and
+  /// the home renders honest absence.
+  Future<void> _loadWeather() async {
+    final report = await WeatherService.fetch();
+    if (!mounted || report == null) return;
+    setState(() => _weather = report);
   }
 
   @override
@@ -191,7 +272,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     // Local non-null snapshot, mirroring the Day-3 BLOCKER 2 fix —
     // multiple awaits with State mutation in between is reentrancy bait
     // unless the work happens against a local capture.
-    final d = _HomeData();
+    final d = HomeData();
     RustEngineBinding? localBinding;
     EnginesHandle? localHandle;
     try {
@@ -291,6 +372,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       d.readinessLevel = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
+      // Item 4: 4-axis contributions for the why-reveal (same shape the
+      // detail screen renders; Josi shows the compact cut).
+      final contributions = indicator['contributions'];
+      if (contributions is List) {
+        d.contributions =
+            contributions.whereType<Map<String, dynamic>>().toList();
+      }
+
       // Check for insufficient data via readinessScore advisories
       final readinessJson = await binding.readinessScore(handle);
       final readiness = jsonDecode(readinessJson) as Map<String, dynamic>;
@@ -311,6 +400,44 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
+
+      // Step 2: observation-day count for the learning ring's "day X" why.
+      // Engine rows in (one daily snapshot per observed day), distinct-date
+      // count out — presentation counting only, no meaning derived (brief
+      // §4; explicit observation_days engine field flagged in §7). 365-day
+      // window: generous enough to cover any calibration period honestly.
+      final bioJson = await binding.readBiometricHistory(handle, days: 365);
+      final bio = jsonDecode(bioJson);
+      if (bio is List) {
+        d.observationDays = bio
+            .whereType<Map>()
+            .map((e) => e['date']?.toString())
+            .whereType<String>()
+            .toSet()
+            .length;
+
+        // Step 3 (brief §5): last night's sleep for the sleep tile. The row
+        // dated today carries this morning's record of last night; fall back
+        // to yesterday's row. Date matching is presentation; the engine's
+        // sleep_hours value renders verbatim.
+        double? sleepFor(String date) {
+          for (final row in bio.whereType<Map>()) {
+            if (row['date']?.toString() == date) {
+              final s = row['sleep_hours'];
+              if (s is num) return s.toDouble();
+            }
+          }
+          return null;
+        }
+
+        final now = DateTime.now();
+        final todayStr = now.toIso8601String().substring(0, 10);
+        final yesterdayStr = now
+            .subtract(const Duration(days: 1))
+            .toIso8601String()
+            .substring(0, 10);
+        d.lastNightSleepHours = sleepFor(todayStr) ?? sleepFor(yesterdayStr);
+      }
 
       // ---------- Zone 2: Today ----------
 
@@ -338,13 +465,11 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final contextWidgetJson = await binding.getContextWidget(handle);
       final contextWidget = jsonDecode(contextWidgetJson);
       if (contextWidget is Map) {
-        d.acwr = (contextWidget['acwr'] as num?)?.toDouble();
+        // Step 3: only the fields the today-facts copy layer keys on — raw
+        // acwr/monotony/strain scalars stay off the home (brief §5).
         d.acwrZone = contextWidget['acwr_zone']?.toString();
         d.acwrRecommendation = contextWidget['acwr_recommendation']?.toString();
-        d.monotony = (contextWidget['monotony'] as num?)?.toDouble();
-        d.strain = (contextWidget['strain'] as num?)?.toDouble();
-        d.monotonyZone = contextWidget['monotony_zone']?.toString();
-        d.monotonyRecommendation = contextWidget['monotony_recommendation']?.toString();
+        d.dataStatus = contextWidget['data_status']?.toString();
         d.lastWorkout = contextWidget['last_workout']?.toString();
 
         final alerts = contextWidget['reactive_alerts'];
@@ -374,6 +499,29 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             .toList();
       }
 
+      // Today's load chip (Item 7) — engine-computed cumulative load for today
+      // No Dart math: engine sums the day's load_uls; we just select today's row.
+      final loadsJson = await binding.readDailyLoads(handle, days: 7);
+      final loads = jsonDecode(loadsJson);
+      if (loads is List && loads.isNotEmpty) {
+        // Engine returns [[date, load], ...] most-recent-last; find today's row
+        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+        for (final row in loads.reversed) {
+          if (row is List && row.length >= 2 && row[0] == todayStr) {
+            d.todayLoad = (row[1] as num?)?.toDouble();
+            break;
+          }
+        }
+      }
+
+      // Item 2: Latest completed workout for the home workout row
+      // (time · load, tap to detail). Engine fetch, Dart display only.
+      final activitiesJson = await binding.readRecentActivities(handle, limit: 1);
+      final activities = ActivitySummary.listFromJson(jsonDecode(activitiesJson));
+      if (activities.isNotEmpty) {
+        d.latestActivity = activities.first;
+      }
+
       // Source tier swatch
       final tierJson = await binding.lastObservationSourceTier(handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
@@ -387,6 +535,12 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       _handle = localHandle;
       _binding = localBinding;
     });
+    // Nav shell: share the ONE engine instance with the You tab.
+    final readyBinding = localBinding;
+    final readyHandle = localHandle;
+    if (readyBinding != null && readyHandle != null) {
+      widget.onEngineReady?.call(readyBinding, readyHandle);
+    }
     // FL-3: surface the one-time history reset non-silently after the frame.
     if (d.historyReset) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -417,12 +571,6 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     );
   }
 
-  void _openDebugExerciser() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const DebugSwatchExerciser()),
-    );
-  }
-
   Future<void> _openManualEntry() async {
     final handle = _handle;
     final binding = _binding;
@@ -444,6 +592,23 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     }
   }
 
+  /// Step 4 (HOME_REDESIGN_BRIEF §4 item 5): Start workout → sensor check
+  /// (honest states), with manual logging as the working capture path until
+  /// the live screen lands. Engine-free screen; the manual path closes it
+  /// and reuses the existing manual-entry flow.
+  void _openSensorCheck() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SensorCheckScreen(
+          onLogManually: () {
+            Navigator.of(context).pop(); // close the sensor check
+            _openManualEntry();
+          },
+        ),
+      ),
+    );
+  }
+
   void _openAdvisor() {
     final handle = _handle;
     final binding = _binding;
@@ -458,37 +623,17 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     );
   }
 
-  /// Open the on-request Explore view (biometrics + workout history).
-  void _openExplore() {
+  /// Item 2: Open workout detail for a specific date.
+  void _openWorkoutDetail(String date) {
     final handle = _handle;
     final binding = _binding;
     if (handle == null || binding == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ExploreScreen(
+        builder: (_) => WorkoutDetailPage(
           binding: binding,
           handle: handle,
-        ),
-      ),
-    );
-  }
-
-  /// PR-G: Open settings screen.
-  void _openSettings() {
-    final handle = _handle;
-    final binding = _binding;
-    if (handle == null || binding == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(
-          binding: binding,
-          handle: handle,
-          profileJson: widget.profileJson ?? _fallbackProfile(),
-          onDataCleared: () {
-            // After data erasure, navigate back to the app entry point
-            // which will detect no profile and show onboarding.
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
+          date: date,
         ),
       ),
     );
@@ -584,15 +729,32 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       appBar: AppBar(
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
+        // Round 3 item 10 (founder): title stays CENTERED — liked.
+        centerTitle: true,
         title: const Text('MiValta'),
+        // Round 3 item 10: Start workout as a compact control in the
+        // top-LEFT corner beside the centered title. Round 3-FINAL item 20
+        // (founder): subtle/refined, NOT a solid green disc — hairline
+        // outline, green glyph, no fill. Same destination: sensor check.
+        leading: _loading
+            ? null
+            : Center(
+                child: IconButton.outlined(
+                  style: IconButton.styleFrom(
+                    foregroundColor: MivaltaColors.primaryGreen,
+                    side: const BorderSide(color: MivaltaColors.surface2),
+                    minimumSize: const Size(36, 36),
+                    padding: EdgeInsets.zero,
+                  ),
+                  tooltip: 'Start workout',
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  onPressed: _openSensorCheck,
+                ),
+              ),
+        // Step-1 slimdown (HOME_REDESIGN_BRIEF §3): settings/trends/debug
+        // actions migrated to the You tab. Sync stays — it's a Today data
+        // action, not a settings one.
         actions: [
-          // Explore — on-request biometrics + workout history
-          if (!_loading)
-            IconButton(
-              icon: const Icon(Icons.insights_outlined),
-              tooltip: 'Explore',
-              onPressed: _openExplore,
-            ),
           // PR-E: Health sync button (Android only for now)
           if (Platform.isAndroid && !_loading)
             _syncing
@@ -609,52 +771,92 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                     tooltip: 'Sync health data',
                     onPressed: _syncHealthData,
                   ),
-          // PR-G: Settings button
-          if (!_loading)
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: 'Settings',
-              onPressed: _openSettings,
-            ),
-          // Debug menu (debug mode only)
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report),
-              tooltip: 'SourceTier exerciser',
-              onPressed: _openDebugExerciser,
+          // LAST-TWO item 24 (was round 3 items 11+18 / 21): the local
+          // condition WITH temperature ("☀ 18°") right of the centered
+          // title — only when the OS actually returned weather (honest
+          // absence otherwise). Quiet tint; green while the week is open.
+          if (_weather != null)
+            Tooltip(
+              message: 'Weather',
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: _showForecast
+                      ? MivaltaColors.primaryGreen
+                      : MivaltaColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MivaltaSpace.x2,
+                  ),
+                  minimumSize: const Size(0, 36),
+                ),
+                onPressed: () =>
+                    setState(() => _showForecast = !_showForecast),
+                icon: Icon(weatherGlyph(_weather!.symbol), size: 18),
+                label: Text('${_weather!.temperatureC.round()}°'),
+              ),
             ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _ThreeZoneHome(
-              data: _data,
-              onTapRing: _openReadinessDetail,
-              onTapAdvisor: _openAdvisor,
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                ThreeZoneHome(
+                  data: _data,
+                  onTapRing: _openReadinessDetail,
+                  onTapAdvisor: _openAdvisor,
+                  onTapLatestWorkout: _openWorkoutDetail,
+                  // Item 12: user-chosen tiles + the picker entry point.
+                  visibleTiles: _visibleTiles,
+                  onEditTiles: _openTilePicker,
+                ),
+                // Item 24: tap the condition → the GLASSY week floats over
+                // the home (the home stays visible beneath, §15.5 glass).
+                // Tapping anywhere outside it — or the icon again — closes.
+                if (_showForecast && _weather != null) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _showForecast = false),
+                    ),
+                  ),
+                  Positioned(
+                    top: MivaltaSpace.x2,
+                    left: MivaltaSpace.x5,
+                    right: MivaltaSpace.x5,
+                    child: WeatherWeekOverlay(report: _weather!),
+                  ),
+                ],
+              ],
             ),
-      // PR-D: FAB for manual entry
-      floatingActionButton: _loading
-          ? null
-          : FloatingActionButton(
-              onPressed: _openManualEntry,
-              backgroundColor: MivaltaColors.primaryGreen,
-              foregroundColor: MivaltaColors.textPrimary,
-              tooltip: 'Log today',
-              child: const Icon(Icons.add),
-            ),
+      // Round 3 item 9: the green "+" FAB is GONE (founder: not nice, not
+      // useful — the home stays calm). Manual logging lives behind Start
+      // workout → sensor check → "Log a workout manually".
     );
   }
 }
 
-class _ThreeZoneHome extends StatelessWidget {
-  const _ThreeZoneHome({
+/// The home body — Josi (presenter) above the three-zone PULL layout
+/// (DESIGN_BUILD_SPEC §3). Public so widget tests can pump it with a seeded
+/// [HomeData] (the screen itself needs the FFI binding). Production call
+/// site: [_ReadinessScreenState.build].
+class ThreeZoneHome extends StatelessWidget {
+  const ThreeZoneHome({
+    super.key,
     required this.data,
     required this.onTapRing,
     required this.onTapAdvisor,
+    required this.onTapLatestWorkout,
+    this.visibleTiles = kDefaultTodayTiles,
+    this.onEditTiles,
   });
-  final _HomeData data;
+  final HomeData data;
   final VoidCallback onTapRing;
   final VoidCallback onTapAdvisor;
+  final void Function(String date) onTapLatestWorkout; // Item 2
+  // Item 12: which today-facts tiles render + the picker entry point.
+  final Set<String> visibleTiles;
+  final VoidCallback? onEditTiles;
 
   @override
   Widget build(BuildContext context) {
@@ -687,16 +889,14 @@ class _ThreeZoneHome extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ============ JOSI — PRESENTER (autocue) ============
-          // Josi reads the situation; the zones below are the deeper layer.
+          // ============ JOSI — ONE-LINE VERDICT (step 2) ============
+          // One spoken line + why-reveal; the session moved to its own card.
           JosiPresenter(
             insufficientData: data.insufficientData,
             stateRecommendation: data.stateRecommendation,
             confidenceAdvisory: data.confidenceAdvisory,
-            workoutTitle: data.workoutTitle,
-            durationMin: data.durationMin,
-            sessionZone: data.sessionZone,
             rationaleProse: data.rationaleProse,
+            contributions: data.contributions,
           ),
           const SizedBox(height: MivaltaSpace.x5),
 
@@ -704,12 +904,36 @@ class _ThreeZoneHome extends StatelessWidget {
           _Zone1State(data: data, textTheme: textTheme, onTapRing: onTapRing),
           const SizedBox(height: MivaltaSpace.x6),
 
+          // ============ TODAY-FACTS TILES (step 3, item 12) ============
+          // Sleep / training load / today's load — plain human words via
+          // the fixed dictionaries; raw enums never reach here. User-
+          // configurable: [visibleTiles] picks the grid, the tune affordance
+          // opens the picker. (Weather is the app-bar icon, item 21.)
+          TodayFacts(
+            sleepHours: data.lastNightSleepHours,
+            acwrZone: data.acwrZone,
+            acwrRecommendation: data.acwrRecommendation,
+            dataStatus: data.dataStatus,
+            todayLoad: data.todayLoad,
+            visibleTiles: visibleTiles,
+            onEditTiles: onEditTiles,
+          ),
+          const SizedBox(height: MivaltaSpace.x6),
+
           // ============ ZONE 2: TODAY ============
           _Zone2Today(data: data, textTheme: textTheme, onTapAdvisor: onTapAdvisor),
           const SizedBox(height: MivaltaSpace.x6),
 
+          // Round 3 item 10: the in-column Start-workout button moved to a
+          // compact control in the home app bar's top-left (founder request);
+          // the scroll column stays calm.
+
           // ============ ZONE 3: CONTEXT ============
-          _Zone3Context(data: data, textTheme: textTheme),
+          _Zone3Context(
+            data: data,
+            textTheme: textTheme,
+            onTapLatestWorkout: onTapLatestWorkout,
+          ),
           const SizedBox(height: MivaltaSpace.x5),
         ],
       ),
@@ -717,22 +941,33 @@ class _ThreeZoneHome extends StatelessWidget {
   }
 }
 
-/// Zone 1 — State (hero): ReadinessRing + state_recommendation + fatigue badge
+/// Zone 1 — the adaptive STATE ELEMENT (step 2, HOME_REDESIGN_BRIEF §4):
+/// sized by data sufficiency. Small muted ring while the engine is learning
+/// (with its own "why" — "I'm still learning you — day X."), full hero ring
+/// only when confident. Josi's card above is the ONE home surface for the
+/// verdict prose and the confidence advisory, so neither repeats here.
 class _Zone1State extends StatelessWidget {
   const _Zone1State({
     required this.data,
     required this.textTheme,
     required this.onTapRing,
   });
-  final _HomeData data;
+  final HomeData data;
   final TextTheme textTheme;
   final VoidCallback onTapRing;
 
+  /// Sizing gate — ENGINE SIGNALS ONLY (brief §4): the engine reports it is
+  /// still calibrating via insufficient data OR a non-empty
+  /// confidence_advisory. No Dart threshold on the confidence scalar.
+  bool get _learning =>
+      data.insufficientData || ((data.confidenceAdvisory ?? '').isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
+    final learning = _learning;
     return Column(
       children: [
-        // Hero ring (or F1 no-data copy) — tap to open detail screen
+        // The state element — tap to open detail screen (data present only).
         Center(
           child: GestureDetector(
             onTap: data.insufficientData ? null : onTapRing,
@@ -741,44 +976,118 @@ class _Zone1State extends StatelessWidget {
               level: data.readinessLevel,
               confidence: data.confidence,
               noData: data.insufficientData,
+              learning: learning,
             ),
           ),
         ),
-        const SizedBox(height: MivaltaSpace.x4),
 
-        // State recommendation prose (verbatim from engine)
-        if (data.stateRecommendation != null &&
-            data.stateRecommendation!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-            child: Text(
-              data.stateRecommendation!,
-              style: textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-        // Confidence advisory (honest-confidence, shown when non-null)
-        if (data.confidenceAdvisory != null &&
-            data.confidenceAdvisory!.isNotEmpty) ...[
+        // The learning ring's own "why" (brief §4 item 2): a quiet reveal
+        // explaining why the element is small. Verdict prose and confidence
+        // advisory live in Josi's card (exactly once on the home).
+        if (learning) ...[
           const SizedBox(height: MivaltaSpace.x2),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-            child: Text(
-              data.confidenceAdvisory!,
-              style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          _LearningWhy(observationDays: data.observationDays),
         ],
         const SizedBox(height: MivaltaSpace.x3),
 
-        // Fatigue state badge — color via fatigueStateColor() from tokens.dart
-        if (data.fatigueState != null)
-          _Badge(
-            label: _humanizeFatigueState(data.fatigueState),
-            color: fatigueStateColor(data.fatigueState),
+        // Fatigue state badge + today's load chip (Item 7: load next to state)
+        // Gated on data sufficiency (feedback item 1): no state from priors.
+        if ((data.fatigueState != null || data.todayLoad != null) &&
+            !data.insufficientData)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (data.fatigueState != null)
+                _Badge(
+                  label: _humanizeFatigueState(data.fatigueState),
+                  color: fatigueStateColor(data.fatigueState),
+                ),
+              if (data.fatigueState != null && data.todayLoad != null)
+                const SizedBox(width: MivaltaSpace.x2),
+              // Today's load chip — engine value, no Dart math
+              if (data.todayLoad != null)
+                _Badge(
+                  label: '${data.todayLoad!.round()} load',
+                  color: MivaltaColors.textMuted,
+                ),
+            ],
           ),
+      ],
+    );
+  }
+}
+
+/// Step 2 (HOME_REDESIGN_BRIEF §4 item 2): the learning state element's
+/// "why" — explains the small ring honestly. "I'm still learning you —
+/// day X." where X is [observationDays], the count of days with
+/// observations the engine returned (counting is presentation; explicit
+/// engine field flagged in brief §7). With zero observed days the day
+/// suffix is omitted (grammar formatting of a count, not a threshold).
+/// Copy flagged for founder review (brief §7).
+class _LearningWhy extends StatefulWidget {
+  const _LearningWhy({required this.observationDays});
+
+  final int observationDays;
+
+  @override
+  State<_LearningWhy> createState() => _LearningWhyState();
+}
+
+class _LearningWhyState extends State<_LearningWhy> {
+  bool _show = false;
+
+  String get _line => widget.observationDays > 0
+      ? "I'm still learning you — day ${widget.observationDays}."
+      : "I'm still learning you.";
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => setState(() => _show = !_show),
+          borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x2,
+              vertical: MivaltaSpace.x1,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _show ? 'Hide why' : 'Why?',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: MivaltaColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Icon(
+                  _show ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: MivaltaColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: MivaltaMotion.fast,
+          alignment: Alignment.topCenter,
+          child: _show
+              ? Padding(
+                  padding: const EdgeInsets.only(top: MivaltaSpace.x1),
+                  child: Text(
+                    _line,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
     );
   }
@@ -791,9 +1100,16 @@ class _Zone2Today extends StatelessWidget {
     required this.textTheme,
     required this.onTapAdvisor,
   });
-  final _HomeData data;
+  final HomeData data;
   final TextTheme textTheme;
   final VoidCallback onTapAdvisor;
+
+  /// A2 (rest with equal visual weight): a rest day is content, not absence.
+  /// When the engine prescribes rest (session zone 'R'), the same full card
+  /// renders with rest-specific presentation — recovery icon + recovered-state
+  /// accent — instead of the generic workout dumbbell. Presentation mapping
+  /// of an engine value only (same pattern as the advisor's zone colors).
+  bool get _isRest => (data.sessionZone ?? '').toUpperCase() == 'R';
 
   @override
   Widget build(BuildContext context) {
@@ -808,6 +1124,37 @@ class _Zone2Today extends StatelessWidget {
           ),
         ),
         const SizedBox(height: MivaltaSpace.x3),
+
+        // No-data redesign (founder 2026-06-12): with insufficient data there
+        // are NO prescriptions from priors — no cap chip, no session card, no
+        // workout options. Zone 2 keeps its rhythm (DESIGN_BUILD_SPEC §3) with
+        // a calm learn-you placeholder instead of going empty or error-y.
+        if (data.insufficientData) ...[
+          Container(
+            padding: const EdgeInsets.all(MivaltaSpace.x4),
+            decoration: BoxDecoration(
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.md),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.edit_note, color: MivaltaColors.textMuted),
+                const SizedBox(width: MivaltaSpace.x3),
+                Expanded(
+                  child: Text(
+                    // Placeholder copy from the founder's 2026-06-12 no-data
+                    // redesign brief ("first, let's learn you — log a few
+                    // days"), sentence-cased. Flagged for founder review.
+                    "First, let's learn you — log a few days.",
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
 
         // Zone cap chip
         if (data.zoneCap != null)
@@ -831,7 +1178,12 @@ class _Zone2Today extends StatelessWidget {
                 // Title + duration
                 Row(
                   children: [
-                    Icon(Icons.fitness_center, color: MivaltaColors.textSecondary),
+                    Icon(
+                      _isRest ? Icons.self_improvement : Icons.fitness_center,
+                      color: _isRest
+                          ? MivaltaColors.stateRecovered
+                          : MivaltaColors.textSecondary,
+                    ),
                     const SizedBox(width: MivaltaSpace.x3),
                     Expanded(
                       child: Text(
@@ -854,7 +1206,12 @@ class _Zone2Today extends StatelessWidget {
                 Row(
                   children: [
                     if (data.sessionZone != null)
-                      _Badge(label: data.sessionZone!, color: MivaltaColors.textMuted),
+                      _Badge(
+                        label: data.sessionZone!,
+                        color: _isRest
+                            ? MivaltaColors.stateRecovered
+                            : MivaltaColors.textMuted,
+                      ),
                     const SizedBox(width: MivaltaSpace.x2),
                     if (data.targetWatts != null)
                       Text(
@@ -897,7 +1254,9 @@ class _Zone2Today extends StatelessWidget {
             ),
           ),
 
-        // PR-D: "See Options" button to open advisor
+        // PR-D: "See Options" button to open advisor. Hidden on insufficient
+        // data — the advisor surfaces prior-derived prescriptions, and the
+        // no-data home makes no prescriptions from priors.
         const SizedBox(height: MivaltaSpace.x4),
         OutlinedButton(
           onPressed: onTapAdvisor,
@@ -915,16 +1274,23 @@ class _Zone2Today extends StatelessWidget {
             ),
           ),
         ),
+        ],
       ],
     );
   }
 }
 
-/// Zone 3 — Context: ACWR/monotony/strain + alerts + sparkline + source tier
+/// Zone 3 — Context: sparkline + latest workout + alerts/advisories + source
+/// tier. Raw ACWR/monotony/strain moved off the home in step 3 (brief §5).
 class _Zone3Context extends StatelessWidget {
-  const _Zone3Context({required this.data, required this.textTheme});
-  final _HomeData data;
+  const _Zone3Context({
+    required this.data,
+    required this.textTheme,
+    required this.onTapLatestWorkout,
+  });
+  final HomeData data;
   final TextTheme textTheme;
+  final void Function(String date) onTapLatestWorkout; // Item 2
 
   @override
   Widget build(BuildContext context) {
@@ -948,74 +1314,29 @@ class _Zone3Context extends StatelessWidget {
           ),
         const SizedBox(height: MivaltaSpace.x4),
 
-        // ACWR block
-        if (data.acwr != null) ...[
-          _MetricRow(
-            label: 'ACWR',
-            value: data.acwr!.toStringAsFixed(2),
-            zone: data.acwrZone,
-            textTheme: textTheme,
-          ),
-          if (data.acwrRecommendation != null &&
-              data.acwrRecommendation!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(
-                top: MivaltaSpace.x1,
-                bottom: MivaltaSpace.x2,
-              ),
-              child: Text(
-                data.acwrRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              ),
-            ),
-        ],
+        // Step 3 (brief §5): the raw ACWR / monotony / strain rows that lived
+        // here moved off the home — the today-facts tiles present the load in
+        // human language; depth lives in Explore's load & strain card.
 
-        // Monotony + Strain block
-        if (data.monotony != null || data.strain != null) ...[
-          Row(
-            children: [
-              if (data.monotony != null)
-                Expanded(
-                  child: _MetricRow(
-                    label: 'Monotony',
-                    value: data.monotony!.toStringAsFixed(2),
-                    zone: data.monotonyZone,
-                    textTheme: textTheme,
-                  ),
-                ),
-              if (data.strain != null)
-                Expanded(
-                  child: _MetricRow(
-                    label: 'Strain',
-                    value: data.strain!.toStringAsFixed(0),
-                    zone: null,
-                    textTheme: textTheme,
-                  ),
-                ),
-            ],
+        // Item 2: Latest workout row (tappable → detail)
+        // Shows duration · load; replaces the old static "Last: ..." text
+        if (data.latestActivity != null) ...[
+          const SizedBox(height: MivaltaSpace.x2),
+          _LatestWorkoutRow(
+            activity: data.latestActivity!,
+            onTap: () => onTapLatestWorkout(data.latestActivity!.date),
           ),
-          if (data.monotonyRecommendation != null &&
-              data.monotonyRecommendation!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(
-                top: MivaltaSpace.x1,
-                bottom: MivaltaSpace.x2,
-              ),
-              child: Text(
-                data.monotonyRecommendation!,
-                style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-              ),
-            ),
-        ],
-
-        // Last workout
-        if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
+        ] else if (data.lastWorkout != null && data.lastWorkout!.isNotEmpty) ...[
+          // Fallback to engine's lastWorkout string if no activity record yet
           const SizedBox(height: MivaltaSpace.x2),
           Text(
             'Last: ${data.lastWorkout}',
             style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
           ),
         ],
+
+        // Step 4: the quick "start workout" link moved up — the Today
+        // Start-workout button (→ sensor check) replaces it.
 
         // Reactive alerts (verbatim list)
         if (data.reactiveAlerts.isNotEmpty) ...[
@@ -1080,58 +1401,6 @@ class _Zone3Context extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Metric row for ACWR/monotony/strain display
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({
-    required this.label,
-    required this.value,
-    required this.zone,
-    required this.textTheme,
-  });
-  final String label;
-  final String value;
-  final String? zone;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
-        ),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        if (zone != null) ...[
-          const SizedBox(width: MivaltaSpace.x2),
-          _Badge(label: zone!, color: _zoneColor(zone)),
-        ],
-      ],
-    );
-  }
-
-  /// Zone color from token constants. Maps ACWR/monotony zone strings to the
-  /// appropriate level color. Engine decides the zone; we just render it.
-  Color _zoneColor(String? zone) {
-    switch (zone?.toLowerCase()) {
-      case 'optimal':
-      case 'green':
-        return MivaltaColors.levelGreen;
-      case 'caution':
-      case 'yellow':
-        return MivaltaColors.levelYellow;
-      case 'danger':
-      case 'red':
-        return MivaltaColors.levelRed;
-      default:
-        return MivaltaColors.textMuted;
-    }
   }
 }
 
@@ -1254,4 +1523,67 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+/// Item 2: Tappable latest-workout row for the home. Shows duration · load.
+/// Uses ActivitySummary from readRecentActivities(limit: 1).
+class _LatestWorkoutRow extends StatelessWidget {
+  const _LatestWorkoutRow({required this.activity, required this.onTap});
+
+  final ActivitySummary activity;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final meta = <String>[
+      if (activity.durationMin != null) '${activity.durationMin} min',
+      if (activity.loadUls != null) 'load ${activity.loadUls!.round()}',
+    ];
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(MivaltaSpace.x3),
+        decoration: BoxDecoration(
+          color: MivaltaColors.surface1,
+          borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Latest workout',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      activity.sport.isEmpty
+                          ? 'Workout'
+                          : _titleCase(activity.sport),
+                      ...meta,
+                    ].join('  ·  '),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: MivaltaColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _titleCase(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }

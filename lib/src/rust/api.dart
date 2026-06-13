@@ -285,6 +285,81 @@ Future<String> readRecentActivities({
   limit: limit,
 );
 
+/// `VaultEngine::write_activity(activity_json)` — persist a completed activity
+/// to the vault. The activity JSON is `VaultActivity` (must include `completed_at`,
+/// `activity_type`, `duration_minutes`, `load_uls`, `load_method`).
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 1).
+Future<void> writeActivity({
+  required EnginesHandle handle,
+  required String activityJson,
+}) => RustLib.instance.api.crateApiWriteActivity(
+  handle: handle,
+  activityJson: activityJson,
+);
+
+/// `PostProcessEngine::process_activity(...)` — run the post-activity producer
+/// pipeline on a completed activity. Takes:
+/// - `activity_json`: `{"completed_at": "<rfc3339>", "power_samples": [..], "hr_samples": [..]?, "sample_rate_hz": 1.0}`
+/// - `history_json`: prior `MmpHistory` (use `{"points": []}` on first run)
+/// - `current_fit_json`: prior `{"cp_watts":..,"w_prime_joules":..}` or `"null"`
+/// - `policy_json`: serialized `PostProcessPolicy` (defaults_v0 shape)
+///
+/// Returns `PostProcessResult` JSON: mmp_after, power_profile_update?, wbal_series?, decoupling?, events.
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 3).
+Future<String> processActivity({
+  required EnginesHandle handle,
+  required String activityJson,
+  required String historyJson,
+  required String currentFitJson,
+  required String policyJson,
+}) => RustLib.instance.api.crateApiProcessActivity(
+  handle: handle,
+  activityJson: activityJson,
+  historyJson: historyJson,
+  currentFitJson: currentFitJson,
+  policyJson: policyJson,
+);
+
+/// `VaultEngine::read_power_profile(athlete_id)` — read the persisted PowerProfile
+/// (CP, W', fit metadata). Returns JSON `null` if no profile saved (no CP test yet).
+/// Pure pass-through. Activity ingestion flow (Recipe 4, step 2).
+Future<String> readPowerProfile({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiReadPowerProfile(handle: handle);
+
+/// `VaultEngine::write_power_profile(athlete_id, profile_json)` — persist the
+/// athlete's PowerProfile after a CP refit. Pure pass-through. Activity ingestion
+/// flow (Recipe 4, step 4).
+Future<void> writePowerProfile({
+  required EnginesHandle handle,
+  required String profileJson,
+}) => RustLib.instance.api.crateApiWritePowerProfile(
+  handle: handle,
+  profileJson: profileJson,
+);
+
+/// `VaultEngine::write_mmp_history(athlete_id, history_json)` — persist the rolling
+/// MMP curve history after process_activity. Pure pass-through. Activity ingestion
+/// flow (Recipe 4, step 4).
+Future<void> writeMmpHistory({
+  required EnginesHandle handle,
+  required String historyJson,
+}) => RustLib.instance.api.crateApiWriteMmpHistory(
+  handle: handle,
+  historyJson: historyJson,
+);
+
+/// `ViterbiEngine::record_activity(load_json)` — tell the HMM that a training load
+/// happened. `load_json` is `UniversalLoadScore` JSON. Updates internal state; call
+/// `save_state()` afterward to persist. Pure pass-through. Activity ingestion flow
+/// (Recipe 4, step 5).
+Future<void> recordActivity({
+  required EnginesHandle handle,
+  required String loadJson,
+}) => RustLib.instance.api.crateApiRecordActivity(
+  handle: handle,
+  loadJson: loadJson,
+);
+
 /// `VaultEngine::get_workout_detail(date)` — completed-workout detail composite
 /// (actuals + engine-graded quality via `grade_workout`) for a date. JSON
 /// matches the Flutter `WorkoutDetail` contract, or JSON `null` when no activity
@@ -401,6 +476,73 @@ Future<void> writeMinimalBiometric({
   source: source,
   isoDate: isoDate,
   restingHr: restingHr,
+);
+
+/// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
+/// BEFORE processing. Returns the row ID for later `mark_raw_observation_processed`.
+/// JSON must include `date`, `source`, `data_type`, and `payload` fields.
+Future<PlatformInt64> writeRawObservation({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteRawObservation(
+  handle: handle,
+  json: json,
+);
+
+/// `VaultEngine::write_biometric(json)` — persist a normalized biometric
+/// observation (VaultBiometric JSON: date, source, resting_hr, hrv_rmssd,
+/// sleep_hours, sleep_quality, etc.). Call this after normalizeObservation
+/// to persist the biometrics to the vault for the Journey biometric pillars.
+Future<void> writeBiometric({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteBiometric(handle: handle, json: json);
+
+/// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
+/// a raw observation as processed after the pipeline consumed it. Stores the
+/// normalized `UniversalObservation` JSON alongside the raw payload (pass empty
+/// string to skip storing the normalized form).
+Future<void> markRawObservationProcessed({
+  required EnginesHandle handle,
+  required PlatformInt64 id,
+  required String observationJson,
+}) => RustLib.instance.api.crateApiMarkRawObservationProcessed(
+  handle: handle,
+  id: id,
+  observationJson: observationJson,
+);
+
+/// `VaultEngine::read_raw_observations_by_type(data_type, days)` — fetch raw
+/// observations for a data type (e.g. "biometric", "activity") over the last N
+/// days. Returns JSON array of raw observation records.
+Future<String> readRawObservationsByType({
+  required EnginesHandle handle,
+  required String dataType,
+  required int days,
+}) => RustLib.instance.api.crateApiReadRawObservationsByType(
+  handle: handle,
+  dataType: dataType,
+  days: days,
+);
+
+/// `VaultEngine::read_raw_observations_by_activity(activity_id)` — fetch raw
+/// observations linked to a specific activity ID. Returns JSON array.
+Future<String> readRawObservationsByActivity({
+  required EnginesHandle handle,
+  required String activityId,
+}) => RustLib.instance.api.crateApiReadRawObservationsByActivity(
+  handle: handle,
+  activityId: activityId,
+);
+
+/// `VaultEngine::read_activity_by_id(activity_id)` — fetch a single stored
+/// activity by its ID. Returns JSON of the VaultActivity or error if not found.
+Future<String> readActivityById({
+  required EnginesHandle handle,
+  required String activityId,
+}) => RustLib.instance.api.crateApiReadActivityById(
+  handle: handle,
+  activityId: activityId,
 );
 
 /// Update the athlete profile across all engines.

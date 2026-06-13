@@ -20,6 +20,9 @@
 import 'dart:io' show Platform;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show ExternalLibrary;
+
 import 'src/rust/api.dart' as rust_api;
 import 'src/rust/api.dart' show BridgeError, EnginesHandle;
 import 'src/rust/frb_generated.dart';
@@ -37,17 +40,28 @@ class RustEngineBinding {
   static bool _rustInited = false;
   static Future<void> ensureRustInit() async {
     if (_rustInited) return;
-    if (!Platform.isAndroid) {
-      throw UnsupportedError('Mivalta-flutter spike is Android-only');
+    if (Platform.isAndroid) {
+      // Android: dynamic library loaded via dlopen (default FRB behavior)
+      await RustLib.init();
+    } else if (Platform.isIOS) {
+      // iOS: static linking via CocoaPods — symbols are in the executable.
+      // The xcframework is embedded via MivaltaRustBridge.podspec.
+      // ExternalLibrary.process uses DynamicLibrary.process() which looks up
+      // symbols linked into the running process (static linking), not dlopen.
+      await RustLib.init(
+        externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
+      );
+    } else {
+      throw UnsupportedError(
+        'Mivalta-flutter requires Android or iOS; '
+        'host/desktop not supported (no native library)',
+      );
     }
-    await RustLib.init();
     _rustInited = true;
   }
 
   /// Initialise the FRB runtime and return a ready-to-use binding.
-  /// Day-2 review WARNING 3: gated on Platform.isAndroid — host runs
-  /// throw a clear error instead of segfaulting on a missing
-  /// `libmivalta_rust_bridge.so`.
+  /// Host runs (desktop/test) throw a clear error — no native library.
   static Future<RustEngineBinding> bootstrap() async {
     await ensureRustInit();
     return RustEngineBinding._();
@@ -283,6 +297,60 @@ class RustEngineBinding {
   Future<String> readMmpHistory(EnginesHandle handle) =>
       rust_api.readMmpHistory(handle: handle);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Activity ingestion (Recipe 4) — write completed workouts to vault
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// `VaultEngine::write_activity` — persist a completed activity to the vault.
+  /// The [activityJson] is VaultActivity JSON (completed_at, activity_type,
+  /// duration_minutes, load_uls, load_method). Activity ingestion flow (Recipe 4).
+  Future<void> writeActivity(EnginesHandle handle,
+          {required String activityJson}) =>
+      rust_api.writeActivity(handle: handle, activityJson: activityJson);
+
+  /// `PostProcessEngine::process_activity` — run the post-activity producer
+  /// pipeline. Takes the activity wire + prior MMP + prior CP fit + policy.
+  /// Returns PostProcessResult JSON with updated MMP, power_profile_update,
+  /// wbal_series, decoupling, events. Activity ingestion flow (Recipe 4).
+  Future<String> processActivity(
+    EnginesHandle handle, {
+    required String activityJson,
+    required String historyJson,
+    required String currentFitJson,
+    required String policyJson,
+  }) =>
+      rust_api.processActivity(
+        handle: handle,
+        activityJson: activityJson,
+        historyJson: historyJson,
+        currentFitJson: currentFitJson,
+        policyJson: policyJson,
+      );
+
+  /// `VaultEngine::read_power_profile` — read the persisted PowerProfile
+  /// (CP, W', fit metadata). Returns `null` JSON if no profile saved.
+  Future<String> readPowerProfile(EnginesHandle handle) =>
+      rust_api.readPowerProfile(handle: handle);
+
+  /// `VaultEngine::write_power_profile` — persist the athlete's PowerProfile
+  /// after a CP refit. Activity ingestion flow (Recipe 4).
+  Future<void> writePowerProfile(EnginesHandle handle,
+          {required String profileJson}) =>
+      rust_api.writePowerProfile(handle: handle, profileJson: profileJson);
+
+  /// `VaultEngine::write_mmp_history` — persist the rolling MMP curve history
+  /// after process_activity. Activity ingestion flow (Recipe 4).
+  Future<void> writeMmpHistory(EnginesHandle handle,
+          {required String historyJson}) =>
+      rust_api.writeMmpHistory(handle: handle, historyJson: historyJson);
+
+  /// `ViterbiEngine::record_activity` — tell the HMM that a training load
+  /// happened. [loadJson] is UniversalLoadScore JSON. Call save_state() after.
+  /// Activity ingestion flow (Recipe 4).
+  Future<void> recordActivity(EnginesHandle handle,
+          {required String loadJson}) =>
+      rust_api.recordActivity(handle: handle, loadJson: loadJson);
+
   /// `CpEngine::fit_cp_default(mmpCurveJson)` — Critical Power + W′ fit over the
   /// MMP curve (Monod-Scherrer / Hill). Feed the JSON [readMmpHistory] returns;
   /// yields `{cp_watts, w_prime_joules, r_squared, n_points}`. Monitor
@@ -388,6 +456,71 @@ class RustEngineBinding {
         isoDate: isoDate,
         restingHr: restingHr,
       );
+
+  // ===========================================================================
+  // VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B)
+  // ===========================================================================
+  //
+  // Write raw observations to the vault BEFORE processing:
+  //   1. writeRawObservation(json) → persist raw vendor payload
+  //   2. normalizeObservation → writeBiometric (normalized biometrics)
+  //   3. processObservation (HMM) → markRawObservationProcessed
+  //
+  // This preserves the original vendor payload for audit + replay.
+
+  /// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
+  /// BEFORE processing. Returns the row ID for later [markRawObservationProcessed].
+  /// JSON must include `date`, `source`, `data_type`, and `payload` fields.
+  Future<int> writeRawObservation(EnginesHandle handle, {required String json}) =>
+      rust_api.writeRawObservation(handle: handle, json: json);
+
+  /// `VaultEngine::write_biometric(json)` — persist a normalized biometric
+  /// observation (VaultBiometric JSON: date, source, resting_hr, hrv_rmssd,
+  /// sleep_hours, sleep_quality, etc.). Call after normalizeObservation to
+  /// persist biometrics for the Journey biometric pillars.
+  Future<void> writeBiometric(EnginesHandle handle, {required String json}) =>
+      rust_api.writeBiometric(handle: handle, json: json);
+
+  /// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
+  /// a raw observation as processed. Pass empty string for observationJson to
+  /// skip storing the normalized form alongside the raw.
+  Future<void> markRawObservationProcessed(
+    EnginesHandle handle, {
+    required int id,
+    required String observationJson,
+  }) =>
+      rust_api.markRawObservationProcessed(
+        handle: handle,
+        id: id,
+        observationJson: observationJson,
+      );
+
+  /// `VaultEngine::read_raw_observations_by_type(data_type, days)` — fetch raw
+  /// observations for a data type (e.g. "biometric", "activity") over the last N
+  /// days. Returns JSON array of raw observation records.
+  Future<String> readRawObservationsByType(
+    EnginesHandle handle, {
+    required String dataType,
+    required int days,
+  }) =>
+      rust_api.readRawObservationsByType(
+        handle: handle,
+        dataType: dataType,
+        days: days,
+      );
+
+  /// `VaultEngine::read_raw_observations_by_activity(activity_id)` — fetch raw
+  /// observations linked to a specific activity ID. Returns JSON array.
+  Future<String> readRawObservationsByActivity(
+    EnginesHandle handle, {
+    required String activityId,
+  }) =>
+      rust_api.readRawObservationsByActivity(handle: handle, activityId: activityId);
+
+  /// `VaultEngine::read_activity_by_id(activity_id)` — fetch a single stored
+  /// activity by its ID. Returns JSON of the VaultActivity or error if not found.
+  Future<String> readActivityById(EnginesHandle handle, {required String activityId}) =>
+      rust_api.readActivityById(handle: handle, activityId: activityId);
 
   // ===========================================================================
   // DASHBOARD ENGINE — three-zone PULL home widgets

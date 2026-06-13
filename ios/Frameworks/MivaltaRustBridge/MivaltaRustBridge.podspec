@@ -27,4 +27,11 @@ Privacy-first AI fitness coaching engine. 100% on-device. No cloud.
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
   }
+
+  # Force-load all symbols from static libraries so FFI can look them up at runtime.
+  # Without this, the linker strips "unreferenced" symbols that are only called via dlsym.
+  # Using -all_load instead of -force_load to avoid build order issues.
+  s.user_target_xcconfig = {
+    'OTHER_LDFLAGS' => '-all_load',
+  }
 end

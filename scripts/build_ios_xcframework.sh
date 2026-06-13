@@ -70,7 +70,8 @@ echo "=== Creating simulator fat library ==="
 DEVICE_LIB="$RUST_DIR/target/aarch64-apple-ios/release/libmivalta_rust_bridge.a"
 SIM_ARM64_LIB="$RUST_DIR/target/aarch64-apple-ios-sim/release/libmivalta_rust_bridge.a"
 SIM_X86_LIB="$RUST_DIR/target/x86_64-apple-ios/release/libmivalta_rust_bridge.a"
-SIM_FAT_LIB="/tmp/libmivalta_rust_bridge_sim.a"
+# Use same name as device lib — xcframework handles arch selection
+SIM_FAT_LIB="/tmp/libmivalta_rust_bridge.a"
 
 lipo -create "$SIM_ARM64_LIB" "$SIM_X86_LIB" -output "$SIM_FAT_LIB"
 echo "Created fat library: $SIM_FAT_LIB"

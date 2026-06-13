@@ -10,7 +10,7 @@ Guidance for Claude Code when working with this repository.
 
 ## Working Rules
 
-**Rule 1 — Mac Claude Code executes by default.** Anything that touches the filesystem (creating files, editing code, running tests, building) goes through Claude Code on Bart's Mac (M4, Alta). Mac is the primary executor for all day-to-day work across the 4 active MiValta repos.
+**Rule 1 — The remote/cloud Claude session CODES; Mac Claude Code BUILDS and RUNS only (founder, 2026-06-12).** All implementation (Dart, docs, tests) is authored by the coding session and pushed to the working branch. The Mac session's job is the macOS-only physical layer and nothing more: `git pull`, build the iOS/Android artifacts (xcframework, pods, `flutter run`), the FRB codegen step when asked, and showing the app on the simulator/device. The Mac session does NOT design, refactor, or implement features on its own initiative — it executes explicit build/run instructions and reports results. (This supersedes the older "Mac executes by default" rule: parallel coding caused rebase collisions and stale-doc reasoning on 2026-06-12.)
 
 **Rule 2 — Hetzner Claude is the GPU specialist on standby.** Hetzner (144.76.62.249) is activated only when work requires GPU (model fine-tuning, large oracle eval runs) or sustained heavy compute exceeding Mac capacity. When activated, Hetzner Claude operates on a brief-driven contract — receives sealed briefs, executes within scope, coordinates back via GitHub PRs. Hetzner does not maintain a parallel autonomous chat session.
 
@@ -114,6 +114,15 @@ flutter run                                              # Launch on attached de
 6. **No cloud round-trips.** On-device only. (The V10-era first-launch
    model-download HTTP exception was removed with the PR-J purge; the
    replacement messenger ships via Play Asset Delivery.)
+   **OS-level weather exception (founder-approved 2026-06-12,
+   FOUNDER_FEEDBACK_2026-06-12 item 18):** local weather on the home
+   comes from Apple WeatherKit via the `mivalta/weather` platform
+   channel — the fetch is performed by Apple's OS frame (CoreLocation
+   one-shot + WeatherKit), never by MiValta servers and never as
+   MiValta-originated HTTP. Any failure renders honest absence (no
+   icon, no forecast), never fabricated conditions. Android
+   equivalent t.b.d.; until decided the channel is iOS-only and
+   Android shows nothing.
 7. **No dead code.** Every new public Dart symbol has a call site
    reachable from production within one PR.
 8. **New behaviour needs a test.** `flutter test` / widget test /

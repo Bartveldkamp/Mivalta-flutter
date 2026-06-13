@@ -9,5 +9,10 @@
 	<array/>
 	<key>com.apple.developer.healthkit.background-delivery</key>
 	<true/>
+	<!-- Round 3 items 11+18: WeatherKit — founder-approved OS-level exception
+	     to the no-cloud rule (CLAUDE.md rule 6). Needs the WeatherKit
+	     capability enabled on the App ID in the Developer Program. -->
+	<key>com.apple.developer.weatherkit</key>
+	<true/>
 </dict>
 </plist>

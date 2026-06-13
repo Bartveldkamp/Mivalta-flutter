@@ -16,14 +16,20 @@
 //
 // DISPLAY ONLY (architecture rule 1/3): every sentence Josi speaks is engine
 // output rendered VERBATIM (state_recommendation, rationale_prose,
-// confidence_advisory) or an engine VALUE (readiness score, session
-// title/zone/duration). Josi only sequences and frames them in a spoken
+// confidence_advisory). Josi only sequences and frames them in a spoken
 // "autocue" voice — she invents nothing, so she cannot fabricate. On no data
 // she presents the LOCKED F1 copy verbatim.
+//
+// Step 2 (HOME_REDESIGN_BRIEF §4 item 1): Josi is the ONE-LINE VERDICT card —
+// one spoken line plus the why-reveal (verdict → reasons → data). The session
+// line moved out: today's session is its own card further down the Today
+// column, so Josi no longer duplicates it.
 
 import 'package:flutter/material.dart';
 
+import '../copy/axis_labels.dart';
 import '../copy/f1.dart';
+import '../copy/trust_story.dart';
 import '../theme/tokens.dart';
 
 /// Josi's autocue read at the top of the home. Presents the engine's current
@@ -35,28 +41,27 @@ class JosiPresenter extends StatefulWidget {
     required this.insufficientData,
     this.stateRecommendation,
     this.confidenceAdvisory,
-    this.workoutTitle,
-    this.durationMin,
-    this.sessionZone,
     this.rationaleProse,
+    this.contributions = const [],
   });
 
   /// No observations yet — Josi honestly presents the locked F1 no-data line.
   final bool insufficientData;
 
-  /// Engine `state_widget.state_recommendation` — Josi's headline read.
+  /// Engine `state_widget.state_recommendation` — Josi's one-line verdict.
   final String? stateRecommendation;
 
   /// Engine `state_widget.confidence_advisory` — honest "still learning you".
   final String? confidenceAdvisory;
 
-  /// Engine `session_widget` values — today's session, presented plainly.
-  final String? workoutTitle;
-  final int? durationMin;
-  final String? sessionZone;
-
   /// Engine `session_widget.rationale_prose` — revealed under "why?".
   final String? rationaleProse;
+
+  /// Engine `readiness_indicator.contributions[]` — the 4-axis reasons,
+  /// revealed under "why?" (founder feedback 2026-06-12 item 4: the why-tap
+  /// shows WHICH SIGNALS MOVED, same data the detail screen renders).
+  /// Each map carries `name`, `raw_score`, `weight`, `weighted` verbatim.
+  final List<Map<String, dynamic>> contributions;
 
   @override
   State<JosiPresenter> createState() => _JosiPresenterState();
@@ -66,28 +71,35 @@ class _JosiPresenterState extends State<JosiPresenter> {
   bool _showWhy = false;
 
   bool get _hasWhy {
-    final rationale = widget.rationaleProse;
+    // Item 13 (FOUNDER_FEEDBACK_2026-06-12): the F1 no-data line ALWAYS
+    // explains itself — its "why" is the fixed trust story (what data is
+    // needed, how the model works, the ~28-day calibration arc).
+    if (widget.insufficientData) return true;
+    final rationale = _revealRationale;
     final advisory = widget.confidenceAdvisory;
     return (rationale != null && rationale.isNotEmpty) ||
-        (advisory != null && advisory.isNotEmpty);
+        (advisory != null && advisory.isNotEmpty) ||
+        _revealContributions.isNotEmpty;
   }
 
-  String? _sessionLine() {
-    final title = widget.workoutTitle;
-    if (title == null || title.isEmpty) return null;
-    final parts = <String>[title];
-    if (widget.durationMin != null) parts.add('${widget.durationMin} min');
-    if (widget.sessionZone != null && widget.sessionZone!.isNotEmpty) {
-      parts.add(widget.sessionZone!);
-    }
-    return parts.join(' · ');
-  }
+  /// Contributions shown in the reveal. Gated on data sufficiency (feedback
+  /// item 1): with no observations the signals are priors, so stay silent.
+  List<Map<String, dynamic>> get _revealContributions =>
+      widget.insufficientData ? const [] : widget.contributions;
+
+  /// Rationale shown in the reveal. Gated the same way (founder 2026-06-12
+  /// no-data redesign): the session rationale is prior-derived prose, so with
+  /// no observations Josi does not present it. The confidence advisory stays —
+  /// "still learning you" is honest on no data, and Josi is its ONE home
+  /// surface.
+  String? get _revealRationale =>
+      widget.insufficientData ? null : widget.rationaleProse;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    // The headline spoken line: locked F1 copy on no-data, else the engine's
+    // The one spoken line: locked F1 copy on no-data, else the engine's
     // verbatim state recommendation.
     final headline = widget.insufficientData
         ? kF1NoDataCopy
@@ -97,10 +109,9 @@ class _JosiPresenterState extends State<JosiPresenter> {
     // invent. (Guards against an all-null transient before first load.)
     if (headline.isEmpty) return const SizedBox.shrink();
 
-    final sessionLine = widget.insufficientData ? null : _sessionLine();
     // Local copies so null-safety is promotion-checked, not `!`-asserted
     // (adversarial review, PR #74).
-    final rationale = widget.rationaleProse;
+    final rationale = _revealRationale;
     final advisory = widget.confidenceAdvisory;
 
     return Container(
@@ -144,7 +155,7 @@ class _JosiPresenterState extends State<JosiPresenter> {
           ),
           const SizedBox(height: MivaltaSpace.x3),
 
-          // Headline read (engine prose verbatim, or locked F1 copy).
+          // The one-line verdict (engine prose verbatim, or locked F1 copy).
           Text(
             headline,
             style: textTheme.titleMedium?.copyWith(
@@ -152,17 +163,6 @@ class _JosiPresenterState extends State<JosiPresenter> {
               height: 1.35,
             ),
           ),
-
-          // Today's session, presented plainly (engine values).
-          if (sessionLine != null) ...[
-            const SizedBox(height: MivaltaSpace.x2),
-            Text(
-              'Today — $sessionLine',
-              style: textTheme.bodyMedium?.copyWith(
-                color: MivaltaColors.textSecondary,
-              ),
-            ),
-          ],
 
           // "why?" — progressive disclosure of the engine's reasoning prose.
           // A reveal, never an input. No chat box.
@@ -198,9 +198,18 @@ class _JosiPresenterState extends State<JosiPresenter> {
               child: _showWhy
                   ? Padding(
                       padding: const EdgeInsets.only(top: MivaltaSpace.x2),
+                      // Ordering rule (verdict → reasons → data): the engine's
+                      // explainer prose first, then the 4-axis signal reasons,
+                      // then the confidence note. Never raw data first.
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Item 13: on no data the why IS the trust story —
+                          // fixed copy (lib/copy/trust_story.dart), in the
+                          // founder's order: data needed → how the model
+                          // works → how confidence is earned (~28 days).
+                          if (widget.insufficientData)
+                            _TrustStory(textTheme: textTheme),
                           if (rationale != null && rationale.isNotEmpty)
                             Text(
                               rationale,
@@ -209,6 +218,15 @@ class _JosiPresenterState extends State<JosiPresenter> {
                                 height: 1.35,
                               ),
                             ),
+                          // Which signals moved — the engine's 4-axis
+                          // contributions, rendered verbatim (item 4).
+                          if (_revealContributions.isNotEmpty) ...[
+                            const SizedBox(height: MivaltaSpace.x3),
+                            _ContributionRows(
+                              contributions: _revealContributions,
+                              textTheme: textTheme,
+                            ),
+                          ],
                           if (advisory != null && advisory.isNotEmpty) ...[
                             const SizedBox(height: MivaltaSpace.x2),
                             Text(
@@ -226,6 +244,97 @@ class _JosiPresenterState extends State<JosiPresenter> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Item 13: the trust story shown under the F1 line's "why" — three fixed
+/// paragraphs (lib/copy/trust_story.dart) in the founder's order. Pure copy,
+/// nothing engine-derived, so it is honest even before the first observation.
+class _TrustStory extends StatelessWidget {
+  const _TrustStory({required this.textTheme});
+
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = textTheme.bodyMedium?.copyWith(
+      color: MivaltaColors.textSecondary,
+      height: 1.35,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(kTrustStoryWhatData, style: style),
+        const SizedBox(height: MivaltaSpace.x2),
+        Text(kTrustStoryHowItWorks, style: style),
+        const SizedBox(height: MivaltaSpace.x2),
+        Text(kTrustStoryCalibration, style: style),
+      ],
+    );
+  }
+}
+
+/// Compact "which signals moved" rows for the why-reveal — a lighter cut of
+/// the detail screen's axis breakdown. Display-only: names humanized at the
+/// label layer, values verbatim; bars scaled by the engine's own `weighted`
+/// values (presentation normalization, no derived numbers shown).
+class _ContributionRows extends StatelessWidget {
+  const _ContributionRows({
+    required this.contributions,
+    required this.textTheme,
+  });
+
+  final List<Map<String, dynamic>> contributions;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    // Scale bars against the largest weighted contribution.
+    double maxWeighted = 0;
+    for (final c in contributions) {
+      final w = (c['weighted'] as num?)?.toDouble() ?? 0;
+      if (w > maxWeighted) maxWeighted = w;
+    }
+    if (maxWeighted <= 0) maxWeighted = 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final c in contributions) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  humanizeAxisName(c['name']?.toString()),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: MivaltaColors.textSecondary,
+                  ),
+                ),
+              ),
+              if (c['raw_score'] is num)
+                Text(
+                  '${(c['raw_score'] as num).round()}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: MivaltaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+            child: LinearProgressIndicator(
+              value: ((c['weighted'] as num?)?.toDouble() ?? 0) / maxWeighted,
+              minHeight: 3,
+              backgroundColor: MivaltaColors.surface2,
+              color: MivaltaColors.primaryGreen,
+            ),
+          ),
+          if (c != contributions.last) const SizedBox(height: MivaltaSpace.x2),
+        ],
+      ],
     );
   }
 }

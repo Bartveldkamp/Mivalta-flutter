@@ -52,6 +52,43 @@ void main() {
       expect(find.text('Zone compliance 95% (on target).'), findsOneWidget);
     });
 
+    // A3 (NEXT_UPDATE_V2_ADOPTIONS): verdict-first. The engine's verdict prose
+    // leads; raw stats are collapsible beneath — verdict → reasons → data.
+    testWidgets('verdict-first: quality summary leads, stats collapsed until '
+        '"Details" tap', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: mivaltaDarkTheme(),
+        home: Scaffold(body: PostWorkoutReportCard(report: _sample())),
+      ));
+
+      // Verdict + reasons visible immediately.
+      expect(find.text('Zone compliance 95% (on target).'), findsOneWidget);
+      expect(find.text('Low cost, durable stimulus.'), findsOneWidget);
+      expect(find.text('Aerobic base and fat oxidation.'), findsOneWidget);
+
+      // Verdict ABOVE the reasons (verdict → reasons → data).
+      final verdictY = tester
+          .getTopLeft(find.text('Zone compliance 95% (on target).'))
+          .dy;
+      final reasonY = tester
+          .getTopLeft(find.text('Aerobic base and fat oxidation.'))
+          .dy;
+      expect(verdictY, lessThan(reasonY));
+
+      // Raw stats hidden until asked.
+      expect(find.textContaining('142 bpm avg'), findsNothing);
+      expect(find.text('Details'), findsOneWidget);
+
+      await tester.tap(find.text('Details'));
+      await tester.pumpAndSettle();
+
+      // Stats line — engine values verbatim, revealed on request.
+      expect(find.textContaining('142 bpm avg'), findsOneWidget);
+      expect(find.textContaining('RPE 5'), findsOneWidget);
+      expect(find.textContaining('60 min'), findsOneWidget);
+      expect(find.text('Hide details'), findsOneWidget);
+    });
+
     testWidgets('non-canonical zone → no zone badge, no crash', (tester) async {
       final r = WorkoutReport.fromJson({
         'date': '2026-06-04',
