@@ -242,3 +242,48 @@ Apple Health, Garmin…), NOT engine-derived. Verified path:
 - Status: ✅ build-now (DISPLAY read), one Dart change — retain the stage data
   health_ingest already fetches instead of discarding it after the engine call.
   Persisting stages to MiValta's own vault (offline/after-revoke) stays 🔴/later.
+
+---
+
+## VAULT AS SINGLE SOURCE OF TRUTH — principle (founder 2026-06-13) vs wiring
+Founder architecture: ALL data (devices, platforms, Oura) lands in the VAULT —
+user ownership lives there; GATC/Viterbi work FROM the vault; the vault is
+served via FFI to the frontend for display. CORRECT, and the engine/vault
+IMPLEMENT it. But the live Flutter ingest does NOT yet wire it. Code-verified:
+
+WHAT EXISTS (engine + vault — the design is right):
+- `raw_observations` table (gatc-vault models.rs:316) with `vendor_json` =
+  "the complete, unmodified vendor JSON payload as received from the device/API",
+  plus `observation_json` (normalized) + `processed` flag, keyed by
+  source/vendor/data_type, linkable to activity_id.
+- FFI exposes it (gatc-ffi lib.rs:1397+): `write_raw_observation` (persist raw
+  BEFORE processing), `mark_raw_observation_processed`,
+  `read_raw_observations_by_type`, `read_raw_observations_by_activity`.
+
+THE GAP (verified, honest):
+1. The Flutter SHIM (`rust/src/api.rs`) does NOT bind any raw_observation
+   method — grep returns none.
+2. The ingest (`health_ingest.dart:386-409`) does: map→`normalizeObservation`
+   →`processObservation`, then **DISCARDS `vendorJson`**. The raw payload is
+   never persisted; only the reduced normalized biometric (sleep_hours, hrv,
+   rhr) reaches the vault.
+CONSEQUENCE: today the vault is NOT the complete record the principle intends —
+Oura/device richness (sleep STAGES, steps, everything beyond the reduced fields)
+passes through and is dropped. This also matters for the ownership/export promise
+(privacy), not just Journey.
+
+CORRECTION to the earlier "Sleep = health-store passthrough" note: that was a
+side-channel and is SUPERSEDED. The right path is the founder's: persist the raw
+vendor payload to the vault on ingest, then serve it out via FFI for display.
+Sleep stages / steps / Oura richness are therefore NOT "engine can't" — they are
+"ingest+shim wiring missing"; the storage already exists.
+
+WIRING BRIEF (cross-repo, elevates the 🔴 items to 🟡 "wire it"):
+1. Flutter shim: bind `write_raw_observation`, `mark_raw_observation_processed`,
+   `read_raw_observations_by_type/_by_activity`.
+2. `health_ingest.dart`: write_raw_observation(vendorJson) BEFORE normalize;
+   mark_raw_observation_processed(normalizedJson) after — per the engine's
+   documented 4-step flow (gatc-ffi lib.rs:1388). Manual entry: same.
+3. Journey vendor-rich overviews (sleep stages, steps, full Oura view) READ from
+   `read_raw_observations_by_type` — vault-sourced, FFI-served, honest.
+4. This makes the vault the true complete record (ownership/export honored).
