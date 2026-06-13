@@ -160,8 +160,18 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
                 child: PostWorkoutReportCard(report: _report!),
               ),
 
-            // Pickers section
-            _PreferencesPicker(
+            // Quick-adjust chips (§E: bounded reply chips)
+            _QuickAdjustChips(
+              selectedMood: _selectedMood,
+              selectedEquipment: _selectedEquipment,
+              selectedTerrain: _selectedTerrain,
+              onMoodChanged: _onMoodChanged,
+              onEquipmentChanged: _onEquipmentChanged,
+              onTerrainChanged: _onTerrainChanged,
+            ),
+
+            // Expandable full pickers section
+            _ExpandablePreferencesPicker(
               selectedMood: _selectedMood,
               selectedEquipment: _selectedEquipment,
               selectedTerrain: _selectedTerrain,
@@ -196,9 +206,146 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   }
 }
 
-/// Preferences picker row with mood/equipment/terrain chips.
-class _PreferencesPicker extends StatelessWidget {
-  const _PreferencesPicker({
+/// Quick-adjust chips (§E: bounded reply chips).
+/// Single-tap shortcuts: Feeling worse, Feeling better, Go easier, Indoor.
+/// Maps to existing recommend_workout params — no engine change.
+class _QuickAdjustChips extends StatelessWidget {
+  const _QuickAdjustChips({
+    required this.selectedMood,
+    required this.selectedEquipment,
+    required this.selectedTerrain,
+    required this.onMoodChanged,
+    required this.onEquipmentChanged,
+    required this.onTerrainChanged,
+  });
+
+  final String? selectedMood;
+  final String? selectedEquipment;
+  final String? selectedTerrain;
+  final void Function(String?) onMoodChanged;
+  final void Function(String?) onEquipmentChanged;
+  final void Function(String?) onTerrainChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MivaltaSpace.x4,
+        MivaltaSpace.x4,
+        MivaltaSpace.x4,
+        MivaltaSpace.x2,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'QUICK ADJUST',
+            style: textTheme.labelSmall?.copyWith(
+              letterSpacing: 1.2,
+              color: MivaltaColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x2),
+          Wrap(
+            spacing: MivaltaSpace.x2,
+            runSpacing: MivaltaSpace.x2,
+            children: [
+              _QuickChip(
+                label: 'Feeling worse',
+                icon: Icons.sentiment_dissatisfied,
+                isActive: selectedMood == 'tired',
+                onTap: () => onMoodChanged(selectedMood == 'tired' ? null : 'tired'),
+              ),
+              _QuickChip(
+                label: 'Feeling better',
+                icon: Icons.sentiment_satisfied,
+                isActive: selectedMood == 'energised',
+                onTap: () => onMoodChanged(selectedMood == 'energised' ? null : 'energised'),
+              ),
+              _QuickChip(
+                label: 'Go easier',
+                icon: Icons.trending_down,
+                isActive: selectedTerrain == 'flat',
+                onTap: () => onTerrainChanged(selectedTerrain == 'flat' ? null : 'flat'),
+              ),
+              _QuickChip(
+                label: 'Indoor',
+                icon: Icons.home,
+                isActive: selectedEquipment == 'indoor',
+                onTap: () => onEquipmentChanged(selectedEquipment == 'indoor' ? null : 'indoor'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Single quick-adjust chip with icon.
+class _QuickChip extends StatelessWidget {
+  const _QuickChip({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MivaltaSpace.x3,
+          vertical: MivaltaSpace.x2,
+        ),
+        decoration: BoxDecoration(
+          color: isActive ? MivaltaColors.primaryGreen : MivaltaColors.surface2,
+          borderRadius: BorderRadius.circular(MivaltaRadii.md),
+          border: isActive
+              ? null
+              : Border.all(color: MivaltaColors.overlay, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive
+                  ? MivaltaColors.surfaceBackground
+                  : MivaltaColors.textSecondary,
+            ),
+            const SizedBox(width: MivaltaSpace.x1),
+            Text(
+              label,
+              style: textTheme.bodySmall?.copyWith(
+                color: isActive
+                    ? MivaltaColors.surfaceBackground
+                    : MivaltaColors.textSecondary,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Expandable full preferences picker. Collapsed by default; tap to expand.
+class _ExpandablePreferencesPicker extends StatefulWidget {
+  const _ExpandablePreferencesPicker({
     required this.selectedMood,
     required this.selectedEquipment,
     required this.selectedTerrain,
@@ -221,60 +368,99 @@ class _PreferencesPicker extends StatelessWidget {
   final void Function(String?) onTerrainChanged;
 
   @override
+  State<_ExpandablePreferencesPicker> createState() =>
+      _ExpandablePreferencesPickerState();
+}
+
+class _ExpandablePreferencesPickerState
+    extends State<_ExpandablePreferencesPicker> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.all(MivaltaSpace.x4),
+      padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mood
-          Text(
-            'MOOD',
-            style: textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.2,
-              color: MivaltaColors.textMuted,
+          // Expand/collapse header
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x2),
+              child: Row(
+                children: [
+                  Text(
+                    'More options',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    color: MivaltaColors.textMuted,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: MivaltaSpace.x2),
-          _ChipRow(
-            options: moods,
-            selected: selectedMood,
-            onSelected: onMoodChanged,
-          ),
-          const SizedBox(height: MivaltaSpace.x3),
 
-          // Equipment
-          Text(
-            'EQUIPMENT',
-            style: textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.2,
-              color: MivaltaColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: MivaltaSpace.x2),
-          _ChipRow(
-            options: equipment,
-            selected: selectedEquipment,
-            onSelected: onEquipmentChanged,
-          ),
-          const SizedBox(height: MivaltaSpace.x3),
+          // Expanded content
+          if (_expanded) ...[
+            const SizedBox(height: MivaltaSpace.x2),
 
-          // Terrain
-          Text(
-            'TERRAIN',
-            style: textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.2,
-              color: MivaltaColors.textMuted,
+            // Mood
+            Text(
+              'MOOD',
+              style: textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.2,
+                color: MivaltaColors.textMuted,
+              ),
             ),
-          ),
-          const SizedBox(height: MivaltaSpace.x2),
-          _ChipRow(
-            options: terrain,
-            selected: selectedTerrain,
-            onSelected: onTerrainChanged,
-          ),
+            const SizedBox(height: MivaltaSpace.x2),
+            _ChipRow(
+              options: widget.moods,
+              selected: widget.selectedMood,
+              onSelected: widget.onMoodChanged,
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+
+            // Equipment
+            Text(
+              'EQUIPMENT',
+              style: textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.2,
+                color: MivaltaColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x2),
+            _ChipRow(
+              options: widget.equipment,
+              selected: widget.selectedEquipment,
+              onSelected: widget.onEquipmentChanged,
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+
+            // Terrain
+            Text(
+              'TERRAIN',
+              style: textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.2,
+                color: MivaltaColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x2),
+            _ChipRow(
+              options: widget.terrain,
+              selected: widget.selectedTerrain,
+              onSelected: widget.onTerrainChanged,
+            ),
+            const SizedBox(height: MivaltaSpace.x2),
+          ],
         ],
       ),
     );
