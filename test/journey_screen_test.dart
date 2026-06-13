@@ -16,10 +16,17 @@ import 'package:mivalta_flutter/screens/journey_screen.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/analytics/fitness_trend_chart.dart';
 
-Future<void> _pumpView(WidgetTester tester, JourneyData? data) =>
+Future<void> _pumpView(
+  WidgetTester tester,
+  JourneyData? data, {
+  Set<String>? enabledTiles,
+}) =>
     tester.pumpWidget(MaterialApp(
       theme: mivaltaDarkTheme(),
-      home: JourneyView(data: data),
+      home: JourneyView(
+        data: data,
+        enabledTiles: enabledTiles ?? kDefaultJourneyTiles,
+      ),
     ));
 
 /// Founder hard rule: no raw engine identifiers user-visible.
@@ -206,6 +213,116 @@ void main() {
       expect(find.text('1.52'), findsOneWidget); // Latest EF
       expect(find.text(kJourneyHrRecoveryLabel), findsOneWidget);
       expect(find.text('32'), findsOneWidget); // Latest HR recovery rounded
+    });
+  });
+
+  group('Configurable tiles (§C.5)', () {
+    testWidgets('only enabled tiles are shown', (tester) async {
+      final data = JourneyData()
+        ..observationDays = 12
+        ..monthLoads = const [('2026-06-08', 100.0)]
+        ..biometricHistory = const [
+          BiometricSample(date: '2026-06-08', hrvRmssd: 42.0),
+        ];
+
+      // Only enable learning and HRV tiles
+      await _pumpView(
+        tester,
+        data,
+        enabledTiles: {'learning', 'hrv'},
+      );
+
+      // Learning arc should show
+      expect(find.text(kJourneyLearningHeading), findsOneWidget);
+
+      // HRV should show
+      expect(find.text(kJourneyHrvHeading), findsOneWidget);
+
+      // Load vs Recovery should NOT show (not in enabledTiles)
+      expect(find.text(kJourneyLoadRecoveryHeading), findsNothing);
+
+      // Other tiles should not show
+      expect(find.text(kJourneyFitnessHeading), findsNothing);
+      expect(find.text(kJourneyRhrHeading), findsNothing);
+      expect(find.text(kJourneySleepHeading), findsNothing);
+    });
+
+    testWidgets('empty enabledTiles shows no cards', (tester) async {
+      final data = JourneyData()..observationDays = 12;
+
+      await _pumpView(tester, data, enabledTiles: {});
+
+      // No cards should show
+      expect(find.text(kJourneyLearningHeading), findsNothing);
+      expect(find.text(kJourneyLoadRecoveryHeading), findsNothing);
+      expect(find.text(kJourneyFitnessHeading), findsNothing);
+      expect(find.text(kJourneyHrvHeading), findsNothing);
+    });
+
+    testWidgets('configure button shows tile picker', (tester) async {
+      Set<String>? changedTiles;
+      final data = JourneyData()..observationDays = 12;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: mivaltaDarkTheme(),
+        home: JourneyView(
+          data: data,
+          enabledTiles: kDefaultJourneyTiles,
+          onTilesChanged: (tiles) => changedTiles = tiles,
+        ),
+      ));
+
+      // Tap the configure button
+      final configButton = find.byTooltip(kJourneyTilePickerTooltip);
+      expect(configButton, findsOneWidget);
+      await tester.tap(configButton);
+      await tester.pumpAndSettle();
+
+      // Picker sheet should appear
+      expect(find.text(kJourneyTilePickerTitle), findsOneWidget);
+
+      // All tile names should be visible as chips
+      for (final id in kJourneyTileIds) {
+        expect(find.text(journeyTileName(id)), findsOneWidget);
+      }
+
+      // Tap Done to close
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      // onTilesChanged should have been called
+      expect(changedTiles, isNotNull);
+    });
+
+    testWidgets('toggling a tile in picker updates selection', (tester) async {
+      Set<String>? changedTiles;
+      final data = JourneyData()..observationDays = 12;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: mivaltaDarkTheme(),
+        home: JourneyView(
+          data: data,
+          enabledTiles: kDefaultJourneyTiles,
+          onTilesChanged: (tiles) => changedTiles = tiles,
+        ),
+      ));
+
+      // Open picker
+      await tester.tap(find.byTooltip(kJourneyTilePickerTooltip));
+      await tester.pumpAndSettle();
+
+      // Tap HRV chip to toggle it off (it's on by default)
+      await tester.tap(find.text('HRV Trend'));
+      await tester.pumpAndSettle();
+
+      // Tap Done
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      // HRV should not be in the changed tiles
+      expect(changedTiles, isNotNull);
+      expect(changedTiles!.contains('hrv'), isFalse);
+      expect(changedTiles!.contains('learning'), isTrue);
     });
   });
 }

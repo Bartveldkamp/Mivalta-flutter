@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import '../copy/journey_labels.dart';
 import '../models/fitness_trend.dart';
 import '../rust_engine.dart';
+import '../services/journey_tiles_prefs.dart';
 import '../theme/tokens.dart';
 import '../widgets/analytics/fitness_trend_chart.dart';
 
@@ -126,11 +127,25 @@ class JourneyScreen extends StatefulWidget {
 
 class _JourneyScreenState extends State<JourneyScreen> {
   JourneyData? _data;
+  Set<String> _enabledTiles = Set.of(kDefaultJourneyTiles);
+  final _prefs = JourneyTilesPrefs();
 
   @override
   void initState() {
     super.initState();
+    _loadPrefs();
     _fetch();
+  }
+
+  Future<void> _loadPrefs() async {
+    final tiles = await _prefs.load();
+    if (!mounted) return;
+    setState(() => _enabledTiles = tiles);
+  }
+
+  void _onTilesChanged(Set<String> tiles) {
+    setState(() => _enabledTiles = tiles);
+    _prefs.save(tiles);
   }
 
   @override
@@ -257,20 +272,117 @@ class _JourneyScreenState extends State<JourneyScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => JourneyView(data: _data);
+  Widget build(BuildContext context) => JourneyView(
+        data: _data,
+        enabledTiles: _enabledTiles,
+        onTilesChanged: _onTilesChanged,
+      );
 }
 
 /// Display layer for the Journey. [data] null = engine not ready yet (honest
 /// loading copy). Public so widget tests pump seeded engine-shaped values.
 class JourneyView extends StatelessWidget {
-  const JourneyView({super.key, required this.data});
+  const JourneyView({
+    super.key,
+    required this.data,
+    this.enabledTiles = const {},
+    this.onTilesChanged,
+  });
 
   final JourneyData? data;
+  final Set<String> enabledTiles;
+  final ValueChanged<Set<String>>? onTilesChanged;
+
+  void _showTilePicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: MivaltaColors.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
+      ),
+      builder: (ctx) => _JourneyTilePicker(
+        enabled: enabledTiles,
+        onChanged: (tiles) {
+          onTilesChanged?.call(tiles);
+          Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final d = data;
+
+    // Build the list of visible cards based on enabled tiles.
+    List<Widget> buildCards() {
+      final cards = <Widget>[];
+
+      if (enabledTiles.contains('learning')) {
+        cards.add(_LearningArcCard(days: d!.observationDays));
+      }
+      if (enabledTiles.contains('load_recovery')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_LoadRecoveryCard(
+          monthLoads: d!.monthLoads,
+          readinessHistory: d.readinessHistory,
+        ));
+      }
+      if (enabledTiles.contains('fitness')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_FitnessFormCard(trend: d!.trend));
+      }
+      if (enabledTiles.contains('hrv')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_BiometricCard(
+          heading: kJourneyHrvHeading,
+          emptyCopy: kJourneyHrvEmptyCopy,
+          data: d!.biometricHistory
+              .where((s) => s.hrvRmssd != null)
+              .map((s) => (s.date, s.hrvRmssd!))
+              .toList(),
+          unit: 'ms',
+        ));
+      }
+      if (enabledTiles.contains('rhr')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_BiometricCard(
+          heading: kJourneyRhrHeading,
+          emptyCopy: kJourneyRhrEmptyCopy,
+          data: d!.biometricHistory
+              .where((s) => s.restingHr != null)
+              .map((s) => (s.date, s.restingHr!))
+              .toList(),
+          unit: 'bpm',
+        ));
+      }
+      if (enabledTiles.contains('sleep')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_BiometricCard(
+          heading: kJourneySleepHeading,
+          emptyCopy: kJourneySleepEmptyCopy,
+          data: d!.biometricHistory
+              .where((s) => s.sleepHours != null)
+              .map((s) => (s.date, s.sleepHours!))
+              .toList(),
+          unit: 'hrs',
+        ));
+      }
+      if (enabledTiles.contains('workouts')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_WorkoutsCard(activities: d!.recentActivities));
+      }
+      if (enabledTiles.contains('adaptation')) {
+        if (cards.isNotEmpty) cards.add(const SizedBox(height: MivaltaSpace.x3));
+        cards.add(_AdaptationCard(
+          efTrend: d!.efTrend,
+          hrRecoveryTrend: d.hrRecoveryTrend,
+        ));
+      }
+
+      return cards;
+    }
 
     return Scaffold(
       backgroundColor: MivaltaColors.surfaceBackground,
@@ -278,6 +390,14 @@ class JourneyView extends StatelessWidget {
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
         title: const Text(kJourneyTitle),
+        actions: [
+          if (d != null && d.error == null && onTilesChanged != null)
+            IconButton(
+              icon: const Icon(Icons.tune),
+              tooltip: kJourneyTilePickerTooltip,
+              onPressed: () => _showTilePicker(context),
+            ),
+        ],
       ),
       body: d == null
           ? Center(
@@ -305,69 +425,94 @@ class JourneyView extends StatelessWidget {
                 )
               : ListView(
                   padding: const EdgeInsets.all(MivaltaSpace.x4),
-                  children: [
-                    // Learning arc (calibration story)
-                    _LearningArcCard(days: d.observationDays),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Load vs Recovery divergence (THE spine)
-                    _LoadRecoveryCard(
-                      monthLoads: d.monthLoads,
-                      readinessHistory: d.readinessHistory,
-                    ),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Fitness / Form / Freshness (Banister)
-                    _FitnessFormCard(trend: d.trend),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // HRV overview
-                    _BiometricCard(
-                      heading: kJourneyHrvHeading,
-                      emptyCopy: kJourneyHrvEmptyCopy,
-                      data: d.biometricHistory
-                          .where((s) => s.hrvRmssd != null)
-                          .map((s) => (s.date, s.hrvRmssd!))
-                          .toList(),
-                      unit: 'ms',
-                    ),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Resting HR overview
-                    _BiometricCard(
-                      heading: kJourneyRhrHeading,
-                      emptyCopy: kJourneyRhrEmptyCopy,
-                      data: d.biometricHistory
-                          .where((s) => s.restingHr != null)
-                          .map((s) => (s.date, s.restingHr!))
-                          .toList(),
-                      unit: 'bpm',
-                    ),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Sleep overview
-                    _BiometricCard(
-                      heading: kJourneySleepHeading,
-                      emptyCopy: kJourneySleepEmptyCopy,
-                      data: d.biometricHistory
-                          .where((s) => s.sleepHours != null)
-                          .map((s) => (s.date, s.sleepHours!))
-                          .toList(),
-                      unit: 'hrs',
-                    ),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Recent workouts
-                    _WorkoutsCard(activities: d.recentActivities),
-                    const SizedBox(height: MivaltaSpace.x3),
-
-                    // Adaptation trends (EF + HR recovery)
-                    _AdaptationCard(
-                      efTrend: d.efTrend,
-                      hrRecoveryTrend: d.hrRecoveryTrend,
-                    ),
-                  ],
+                  children: buildCards(),
                 ),
+    );
+  }
+}
+
+/// Bottom sheet picker for configuring which Journey cards are visible.
+class _JourneyTilePicker extends StatefulWidget {
+  const _JourneyTilePicker({required this.enabled, required this.onChanged});
+
+  final Set<String> enabled;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  State<_JourneyTilePicker> createState() => _JourneyTilePickerState();
+}
+
+class _JourneyTilePickerState extends State<_JourneyTilePicker> {
+  late Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set.of(widget.enabled);
+  }
+
+  void _toggle(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        MivaltaSpace.x4,
+        MivaltaSpace.x4,
+        MivaltaSpace.x4,
+        MivaltaSpace.x4 + bottomPadding,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            kJourneyTilePickerTitle,
+            style: textTheme.titleMedium?.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: MivaltaSpace.x4),
+          Wrap(
+            spacing: MivaltaSpace.x2,
+            runSpacing: MivaltaSpace.x2,
+            children: [
+              for (final id in kJourneyTileIds)
+                FilterChip(
+                  label: Text(journeyTileName(id)),
+                  selected: _selected.contains(id),
+                  onSelected: (_) => _toggle(id),
+                  selectedColor: MivaltaColors.primaryGreen.withValues(alpha: 0.3),
+                  checkmarkColor: MivaltaColors.primaryGreen,
+                  backgroundColor: MivaltaColors.surface2,
+                  labelStyle: textTheme.bodyMedium?.copyWith(
+                    color: MivaltaColors.textPrimary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: MivaltaSpace.x4),
+          FilledButton(
+            onPressed: () => widget.onChanged(_selected),
+            style: FilledButton.styleFrom(
+              backgroundColor: MivaltaColors.primaryGreen,
+              foregroundColor: MivaltaColors.surfaceBackground,
+            ),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
   }
 }

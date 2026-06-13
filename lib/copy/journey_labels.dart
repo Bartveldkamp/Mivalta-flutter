@@ -61,3 +61,48 @@ const kJourneyWeekEmptyCopy = 'No training logged this week yet.';
 const kJourneyBaselineHeading = 'BASELINE';
 const kJourneyBaselineEmptyCopy =
     'Your fitness baseline will appear after your first workouts.';
+
+// ==========================================================================
+// Configurable tiles (§C.5) — user can show/hide Journey cards.
+// ==========================================================================
+
+/// Tile ids for the configurable Journey cards. Order determines display order.
+const kJourneyTileIds = [
+  'learning',     // Learning arc (calibration)
+  'load_recovery', // Load vs Recovery
+  'fitness',      // Fitness & Form
+  'hrv',          // HRV trend
+  'rhr',          // Resting HR
+  'sleep',        // Sleep
+  'workouts',     // Recent workouts
+  'adaptation',   // Adaptation (EF + HR recovery)
+];
+
+/// All tiles on — the default before the user customizes anything.
+const Set<String> kDefaultJourneyTiles = {
+  'learning',
+  'load_recovery',
+  'fitness',
+  'hrv',
+  'rhr',
+  'sleep',
+  'workouts',
+  'adaptation',
+};
+
+/// Tile id → the human name shown in the picker sheet.
+String journeyTileName(String id) => switch (id) {
+      'learning' => 'Learning Arc',
+      'load_recovery' => 'Load vs Recovery',
+      'fitness' => 'Fitness & Form',
+      'hrv' => 'HRV Trend',
+      'rhr' => 'Resting HR',
+      'sleep' => 'Sleep',
+      'workouts' => 'Recent Workouts',
+      'adaptation' => 'Adaptation',
+      _ => id,
+    };
+
+/// Picker sheet heading + edit-affordance tooltip.
+const kJourneyTilePickerTitle = 'Choose your cards';
+const kJourneyTilePickerTooltip = 'Customize cards';
