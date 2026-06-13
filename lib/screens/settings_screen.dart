@@ -25,6 +25,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
+import '../services/unit_prefs.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 
@@ -54,6 +55,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _sourceOverview;
+  UnitSystem _unitSystem = UnitSystem.metric;
+  final _unitPrefs = UnitPrefs();
   bool _loading = true;
   String? _error;
 
@@ -61,6 +64,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadUnitPrefs();
+  }
+
+  Future<void> _loadUnitPrefs() async {
+    final system = await _unitPrefs.load();
+    if (mounted) setState(() => _unitSystem = system);
+  }
+
+  void _onUnitSystemChanged(UnitSystem system) {
+    setState(() => _unitSystem = system);
+    _unitPrefs.save(system);
   }
 
   Future<void> _loadData() async {
@@ -130,7 +144,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
       children: [
+        _buildPreferencesSection(),
+        const SizedBox(height: MivaltaSpace.x5),
         _buildProfileSection(),
+        const SizedBox(height: MivaltaSpace.x5),
+        _buildPrivacyProofSection(),
         const SizedBox(height: MivaltaSpace.x5),
         _buildDataSourcesSection(),
         const SizedBox(height: MivaltaSpace.x5),
@@ -138,6 +156,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: MivaltaSpace.x5),
         _buildDeleteSection(),
         const SizedBox(height: MivaltaSpace.x6),
+      ],
+    );
+  }
+
+  // ===========================================================================
+  // Preferences Section (§D: metric/imperial toggle)
+  // ===========================================================================
+
+  Widget _buildPreferencesSection() {
+    return _SectionCard(
+      title: 'Preferences',
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Units',
+              style: TextStyle(color: MivaltaColors.textSecondary),
+            ),
+            SegmentedButton<UnitSystem>(
+              segments: const [
+                ButtonSegment(
+                  value: UnitSystem.metric,
+                  label: Text('Metric'),
+                ),
+                ButtonSegment(
+                  value: UnitSystem.imperial,
+                  label: Text('Imperial'),
+                ),
+              ],
+              selected: {_unitSystem},
+              onSelectionChanged: (selection) {
+                if (selection.isNotEmpty) {
+                  _onUnitSystemChanged(selection.first);
+                }
+              },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return MivaltaColors.primaryGreen.withValues(alpha: 0.3);
+                  }
+                  return MivaltaColors.surface2;
+                }),
+                foregroundColor: WidgetStateProperty.all(MivaltaColors.textPrimary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        const Text(
+          'Affects distance, pace, and speed display. Engine stays metric.',
+          style: TextStyle(
+            color: MivaltaColors.textMuted,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===========================================================================
+  // Privacy Proof Section (§D: on-device proof)
+  // ===========================================================================
+
+  Widget _buildPrivacyProofSection() {
+    return _SectionCard(
+      title: 'Privacy & On-Device',
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.shield, color: MivaltaColors.primaryGreen, size: 20),
+            SizedBox(width: MivaltaSpace.x2),
+            Expanded(
+              child: Text(
+                '100% on your device',
+                style: TextStyle(
+                  color: MivaltaColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        const Text(
+          'Your health data never leaves your phone. MiValta has no cloud, '
+          'no accounts, no analytics. The AI runs locally. Even your export '
+          'stays on your device until you choose to share it.',
+          style: TextStyle(
+            color: MivaltaColors.textSecondary,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: MivaltaSpace.x3),
+        const Row(
+          children: [
+            Icon(Icons.lock, color: MivaltaColors.primaryGreen, size: 20),
+            SizedBox(width: MivaltaSpace.x2),
+            Expanded(
+              child: Text(
+                'Encrypted vault',
+                style: TextStyle(
+                  color: MivaltaColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        const Text(
+          'All data is stored in an SQLCipher-encrypted database. '
+          'When you delete everything, the encryption key is destroyed — '
+          'your data becomes unrecoverable noise.',
+          style: TextStyle(
+            color: MivaltaColors.textSecondary,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
       ],
     );
   }
