@@ -216,3 +216,29 @@ absence), never faked.
 estimate** (the engine looks FORWARD, not just back) and **form/freshness** (peak
 readiness) — all three are real engine outputs, only the first two need a shim
 binding. These are the most "next-gen coach" surfaces available.
+
+---
+
+## SLEEP overview — DECISION (founder 2026-06-13): show the vendor's own
+Sleep is **display passthrough of what the device/app already provides** (Oura,
+Apple Health, Garmin…), NOT engine-derived. Verified path:
+- `lib/services/health_ingest.dart` ALREADY reads full stages (deep/light/REM/
+  awake) from Apple Health + Health Connect (lines ~277-295, ~657-694), then
+  forwards to the Rust normalizer which aggregates to `sleep_hours` and drops
+  the breakdown.
+- **So:** the Sleep overview reads the vendor sleep (stages + durations + the
+  in-sleep HR/HRV the source syncs) **directly from the platform health store
+  for DISPLAY** — no engine change, no vault persistence needed for live view.
+- The engine KEEPS using its aggregated `sleep_hours` for readiness (unchanged,
+  HMM undisturbed). Two clean lanes: engine uses hours for the decision; Journey
+  shows the vendor's rich view as-is.
+- Architecture note: this is the ONE Journey overview sourced from the health
+  store rather than the engine vault — label it honestly ("from Apple Health /
+  Oura"), display-only, never a coaching input.
+- HONEST LIMIT: only what the vendor SYNCS to the health store is readable. A
+  proprietary score the app keeps internally (e.g. Oura's own Sleep Score
+  number) may NOT be in HealthKit/Health Connect → show stages/durations/HR we
+  can actually read; don't promise a vendor score that isn't exposed.
+- Status: ✅ build-now (DISPLAY read), one Dart change — retain the stage data
+  health_ingest already fetches instead of discarding it after the engine call.
+  Persisting stages to MiValta's own vault (offline/after-revoke) stays 🔴/later.
