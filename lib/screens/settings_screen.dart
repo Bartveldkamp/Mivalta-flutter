@@ -18,11 +18,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../debug/demo_seeder.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../services/unit_prefs.dart';
@@ -155,6 +157,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildExportSection(),
         const SizedBox(height: MivaltaSpace.x5),
         _buildDeleteSection(),
+        // DEBUG-ONLY: simulated-athlete seeder. Compiled out of release.
+        if (kDebugMode) ...[
+          const SizedBox(height: MivaltaSpace.x5),
+          _buildDeveloperSection(),
+        ],
         const SizedBox(height: MivaltaSpace.x6),
       ],
     );
@@ -279,6 +286,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  // ===========================================================================
+  // DEBUG-ONLY: Developer — simulated athlete
+  // ===========================================================================
+  //
+  // Replays a committed SYNTHETIC season through the REAL ingest path so the
+  // app is demoable on a simulator that has no watch/Oura data. Every readiness
+  // value stays engine-computed — only the biometric INPUT is synthetic. Gated
+  // behind kDebugMode, so none of this exists in a release build.
+
+  Widget _buildDeveloperSection() {
+    return _SectionCard(
+      title: 'Developer · Demo data',
+      subtitle: 'Debug builds only — simulated athlete, real engine',
+      children: [
+        const Text(
+          'Replays a synthetic biometric season through the real ingest '
+          'pipeline. The engine computes every readiness state from it — '
+          'nothing on screen is faked. Pull-to-refresh Today (or restart) to '
+          'see the result. Reset via "Delete All My Data" above.',
+          style: TextStyle(color: MivaltaColors.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: MivaltaSpace.x3),
+        _ActionRow(
+          icon: Icons.timeline,
+          label: 'Seed ~10 days (mid-calibration)',
+          description: 'Partial history — "still learning you" state',
+          onTap: () => _seedDemo(10),
+        ),
+        const Divider(color: MivaltaColors.overlay),
+        _ActionRow(
+          icon: Icons.show_chart,
+          label: 'Seed full season (~30 days)',
+          description: 'Warmed-up: base → overload → illness → recovery',
+          onTap: () => _seedDemo(1000),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _seedDemo(int days) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: MivaltaColors.primaryGreen),
+      ),
+    );
+    try {
+      final result = await DemoSeeder(
+        binding: widget.binding,
+        handle: widget.handle,
+      ).seedSeason(days: days);
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Seeded ${result.daysSeeded} simulated days — '
+              'pull-to-refresh Today to see it.',
+            ),
+            backgroundColor: MivaltaColors.primaryGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Seed failed: $e'),
+            backgroundColor: MivaltaColors.levelRed,
+          ),
+        );
+      }
+    }
   }
 
   // ===========================================================================
