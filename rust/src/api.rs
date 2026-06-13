@@ -903,6 +903,93 @@ pub fn write_minimal_biometric(
 }
 
 // =============================================================================
+// VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B)
+// =============================================================================
+//
+// The ingest pipeline writes raw observations to the vault BEFORE processing:
+//   1. write_raw_observation(vendorJson) — persist raw before any transform
+//   2. normalizeObservation → write_biometric (normalized biometrics)
+//   3. processObservation (HMM) → mark_raw_observation_processed
+//
+// This preserves the original vendor payload (Oura JSON, HealthKit samples)
+// for audit, replay, and future enhancements. The raw_observations table
+// survives schema evolution; the processed flag tracks pipeline state.
+
+/// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
+/// BEFORE processing. Returns the row ID for later `mark_raw_observation_processed`.
+/// JSON must include `date`, `source`, `data_type`, and `payload` fields.
+pub fn write_raw_observation(
+    handle: &EnginesHandle,
+    json: String,
+) -> Result<i64, BridgeError> {
+    handle
+        .vault
+        .write_raw_observation(json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::write_biometric(json)` — persist a normalized biometric
+/// observation (VaultBiometric JSON: date, source, resting_hr, hrv_rmssd,
+/// sleep_hours, sleep_quality, etc.). Call this after normalizeObservation
+/// to persist the biometrics to the vault for the Journey biometric pillars.
+pub fn write_biometric(handle: &EnginesHandle, json: String) -> Result<(), BridgeError> {
+    handle.vault.write_biometric(json).map_err(Into::into)
+}
+
+/// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
+/// a raw observation as processed after the pipeline consumed it. Stores the
+/// normalized `UniversalObservation` JSON alongside the raw payload (pass empty
+/// string to skip storing the normalized form).
+pub fn mark_raw_observation_processed(
+    handle: &EnginesHandle,
+    id: i64,
+    observation_json: String,
+) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .mark_raw_observation_processed(id, observation_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_raw_observations_by_type(data_type, days)` — fetch raw
+/// observations for a data type (e.g. "biometric", "activity") over the last N
+/// days. Returns JSON array of raw observation records.
+pub fn read_raw_observations_by_type(
+    handle: &EnginesHandle,
+    data_type: String,
+    days: i32,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_raw_observations_by_type(data_type, days)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_raw_observations_by_activity(activity_id)` — fetch raw
+/// observations linked to a specific activity ID. Returns JSON array.
+pub fn read_raw_observations_by_activity(
+    handle: &EnginesHandle,
+    activity_id: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_raw_observations_by_activity(activity_id)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_activity_by_id(activity_id)` — fetch a single stored
+/// activity by its ID. Returns JSON of the VaultActivity or error if not found.
+pub fn read_activity_by_id(
+    handle: &EnginesHandle,
+    activity_id: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_activity_by_id(activity_id)
+        .map_err(Into::into)
+}
+
+// =============================================================================
 // PR-G: SETTINGS & DATA CONTROL — profile updates, export, erasure
 // =============================================================================
 //

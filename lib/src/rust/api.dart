@@ -478,6 +478,73 @@ Future<void> writeMinimalBiometric({
   restingHr: restingHr,
 );
 
+/// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
+/// BEFORE processing. Returns the row ID for later `mark_raw_observation_processed`.
+/// JSON must include `date`, `source`, `data_type`, and `payload` fields.
+Future<PlatformInt64> writeRawObservation({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteRawObservation(
+  handle: handle,
+  json: json,
+);
+
+/// `VaultEngine::write_biometric(json)` — persist a normalized biometric
+/// observation (VaultBiometric JSON: date, source, resting_hr, hrv_rmssd,
+/// sleep_hours, sleep_quality, etc.). Call this after normalizeObservation
+/// to persist the biometrics to the vault for the Journey biometric pillars.
+Future<void> writeBiometric({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteBiometric(handle: handle, json: json);
+
+/// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
+/// a raw observation as processed after the pipeline consumed it. Stores the
+/// normalized `UniversalObservation` JSON alongside the raw payload (pass empty
+/// string to skip storing the normalized form).
+Future<void> markRawObservationProcessed({
+  required EnginesHandle handle,
+  required PlatformInt64 id,
+  required String observationJson,
+}) => RustLib.instance.api.crateApiMarkRawObservationProcessed(
+  handle: handle,
+  id: id,
+  observationJson: observationJson,
+);
+
+/// `VaultEngine::read_raw_observations_by_type(data_type, days)` — fetch raw
+/// observations for a data type (e.g. "biometric", "activity") over the last N
+/// days. Returns JSON array of raw observation records.
+Future<String> readRawObservationsByType({
+  required EnginesHandle handle,
+  required String dataType,
+  required int days,
+}) => RustLib.instance.api.crateApiReadRawObservationsByType(
+  handle: handle,
+  dataType: dataType,
+  days: days,
+);
+
+/// `VaultEngine::read_raw_observations_by_activity(activity_id)` — fetch raw
+/// observations linked to a specific activity ID. Returns JSON array.
+Future<String> readRawObservationsByActivity({
+  required EnginesHandle handle,
+  required String activityId,
+}) => RustLib.instance.api.crateApiReadRawObservationsByActivity(
+  handle: handle,
+  activityId: activityId,
+);
+
+/// `VaultEngine::read_activity_by_id(activity_id)` — fetch a single stored
+/// activity by its ID. Returns JSON of the VaultActivity or error if not found.
+Future<String> readActivityById({
+  required EnginesHandle handle,
+  required String activityId,
+}) => RustLib.instance.api.crateApiReadActivityById(
+  handle: handle,
+  activityId: activityId,
+);
+
 /// Update the athlete profile across all engines.
 ///
 /// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,

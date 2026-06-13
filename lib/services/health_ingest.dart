@@ -393,21 +393,50 @@ class HealthIngestService {
         final source = Platform.isAndroid ? 'health_connect' : 'apple';
 
         try {
-          // Normalize through Rust — this is where HRV semantics,
-          // bounds clamping, and sleep aggregation happen
+          // ================================================================
+          // VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B)
+          // ================================================================
+          // Order: raw → normalize → biometric → HMM → mark processed.
+          // This preserves the original vendor payload for audit + replay,
+          // and populates the biometrics table for Journey pillars.
+
+          // Step 1: Write raw vendor observation BEFORE any processing.
+          final rawObsJson = buildRawObservationJson(
+            date: date,
+            source: source,
+            dataType: 'biometric',
+            payload: vendorJson,
+          );
+          final rawId = await binding.writeRawObservation(handle, json: rawObsJson);
+
+          // Step 2: Normalize through Rust — HRV semantics, bounds clamping,
+          // sleep aggregation all happen here.
           final normalizedJson = await binding.normalizeObservation(
             handle,
             vendor: source,
             json: vendorJson,
           );
 
-          // Feed the normalized observation into the HMM. This advances the
-          // HMM state regardless of biometric content, so it must be persisted.
+          // Step 3: Write normalized biometrics to the vault (populates
+          // biometrics table for Journey HRV/RHR/sleep pillars).
+          if (hasBiometrics) {
+            await binding.writeBiometric(handle, json: normalizedJson);
+          }
+
+          // Step 4: Feed the normalized observation into the HMM. This
+          // advances the HMM state and must be persisted.
           await binding.processObservation(
             handle,
             observationJson: normalizedJson,
           );
           mutated++;
+
+          // Step 5: Mark raw observation as processed with the normalized form.
+          await binding.markRawObservationProcessed(
+            handle,
+            id: rawId,
+            observationJson: normalizedJson,
+          );
 
           // Only count if we had real biometric content (RHR/HRV/sleep)
           if (hasBiometrics) {
@@ -887,6 +916,30 @@ class HealthIngestService {
           .map((s) => s.t.millisecondsSinceEpoch / 1000.0)
           .toList(growable: false),
       'sample_rate_hz': rateHz,
+    });
+  }
+
+  /// Build the JSON for a raw vendor observation (vault-first ingest §B).
+  ///
+  /// This wraps the vendor payload with metadata required by the engine's
+  /// `write_raw_observation` FFI call. The raw observation is stored
+  /// *before* normalization for audit + replay capability.
+  ///
+  /// [date] is the ISO 8601 date string (e.g., '2026-06-13').
+  /// [source] is the vendor identifier ('apple' or 'health_connect').
+  /// [dataType] is typically 'biometric' for daily observations.
+  /// [payload] is the vendor-specific JSON payload to preserve.
+  static String buildRawObservationJson({
+    required String date,
+    required String source,
+    required String dataType,
+    required String payload,
+  }) {
+    return jsonEncode({
+      'date': date,
+      'source': source,
+      'data_type': dataType,
+      'payload': payload,
     });
   }
 

@@ -1,8 +1,12 @@
-// MAC_BRIEF_WORKOUT_INGEST: Tests for workout ingestion service.
+// MAC_BRIEF_WORKOUT_INGEST + NEXT_BUILD_BRIEF §B: Tests for workout and
+// vault-first biometric ingestion.
 //
-// Tests the workout type mapping and activity JSON building. FFI calls
-// (write_activity, record_activity) require the native engine, so those
-// are tested via integration tests on-device.
+// Tests the workout type mapping, activity JSON building, and raw observation
+// JSON building. FFI calls (write_activity, record_activity,
+// write_raw_observation, mark_raw_observation_processed) require the native
+// engine, so those are tested via integration tests on-device.
+
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
@@ -238,6 +242,91 @@ void main() {
       expect(json, contains('"hr_samples":[120.0,130.0,125.0]'));
       // The negative sample should NOT appear anywhere
       expect(json, isNot(contains('-5.0')));
+    });
+  });
+
+  // ==========================================================================
+  // NEXT_BUILD_BRIEF §B: Vault-first ingest tests
+  // ==========================================================================
+
+  group('buildRawObservationJson (vault-first ingest §B)', () {
+    test('builds JSON with required keys', () {
+      final json = HealthIngestService.buildRawObservationJson(
+        date: '2026-06-13',
+        source: 'apple',
+        dataType: 'biometric',
+        payload: '{"rhr":60}',
+      );
+
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      expect(decoded['date'], '2026-06-13');
+      expect(decoded['source'], 'apple');
+      expect(decoded['data_type'], 'biometric');
+      expect(decoded['payload'], '{"rhr":60}');
+    });
+
+    test('handles health_connect source', () {
+      final json = HealthIngestService.buildRawObservationJson(
+        date: '2026-06-13',
+        source: 'health_connect',
+        dataType: 'biometric',
+        payload: '{"hrv_rmssd":42.5}',
+      );
+
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      expect(decoded['source'], 'health_connect');
+      expect(decoded['payload'], '{"hrv_rmssd":42.5}');
+    });
+
+    test('preserves complex payload as string', () {
+      const complexPayload = '''{"rhr":58,"hrv_rmssd":45.2,"sleep":{"total_mins":480,"deep_mins":90}}''';
+
+      final json = HealthIngestService.buildRawObservationJson(
+        date: '2026-06-13',
+        source: 'apple',
+        dataType: 'biometric',
+        payload: complexPayload,
+      );
+
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      // Payload is stored as a string, not parsed
+      expect(decoded['payload'], isA<String>());
+      expect(decoded['payload'], complexPayload);
+
+      // The nested structure can be re-parsed
+      final payloadDecoded = jsonDecode(decoded['payload'] as String);
+      expect(payloadDecoded['rhr'], 58);
+      expect(payloadDecoded['sleep']['deep_mins'], 90);
+    });
+
+    test('returns valid JSON string', () {
+      final json = HealthIngestService.buildRawObservationJson(
+        date: '2026-06-13',
+        source: 'apple',
+        dataType: 'biometric',
+        payload: '{}',
+      );
+
+      // Should not throw on decode
+      expect(() => jsonDecode(json), returnsNormally);
+    });
+
+    test('escapes special characters in payload', () {
+      const payloadWithSpecialChars = '{"note":"test\\"value\\nwith\\tspecial"}';
+
+      final json = HealthIngestService.buildRawObservationJson(
+        date: '2026-06-13',
+        source: 'apple',
+        dataType: 'biometric',
+        payload: payloadWithSpecialChars,
+      );
+
+      // Should not throw — jsonEncode handles escaping
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      expect(decoded['payload'], payloadWithSpecialChars);
     });
   });
 }

@@ -458,6 +458,71 @@ class RustEngineBinding {
       );
 
   // ===========================================================================
+  // VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B)
+  // ===========================================================================
+  //
+  // Write raw observations to the vault BEFORE processing:
+  //   1. writeRawObservation(json) → persist raw vendor payload
+  //   2. normalizeObservation → writeBiometric (normalized biometrics)
+  //   3. processObservation (HMM) → markRawObservationProcessed
+  //
+  // This preserves the original vendor payload for audit + replay.
+
+  /// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
+  /// BEFORE processing. Returns the row ID for later [markRawObservationProcessed].
+  /// JSON must include `date`, `source`, `data_type`, and `payload` fields.
+  Future<int> writeRawObservation(EnginesHandle handle, {required String json}) =>
+      rust_api.writeRawObservation(handle: handle, json: json);
+
+  /// `VaultEngine::write_biometric(json)` — persist a normalized biometric
+  /// observation (VaultBiometric JSON: date, source, resting_hr, hrv_rmssd,
+  /// sleep_hours, sleep_quality, etc.). Call after normalizeObservation to
+  /// persist biometrics for the Journey biometric pillars.
+  Future<void> writeBiometric(EnginesHandle handle, {required String json}) =>
+      rust_api.writeBiometric(handle: handle, json: json);
+
+  /// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
+  /// a raw observation as processed. Pass empty string for observationJson to
+  /// skip storing the normalized form alongside the raw.
+  Future<void> markRawObservationProcessed(
+    EnginesHandle handle, {
+    required int id,
+    required String observationJson,
+  }) =>
+      rust_api.markRawObservationProcessed(
+        handle: handle,
+        id: id,
+        observationJson: observationJson,
+      );
+
+  /// `VaultEngine::read_raw_observations_by_type(data_type, days)` — fetch raw
+  /// observations for a data type (e.g. "biometric", "activity") over the last N
+  /// days. Returns JSON array of raw observation records.
+  Future<String> readRawObservationsByType(
+    EnginesHandle handle, {
+    required String dataType,
+    required int days,
+  }) =>
+      rust_api.readRawObservationsByType(
+        handle: handle,
+        dataType: dataType,
+        days: days,
+      );
+
+  /// `VaultEngine::read_raw_observations_by_activity(activity_id)` — fetch raw
+  /// observations linked to a specific activity ID. Returns JSON array.
+  Future<String> readRawObservationsByActivity(
+    EnginesHandle handle, {
+    required String activityId,
+  }) =>
+      rust_api.readRawObservationsByActivity(handle: handle, activityId: activityId);
+
+  /// `VaultEngine::read_activity_by_id(activity_id)` — fetch a single stored
+  /// activity by its ID. Returns JSON of the VaultActivity or error if not found.
+  Future<String> readActivityById(EnginesHandle handle, {required String activityId}) =>
+      rust_api.readActivityById(handle: handle, activityId: activityId);
+
+  // ===========================================================================
   // DASHBOARD ENGINE — three-zone PULL home widgets
   // ===========================================================================
 
