@@ -49,15 +49,15 @@ class DemoSeeder {
   DemoSeeder({
     required this.binding,
     required this.handle,
-    Future<List<Map<String, dynamic>>> Function()? seasonLoader,
-  }) : _seasonLoader = seasonLoader;
+    this.seasonLoader,
+  });
 
   final RustEngineBinding binding;
   final EnginesHandle handle;
 
   /// Test seam: override where the season comes from. Production leaves this
   /// null and reads the committed asset.
-  final Future<List<Map<String, dynamic>>> Function()? _seasonLoader;
+  final Future<List<Map<String, dynamic>>> Function()? seasonLoader;
 
   static const String _assetPath = 'assets/debug/demo_season.json';
 
@@ -66,7 +66,7 @@ class DemoSeeder {
   static const String _vendor = 'apple';
 
   Future<List<Map<String, dynamic>>> _loadSeason() =>
-      (_seasonLoader ?? _loadFromAsset)();
+      (seasonLoader ?? _loadFromAsset)();
 
   Future<List<Map<String, dynamic>>> _loadFromAsset() async {
     final raw = await rootBundle.loadString(_assetPath);
