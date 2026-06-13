@@ -85,3 +85,36 @@ ingestion fills the vault. Journey ships honest-empty first.
 2. `get_state_history(days)` FFI export (Tier 2).
 3. Weekly baseline-snapshot persistence + read API (Tier 3, the moat).
 4. Anomaly-tag inputs + emissions (Tier 3, only if validated worth it).
+
+---
+
+## Journey = the PERSONALIZED DEPTH PAGE (founder 2026-06-13)
+
+Journey is the user's own stats page — all training depth, **on demand, never
+forced**. Its defining quality: **customizable**, with the AI feel present.
+The user CHOOSES which overviews to show/hide (same configurable-tiles pattern
+as Today, item 12, but a full library here). Calm by default; depth the user
+opts into. Verdict→reasons→data still holds.
+
+Candidate overviews the user can add/hide (AVAILABILITY = PENDING CODE AUDIT —
+each will be marked EXISTS / NEEDS-EXPOSURE / NOT-STORED before any is built;
+do NOT implement an overview until its row is confirmed EXISTS):
+- Sleep overview (hours; STAGES if the engine stores them — to verify)
+- HRV overview (series)
+- Resting-HR overview (series)
+- Steps overview
+- Watts × heart-rate comparison (needs raw per-activity series — to verify)
+- Heart-rate × km/time (pace trace — to verify)
+- Workouts overview (list) + workout-TYPE breakdown
+- Best results (power bests via MMP/CP; pace bests — to verify)
+- Per day / week / month views
+- Load overview — day / week / meso
+- "The new models" (M1/M2/RPE-HR-drift/decoupling — likely internal-only, to verify)
+- **Ask Josi to find a value / overview** — the cards+chips retrieval pattern
+  (item 26): bounded "show me X" chips that surface an existing engine series,
+  NOT free chat. Only over confirmed-EXISTS data.
+
+This is the AI-feel surface: the user composes their own dashboard, and Josi
+can fetch any of it on request — but every overview is real engine data,
+nothing fabricated, and anything NOT-STORED is simply not offered (honest
+absence), never faked.
