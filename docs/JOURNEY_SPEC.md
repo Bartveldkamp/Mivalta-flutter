@@ -118,3 +118,55 @@ This is the AI-feel surface: the user composes their own dashboard, and Josi
 can fetch any of it on request — but every overview is real engine data,
 nothing fabricated, and anything NOT-STORED is simply not offered (honest
 absence), never faked.
+
+---
+
+## OVERVIEW AVAILABILITY MATRIX (code-audited 2026-06-13, pin b603b5e)
+
+### ✅ BUILD NOW — EXISTS + reachable from the Flutter shim
+- **HRV over time** — `read_biometric_history` (hrv_rmssd/sdnn), daily series.
+- **Resting-HR over time** — `read_biometric_history` (resting_hr), daily series.
+- **Sleep — HOURS + quality only** (NOT stages) — `read_biometric_history`
+  (sleep_hours, sleep_quality). Stages are parsed by the health normalizer then
+  DROPPED before vault — so hours/quality build now; stages are NOT-STORED.
+- **Workouts list** — `read_recent_activities` / `read_activities_in_range`
+  (full VaultActivity rows: HR, load, decoupling, EF, VI, NP, IF, zone-compliance…).
+- **Workout-TYPE breakdown** — client-side grouping of the activity list by
+  `activity_type` (counting/grouping = presentation; allowed). Build now.
+- **Load — day / week / month / meso** — `daily_strain_series`, `acute_load`
+  (7d), `chronic_load(weeks)`, `monthly_strain`, `load_summary(meso_days)` — all
+  REAL APIs in the shim, not client math.
+- **Fitness/fatigue/form trend** — `fitness_series` (Banister), series.
+- **Per-session quality detail** — stored on VaultActivity (decoupling, EF, NP,
+  IF, VI, zone-compliance, HR-recovery, post-workout HRV, plan-vs-actual).
+
+### 🟡 NEEDS-EXPOSURE — computed but not reachable (small engine/shim brief)
+- **Power bests (MMP) + Critical Power** — engine computes (`MmpEngine`,
+  `CpEngine`) but there is **no MmpEngine binding in the Flutter shim** → add
+  shim bindings (data exists, just unexposed to Dart).
+- **"The new models" per-day values** (M1 chronotropic, M2 mental, RPE↔HR drift,
+  decoupling emissions) — FFI exposes the CONFIG (get/set_*_emission), NOT the
+  per-day z-score OUTPUT. Reading the daily contribution needs a new read API.
+- **Watts × HR / HR × pace WITHIN-workout traces** — only `raw_fit_path` is
+  stored; raw samples need client-side FIT parsing OR an engine sample-export.
+
+### 🔴 NOT-STORED — real engine work (defer / decide)
+- **Steps** — read by the health layer, accepted by the normalizer, but NEVER
+  persisted to the vault. New VaultBiometric column to store it.
+- **Sleep STAGES** (deep/REM/light/awake) — aggregated away in normalization;
+  needs persistence (new column/table) to ever show a stage breakdown.
+- **Running PACE best-efforts** — no velocity-curve engine exists (power-only).
+  New engine work for a running-bests overview.
+
+### Consequence for the personalized library
+- The configurable overview catalogue ships with the ✅ set first (each a
+  hide/show tile). 🟡 items light up as their shim/read briefs land. 🔴 items
+  are simply NOT offered until the engine stores them — honest absence.
+- "Ask Josi to find X" (chips retrieval) is wired ONLY to ✅ overviews initially.
+
+### Engine/shim briefs this generates (sequenced, smallest first)
+1. Add MmpEngine/CpEngine bindings to the Flutter shim (unlocks power bests — pure exposure).
+2. FFI read for per-day M1/M2/decoupling/RPE-drift contributions (the "new models" overview).
+3. Persist steps (one VaultBiometric column).
+4. Persist sleep stages (column/table) — only if the stage breakdown is wanted.
+5. Pace best-efforts engine (running bests) — larger; post-beta.
