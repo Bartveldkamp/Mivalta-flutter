@@ -2,6 +2,44 @@
 
 Guidance for Claude Code when working with this repository.
 
+## Working Protocol — Quality Charter (READ FIRST · NON-NEGOTIABLE)
+
+Full text: [`docs/QUALITY_CHARTER.md`](docs/QUALITY_CHARTER.md). The bar is
+**gold-Olympic-medal**: every value real, every claim verified, every gap
+honest. This **outranks speed and "looks done."**
+
+**PRIME DIRECTIVE — NO FABRICATION.** Never present to the user, or feed the
+engine, a value that isn't the real result of the real computation on real
+input — no placeholders, defaults-as-data, guessed constants, or "conservative
+estimates" that ship. Missing input → **honest absence** (null / "no data") or
+**fail loud**. Never a stand-in. *(Canonical violation: a workout load recorded
+as `value: durationMinutes` and fed to the HMM — a fabrication that passed CI.
+CI green ≠ true.)*
+
+**THE LAWS**
+1. Trace every number to its real source, on demand.
+2. The engine computes; the edges (Dart / FFI / transport) only courier — no
+   math (not even a mean) outside the engine.
+3. No silent fallbacks or defaults masquerading as measurement.
+4. Placeholders / TODOs in a value-producing path are tracked defects, not a
+   resting state — finish or make honest-absent before merge.
+5. CI green is necessary, not sufficient — every data path needs a semantic audit.
+6. Fail loud over fail quiet.
+7. Cite the science; use the physiologically correct form, not the convenient one.
+8. Cross-boundary / cross-repo changes are surfaced before editing and travel via
+   contract docs, never a quiet edit.
+
+**THE PRACTICE** — read the real code before any claim (never a summary or a
+prior chat's word); verify by **execution** (run the test / `flutter test` /
+read the CI log), not assertion; falsify your own claims; report the diff + test
+output with gaps named, not essays. Never say "done / clean" unless traced
+**this session**.
+
+**OPERATING MODEL** — one coding seat works across all three repos (reads all;
+writes the repo in scope). The **Mac** terminal builds/runs (iOS / simulator)
+only; **Hetzner** does GPU only. **Flat git:** small change → PR → merge on
+green → delete branch.
+
 ## Repo scope
 
 - WRITE scope for this Claude session: this repo only.
