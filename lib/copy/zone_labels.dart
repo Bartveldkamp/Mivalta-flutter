@@ -15,7 +15,7 @@
 //   R      → Recovery     (recovery)
 //   Z1, Z2 → Endurance    (endurance)
 //   Z3     → Threshold    (steady_state_threshold)
-//   Z4, Z5 → VO2 Max      (aerobic_power)
+//   Z4, Z5 → VO₂max / aerobic power (aerobic_power)
 //   Z6     → Anaerobic    (anaerobic_power)
 //   Z7, Z8 → Sprint       (neuromuscular)
 
@@ -34,7 +34,7 @@ String? zoneLabel(String? zone) {
       return 'Threshold';
     case 'Z4':
     case 'Z5':
-      return 'VO2 Max';
+      return 'VO₂max / aerobic power';
     case 'Z6':
       return 'Anaerobic';
     case 'Z7':

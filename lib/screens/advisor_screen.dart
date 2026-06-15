@@ -869,16 +869,10 @@ class _WorkoutCard extends StatelessWidget {
     );
   }
 
-  /// Map zone to color (uses tokens).
-  Color _zoneColor(String zone) {
-    final z = zone.toUpperCase();
-    if (z == 'R' || z == 'Z1') return MivaltaColors.stateRecovered;
-    if (z == 'Z2') return MivaltaColors.stateProductive;
-    if (z == 'Z3') return MivaltaColors.stateAccumulated;
-    if (z == 'Z4' || z == 'Z5') return MivaltaColors.levelOrange;
-    if (z == 'Z6' || z == 'Z7' || z == 'Z8') return MivaltaColors.levelRed;
-    return MivaltaColors.textMuted;
-  }
+  /// Map zone to colour — delegates to the single canonical zone→colour map
+  /// (`zoneColor` in tokens.dart, the Viterbi state-scale palette) so this
+  /// screen and the time-in-zone chart can never diverge (audit #8).
+  Color _zoneColor(String zone) => zoneColor(zone);
 }
 
 // _WorkoutOption extracted to lib/models/workout_option.dart as the public,

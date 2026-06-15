@@ -83,6 +83,23 @@ Color readinessLevelColor(String? level) =>
       _ => MivaltaColors.textMuted,
     };
 
+/// The ONE canonical zone → colour map (audit #8). Zone *colour* is the Viterbi
+/// state-scale palette used as an intensity ramp (recovered → illness) — it is
+/// NOT a separate energy-system palette. The energy system is the *label* (see
+/// copy/zone_labels.dart, e.g. "VO₂max / aerobic power"); the colour is the
+/// state scale. Engine decides the zone; Dart only renders its colour. Every
+/// zone-colour call site (advisor screen, time-in-zone chart) routes here so the
+/// screens can never diverge. Unknown/empty → muted (never a raw code).
+Color zoneColor(String? zone) =>
+    switch ((zone ?? '').trim().toUpperCase()) {
+      'R' || 'Z1' => MivaltaColors.stateRecovered,
+      'Z2' => MivaltaColors.stateProductive,
+      'Z3' => MivaltaColors.stateAccumulated,
+      'Z4' || 'Z5' => MivaltaColors.stateOverreached,
+      'Z6' || 'Z7' || 'Z8' => MivaltaColors.stateIllnessRisk,
+      _ => MivaltaColors.textMuted,
+    };
+
 /// Map an engine Viterbi state string → its palette colour.
 Color fatigueStateColor(String? state) =>
     switch ((state ?? '').toLowerCase()) {
