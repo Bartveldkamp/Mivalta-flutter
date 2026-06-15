@@ -113,9 +113,8 @@ String _fallbackProfile() {
 /// call site: [_ReadinessScreenState.build].
 class HomeData {
   // Zone 1 — State (hero)
-  int? readinessScore;           // from indicator['score'], rounded
-  String? readinessLevel;        // indicator['level'] verbatim
-  double? confidence;            // indicator['confidence']
+  int? readinessScore;           // SINGLE SOURCE: snapshot['score'] (state_score) — same object as state + level
+  double? confidence;            // indicator['confidence'] — kept ONLY for the no-data/learning gate
   // Item 4: indicator['contributions'] — 4-axis reasons for Josi's why-reveal
   List<Map<String, dynamic>> contributions = const [];
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
@@ -387,12 +386,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
 
       // ---------- Zone 1: State (hero) ----------
 
-      // readiness_indicator — the 4-axis blend headline
+      // readiness_indicator — NO LONGER the headline number. Kept ONLY for
+      // (a) the no-data/learning GATE: its confidence is 0 on cold-start and
+      // earns up over the ~28-day population→personal handover
+      // (gatc-viterbi baseline.rs §4.7 confidence-earned personal_weight), and
+      // (b) the "why" contributions below. The headline number/word/color all
+      // come from the single snapshot object (see the fatigue-state block).
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      final num? score = indicator['score'] as num?;
-      d.readinessScore = score?.round();
-      d.readinessLevel = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
       // Item 4: 4-axis contributions for the why-reveal (same shape the
@@ -422,10 +423,19 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
       }
 
-      // Fatigue state badge
+      // Fatigue state badge + the SINGLE-SOURCE headline number.
+      // get_readiness() returns ONE consistent snapshot: state + score
+      // (state_score) + level, all derived from current_state. The headline
+      // number now reads snapshot['score'] — the SAME object the word and the
+      // colour come from — so the score, word, and colour are three faces of
+      // one fact and can never disagree (e.g. 85 / Recovered / Green).
+      // The cold-start default (85/Recovered/Green) is NEVER shown: the
+      // insufficientData gate (indicator confidence == 0 during the ~28-day
+      // learning period) suppresses the whole hero until real data is earned.
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
+      d.readinessScore = (snapshot['score'] as num?)?.round();
 
       // Step 2: observation-day count for the learning ring's "day X" why.
       // Engine rows in (one daily snapshot per observed day), distinct-date
