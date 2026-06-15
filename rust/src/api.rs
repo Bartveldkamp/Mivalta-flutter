@@ -258,6 +258,27 @@ pub fn viterbi_fatigue_state(handle: &EnginesHandle) -> Result<String, BridgeErr
     handle.viterbi.get_readiness().map_err(Into::into)
 }
 
+/// `ViterbiEngine::validation_report()` — on-device prediction-vs-reality
+/// validation. JSON `ValidationReport`: `data_sufficiency`
+/// (insufficient|low|medium|high), `paired_observations`, `period_days`,
+/// `overall_model_score`, and the nested accuracy breakdowns. Drives the
+/// honest "is the model validated for YOU yet" surface. Pure transport.
+pub fn validation_report(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.validation_report().map_err(Into::into)
+}
+
+/// `ViterbiEngine::personalization_diagnostics()` — learning-progress
+/// diagnostics: `observation_count` (toward the population→personal handover),
+/// `confidence` bucket (low|medium|high), and the optional multi-scale HRV
+/// windows / episode classification. JSON `null` until the first observation.
+/// Pure transport.
+pub fn personalization_diagnostics(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle
+        .viterbi
+        .personalization_diagnostics()
+        .map_err(Into::into)
+}
+
 /// `ViterbiEngine::zone_cap_with_advisories()`.
 pub fn zone_cap_with_advisories(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle

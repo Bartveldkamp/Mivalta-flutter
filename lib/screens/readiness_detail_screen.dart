@@ -20,6 +20,7 @@ import '../models/metric_series.dart';
 import '../models/power_curve.dart';
 import '../models/sleep_trend.dart';
 import '../models/time_in_zone.dart';
+import '../models/learning_status.dart';
 import '../models/training_load.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
@@ -33,6 +34,7 @@ import '../widgets/analytics/fitness_trend_chart.dart';
 import '../widgets/analytics/power_curve_chart.dart';
 import '../widgets/analytics/time_in_zone_chart.dart';
 import '../widgets/analytics/training_load_chart.dart';
+import '../widgets/learning_status_card.dart';
 import '../widgets/analytics/workout_detail_card.dart';
 
 /// Detail screen data from engine
@@ -82,6 +84,10 @@ class _DetailData {
 
   // From getStateWidget() — non-null when still calibrating
   String? confidenceAdvisory;
+
+  // From personalization_diagnostics() + validation_report() — the
+  // "how well MiValta knows you yet" surface (engine gap #2).
+  LearningStatus? learning;
 
   String? error;
 }
@@ -250,6 +256,17 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
           await widget.binding.getStateWidget(widget.handle);
       final stateWidget = jsonDecode(stateWidgetJson) as Map<String, dynamic>;
       d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
+
+      // "How MiValta is learning you" — personalization diagnostics + the
+      // on-device validation report (engine owns every number/bucket).
+      final diagnosticsJson =
+          await widget.binding.personalizationDiagnostics(widget.handle);
+      final validationJson =
+          await widget.binding.validationReport(widget.handle);
+      d.learning = LearningStatus.parse(
+        diagnosticsJson: diagnosticsJson,
+        validationJson: validationJson,
+      );
     } catch (e) {
       d.error = '${e.runtimeType}: $e';
     }
@@ -375,7 +392,13 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
                         confidenceAdvisory: _data.confidenceAdvisory,
                         textTheme: textTheme,
                       ),
-                      const SizedBox(height: MivaltaSpace.x4),
+                      const SizedBox(height: MivaltaSpace.x5),
+
+                      // Section 5: How MiValta is learning you (gap #2).
+                      if (_data.learning != null) ...[
+                        LearningStatusCard(status: _data.learning!),
+                        const SizedBox(height: MivaltaSpace.x4),
+                      ],
                     ],
                   ),
                 ),

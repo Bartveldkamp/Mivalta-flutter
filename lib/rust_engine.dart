@@ -159,6 +159,19 @@ class RustEngineBinding {
   Future<String> viterbiFatigueState(EnginesHandle handle) =>
       rust_api.viterbiFatigueState(handle: handle);
 
+  /// `ViterbiEngine::validation_report()` — on-device prediction-vs-reality
+  /// validation (`data_sufficiency`, `paired_observations`, `period_days`,
+  /// `overall_model_score`, nested accuracy). The "is the model validated for
+  /// you yet" read.
+  Future<String> validationReport(EnginesHandle handle) =>
+      rust_api.validationReport(handle: handle);
+
+  /// `ViterbiEngine::personalization_diagnostics()` — learning-progress
+  /// diagnostics (`observation_count`, `confidence` bucket, optional HRV
+  /// windows/episode). JSON `null` until the first observation.
+  Future<String> personalizationDiagnostics(EnginesHandle handle) =>
+      rust_api.personalizationDiagnostics(handle: handle);
+
   /// `ViterbiEngine::zone_cap_with_advisories()` — raw JSON
   /// `{"zone": "Z8|Z5|Z2|REST", "advisories": {...}}`.
   Future<String> zoneCapWithAdvisories(EnginesHandle handle) =>
