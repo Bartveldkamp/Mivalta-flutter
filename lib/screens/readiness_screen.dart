@@ -1181,10 +1181,10 @@ class _Zone2Today extends StatelessWidget {
           ),
         ] else ...[
 
-        // Zone cap chip
-        if (data.zoneCap != null)
+        // Zone cap chip — consumer label, never the raw Z-code (brief §5)
+        if (zoneCapLabel(data.zoneCap) != null)
           _Badge(
-            label: 'Up to ${data.zoneCap}',
+            label: zoneCapLabel(data.zoneCap)!,
             color: MivaltaColors.textMuted,
           ),
         const SizedBox(height: MivaltaSpace.x4),
