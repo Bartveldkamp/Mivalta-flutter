@@ -82,6 +82,22 @@ Future<String> readinessIndicator({required EnginesHandle handle}) =>
 Future<String> viterbiFatigueState({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiViterbiFatigueState(handle: handle);
 
+/// `ViterbiEngine::validation_report()` — on-device prediction-vs-reality
+/// validation. JSON `ValidationReport`: `data_sufficiency`
+/// (insufficient|low|medium|high), `paired_observations`, `period_days`,
+/// `overall_model_score`, and the nested accuracy breakdowns. Drives the
+/// honest "is the model validated for YOU yet" surface. Pure transport.
+Future<String> validationReport({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiValidationReport(handle: handle);
+
+/// `ViterbiEngine::personalization_diagnostics()` — learning-progress
+/// diagnostics: `observation_count` (toward the population→personal handover),
+/// `confidence` bucket (low|medium|high), and the optional multi-scale HRV
+/// windows / episode classification. JSON `null` until the first observation.
+/// Pure transport.
+Future<String> personalizationDiagnostics({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiPersonalizationDiagnostics(handle: handle);
+
 /// `ViterbiEngine::zone_cap_with_advisories()`.
 Future<String> zoneCapWithAdvisories({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiZoneCapWithAdvisories(handle: handle);
