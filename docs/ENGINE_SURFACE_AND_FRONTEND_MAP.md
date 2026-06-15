@@ -65,11 +65,14 @@ Flutter `CLAUDE.md` "Engine pin" section still narrates `b603b5e` — stale; the
 3. **Recovery forecast unused.** `forecast_states` + `estimate_recovery` are not
    exposed. A "when will you be fresh again" read is a high-value calm feature.
    **Build:** shim fn + a small forecast surface.
-4. **Workout WRITE path → confirm.** `write_activity` IS in the shim, but no
-   screen was found calling it; if nothing writes a completed workout, the
-   post-workout report / history-aware advisor read from an empty table. **Verify
-   first** whether `health_ingest` or a workout-finish flow calls it; if not,
-   this is the highest-impact functional gap (see `MAC_BRIEF_WORKOUT_INGEST.md`).
+4. **Workout WRITE path — exists via Android health sync; verify iOS + manual.**
+   `health_ingest.dart` DOES call `writeActivity` (line 585) + `recordActivity`
+   (line 605), so the READING_ORDER "not wired" note is **stale** at pin
+   `71b848b`. Remaining: auto-sync is gated on `Platform.isAndroid`
+   (`readiness_screen.dart:347`), so the **iOS HealthKit ingest path and any
+   explicit "finish workout" flow are unconfirmed** — if iOS users never write
+   an activity, their post-workout report / history-aware advisor read an empty
+   table. Verify iOS coverage (see `MAC_BRIEF_WORKOUT_INGEST.md`).
 5. **Privacy/transparency depth.** `list_memories` / `forget_memory` (V4
    transparency, V3 granular revocation), `delete_by_source` / `delete_by_date_range`,
    and `import_encrypted_vault` (export is wired, import is not) are unexposed —
