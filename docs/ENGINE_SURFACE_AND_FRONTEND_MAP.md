@@ -12,6 +12,27 @@ functional. Authoritative sources, verified this pass:
 - Facade: `lib/rust_engine.dart` — 67 methods (65 + 2 convenience wrappers).
 - Consumption: the 8 screens in `lib/screens/` (audit 2026-06-15).
 
+## 0. The COMPLETE list (authoritative, in rust-engine — do not duplicate)
+
+The full "everything the engine spits out" inventory already exists and is
+maintained in `mivalta-rust-engine/docs/frontend/`. This file is the Flutter-side
+**index + wired/gap overlay** on top of it — it does not replace it.
+
+| Doc (rust-engine `docs/frontend/`) | What it is |
+|---|---|
+| **`DATA_CATALOG.md`** | Every SIGNAL in three buckets — **A. Collected** (all wearable/manual biometrics A1, per-workout activity values A2, 9 source tiers A3), **B. Calculated** (load/ACWR/Banister/readiness/forecast/recovery/personalization/MMP/CP/W′/decoupling/suggestion/report — each with its FFI method), **C. Possible-but-NOT-yet-built**. The "ton of vault training/biometric data" lives here. |
+| **`FFI_API_CONTRACT.md`** (3560 lines) | Every method SIGNATURE + JSON SCHEMA for all 16 engines (§4), the input/output schemas (§5: AthleteProfile, UniversalObservation, DailyAssessment, StateSnapshot, PipelineResult), data flows (§6), the full 14-domain Data Reference. |
+| **`FRONTEND.md`** | Plain-English value dictionary + MONITOR/ADVISOR screen specs + §9 retrieval coverage. |
+| **`engine_registry.json`** (v2.24) | Machine source of truth for engine + method NAMES. If a doc disagrees, the registry wins. |
+
+> **"What to build to fully dress up the frontend"** = `DATA_CATALOG.md` **Part C**
+> (genuine new-engine gaps: full time-in-zone distribution, per-km/lap splits,
+> steps, running critical-speed/D′, general trend series) **+ Section B below**
+> (engine capability that EXISTS but the Flutter shim/UI doesn't tap yet). Part C
+> needs engine work; Section B needs only shim + UI.
+
+---
+
 > The shim is intentionally a SUBSET: MVP scope is **MONITOR + ADVISOR**; COACH
 > (multi-day plans, plan negotiation, open Josi chat) is post-MVP. Most
 > "untapped" engine methods are deferred by design, not bugs. The list below
