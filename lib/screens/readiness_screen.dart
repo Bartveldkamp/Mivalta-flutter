@@ -31,6 +31,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
 import '../copy/today_facts_labels.dart';
+import '../copy/zone_labels.dart';
 import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
@@ -1230,9 +1231,9 @@ class _Zone2Today extends StatelessWidget {
                 // Zone + target
                 Row(
                   children: [
-                    if (data.sessionZone != null)
+                    if (zoneLabel(data.sessionZone) != null)
                       _Badge(
-                        label: data.sessionZone!,
+                        label: zoneLabel(data.sessionZone)!,
                         color: _isRest
                             ? MivaltaColors.stateRecovered
                             : MivaltaColors.textMuted,

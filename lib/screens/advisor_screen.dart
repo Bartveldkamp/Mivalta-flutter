@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../copy/zone_labels.dart';
 import '../models/workout_option.dart';
 import '../models/workout_report.dart';
 import '../rust_engine.dart';
@@ -746,7 +747,9 @@ class _WorkoutCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            option.zone,
+                            // Consumer energy-system label; color still keys
+                            // off the raw engine code (brief §5).
+                            zoneLabel(option.zone) ?? option.zone,
                             style: textTheme.labelSmall?.copyWith(
                               color: _zoneColor(option.zone),
                               fontWeight: FontWeight.w600,
