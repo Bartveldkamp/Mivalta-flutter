@@ -3,7 +3,8 @@
 // no fallback logic in Dart.
 //
 // Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
-//   Zone 1 — State (hero): ReadinessRing + state_recommendation prose + fatigue badge
+//   Zone 1 — State (hero): ReadinessLightField (readiness-as-light, §17.2) +
+//            state_recommendation prose + fatigue badge
 //   Zone 2 — Today: SessionWidget fields (workout_title, zone, target, focus_cue, rationale)
 //   Zone 3 — Context: alerts + sparkline + latest workout + source tier swatch
 //   (step 3, HOME_REDESIGN_BRIEF §5: raw ACWR/monotony/strain moved OFF this
@@ -38,7 +39,7 @@ import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
-import '../widgets/readiness_ring.dart';
+import '../widgets/readiness_light_field.dart';
 import '../widgets/today_facts.dart';
 import '../widgets/weather.dart';
 import 'advisor_screen.dart';
@@ -995,10 +996,10 @@ class _Zone1State extends StatelessWidget {
         Center(
           child: GestureDetector(
             onTap: data.insufficientData ? null : onTapRing,
-            child: ReadinessRing(
+            child: ReadinessLightField(
+              fatigueState: data.fatigueState,
+              stateWord: _humanizeFatigueState(data.fatigueState),
               score: data.readinessScore,
-              level: data.readinessLevel,
-              confidence: data.confidence,
               noData: data.insufficientData,
               learning: learning,
             ),

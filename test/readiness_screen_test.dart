@@ -3,7 +3,7 @@
 // FFI path is gated on Platform.isAndroid; on the host harness
 // `RustEngineBinding.bootstrap()` throws UnsupportedError immediately,
 // so screen-level tests verify structure + error handling. The
-// ReadinessRing and SourceTierIndicator are tested by mounting directly.
+// ReadinessLightField and SourceTierIndicator are tested by mounting directly.
 //
 // Tests assert against REAL engine field names from gatc-dashboard/widgets.rs
 // and gatc-vault/models.rs to guard against engine drift:
@@ -20,7 +20,7 @@ import 'package:mivalta_flutter/screens/readiness_screen.dart';
 import 'package:mivalta_flutter/theme/source_tier.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/josi_presenter.dart';
-import 'package:mivalta_flutter/widgets/readiness_ring.dart';
+import 'package:mivalta_flutter/widgets/readiness_light_field.dart';
 import 'package:mivalta_flutter/widgets/today_facts.dart';
 
 void main() {
@@ -50,17 +50,21 @@ void main() {
     expect(kF1NoDataCopy, 'We need more data to predict recovery.');
   });
 
-  group('ReadinessRing', () {
+  // Readiness-as-light hero (UI_UX_DIRECTION §17.2, promoted to MVP 2026-06-15):
+  // the light field IS the hero; the number + humanized state word render
+  // beneath as confirmation (§5.2 — named, never light alone). No raw
+  // confidence decimal/percentage on the field (§17.2 / §1.4 no-decimals).
+  group('ReadinessLightField', () {
     testWidgets(
-      'score=85, level=green, confidence=0.92 → renders rounded score + level',
+      'confident → score + humanized state word as confirmation, hero size',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
-              body: ReadinessRing(
+              body: ReadinessLightField(
+                fatigueState: 'Recovered',
+                stateWord: 'Recovered',
                 score: 85,
-                level: 'green',
-                confidence: 0.92,
                 noData: false,
                 learning: false,
               ),
@@ -68,132 +72,133 @@ void main() {
           ),
         );
 
-        // Score renders (from indicator['score'], rounded)
+        // Number renders (from indicator['score'], rounded) as confirmation.
         expect(find.text('85'), findsOneWidget);
-        // Level renders (verbatim from engine indicator['level'])
-        expect(find.text('green'), findsOneWidget);
-        // Confidence renders as percentage (from indicator['confidence'])
-        expect(find.text('confidence 92%'), findsOneWidget);
-
-        // Ring's CircularProgressIndicator exists (hero ring)
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-        // F1 copy must NOT appear when data is present
+        // Humanized Viterbi state word renders beneath the light.
+        expect(find.text('Recovered'), findsOneWidget);
+        // No raw confidence number on the field (§17.2 demotes the number;
+        // §1.4 forbids confidence decimals).
+        expect(find.textContaining('confidence'), findsNothing);
+        // F1 copy must NOT appear when data is present.
         expect(find.text(kF1NoDataCopy), findsNothing);
+        // Hero size when confident.
+        expect(
+          tester.getSize(find.byType(ReadinessLightField)),
+          const Size(280, 280),
+        );
       },
     );
 
     testWidgets(
-      'score=72, level=yellow → renders correct color (from engine level, not score-derived)',
+      'no-data → quiet em-dash, no score, NO F1 text (Josi carries it), small',
       (WidgetTester tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ReadinessRing(
-                score: 72,
-                level: 'yellow',
-                confidence: 0.75,
-                noData: false,
-                learning: false,
-              ),
-            ),
-          ),
-        );
-
-        // Score + level render (readiness_indicator fields)
-        expect(find.text('72'), findsOneWidget);
-        expect(find.text('yellow'), findsOneWidget);
-
-        // The CircularProgressIndicator should have the yellow color (0xFFE8C547)
-        // Color comes from engine's level field, NOT derived from score
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        expect(color, const Color(0xFFE8C547));
-      },
-    );
-
-    testWidgets(
-      'noData=true → calm muted ring hero, em-dash, NO F1 text (Josi carries it)',
-      (WidgetTester tester) async {
-        // Founder 2026-06-12 no-data redesign: the ring renders in its calm
-        // muted state as the hero — never bare floating text. The locked F1
-        // copy appears exactly once on the home, in Josi's card, so the ring
-        // must NOT repeat it.
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
-              body: ReadinessRing(
+              body: ReadinessLightField(
+                fatigueState: null,
+                stateWord: null,
                 score: null,
-                level: null,
-                confidence: null,
                 noData: true,
-                // No observations ⇒ the caller's learning gate is true too
-                // (brief §4: sized by data sufficiency — small muted ring).
                 learning: true,
               ),
             ),
           ),
         );
 
-        // The hero ring renders — empty track, zero arc.
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        expect(indicator.value, 0);
-        // Muted, colorless: no readiness-level color claimed.
-        final color =
-            (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        expect(color, MivaltaColors.textMuted);
-
-        // Quiet em-dash center — no fabricated score.
+        // Quiet em-dash — no fabricated score.
         expect(find.text('—'), findsOneWidget);
-
-        // Sized by data sufficiency (brief §4): small ring, not the hero.
-        expect(
-          tester.getSize(find.byType(ReadinessRing)),
-          const Size(120, 120),
-        );
-
-        // F1 copy does NOT repeat here (exactly-once rule; Josi's card has it).
-        expect(find.text(kF1NoDataCopy), findsNothing);
-
-        // No score text
+        // No score, and the locked F1 copy does NOT repeat here (Josi's card
+        // is the one surface for it).
         expect(find.text('85'), findsNothing);
-        expect(find.text('72'), findsNothing);
+        expect(find.text(kF1NoDataCopy), findsNothing);
+        // Sized small (not the hero) while there is no data.
+        expect(
+          tester.getSize(find.byType(ReadinessLightField)),
+          const Size(180, 180),
+        );
       },
     );
 
     testWidgets(
-      'score=null + noData=false → shows em-dash, no F1 copy',
+      'learning → score shows (muted), NO state word/colour claimed, small',
       (WidgetTester tester) async {
-        // Edge case: data exists but score is null (shouldn't happen,
-        // but tests the widget boundary)
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
-              body: ReadinessRing(
-                score: null,
-                level: null,
-                confidence: null,
+              body: ReadinessLightField(
+                fatigueState: 'Recovered',
+                stateWord: 'Recovered',
+                score: 62,
                 noData: false,
-                learning: false,
+                learning: true,
               ),
             ),
           ),
         );
 
-        // Em-dash renders for null score
-        expect(find.text('—'), findsWidgets);
-
-        // Ring should still render
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-        // F1 copy should NOT render when noData=false
-        expect(find.text(kF1NoDataCopy), findsNothing);
+        // Score renders as confirmation...
+        expect(find.text('62'), findsOneWidget);
+        // ...but no state word/colour is claimed while still calibrating.
+        expect(find.text('Recovered'), findsNothing);
+        expect(
+          tester.getSize(find.byType(ReadinessLightField)),
+          const Size(180, 180),
+        );
       },
     );
+  });
+
+  // The state→light mapping is the core of readiness-as-light: a pure
+  // presentation mapping of the engine's Viterbi state to a locked palette
+  // colour + luminance behaviour (§17.2). No thresholds, no physiology.
+  group('lightProfileForState (state → light mapping)', () {
+    test('each state maps to its locked palette token, case-insensitively', () {
+      expect(lightProfileForState('Recovered').color,
+          MivaltaColors.stateRecovered);
+      expect(lightProfileForState('Productive').color,
+          MivaltaColors.stateProductive);
+      expect(lightProfileForState('Accumulated').color,
+          MivaltaColors.stateAccumulated);
+      expect(lightProfileForState('Overreached').color,
+          MivaltaColors.stateOverreached);
+      expect(lightProfileForState('IllnessRisk').color,
+          MivaltaColors.stateIllnessRisk);
+      expect(lightProfileForState('recovered').color,
+          MivaltaColors.stateRecovered);
+      // Unknown / null → muted, no fabricated state colour.
+      expect(lightProfileForState(null).color, MivaltaColors.textMuted);
+      expect(lightProfileForState('nonsense').color, MivaltaColors.textMuted);
+    });
+
+    test('only IllnessRisk is a safety (muted-alarm) state', () {
+      expect(lightProfileForState('IllnessRisk').safety, isTrue);
+      for (final s in const [
+        'Recovered',
+        'Productive',
+        'Accumulated',
+        'Overreached'
+      ]) {
+        expect(lightProfileForState(s).safety, isFalse,
+            reason: '$s is not a safety state');
+      }
+    });
+
+    test('light recedes (glow + intensity fall) as fatigue worsens', () {
+      final order = const [
+        'Recovered',
+        'Productive',
+        'Accumulated',
+        'Overreached',
+        'IllnessRisk'
+      ].map(lightProfileForState).toList();
+      for (var i = 1; i < order.length; i++) {
+        expect(order[i].glowExtent, lessThan(order[i - 1].glowExtent),
+            reason: 'glow must not grow as fatigue worsens');
+        expect(order[i].intensity, lessThanOrEqualTo(order[i - 1].intensity),
+            reason: 'intensity must not grow as fatigue worsens');
+      }
+    });
   });
 
   // Engine field name guards — these document the VERIFIED engine schema
@@ -508,21 +513,15 @@ void main() {
       );
     });
 
-    testWidgets('hero is the calm ring, not bare floating text', (tester) async {
+    testWidgets('hero is the calm light field, not bare floating text',
+        (tester) async {
       await tester.pumpWidget(pumpableHome(seededNoData()));
-      // The ReadinessRing mounts in its no-data state (ring present).
-      expect(find.byType(ReadinessRing), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(ReadinessRing),
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsOneWidget,
-      );
+      // The light field mounts in its no-data state (the hero surface present).
+      expect(find.byType(ReadinessLightField), findsOneWidget);
       // And it carries no F1 text (Josi's card is the one source).
       expect(
         find.descendant(
-          of: find.byType(ReadinessRing),
+          of: find.byType(ReadinessLightField),
           matching: find.text(kF1NoDataCopy),
         ),
         findsNothing,
@@ -594,6 +593,7 @@ void main() {
       ..insufficientData = false
       ..readinessScore = 62
       ..readinessLevel = 'yellow'
+      ..fatigueState = 'Productive'
       ..confidence = 0.4
       ..stateRecommendation = 'Early read — take it easy.'
       // Non-empty advisory = the engine says it is still calibrating.
@@ -604,22 +604,22 @@ void main() {
       ..insufficientData = false
       ..readinessScore = 78
       ..readinessLevel = 'green'
-      ..confidence = 0.9
+      ..fatigueState = 'Recovered'
       ..stateRecommendation = 'Recovered — fully charged.'
       // Empty advisory = engine is confident.
       ..confidenceAdvisory = null
       ..observationDays = 21;
 
     testWidgets(
-        'learning=true direct mount → small muted ring: score renders, '
-        'no level label, no confidence row', (tester) async {
+        'learning=true direct mount → small field: score renders muted, '
+        'no state word claimed', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: ReadinessRing(
+            body: ReadinessLightField(
+              fatigueState: 'Productive',
+              stateWord: 'Productive',
               score: 62,
-              level: 'yellow',
-              confidence: 0.4,
               noData: false,
               learning: true,
             ),
@@ -629,37 +629,30 @@ void main() {
 
       // Small, not the hero.
       expect(
-        tester.getSize(find.byType(ReadinessRing)),
-        const Size(120, 120),
+        tester.getSize(find.byType(ReadinessLightField)),
+        const Size(180, 180),
       );
-      // Score still renders (§9 no-naked-numbers: ring fill + number)...
+      // Score still renders (§9 no-naked-numbers) as confirmation...
       expect(find.text('62'), findsOneWidget);
-      // ...but muted: no level color claimed, no level label, no confidence.
-      final indicator = tester.widget<CircularProgressIndicator>(
-        find.byType(CircularProgressIndicator),
-      );
-      final color =
-          (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-      expect(color, MivaltaColors.textMuted);
-      expect(find.text('yellow'), findsNothing);
-      expect(find.text('confidence 40%'), findsNothing);
+      // ...but muted: no state word/colour claimed while still calibrating.
+      expect(find.text('Productive'), findsNothing);
     });
 
     testWidgets(
-        'low-confidence home → small ring + learning why reveals '
+        'low-confidence home → small field + learning why reveals '
         '"I\'m still learning you — day 5."', (tester) async {
       await tester.pumpWidget(pumpableHome(seededLowConfidence()));
 
       expect(
-        tester.getSize(find.byType(ReadinessRing)),
-        const Size(120, 120),
+        tester.getSize(find.byType(ReadinessLightField)),
+        const Size(180, 180),
       );
 
       // Learning-why copy hidden until asked.
       expect(find.textContaining("I'm still learning you"), findsNothing);
 
       // Two "Why?" affordances render in the Today column: Josi's card first,
-      // the learning ring's muted why second — tap the ring's.
+      // the learning field's muted why second — tap the field's.
       await tester.tap(find.text('Why?').last);
       await tester.pumpAndSettle();
 
@@ -671,44 +664,43 @@ void main() {
     });
 
     testWidgets(
-        'confident home → 220dp hero with level + confidence, no learning why',
-        (tester) async {
+        'confident home → full-size light-field hero + state word, no '
+        'confidence number, no learning why', (tester) async {
       await tester.pumpWidget(pumpableHome(seededConfident()));
 
       expect(
-        tester.getSize(find.byType(ReadinessRing)),
-        const Size(220, 220),
+        tester.getSize(find.byType(ReadinessLightField)),
+        const Size(280, 280),
       );
       expect(find.text('78'), findsOneWidget);
-      expect(find.text('green'), findsOneWidget);
-      expect(find.text('confidence 90%'), findsOneWidget);
+      // The humanized Viterbi state word renders (in the light field's
+      // confirmation AND the existing state badge — duplication flagged for a
+      // follow-up design pass, hence findsWidgets not findsOneWidget).
+      expect(find.text('Recovered'), findsWidgets);
+      // No raw confidence number anywhere (§17.2 demotes the number; §1.4
+      // forbids confidence decimals).
+      expect(find.textContaining('confidence'), findsNothing);
       expect(find.textContaining("I'm still learning you"), findsNothing);
       // Josi's verdict renders exactly once (the ONE home surface).
       expect(find.text('Recovered — fully charged.'), findsOneWidget);
     });
 
-    testWidgets('confident red home → hero ring carries levelRed',
-        (tester) async {
+    testWidgets(
+        'confident illness-risk home → full-size hero shows the safety state '
+        'word', (tester) async {
       final data = seededConfident()
         ..readinessScore = 35
         ..readinessLevel = 'red'
-        ..confidence = 0.85
+        ..fatigueState = 'IllnessRisk'
         ..stateRecommendation = 'Run down — back off today.';
       await tester.pumpWidget(pumpableHome(data));
 
       expect(
-        tester.getSize(find.byType(ReadinessRing)),
-        const Size(220, 220),
+        tester.getSize(find.byType(ReadinessLightField)),
+        const Size(280, 280),
       );
-      final indicator = tester.widget<CircularProgressIndicator>(
-        find.descendant(
-          of: find.byType(ReadinessRing),
-          matching: find.byType(CircularProgressIndicator),
-        ),
-      );
-      final color =
-          (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-      expect(color, MivaltaColors.levelRed);
+      // Humanized safety state word renders (IllnessRisk → "Illness risk").
+      expect(find.text('Illness risk'), findsWidgets);
     });
 
     testWidgets(
@@ -829,107 +821,19 @@ void main() {
     });
   });
 
-  // PR-C: Tokens-only compliance — ring color must come from tokens layer
-  group('Tokens-only compliance', () {
-    testWidgets(
-      'ReadinessRing level=green uses MivaltaColors.levelGreen from tokens',
-      (WidgetTester tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ReadinessRing(
-                score: 85,
-                level: 'green',
-                confidence: 0.9,
-                noData: false,
-                learning: false,
-              ),
-            ),
-          ),
-        );
-
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        // Color must match the token constant (which equals 0xFF2BD974)
-        expect(color, MivaltaColors.levelGreen);
-      },
-    );
-
-    testWidgets(
-      'ReadinessRing level=yellow uses MivaltaColors.levelYellow from tokens',
-      (WidgetTester tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ReadinessRing(
-                score: 72,
-                level: 'yellow',
-                confidence: 0.75,
-                noData: false,
-                learning: false,
-              ),
-            ),
-          ),
-        );
-
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        expect(color, MivaltaColors.levelYellow);
-      },
-    );
-
-    testWidgets(
-      'ReadinessRing level=orange uses MivaltaColors.levelOrange from tokens',
-      (WidgetTester tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ReadinessRing(
-                score: 55,
-                level: 'orange',
-                confidence: 0.6,
-                noData: false,
-                learning: false,
-              ),
-            ),
-          ),
-        );
-
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        expect(color, MivaltaColors.levelOrange);
-      },
-    );
-
-    testWidgets(
-      'ReadinessRing level=red uses MivaltaColors.levelRed from tokens',
-      (WidgetTester tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ReadinessRing(
-                score: 35,
-                level: 'red',
-                confidence: 0.5,
-                noData: false,
-                learning: false,
-              ),
-            ),
-          ),
-        );
-
-        final indicator = tester.widget<CircularProgressIndicator>(
-          find.byType(CircularProgressIndicator),
-        );
-        final color = (indicator.valueColor as AlwaysStoppedAnimation<Color>).value;
-        expect(color, MivaltaColors.levelRed);
-      },
-    );
+  // PR-C / §17.2: tokens-only compliance — the light field's colour comes from
+  // the locked state palette via fatigueStateColor(), never a hex literal at
+  // the call site. (lightProfileForState behaviour is tested above; this pins
+  // the raw state→token map the painter consumes.)
+  group('Tokens-only compliance (state palette)', () {
+    test('each Viterbi state maps to its locked palette token', () {
+      expect(fatigueStateColor('recovered'), MivaltaColors.stateRecovered);
+      expect(fatigueStateColor('productive'), MivaltaColors.stateProductive);
+      expect(fatigueStateColor('accumulated'), MivaltaColors.stateAccumulated);
+      expect(fatigueStateColor('overreached'), MivaltaColors.stateOverreached);
+      expect(fatigueStateColor('illnessrisk'), MivaltaColors.stateIllnessRisk);
+      // Unknown / null → muted token, never a fabricated colour.
+      expect(fatigueStateColor(null), MivaltaColors.textMuted);
+    });
   });
 }
