@@ -10,9 +10,10 @@
 //   screen — the human-language today-facts tiles replace them; depth lives
 //   in Explore)
 //
-// On insufficient data (no observations yet → advisories.last_observation_at
-// == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
-// show their engine-provided empty prose.
+// On insufficient data (the engine's readiness_indicator() returns zero
+// confidence — it has not yet learned enough of this athlete to speak), Zone 1
+// shows the LOCKED F1 copy instead of a ring. Zones 2/3 show their
+// engine-provided empty prose. See [insufficientDataFromConfidence].
 //
 // **Continuity**: Uses a PERSISTENT vault path (mivalta-vault) and restores
 // the ViterbiEngine from persisted state on subsequent launches.
@@ -56,6 +57,26 @@ String _humanizeFatigueState(String? state) {
     (m) => '${m[1]} ${m[2]!.toLowerCase()}',
   );
 }
+
+/// The insufficient-data gate. Maps the engine's own no-data verdict to the
+/// home's "we need more data" presentation — it is NOT a Dart threshold.
+///
+/// `ViterbiMonitor::readiness_indicator()` (gatc-viterbi) returns an explicit
+/// no-data result — score 0, **confidence 0**, empty contributions — when it
+/// has neither HMM posteriors nor any z-score history to stand on, rather than
+/// reading absent z-scores as "exactly at baseline" and fabricating a healthy
+/// number. Its doc-comment contract is explicit: *"Consumers gate their 'need
+/// more data' copy on the zero confidence."* We honour that here.
+///
+/// This verdict is PERSISTED: `zscore_history` and the HMM posteriors are saved
+/// on every state-changing op and restored on launch, so once the model has
+/// learned an athlete's baseline it keeps surfacing readiness across app
+/// restarts. (The earlier gate keyed off `advisories.last_observation_at`,
+/// a transient cache that resets to null on every state restore — it falsely
+/// re-triggered "we need more data" after each relaunch even for a fully
+/// learned model.)
+bool insufficientDataFromConfidence(double? confidence) =>
+    confidence == null || confidence == 0.0;
 
 /// PR-F: Fallback profile if none provided (should not happen in production).
 /// This is a minimal profile that satisfies the engine's required fields.
@@ -380,13 +401,16 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             contributions.whereType<Map<String, dynamic>>().toList();
       }
 
-      // Check for insufficient data via readinessScore advisories
-      final readinessJson = await binding.readinessScore(handle);
-      final readiness = jsonDecode(readinessJson) as Map<String, dynamic>;
-      final advisoriesObj = readiness['advisories'];
-      if (advisoriesObj is Map) {
-        d.insufficientData = advisoriesObj['last_observation_at'] == null;
-      }
+      // Insufficient-data gate — the engine's verdict on whether it has
+      // learned enough of THIS athlete to speak. readiness_indicator() returns
+      // an explicit no-data result (score 0, confidence 0, empty contributions)
+      // when it has neither HMM posteriors nor any z-score history to stand on;
+      // its contract is explicit (gatc-viterbi readiness_indicator no-data
+      // guard). See [insufficientDataFromConfidence] for the full rationale —
+      // we read the same `confidence` the headline already parsed above, which
+      // is the PERSISTED learning verdict (survives app restarts), not the
+      // transient advisories.last_observation_at the gate used to key off.
+      d.insufficientData = insufficientDataFromConfidence(d.confidence);
 
       // StateWidget — FIXED: use real field names from engine schema
       final stateWidgetJson = await binding.getStateWidget(handle);

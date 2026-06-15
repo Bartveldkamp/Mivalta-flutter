@@ -271,6 +271,32 @@ void main() {
     });
   });
 
+  // The insufficient-data gate keys off the engine's PERSISTED no-data verdict
+  // (readiness_indicator zero confidence), NOT the transient
+  // advisories.last_observation_at that resets to null on every state restore.
+  // This pins the contract documented at gatc-viterbi readiness_indicator's
+  // no-data guard ("Consumers gate their 'need more data' copy on the zero
+  // confidence") and guards the restart-continuity regression: a model that has
+  // learned an athlete's baseline (confidence > 0, persisted) must NOT fall back
+  // to "we need more data" after an app relaunch.
+  group('insufficientDataFromConfidence (engine no-data verdict)', () {
+    test('zero confidence → insufficient (the engine no-data sentinel)', () {
+      expect(insufficientDataFromConfidence(0.0), isTrue);
+    });
+
+    test('null confidence → insufficient (indicator field absent)', () {
+      expect(insufficientDataFromConfidence(null), isTrue);
+    });
+
+    test('positive confidence → sufficient (learned baseline surfaces)', () {
+      // A learned, persisted model — readiness must surface across restarts.
+      expect(insufficientDataFromConfidence(0.92), isFalse);
+      // Even a low-but-positive confidence is "has data" — the separate
+      // learning gate (confidence_advisory) handles the calibrating nuance.
+      expect(insufficientDataFromConfidence(0.05), isFalse);
+    });
+  });
+
   group('SourceTierIndicator', () {
     testWidgets(
       'engine returned null → renders the F1 no-data copy, no swatch',
