@@ -325,4 +325,24 @@ void main() {
       expect(changedTiles!.contains('learning'), isTrue);
     });
   });
+
+  group('JourneyView per-card resilience (#4)', () {
+    testWidgets(
+        'a failed/empty metric shows honest-absence — the page renders, never '
+        'the whole-page error view', (tester) async {
+      // Post-guard state: one or more metric fetches failed (e.g. the
+      // not-yet-whitelisted efficiency_factor), so efTrend/hrRecoveryTrend are
+      // empty but d.error stayed null (the per-card guard absorbed it). The
+      // Journey must render with honest-absent cards, NOT "Couldn't load".
+      final data = JourneyData()
+        ..observationDays = 30
+        ..efTrend = const []
+        ..hrRecoveryTrend = const [];
+      await _pumpView(tester, data);
+
+      expect(find.text(kJourneyErrorCopy), findsNothing,
+          reason: 'a per-card failure must not collapse the whole page');
+      expect(find.text(kJourneyLoadingCopy), findsNothing);
+    });
+  });
 }

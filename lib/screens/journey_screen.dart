@@ -164,117 +164,153 @@ class _JourneyScreenState extends State<JourneyScreen> {
     if (b == null || h == null) return;
 
     final d = JourneyData();
+
+    // Per-card resilience (#4): each engine read below is independently guarded,
+    // so one failing / empty / unsupported call renders honest-absence on its OWN
+    // card instead of collapsing the whole Journey page. (efficiency_factor /
+    // hr_recovery are not yet whitelisted in read_metric_across_activities — an
+    // engine gap, held — so those reads throw today; the guard keeps the Adaptation
+    // card honest-absent rather than nuking the page.) The outer try/catch below is
+    // retained ONLY as a last-resort net for a catastrophic, non-per-card failure
+    // (the distinct "couldn't load your journey" state).
+    Future<void> guard(String what, Future<void> Function() body) async {
+      try {
+        await body();
+      } catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('journey: $what unavailable — ${e.runtimeType}: $e');
+        }
+      }
+    }
+
     try {
       // Learning arc: distinct observed dates (365-day window).
-      final bio = jsonDecode(await b.readBiometricHistory(h, days: 365));
-      if (bio is List) {
-        d.observationDays = bio
-            .whereType<Map>()
-            .map((e) => e['date']?.toString())
-            .whereType<String>()
-            .toSet()
-            .length;
-      }
+      await guard('learning-arc', () async {
+        final bio = jsonDecode(await b.readBiometricHistory(h, days: 365));
+        if (bio is List) {
+          d.observationDays = bio
+              .whereType<Map>()
+              .map((e) => e['date']?.toString())
+              .whereType<String>()
+              .toSet()
+              .length;
+        }
+      });
 
       // Month of loads for load-vs-recovery divergence (28 days).
-      final loads = jsonDecode(await b.readDailyLoads(h, days: 28));
-      if (loads is List) {
-        d.monthLoads = [
-          for (final row in loads)
-            if (row is List &&
-                row.length >= 2 &&
-                row[0] is String &&
-                row[1] is num)
-              (row[0] as String, (row[1] as num).toDouble()),
-        ];
-      }
+      await guard('month-loads', () async {
+        final loads = jsonDecode(await b.readDailyLoads(h, days: 28));
+        if (loads is List) {
+          d.monthLoads = [
+            for (final row in loads)
+              if (row is List &&
+                  row.length >= 2 &&
+                  row[0] is String &&
+                  row[1] is num)
+                (row[0] as String, (row[1] as num).toDouble()),
+          ];
+        }
+      });
 
       // Readiness history for recovery trend (28 days).
-      final readiness = jsonDecode(await b.readReadinessHistory(h, days: 28));
-      if (readiness is List) {
-        d.readinessHistory = [
-          for (final row in readiness.whereType<Map>())
-            if (row['date'] != null && row['readiness_score'] is num)
-              (
-                row['date'].toString(),
-                (row['readiness_score'] as num).toDouble(),
-              ),
-        ];
-      }
+      await guard('readiness-history', () async {
+        final readiness = jsonDecode(await b.readReadinessHistory(h, days: 28));
+        if (readiness is List) {
+          d.readinessHistory = [
+            for (final row in readiness.whereType<Map>())
+              if (row['date'] != null && row['readiness_score'] is num)
+                (
+                  row['date'].toString(),
+                  (row['readiness_score'] as num).toDouble(),
+                ),
+          ];
+        }
+      });
 
       // Fitness series for trend (90 days) — includes form/freshness.
-      d.trend = FitnessTrend.fromJson(
-        jsonDecode(await b.fitnessSeries(h, days: 90)),
-      );
+      await guard('fitness-series', () async {
+        d.trend = FitnessTrend.fromJson(
+          jsonDecode(await b.fitnessSeries(h, days: 90)),
+        );
+      });
 
       // Biometric history for HRV/RHR/Sleep overviews (28 days).
-      final bioHistory = jsonDecode(await b.readBiometricHistory(h, days: 28));
-      if (bioHistory is List) {
-        d.biometricHistory = [
-          for (final row in bioHistory.whereType<Map>())
-            BiometricSample.fromJson(row),
-        ];
-      }
+      await guard('biometric-history', () async {
+        final bioHistory = jsonDecode(await b.readBiometricHistory(h, days: 28));
+        if (bioHistory is List) {
+          d.biometricHistory = [
+            for (final row in bioHistory.whereType<Map>())
+              BiometricSample.fromJson(row),
+          ];
+        }
+      });
 
       // Recent activities for workouts list.
-      final activities = jsonDecode(await b.readRecentActivities(h, limit: 10));
-      if (activities is List) {
-        d.recentActivities = [
-          for (final row in activities.whereType<Map>())
-            ActivitySummary.fromJson(row),
-        ];
-      }
+      await guard('recent-activities', () async {
+        final activities = jsonDecode(await b.readRecentActivities(h, limit: 10));
+        if (activities is List) {
+          d.recentActivities = [
+            for (final row in activities.whereType<Map>())
+              ActivitySummary.fromJson(row),
+          ];
+        }
+      });
 
-      // Efficiency factor trend for adaptation proof.
-      // Query across all activity types (passing empty string means no filter).
-      final ef = jsonDecode(
-        await b.readMetricAcrossActivities(
-          h,
-          metric: 'efficiency_factor',
-          activityType: '',  // All activity types
-          limit: 20,
-        ),
-      );
-      if (ef is List) {
-        d.efTrend = [
-          for (final row in ef.whereType<Map>())
-            if (row['completed_at'] != null && row['value'] is num)
-              (
-                row['completed_at'].toString(),
-                (row['value'] as num).toDouble(),
-              ),
-        ];
-      }
+      // Efficiency factor trend (adaptation proof), all activity types.
+      // efficiency_factor is not yet whitelisted in read_metric_across_activities
+      // (engine gap, held) → this throws today; the guard leaves d.efTrend empty
+      // (honest-absent card) instead of failing the page.
+      await guard('ef-trend', () async {
+        final ef = jsonDecode(
+          await b.readMetricAcrossActivities(
+            h,
+            metric: 'efficiency_factor',
+            activityType: '',
+            limit: 20,
+          ),
+        );
+        if (ef is List) {
+          d.efTrend = [
+            for (final row in ef.whereType<Map>())
+              if (row['completed_at'] != null && row['value'] is num)
+                (
+                  row['completed_at'].toString(),
+                  (row['value'] as num).toDouble(),
+                ),
+          ];
+        }
+      });
 
-      // HR recovery trend for adaptation proof.
-      final hrRec = jsonDecode(
-        await b.readMetricAcrossActivities(
-          h,
-          metric: 'hr_recovery',
-          activityType: '',  // All activity types
-          limit: 20,
-        ),
-      );
-      if (hrRec is List) {
-        d.hrRecoveryTrend = [
-          for (final row in hrRec.whereType<Map>())
-            if (row['completed_at'] != null && row['value'] is num)
-              (
-                row['completed_at'].toString(),
-                (row['value'] as num).toDouble(),
-              ),
-        ];
-      }
+      // HR recovery trend (adaptation proof). Same engine-gap caveat as EF.
+      await guard('hr-recovery-trend', () async {
+        final hrRec = jsonDecode(
+          await b.readMetricAcrossActivities(
+            h,
+            metric: 'hr_recovery',
+            activityType: '',
+            limit: 20,
+          ),
+        );
+        if (hrRec is List) {
+          d.hrRecoveryTrend = [
+            for (final row in hrRec.whereType<Map>())
+              if (row['completed_at'] != null && row['value'] is num)
+                (
+                  row['completed_at'].toString(),
+                  (row['value'] as num).toDouble(),
+                ),
+          ];
+        }
+      });
     } catch (e) {
+      // Last-resort net: a catastrophic, non-per-card failure (the per-card
+      // guards above absorb the expected per-metric failures). Only this sets
+      // d.error → the honest "couldn't load your journey" page.
       d.error = e.toString();
-      // WU3 Phase-2 observation: the Journey wraps all 8 FFI reads in ONE
-      // try/catch, so a single throwing call collapses the whole page to
-      // "Couldn't load your journey." Capture the runtimeType so the throwing
-      // call is NAMED, not guessed, before the per-card-resilience fix (#4).
-      // Log-only.
       if (kDebugMode) {
         // ignore: avoid_print
-        print('WU3 journey fetch failed — ${e.runtimeType}: $e');
+        print('journey: catastrophic fetch failure — ${e.runtimeType}: $e');
       }
     }
     if (!mounted) return;
