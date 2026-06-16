@@ -569,8 +569,7 @@ class HealthIngestService {
       }
     }
 
-    final caloriesRounded =
-        workoutValue.totalEnergyBurned != null ? workoutValue.totalEnergyBurned!.round() : null;
+    final caloriesRounded = workoutValue.totalEnergyBurned?.round();
 
     // Build VaultActivity JSON (schema from gatc-vault/models.rs).
     final activityJson = jsonEncode({
