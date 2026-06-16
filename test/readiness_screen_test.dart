@@ -562,7 +562,7 @@ void main() {
       await tester.pumpWidget(pumpableHome(data));
 
       expect(find.text('Endurance Ride'), findsWidgets);
-      expect(find.text('Up to Z8'), findsOneWidget);
+      expect(find.text('Up to Sprint'), findsOneWidget);
       expect(find.text('See workout options'), findsOneWidget);
       expect(
         find.text("First, let's learn you — log a few days."),
