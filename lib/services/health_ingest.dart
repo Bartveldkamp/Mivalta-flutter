@@ -469,8 +469,10 @@ class HealthIngestService {
       //
       // For each WORKOUT session not yet ingested:
       //   1. Build VaultActivity JSON (transport-only mapping)
-      //   2. write_activity → persist to vault
-      //   3. record_activity → tell Viterbi a load happened
+      //   2. write_activity → persist to vault (journey list)
+      //   3. normalize the workout payload → process_observation, which lets
+      //      the ENGINE compute and auto-record the real load (NO Dart load
+      //      math, NO separate record_activity — that would double-count).
       //   4. Persist HMM state
       //
       // Idempotency: key by workout start time to avoid re-ingesting.
@@ -567,6 +569,8 @@ class HealthIngestService {
       }
     }
 
+    final caloriesRounded = workoutValue.totalEnergyBurned?.round();
+
     // Build VaultActivity JSON (schema from gatc-vault/models.rs).
     final activityJson = jsonEncode({
       'id': activityId,
@@ -576,35 +580,122 @@ class HealthIngestService {
       if (distanceKm != null) 'distance_km': distanceKm,
       if (avgHr != null) 'avg_heart_rate': avgHr,
       if (maxHr != null) 'max_heart_rate': maxHr,
-      if (workoutValue.totalEnergyBurned != null)
-        'calories': workoutValue.totalEnergyBurned!.round(),
+      if (caloriesRounded != null) 'calories': caloriesRounded,
       'source': Platform.isAndroid ? 'health_connect' : 'apple',
     });
 
-    // Persist the activity to the vault (Recipe 4 step 1).
+    // Persist the activity to the vault (journey list — unchanged).
     await binding.writeActivity(handle, activityJson: activityJson);
 
-    // For non-power activities (most Health Connect workouts), we skip
-    // process_activity (which needs power samples) and go straight to
-    // recording the load.
+    // ====================================================================
+    // ZERO-FABRICATION: route the workout load through the ENGINE.
+    // ====================================================================
     //
-    // Load computation for HR-only workouts:
-    // The engine's record_activity expects a UniversalLoadScore JSON with
-    // timestamp and value. For HR-only workouts, we use a simple duration-
-    // based estimate. The engine will refine this once profile is complete.
+    // The previous code hand-built a fabricated load — `value: durationMinutes`
+    // ("1 ULS per minute"), a guessed placeholder — and fed it to the HMM via
+    // record_activity. That is the canonical Quality-Charter violation (a
+    // value that is NOT the real result of a real computation on real input),
+    // and because the load drives HMM state estimation it corrupted the
+    // persisted identity.
     //
-    // TODO: If avgHr and athlete profile are available, use hrTSS formula.
-    // For now, use a conservative duration-based placeholder.
-    final loadJson = jsonEncode({
-      'timestamp': workout.dateTo.toUtc().toIso8601String(),
-      // Conservative estimate: 1 ULS per minute for non-power activities.
-      // This is placeholder logic; the engine should compute the real ULS
-      // once we have power data or a proper hrTSS implementation.
-      'value': durationMinutes,
-    });
-    await binding.recordActivity(handle, loadJson: loadJson);
+    // The fix: build a workout-shaped vendor payload from the fields the
+    // platform already gave us (NO load math in Dart — Law 2) and hand it to
+    // the engine's normalizer. `process_observation` then computes the real,
+    // method-tagged Universal Load Score INTERNALLY from HR / calories /
+    // duration (gatc-viterbi load.rs: HeartRateQuadratic → Calories →
+    // DurationOnly → None) and auto-records it (gatc-viterbi lib.rs
+    // process_observation, the `activity_minutes > 0` branch calls
+    // self.record_activity on the engine-computed score).
+    //
+    // CRITICAL — no double-count: because process_observation already records
+    // the load, we DO NOT call record_activity. Calling both would count the
+    // session's load twice.
+    //
+    // Line-2 follow-up (tracked, post-continuity): the normalizer's load_score
+    // is the simpler producer (HR-quadratic / cal÷10 / duration-based), NOT the
+    // full Banister TRIMP in gatc-viterbi load.rs. Upgrading the HR→load
+    // fidelity to full TRIMP is a tracked engine-side Line-2 item; it lives in
+    // the engine, not here.
+    final source = Platform.isAndroid ? 'health_connect' : 'apple';
+    final workoutObsJson = buildWorkoutObservationJson(
+      date: _formatDate(workout.dateFrom),
+      source: source,
+      durationMinutes: durationMinutes,
+      avgHr: avgHr,
+      calories: caloriesRounded,
+    );
+
+    // Normalize the workout payload → the engine computes load_score +
+    // load_method. Fail-loud: a normalize/process error propagates to the
+    // caller's per-workout try/catch (skippedWorkouts++), never swallowed.
+    final normalizedJson = await binding.normalizeObservation(
+      handle,
+      vendor: source,
+      json: workoutObsJson,
+    );
+
+    // Feed the normalized observation into the HMM. This is the SOLE load
+    // recording path for the workout — process_observation auto-records the
+    // engine-computed load. If the engine's load_method is None (no HR, no
+    // calories, no positive duration), the engine records NO load — honest
+    // absence, the engine's verdict, not a Dart fallback.
+    await binding.processObservation(handle, observationJson: normalizedJson);
 
     return activityId;
+  }
+
+  /// Build the workout-shaped vendor payload the Rust normalizer expects, from
+  /// fields the platform already recorded. ZERO-FABRICATION transport: this
+  /// does NO load computation — it only shuttles duration (converted minutes →
+  /// the seconds/minutes shape each normalizer reads), avg HR, and calories.
+  /// The engine computes the real, method-tagged load downstream.
+  ///
+  /// Per-source workout shape (READ from the rust engine, not invented):
+  ///   - 'apple'          → healthkit.rs `normalize_observation` reads the
+  ///     `workout` object: `duration` (SECONDS), `totalEnergyBurned`,
+  ///     `associatedSamples.heartRate.average`.
+  ///   - 'health_connect' → health_connect.rs `normalize_observation` reads the
+  ///     `exercise` object: `duration_min` (MINUTES), `calories`, `avg_hr`.
+  ///
+  /// `duration` in seconds (apple) = `durationMinutes * 60` is a UNIT
+  /// conversion for the payload, NOT a load computation.
+  ///
+  /// `workoutActivityType` / `exerciseType` are deliberately omitted: the
+  /// Flutter health plugin exposes a `HealthWorkoutActivityType` enum, not the
+  /// platform's numeric HK/HC code the normalizer maps from. Omitting it means
+  /// the engine leaves the observation's `activity_type` absent for this load
+  /// (it does NOT affect the load magnitude, which derives from HR / calories /
+  /// duration) — honest absence over a guessed code. The activity_type STRING
+  /// still rides the unchanged `writeActivity` payload for the journey list.
+  static String buildWorkoutObservationJson({
+    required String date,
+    required String source,
+    required double durationMinutes,
+    int? avgHr,
+    int? calories,
+  }) {
+    if (source == 'apple') {
+      return jsonEncode({
+        'date': date,
+        'workout': <String, dynamic>{
+          'duration': durationMinutes * 60.0, // minutes → seconds (unit conv)
+          if (calories != null) 'totalEnergyBurned': calories,
+          if (avgHr != null)
+            'associatedSamples': {
+              'heartRate': {'average': avgHr},
+            },
+        },
+      });
+    }
+    // health_connect
+    return jsonEncode({
+      'date': date,
+      'exercise': <String, dynamic>{
+        'duration_min': durationMinutes,
+        if (calories != null) 'calories': calories,
+        if (avgHr != null) 'avg_hr': avgHr,
+      },
+    });
   }
 
   /// Group health data points by date (YYYY-MM-DD).
