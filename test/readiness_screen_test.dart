@@ -700,6 +700,49 @@ void main() {
       expect(find.text('Illness risk'), findsWidgets);
     });
 
+    // WU0 / Technical-Approval criterion 1 (one source of truth) + criterion 5
+    // (no fabricated values). The hero number IS the snapshot's state_score,
+    // rendered verbatim, and on no-data the cold-start default must NEVER reach
+    // the user. These pin the single-source fix that replaced the 4-axis blend
+    // number ("68") with the snapshot score ("85" for Recovered).
+    testWidgets(
+        'WU0 single source: hero number is the snapshot readinessScore, shown '
+        'with the matching state word', (tester) async {
+      final data = seededConfident()
+        ..readinessScore = 85
+        ..fatigueState = 'Recovered';
+      await tester.pumpWidget(pumpableHome(data));
+
+      // Number = the snapshot state_score, verbatim.
+      expect(find.text('85'), findsOneWidget);
+      // Word = the SAME snapshot's state — number and word are one fact.
+      expect(find.text('Recovered'), findsWidgets);
+    });
+
+    testWidgets(
+        'WU0 no fabrication: on no-data the hero shows "—", never the '
+        'cold-start default number/word', (tester) async {
+      // Even with a snapshot default (85 / Recovered) present, insufficientData
+      // must suppress it — the fabricated cold-start value must not be shown.
+      final data = HomeData()
+        ..insufficientData = true
+        ..readinessScore = 85
+        ..fatigueState = 'Recovered'
+        ..observationDays = 0;
+      await tester.pumpWidget(pumpableHome(data));
+
+      expect(find.text('85'), findsNothing); // default number never shown
+      expect(find.text('Recovered'), findsNothing); // default word never shown
+      // Honest absence rendered in the hero instead.
+      expect(
+        find.descendant(
+          of: find.byType(ReadinessLightField),
+          matching: find.text('—'),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets(
         'zero observation days → learning why says '
         '"I\'m still learning you." (no day count)', (tester) async {
