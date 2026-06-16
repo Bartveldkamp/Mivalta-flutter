@@ -2,13 +2,20 @@
 //
 // WHAT THIS IS (and is not):
 //   It replays a committed, SYNTHETIC season of raw HealthKit-shaped biometrics
-//   (assets/debug/demo_season.json) through the EXACT SAME ingest path a real
-//   watch/Oura sync uses: normalizeObservation -> processObservation ->
-//   saveState/writeViterbiState. The engine genuinely computes every readiness
-//   state from this input. Nothing on the DISPLAY side is fabricated — the only
-//   synthetic thing is the biometric stream, exactly as it would be on a bench
-//   test. This is the on-device analog of dev_sim / realworld_sim: synthetic
-//   INPUT, real PIPELINE.
+//   (assets/debug/demo_season.json) through the SAME vault-first ingest path a
+//   real watch/Oura sync uses: normalizeObservation -> writeBiometric ->
+//   processObservation -> saveState/writeViterbiState (mirroring
+//   HealthIngestService.syncHealthData, health_ingest.dart:414-431). The engine
+//   genuinely computes every readiness state from this input. Nothing on the
+//   DISPLAY side is fabricated — the only synthetic thing is the biometric
+//   stream, exactly as it would be on a bench test. This is the on-device
+//   analog of dev_sim / realworld_sim: synthetic INPUT, real PIPELINE.
+//
+//   The season is biometric-only (no workouts), so the production workout path
+//   (writeActivity) has nothing to mirror; the empty training-load panel on a
+//   seeded run is honest-absence, not a gap. writeBiometric uses the SAME
+//   pre-HMM normalized payload production uses, so it does not (and must not)
+//   backfill readiness_score — see seedSeason for why.
 //
 //   It is NOT a "fake screen": it never writes a readiness score, a state, or
 //   Josi prose. It cannot, by construction — it only feeds raw observations and
@@ -138,6 +145,25 @@ class DemoSeeder {
         vendor: _vendor,
         json: vendorJson,
       );
+      // Mirror production HealthIngestService order (health_ingest.dart:414-431):
+      // normalize -> writeBiometric (populates the vault `biometrics` table that
+      // the trend / source-tier / Journey HRV-RHR-sleep pillars read) ->
+      // processObservation (advances the HMM). Before this, the seeder fed only
+      // the HMM, leaving the vault analytics tables empty — the cause of the
+      // "No data yet" / "No history" panels on a seeded restart.
+      //
+      // FAITHFUL REPLICATION INCLUDING PRODUCTION'S GAP: we pass the SAME
+      // pre-HMM `normalized` payload production passes. It carries no
+      // readiness_score (that is computed by processObservation, AFTER this
+      // write), so the biometric row is written with readiness_score = NULL —
+      // exactly as production writes it. We deliberately do NOT write
+      // readiness_score here: doing so would fabricate the value whose absence
+      // is under test and green the trend over a real production gap. If
+      // production doesn't persist it, neither does the seeder.
+      //
+      // The season is biometric-only (no workouts), so there is no writeActivity
+      // to mirror — the empty training-load panel is honest-absence, not a gap.
+      await binding.writeBiometric(handle, json: normalized);
       await binding.processObservation(handle, observationJson: normalized);
       mutated++;
     }
