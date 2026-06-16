@@ -249,6 +249,118 @@ void main() {
   // NEXT_BUILD_BRIEF §B: Vault-first ingest tests
   // ==========================================================================
 
+  // ==========================================================================
+// WU2 de-fabrication: the workout load must be ENGINE-computed, never a
+// hand-built `value: durationMinutes` placeholder fed to the HMM.
+//
+// buildWorkoutObservationJson is the transport payload handed to the Rust
+// normalizer; process_observation then computes + auto-records the real load.
+// These tests pin that the payload (a) carries the engine's load INPUTS
+// (duration/HR/calories) in the per-source workout shape the normalizer reads,
+// and (b) never carries a fabricated load `value`. The actual engine load
+// computation + no-double-count is covered by on-device integration tests
+// (FFI calls require the native engine).
+// ==========================================================================
+  group('buildWorkoutObservationJson (WU2 de-fabrication)', () {
+    test('apple payload uses the healthkit `workout` shape with seconds', () {
+      final json = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'apple',
+        durationMinutes: 60.0,
+        avgHr: 145,
+        calories: 480,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      expect(decoded['date'], '2026-06-16');
+      final workout = decoded['workout'] as Map<String, dynamic>;
+      // 60 min → 3600 s is a UNIT conversion, NOT a load.
+      expect(workout['duration'], 3600.0);
+      expect(workout['totalEnergyBurned'], 480);
+      final hr = workout['associatedSamples']['heartRate'] as Map<String, dynamic>;
+      expect(hr['average'], 145);
+
+      // No fabricated load anywhere: there is no top-level `value` and no
+      // raw-minutes value masquerading as a load score.
+      expect(decoded.containsKey('value'), isFalse);
+      expect(workout.containsKey('value'), isFalse);
+    });
+
+    test('health_connect payload uses the `exercise` shape with minutes', () {
+      final json = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'health_connect',
+        durationMinutes: 45.0,
+        avgHr: 152,
+        calories: 360,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+
+      final exercise = decoded['exercise'] as Map<String, dynamic>;
+      expect(exercise['duration_min'], 45.0);
+      expect(exercise['calories'], 360);
+      expect(exercise['avg_hr'], 152);
+
+      expect(decoded.containsKey('value'), isFalse);
+      expect(exercise.containsKey('value'), isFalse);
+    });
+
+    test('omits HR/calories when absent — honest absence, no fabricated load',
+        () {
+      // A duration-only workout (no HR, no calories). The engine will decide
+      // the load (DurationOnly method) or None — the EDGE must not invent one.
+      final appleJson = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'apple',
+        durationMinutes: 30.0,
+        avgHr: null,
+        calories: null,
+      );
+      final appleDecoded = jsonDecode(appleJson) as Map<String, dynamic>;
+      final appleWorkout = appleDecoded['workout'] as Map<String, dynamic>;
+      expect(appleWorkout.containsKey('totalEnergyBurned'), isFalse);
+      expect(appleWorkout.containsKey('associatedSamples'), isFalse);
+      // Duration is still present (it is a real platform measurement), but it
+      // is sent as a workout duration, NOT as a load `value`.
+      expect(appleWorkout['duration'], 1800.0);
+      expect(appleDecoded.containsKey('value'), isFalse);
+
+      final hcJson = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'health_connect',
+        durationMinutes: 30.0,
+        avgHr: null,
+        calories: null,
+      );
+      final hcDecoded = jsonDecode(hcJson) as Map<String, dynamic>;
+      final hcExercise = hcDecoded['exercise'] as Map<String, dynamic>;
+      expect(hcExercise.containsKey('calories'), isFalse);
+      expect(hcExercise.containsKey('avg_hr'), isFalse);
+      expect(hcExercise['duration_min'], 30.0);
+      expect(hcDecoded.containsKey('value'), isFalse);
+    });
+
+    test('regression: durationMinutes never appears as a load `value` field',
+        () {
+      // The exact canonical violation: `value: durationMinutes`. Prove the
+      // payload never carries a top-level `value` equal to the raw minutes.
+      const durationMinutes = 72.0;
+      for (final source in ['apple', 'health_connect']) {
+        final json = HealthIngestService.buildWorkoutObservationJson(
+          date: '2026-06-16',
+          source: source,
+          durationMinutes: durationMinutes,
+          avgHr: 140,
+          calories: 500,
+        );
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        // No `value` key at any level we control.
+        expect(decoded['value'], isNull,
+            reason: 'no fabricated load value for $source');
+      }
+    });
+  });
+
   group('buildRawObservationJson (vault-first ingest §B)', () {
     test('builds JSON with required keys', () {
       final json = HealthIngestService.buildRawObservationJson(
