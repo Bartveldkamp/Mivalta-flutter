@@ -55,6 +55,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _totalPages = 7;
 
   @override
+  void initState() {
+    super.initState();
+    // _canProceed() (the Continue button) and the volume page's preset chips
+    // read these controllers' .text during build. A TextEditingController
+    // mutation — whether typed OR set programmatically by a preset chip — does
+    // NOT trigger a rebuild on its own. On a page whose only input is a text
+    // field (the volume page has no sibling control to incidentally rebuild),
+    // that left the preset chip un-greened and Continue permanently disabled.
+    // Rebuild on every change so both re-evaluate. (The age page worked only
+    // incidentally — picking sex fired setState; this removes that fragility.)
+    _ageController.addListener(_onFormFieldChanged);
+    _weeklyHoursController.addListener(_onFormFieldChanged);
+  }
+
+  void _onFormFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _ageController.dispose();
