@@ -239,7 +239,7 @@ void main() {
       final decoded = jsonDecode(builder.buildInputs()) as Map<String, dynamic>;
 
       // Raw goal_type is passed straight through...
-      expect(decoded['goal_type'], 'performance');
+      expect(decoded['goal_type'], 'general_fitness');
       // ...and NOTHING is derived client-side (the engine owns these).
       expect(decoded.containsKey('goal_class'), isFalse);
       expect(decoded.containsKey('meso_length'), isFalse);
