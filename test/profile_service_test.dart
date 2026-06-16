@@ -86,7 +86,7 @@ void main() {
         ..sex = 'male'
         ..level = 'intermediate'
         ..sport = 'cycling'
-        ..goalType = 'endurance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 5.0
         ..trainingYears = 2
         ..thresholdHr = null; // User doesn't know
@@ -105,7 +105,7 @@ void main() {
         ..sex = 'female'
         ..level = 'advanced'
         ..sport = 'cycling'
-        ..goalType = 'performance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 10.0
         ..trainingYears = 5
         ..thresholdHr = 172
@@ -125,7 +125,7 @@ void main() {
         ..sex = 'male'
         ..level = 'intermediate'
         ..sport = 'running'
-        ..goalType = 'endurance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 6.0
         ..trainingYears = 3
         ..thresholdHr = 165
@@ -170,7 +170,7 @@ void main() {
         ..sex = 'male'
         ..level = 'intermediate'
         ..sport = 'cycling'
-        ..goalType = 'endurance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 7.0
         ..trainingYears = 3
         ..ftpWatts = 280;
@@ -189,7 +189,7 @@ void main() {
         ..sex = 'female'
         ..level = 'advanced'
         ..sport = 'running'
-        ..goalType = 'performance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 8.0
         ..trainingYears = 6
         ..thresholdPaceSecKm = 270; // 4:30/km = 270 sec/km
@@ -232,7 +232,7 @@ void main() {
         ..sex = 'male'
         ..level = 'intermediate'
         ..sport = 'cycling'
-        ..goalType = 'performance'
+        ..goalType = 'general_fitness'
         ..weeklyHours = 6.0
         ..trainingYears = 3;
 
@@ -264,10 +264,102 @@ void main() {
     });
   });
 
-  group('GoalType enum', () {
-    test('has expected values', () {
-      expect(GoalType.values.map((g) => g.value),
-          containsAll(['general_fitness', 'endurance', 'performance', 'weight_loss']));
+  // ===========================================================================
+  // BETA-SCOPE GOAL FLOW — onboarding can ONLY emit engine-registered
+  // goal_types. The bug this pins: the old GoalType enum offered `endurance`
+  // (unregistered) and `performance` (a goal_CLASS, not a goal_type); either
+  // reaching the engine made RuleResolver panic and bricked the app. The fix
+  // guarantees BY CONSTRUCTION that every emittable goal_type is in the
+  // goal_demands.md type_map.
+  // ===========================================================================
+  group('Beta-scope goal flow', () {
+    // The complete set of goal_types the onboarding can emit:
+    //   - general fitness intent → kGeneralFitnessGoalType
+    //   - specific event intent  → an EventGoalType.value
+    Set<String> emittableGoalTypes() => {
+          kGeneralFitnessGoalType,
+          ...EventGoalType.values.map((e) => e.value),
+        };
+
+    // The goal_types registered in mivalta-rust-engine/knowledge/cards/
+    // goal_demands.md `type_map` for the two end-to-end sports (running,
+    // cycling) PLUS the universal `general_fitness`. Transcribed from the card
+    // (READ-ONLY SoT) so the test fails loudly if the Dart set ever drifts to
+    // include an unregistered value.
+    const registeredRunningCycling = <String>{
+      // generic (any sport)
+      'general_fitness',
+      // running events
+      '5k', '10k', '15k', 'half_marathon', 'marathon', 'ultra_marathon',
+      'trail_50k', 'trail_marathon', 'mile', '1500m', '3000m', '5000m',
+      '10000m', 'cross_country',
+      // cycling events
+      'century', 'gran_fondo', 'metric_century', 'time_trial', 'criterium',
+      'hill_climb', 'cyclocross', 'gravel_race', 'road_race', 'sportive',
+      'ultra_cycling',
+    };
+
+    test('every emittable goal_type is registered in the card type_map', () {
+      for (final gt in emittableGoalTypes()) {
+        expect(registeredRunningCycling.contains(gt), isTrue,
+            reason: 'goal_type "$gt" is not in the goal_demands.md type_map — '
+                'it would panic RuleResolver and brick the app');
+      }
+    });
+
+    test('onboarding can NEVER emit `performance` or `endurance`', () {
+      // `performance` is a goal_CLASS (not a goal_type); `endurance` is not in
+      // the type_map at all. Both were the original brick-the-app values.
+      expect(emittableGoalTypes().contains('performance'), isFalse,
+          reason: '`performance` is a goal_class, never a selectable goal_type');
+      expect(emittableGoalTypes().contains('endurance'), isFalse,
+          reason: '`endurance` is not a registered goal_type');
+    });
+
+    test('GoalIntent.generalFitness carries the registered general_fitness goal_type',
+        () {
+      expect(kGeneralFitnessGoalType, 'general_fitness');
+    });
+
+    test('event lists are sport-scoped and non-empty for both supported sports',
+        () {
+      final running = EventGoalType.forSport('running');
+      final cycling = EventGoalType.forSport('cycling');
+
+      expect(running, isNotEmpty);
+      expect(cycling, isNotEmpty);
+      // No cross-contamination: a running pick can't appear under cycling.
+      expect(running.every((e) => e.sport == 'running'), isTrue);
+      expect(cycling.every((e) => e.sport == 'cycling'), isTrue);
+      // A few concrete anchors (verbatim card values).
+      expect(running.map((e) => e.value), containsAll(['5k', 'marathon']));
+      expect(cycling.map((e) => e.value), containsAll(['century', 'criterium']));
+      // And cross-sport leakage is impossible.
+      expect(running.map((e) => e.value).contains('century'), isFalse);
+      expect(cycling.map((e) => e.value).contains('5k'), isFalse);
+    });
+
+    test('unsupported sport yields no events (honest absence, no fabrication)',
+        () {
+      expect(EventGoalType.forSport('triathlon'), isEmpty);
+      expect(EventGoalType.forSport(null), isEmpty);
+    });
+
+    test('a built profile from a specific-event pick marshals the registered goal_type',
+        () {
+      final event = EventGoalType.marathon;
+      final builder = ProfileBuilder()
+        ..age = 30
+        ..sex = 'male'
+        ..level = 'intermediate'
+        ..sport = 'running'
+        ..goalType = event.value
+        ..weeklyHours = 6.0
+        ..trainingYears = 3;
+
+      final decoded = jsonDecode(builder.buildInputs()) as Map<String, dynamic>;
+      expect(decoded['goal_type'], 'marathon');
+      expect(registeredRunningCycling.contains(decoded['goal_type']), isTrue);
     });
   });
 }
