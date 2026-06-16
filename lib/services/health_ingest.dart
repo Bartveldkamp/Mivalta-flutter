@@ -379,6 +379,10 @@ class HealthIngestService {
       var processed = 0;
       var mutated = 0; // FL-4: any observation that advanced the HMM state
       var skipped = 0; // FL-4: days dropped by a per-observation failure
+      // De-silence: the first per-day failure cause, surfaced in the result so
+      // a SYSTEMIC failure (every day failing the same way) is diagnosable by
+      // the caller, not just a kDebugMode print.
+      String? firstSkipReason;
       for (final entry in byDate.entries) {
         final date = entry.key;
         final records = entry.value;
@@ -447,6 +451,7 @@ class HealthIngestService {
           // still reported success. Count it and (in debug) name the cause so a
           // partial sync is diagnosable on-device.
           skipped++;
+          firstSkipReason ??= '${e.runtimeType}: $e';
           if (kDebugMode) {
             // ignore: avoid_print
             print('health sync: skipped $date — ${e.runtimeType}: $e');
@@ -504,12 +509,16 @@ class HealthIngestService {
         await binding.writeViterbiState(handle, stateJson: stateJson);
       }
 
-      return HealthSyncResult(
-        success: true,
-        observationsProcessed: processed,
+      // De-silence (Law 6 — fail loud over fail quiet): decide success/error
+      // from the per-day tallies via the pure, unit-tested `buildSyncResult`. A
+      // SYSTEMIC failure (every biometric day failed) must never report
+      // success: true — that is what hid the writeBiometric type mismatch.
+      return buildSyncResult(
+        processed: processed,
+        skipped: skipped,
         workoutsProcessed: workoutsProcessed,
-        skippedDays: skipped,
         skippedWorkouts: skippedWorkouts,
+        firstSkipReason: firstSkipReason,
       );
     } catch (e) {
       return HealthSyncResult(
@@ -518,6 +527,37 @@ class HealthIngestService {
         error: e.toString(),
       );
     }
+  }
+
+  /// De-silence decision (Law 6 — fail loud over fail quiet): build the sync
+  /// result from the per-day tallies. A SYSTEMIC failure — biometric days were
+  /// present but EVERY one failed (`processed == 0 && skipped > 0`) — is a
+  /// contract/structural break, not a data gap, so it reports `success: false`
+  /// with the captured cause; it must never be hidden behind `success: true`
+  /// (the mechanism that masked the UniversalObservation→VaultBiometric type
+  /// mismatch — writeBiometric rejecting every row). A no-attempts sync
+  /// (`processed == 0 && skipped == 0`, e.g. workout-only) is NOT a failure.
+  /// Partial failures stay `success: true` but remain visible via
+  /// `skippedDays`. Pure + static so it is unit-tested without the platform.
+  static HealthSyncResult buildSyncResult({
+    required int processed,
+    required int skipped,
+    required int workoutsProcessed,
+    required int skippedWorkouts,
+    String? firstSkipReason,
+  }) {
+    final systemicFailure = processed == 0 && skipped > 0;
+    return HealthSyncResult(
+      success: !systemicFailure,
+      observationsProcessed: processed,
+      workoutsProcessed: workoutsProcessed,
+      error: systemicFailure
+          ? 'All $skipped biometric day(s) failed to ingest — '
+              '${firstSkipReason ?? 'unknown error'}'
+          : null,
+      skippedDays: skipped,
+      skippedWorkouts: skippedWorkouts,
+    );
   }
 
   /// Ingest a single workout into the vault.
