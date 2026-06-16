@@ -3,16 +3,18 @@
 // no fallback logic in Dart.
 //
 // Three zones per UI_UX_DIRECTION.md v1.1 (dark-first, calm, honest, agency):
-//   Zone 1 — State (hero): ReadinessRing + state_recommendation prose + fatigue badge
+//   Zone 1 — State (hero): ReadinessLightField (readiness-as-light, §17.2) +
+//            state_recommendation prose + fatigue badge
 //   Zone 2 — Today: SessionWidget fields (workout_title, zone, target, focus_cue, rationale)
 //   Zone 3 — Context: alerts + sparkline + latest workout + source tier swatch
 //   (step 3, HOME_REDESIGN_BRIEF §5: raw ACWR/monotony/strain moved OFF this
 //   screen — the human-language today-facts tiles replace them; depth lives
 //   in Explore)
 //
-// On insufficient data (no observations yet → advisories.last_observation_at
-// == null), Zone 1 shows the LOCKED F1 copy instead of a ring. Zones 2/3
-// show their engine-provided empty prose.
+// On insufficient data (the engine's readiness_indicator() returns zero
+// confidence — it has not yet learned enough of this athlete to speak), Zone 1
+// shows the LOCKED F1 copy instead of a ring. Zones 2/3 show their
+// engine-provided empty prose. See [insufficientDataFromConfidence].
 //
 // **Continuity**: Uses a PERSISTENT vault path (mivalta-vault) and restores
 // the ViterbiEngine from persisted state on subsequent launches.
@@ -29,6 +31,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 
 import '../copy/today_facts_labels.dart';
+import '../copy/zone_labels.dart';
 import '../models/activity_summary.dart';
 import '../rust_engine.dart';
 import '../services/health_ingest.dart';
@@ -37,7 +40,7 @@ import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
-import '../widgets/readiness_ring.dart';
+import '../widgets/readiness_light_field.dart';
 import '../widgets/today_facts.dart';
 import '../widgets/weather.dart';
 import 'advisor_screen.dart';
@@ -56,6 +59,26 @@ String _humanizeFatigueState(String? state) {
     (m) => '${m[1]} ${m[2]!.toLowerCase()}',
   );
 }
+
+/// The insufficient-data gate. Maps the engine's own no-data verdict to the
+/// home's "we need more data" presentation — it is NOT a Dart threshold.
+///
+/// `ViterbiMonitor::readiness_indicator()` (gatc-viterbi) returns an explicit
+/// no-data result — score 0, **confidence 0**, empty contributions — when it
+/// has neither HMM posteriors nor any z-score history to stand on, rather than
+/// reading absent z-scores as "exactly at baseline" and fabricating a healthy
+/// number. Its doc-comment contract is explicit: *"Consumers gate their 'need
+/// more data' copy on the zero confidence."* We honour that here.
+///
+/// This verdict is PERSISTED: `zscore_history` and the HMM posteriors are saved
+/// on every state-changing op and restored on launch, so once the model has
+/// learned an athlete's baseline it keeps surfacing readiness across app
+/// restarts. (The earlier gate keyed off `advisories.last_observation_at`,
+/// a transient cache that resets to null on every state restore — it falsely
+/// re-triggered "we need more data" after each relaunch even for a fully
+/// learned model.)
+bool insufficientDataFromConfidence(double? confidence) =>
+    confidence == null || confidence == 0.0;
 
 /// PR-F: Fallback profile if none provided (should not happen in production).
 /// This is a minimal profile that satisfies the engine's required fields.
@@ -90,9 +113,8 @@ String _fallbackProfile() {
 /// call site: [_ReadinessScreenState.build].
 class HomeData {
   // Zone 1 — State (hero)
-  int? readinessScore;           // from indicator['score'], rounded
-  String? readinessLevel;        // indicator['level'] verbatim
-  double? confidence;            // indicator['confidence']
+  int? readinessScore;           // SINGLE SOURCE: snapshot['score'] (state_score) — same object as state + level
+  double? confidence;            // indicator['confidence'] — kept ONLY for the no-data/learning gate
   // Item 4: indicator['contributions'] — 4-axis reasons for Josi's why-reveal
   List<Map<String, dynamic>> contributions = const [];
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
@@ -364,12 +386,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
 
       // ---------- Zone 1: State (hero) ----------
 
-      // readiness_indicator — the 4-axis blend headline
+      // readiness_indicator — NO LONGER the headline number. Kept ONLY for
+      // (a) the no-data/learning GATE: its confidence is 0 on cold-start and
+      // earns up over the ~28-day population→personal handover
+      // (gatc-viterbi baseline.rs §4.7 confidence-earned personal_weight), and
+      // (b) the "why" contributions below. The headline number/word/color all
+      // come from the single snapshot object (see the fatigue-state block).
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      final num? score = indicator['score'] as num?;
-      d.readinessScore = score?.round();
-      d.readinessLevel = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
       // Item 4: 4-axis contributions for the why-reveal (same shape the
@@ -380,13 +404,16 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             contributions.whereType<Map<String, dynamic>>().toList();
       }
 
-      // Check for insufficient data via readinessScore advisories
-      final readinessJson = await binding.readinessScore(handle);
-      final readiness = jsonDecode(readinessJson) as Map<String, dynamic>;
-      final advisoriesObj = readiness['advisories'];
-      if (advisoriesObj is Map) {
-        d.insufficientData = advisoriesObj['last_observation_at'] == null;
-      }
+      // Insufficient-data gate — the engine's verdict on whether it has
+      // learned enough of THIS athlete to speak. readiness_indicator() returns
+      // an explicit no-data result (score 0, confidence 0, empty contributions)
+      // when it has neither HMM posteriors nor any z-score history to stand on;
+      // its contract is explicit (gatc-viterbi readiness_indicator no-data
+      // guard). See [insufficientDataFromConfidence] for the full rationale —
+      // we read the same `confidence` the headline already parsed above, which
+      // is the PERSISTED learning verdict (survives app restarts), not the
+      // transient advisories.last_observation_at the gate used to key off.
+      d.insufficientData = insufficientDataFromConfidence(d.confidence);
 
       // StateWidget — FIXED: use real field names from engine schema
       final stateWidgetJson = await binding.getStateWidget(handle);
@@ -396,10 +423,19 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
       }
 
-      // Fatigue state badge
+      // Fatigue state badge + the SINGLE-SOURCE headline number.
+      // get_readiness() returns ONE consistent snapshot: state + score
+      // (state_score) + level, all derived from current_state. The headline
+      // number now reads snapshot['score'] — the SAME object the word and the
+      // colour come from — so the score, word, and colour are three faces of
+      // one fact and can never disagree (e.g. 85 / Recovered / Green).
+      // The cold-start default (85/Recovered/Green) is NEVER shown: the
+      // insufficientData gate (indicator confidence == 0 during the ~28-day
+      // learning period) suppresses the whole hero until real data is earned.
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
+      d.readinessScore = (snapshot['score'] as num?)?.round();
 
       // Step 2: observation-day count for the learning ring's "day X" why.
       // Engine rows in (one daily snapshot per observed day), distinct-date
@@ -971,10 +1007,10 @@ class _Zone1State extends StatelessWidget {
         Center(
           child: GestureDetector(
             onTap: data.insufficientData ? null : onTapRing,
-            child: ReadinessRing(
+            child: ReadinessLightField(
+              fatigueState: data.fatigueState,
+              stateWord: _humanizeFatigueState(data.fatigueState),
               score: data.readinessScore,
-              level: data.readinessLevel,
-              confidence: data.confidence,
               noData: data.insufficientData,
               learning: learning,
             ),
@@ -1156,10 +1192,10 @@ class _Zone2Today extends StatelessWidget {
           ),
         ] else ...[
 
-        // Zone cap chip
-        if (data.zoneCap != null)
+        // Zone cap chip — consumer label, never the raw Z-code (brief §5)
+        if (zoneCapLabel(data.zoneCap) != null)
           _Badge(
-            label: 'Up to ${data.zoneCap}',
+            label: zoneCapLabel(data.zoneCap)!,
             color: MivaltaColors.textMuted,
           ),
         const SizedBox(height: MivaltaSpace.x4),
@@ -1205,9 +1241,9 @@ class _Zone2Today extends StatelessWidget {
                 // Zone + target
                 Row(
                   children: [
-                    if (data.sessionZone != null)
+                    if (zoneLabel(data.sessionZone) != null)
                       _Badge(
-                        label: data.sessionZone!,
+                        label: zoneLabel(data.sessionZone)!,
                         color: _isRest
                             ? MivaltaColors.stateRecovered
                             : MivaltaColors.textMuted,

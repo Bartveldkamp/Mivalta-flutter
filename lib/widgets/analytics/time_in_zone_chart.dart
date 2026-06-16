@@ -11,24 +11,11 @@ import 'package:flutter/material.dart';
 import '../../models/time_in_zone.dart';
 import '../../theme/tokens.dart';
 
-/// Intensity colour ramp for the canonical zones. NOT the locked SourceTier
-/// tokens (those denote data provenance, not effort) — this is an effort ramp
-/// from recovery (cool) through threshold (amber) to anaerobic/neuromuscular
-/// (red), reusing the Viterbi state/level tokens where they line up so the app
-/// keeps a single palette. Keyed by the engine's symbolic zone label.
-const Map<String, Color> _zoneRamp = {
-  'R': MivaltaColors.textMuted, // recovery / below Z1
-  'Z1': MivaltaColors.stateRecovered, // easy aerobic
-  'Z2': MivaltaColors.stateProductive, // endurance foundation
-  'Z3': MivaltaColors.tertiaryTeal, // sustained
-  'Z4': MivaltaColors.levelYellow, // threshold
-  'Z5': MivaltaColors.levelOrange, // VO2
-  'Z6': MivaltaColors.stateOverreached, // anaerobic
-  'Z7': MivaltaColors.levelRed, // anaerobic / neuromuscular
-  'Z8': MivaltaColors.stateIllnessRisk, // neuromuscular sprint
-};
-
-Color _colorFor(String zone) => _zoneRamp[zone] ?? MivaltaColors.textMuted;
+/// Zone → colour delegates to the single canonical map (`zoneColor` in
+/// tokens.dart) — the Viterbi state-scale palette — so this chart and the
+/// advisor screen can never diverge (audit #8). The engine owns the zone;
+/// Dart only renders its colour.
+Color _colorFor(String zone) => zoneColor(zone);
 
 /// Human label for the anchor the engine classified through.
 String _anchorLabel(String anchor) => switch (anchor) {

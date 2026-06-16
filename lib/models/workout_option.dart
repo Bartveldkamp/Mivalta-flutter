@@ -62,6 +62,15 @@ class WorkoutOption {
       durationMin: duration,
       targetWatts: (json['target_watts'] as num?)?.toInt(),
       targetPaceMss: json['target_pace_mss']?.toString(),
+      // Engine emits `expression` as an ExpressionData STRUCT
+      // (gatc-types WorkoutOptionData.expression: Option<ExpressionData>,
+      // fields expression_id/title/…), NOT a string. The badge renders the
+      // field-facing title (e.g. "Hill Fartlek"), so extract `.title`.
+      // (Previously unread → always null → the variation badge never showed:
+      // a silent drop at the JSON seam.)
+      expression: (json['expression'] is Map)
+          ? (json['expression'] as Map)['title']?.toString()
+          : null,
     );
   }
 }
