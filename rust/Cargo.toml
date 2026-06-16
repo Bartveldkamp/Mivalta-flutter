@@ -56,10 +56,18 @@ flutter_rust_bridge = "=2.12.0"
 # +write_raw_observation, +mark_raw_observation_processed,
 # +read_raw_observations_by_type, +read_raw_observations_by_activity,
 # +read_activity_by_id, +get_workout_detail, +completed_workout_facts.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "71b848b" }
+# Re-pinned 71b848b → e0262f9 (main after #268): the PERSISTED-STATE CONTINUITY
+# fixes — #267 (read_viterbi_state) + #268 (read_mmp_history) stop double-encoding
+# Option<String> vault reads, ending the "Missing 'current_state'" restore wipe
+# that erased the learned identity on every cold start. Behaviour-only for those
+# reads (no FFI signature change), but the range also sweeps #262–#266 — the build
+# executor must FRB-regen IF the engine_registry surface changed in that range
+# (verify on regen) and rebuild the xcframework. Cold-restart survival on the
+# simulator is the semantic proof this bump exists for.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "71b848b" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
