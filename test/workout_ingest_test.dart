@@ -164,6 +164,62 @@ void main() {
     });
   });
 
+  // De-silence (Law 6): a SYSTEMIC failure (every biometric day failed) must
+  // NOT be reported as success: true. This is the regression guard for the
+  // mechanism that hid the writeBiometric type mismatch behind a green sync.
+  group('HealthSyncResult.buildSyncResult (de-silence)', () {
+    test('all biometric days failed → success false + surfaced cause', () {
+      final r = HealthIngestService.buildSyncResult(
+        processed: 0,
+        skipped: 30,
+        workoutsProcessed: 0,
+        skippedWorkouts: 0,
+        firstSkipReason:
+            'BridgeError: invalid type: floating point `57.96`, expected i32',
+      );
+      expect(r.success, isFalse,
+          reason: 'systemic 100% biometric-write failure must not report success');
+      expect(r.skippedDays, 30);
+      expect(r.error, contains('30 biometric day'));
+      expect(r.error, contains('invalid type'));
+    });
+
+    test('partial failure stays success true, visible via skippedDays', () {
+      final r = HealthIngestService.buildSyncResult(
+        processed: 25,
+        skipped: 5,
+        workoutsProcessed: 0,
+        skippedWorkouts: 0,
+      );
+      expect(r.success, isTrue);
+      expect(r.skippedDays, 5);
+      expect(r.error, isNull);
+    });
+
+    test('clean sync → success true, no error', () {
+      final r = HealthIngestService.buildSyncResult(
+        processed: 30,
+        skipped: 0,
+        workoutsProcessed: 2,
+        skippedWorkouts: 0,
+      );
+      expect(r.success, isTrue);
+      expect(r.error, isNull);
+      expect(r.skippedDays, 0);
+    });
+
+    test('no biometric attempts (0/0, e.g. workout-only) is NOT a failure', () {
+      final r = HealthIngestService.buildSyncResult(
+        processed: 0,
+        skipped: 0,
+        workoutsProcessed: 1,
+        skippedWorkouts: 0,
+      );
+      expect(r.success, isTrue, reason: 'no attempts != systemic failure');
+      expect(r.error, isNull);
+    });
+  });
+
   group('buildHrActivityJson', () {
     test('returns JSON with hr_samples and hr_timestamps', () {
       final start = DateTime(2026, 6, 12, 10, 0, 0);
