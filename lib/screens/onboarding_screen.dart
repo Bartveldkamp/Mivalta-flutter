@@ -47,7 +47,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _sex;
   Level? _level;
   Sport? _sport;
-  GoalType? _goalType;
+  // Two-question goal flow (beta-scope): intent first, then — only if a
+  // specific event was chosen — a bounded, engine-registered event archetype.
+  // The goal is profile CONTEXT, not a coaching driver (MONITOR + ADVISORY beta).
+  GoalIntent? _goalIntent;
+  EventGoalType? _eventGoalType;
   bool _knowsThresholdHr = true;
   bool _knowsFtp = true;
   bool _knowsPace = true;
@@ -115,7 +119,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     (_builder.trainingYears ?? 0) >=
                 0;
       case 3: // Goal
-        return _goalType != null;
+        // General fitness needs only the intent. A specific event needs the
+        // intent AND a chosen registered event archetype — never proceed with
+        // "specific event" but no event picked (that would have no goal_type).
+        if (_goalIntent == GoalIntent.generalFitness) return true;
+        if (_goalIntent == GoalIntent.specificEvent) {
+          return _eventGoalType != null;
+        }
+        return false;
       case 4: // Training volume
         return _weeklyHoursController.text.isNotEmpty;
       case 5: // Anchors
@@ -133,7 +144,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _builder.sex = _sex;
     _builder.level = _level?.value;
     _builder.sport = _sport?.value;
-    _builder.goalType = _goalType?.value;
+    // Marshal the goal as profile context. BY CONSTRUCTION this is either the
+    // registered `general_fitness` goal_type, or a verbatim card-registered
+    // event goal_type — never `endurance`/`performance` (unregistered / a
+    // goal_class, the panic source). No goal-substitution: each option carries
+    // its own registered value.
+    if (_goalIntent == GoalIntent.generalFitness) {
+      _builder.goalType = kGeneralFitnessGoalType;
+    } else if (_goalIntent == GoalIntent.specificEvent) {
+      _builder.goalType = _eventGoalType?.value; // null guarded by _canProceed
+    }
     _builder.weeklyHours = double.tryParse(_weeklyHoursController.text);
 
     // Threshold HR — null if unknown
@@ -223,8 +243,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       setState(() => _builder.trainingYears = v),
                 ),
                 _GoalPage(
-                  goalType: _goalType,
-                  onGoalChanged: (v) => setState(() => _goalType = v),
+                  sport: _sport,
+                  goalIntent: _goalIntent,
+                  onIntentChanged: (v) => setState(() {
+                    _goalIntent = v;
+                    // Switching back to general fitness drops any event pick so
+                    // a stale event can never leak into the profile.
+                    if (v != GoalIntent.specificEvent) _eventGoalType = null;
+                  }),
+                  eventGoalType: _eventGoalType,
+                  onEventChanged: (v) => setState(() => _eventGoalType = v),
                 ),
                 _VolumePage(
                   weeklyHoursController: _weeklyHoursController,
@@ -501,17 +529,33 @@ class _ExperiencePage extends StatelessWidget {
 // PAGE 4: Goal Selection
 // =============================================================================
 
+/// Two-question, bounded set-option goal step (NO free text anywhere).
+///
+/// Q1: general fitness vs a specific event.
+/// Q2 (only if "specific event"): a bounded list of engine-registered event
+///     archetypes for the chosen sport, sourced verbatim from the
+///     `goal_demands.md` type_map via [EventGoalType.forSport].
+///
+/// The goal is profile CONTEXT in the beta (MONITOR + ADVISORY only), not a
+/// goal-steered coaching driver. The page computes nothing.
 class _GoalPage extends StatelessWidget {
   const _GoalPage({
-    required this.goalType,
-    required this.onGoalChanged,
+    required this.sport,
+    required this.goalIntent,
+    required this.onIntentChanged,
+    required this.eventGoalType,
+    required this.onEventChanged,
   });
 
-  final GoalType? goalType;
-  final ValueChanged<GoalType?> onGoalChanged;
+  final Sport? sport;
+  final GoalIntent? goalIntent;
+  final ValueChanged<GoalIntent?> onIntentChanged;
+  final EventGoalType? eventGoalType;
+  final ValueChanged<EventGoalType?> onEventChanged;
 
   @override
   Widget build(BuildContext context) {
+    final events = EventGoalType.forSport(sport?.value);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(MivaltaSpace.x5),
       child: Column(
@@ -526,23 +570,61 @@ class _GoalPage extends StatelessWidget {
           ),
           const SizedBox(height: MivaltaSpace.x2),
           Text(
-            "We'll tailor your training to match.",
+            'General fitness, or a specific event?',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: MivaltaColors.textMuted,
                 ),
           ),
           const SizedBox(height: MivaltaSpace.x6),
-          ...GoalType.values.map(
-            (g) => Padding(
+
+          // Q1 — intent (always shown, two bounded options).
+          ...GoalIntent.values.map(
+            (intent) => Padding(
               padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
               child: _SelectionCard(
-                title: g.label,
-                subtitle: g.description,
-                selected: goalType == g,
-                onTap: () => onGoalChanged(g),
+                title: intent.label,
+                subtitle: intent.description,
+                selected: goalIntent == intent,
+                onTap: () => onIntentChanged(intent),
               ),
             ),
           ),
+
+          // Q2 — event archetype (only when a specific event is chosen).
+          if (goalIntent == GoalIntent.specificEvent) ...[
+            const SizedBox(height: MivaltaSpace.x5),
+            Text(
+              'Which event?',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: MivaltaColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+            if (events.isEmpty)
+              // Honest absence: no registered events for this sport. Never
+              // fabricate one. (Both supported sports do have events, so this
+              // is a guard, not an expected path.)
+              Text(
+                'No events available for this sport yet.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+              )
+            else
+              Wrap(
+                spacing: MivaltaSpace.x2,
+                runSpacing: MivaltaSpace.x2,
+                children: events
+                    .map(
+                      (e) => _SelectionChip(
+                        label: e.label,
+                        selected: eventGoalType == e,
+                        onTap: () => onEventChanged(e),
+                      ),
+                    )
+                    .toList(),
+              ),
+          ],
         ],
       ),
     );

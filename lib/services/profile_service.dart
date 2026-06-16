@@ -268,15 +268,90 @@ enum Level {
   final String description;
 }
 
-/// Goal types.
-enum GoalType {
-  generalFitness('general_fitness', 'General Fitness', 'Stay healthy and active'),
-  endurance('endurance', 'Build Endurance', 'Improve aerobic capacity'),
-  performance('performance', 'Performance', 'Train for events/races'),
-  weightLoss('weight_loss', 'Weight Loss', 'Lose weight through exercise');
+/// Top-level goal intent — the FIRST onboarding goal question.
+///
+/// Beta-MVP is MONITOR + ADVISORY only: the goal is collected as profile
+/// CONTEXT, never a goal-steered coaching driver. There is no free text and no
+/// "other" — open intent is post-beta Coach mode.
+///
+/// `generalFitness` carries the engine-registered goal_type `general_fitness`
+/// directly. `specificEvent` is NOT itself a goal_type — it gates the second
+/// question (event archetype pick), so it has no `value` to marshal.
+enum GoalIntent {
+  generalFitness('General fitness', 'Stay healthy and active'),
+  specificEvent('A specific event', 'Train for a race or distance');
 
-  const GoalType(this.value, this.label, this.description);
-  final String value;
+  const GoalIntent(this.label, this.description);
   final String label;
   final String description;
 }
+
+/// A bounded, engine-registered event archetype — the SECOND onboarding goal
+/// question (shown only when [GoalIntent.specificEvent] is chosen).
+///
+/// SOURCE OF TRUTH (READ-ONLY): the `goal_type` column of the `type_map` table
+/// in `mivalta-rust-engine/knowledge/cards/goal_demands.md`. Each `value` below
+/// is copied VERBATIM from that table, so every option is guaranteed-resolvable
+/// by the engine's RuleResolver — the onboarding cannot emit an unregistered
+/// goal_type (the FL-17-style "Setup could not be completed" / panic dead-end).
+///
+/// Only the `sport == 'running'` and `sport == 'cycling'` rows are listed,
+/// because those are the two sports MiValta serves end-to-end (see [Sport]).
+/// Triathlon/swimming events in the card are intentionally omitted here.
+///
+/// NO GOAL-SUBSTITUTION: each option marshals its OWN registered goal_type. We
+/// never silently remap one event to another (the rejected "Running → 10k"
+/// fabrication).
+///
+/// To add/remove an event, change `type_map` in the card first (it is the SoT),
+/// then mirror the row here. Do not invent values not present in the card.
+enum EventGoalType {
+  // ---- running events (type_map sport == running) ----
+  fiveK('5k', 'running', '5K'),
+  tenK('10k', 'running', '10K'),
+  fifteenK('15k', 'running', '15K'),
+  halfMarathon('half_marathon', 'running', 'Half marathon'),
+  marathon('marathon', 'running', 'Marathon'),
+  ultraMarathon('ultra_marathon', 'running', 'Ultra marathon'),
+  trail50k('trail_50k', 'running', 'Trail 50K'),
+  trailMarathon('trail_marathon', 'running', 'Trail marathon'),
+  mile('mile', 'running', 'Mile'),
+  fifteenHundredM('1500m', 'running', '1500m'),
+  threeThousandM('3000m', 'running', '3000m'),
+  fiveThousandM('5000m', 'running', '5000m'),
+  tenThousandM('10000m', 'running', '10,000m'),
+  crossCountry('cross_country', 'running', 'Cross country'),
+
+  // ---- cycling events (type_map sport == cycling) ----
+  century('century', 'cycling', 'Century (100 mi)'),
+  granFondo('gran_fondo', 'cycling', 'Gran fondo'),
+  metricCentury('metric_century', 'cycling', 'Metric century (100 km)'),
+  timeTrial('time_trial', 'cycling', 'Time trial'),
+  criterium('criterium', 'cycling', 'Criterium'),
+  hillClimb('hill_climb', 'cycling', 'Hill climb'),
+  cyclocross('cyclocross', 'cycling', 'Cyclocross'),
+  gravelRace('gravel_race', 'cycling', 'Gravel race'),
+  roadRace('road_race', 'cycling', 'Road race'),
+  sportive('sportive', 'cycling', 'Sportive'),
+  ultraCycling('ultra_cycling', 'cycling', 'Ultra cycling');
+
+  const EventGoalType(this.value, this.sport, this.label);
+
+  /// The engine-registered goal_type string (verbatim from `type_map`).
+  final String value;
+
+  /// The sport this event belongs to (verbatim from `type_map`).
+  final String sport;
+
+  /// Human-facing label for the onboarding chip.
+  final String label;
+
+  /// The bounded event set offered for a given sport. Empty for any sport the
+  /// card does not register as a running/cycling event.
+  static List<EventGoalType> forSport(String? sport) =>
+      values.where((e) => e.sport == sport).toList(growable: false);
+}
+
+/// The single registered goal_type for the "general fitness" intent.
+/// Verbatim from `goal_demands.md` type_map (`general_fitness` → `general`).
+const String kGeneralFitnessGoalType = 'general_fitness';
