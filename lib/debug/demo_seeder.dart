@@ -163,7 +163,7 @@ class DemoSeeder {
       //
       // The season is biometric-only (no workouts), so there is no writeActivity
       // to mirror — the empty training-load panel is honest-absence, not a gap.
-      await binding.writeBiometric(handle, json: normalized);
+      await binding.writeBiometricFromObservation(handle, json: normalized);
       await binding.processObservation(handle, observationJson: normalized);
       mutated++;
     }

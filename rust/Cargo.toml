@@ -64,10 +64,18 @@ flutter_rust_bridge = "=2.12.0"
 # executor must FRB-regen IF the engine_registry surface changed in that range
 # (verify on regen) and rebuild the xcframework. Cold-restart survival on the
 # simulator is the semantic proof this bump exists for.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
+# Re-pinned e0262f9 → 7bc3f34 (main after #271): +write_biometric_from_observation
+# — the engine-side UniversalObservation→VaultBiometric conversion that fixes the
+# biometric-write contract bug (the normalizer output's f64 resting_hr was rejected
+# by write_biometric's i32 field, so every biometric write failed). This DOES change
+# the gatc-ffi UniFFI surface (new VaultEngine method), so the build executor MUST
+# FRB-regen lib/src/rust/ and rebuild the xcframework. The range also sweeps the
+# Viterbi-terminology rule docs (#270) and the Layer-1 quality gate (#265/#266) —
+# docs/CI only.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "7bc3f34" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "7bc3f34" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
