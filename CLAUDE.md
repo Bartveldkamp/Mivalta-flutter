@@ -2,6 +2,17 @@
 
 Guidance for Claude Code when working with this repository.
 
+## Viterbi terminology — NON-NEGOTIABLE (READ FIRST)
+
+**Viterbi is the engine that RUNS / ACTS / COMPUTES / DECIDES. The HMM is a
+FORMULA inside Viterbi (π/A/B + decode/forward) — it never "runs" or "decides".**
+There is no standalone "HMM state" or "HMM readiness": readiness is Viterbi's
+4-axis indicator, of which the HMM posterior is one axis. In Dart, code
+comments, and chat, the subject of run/compute/decide is **Viterbi**, never the
+HMM. Canonical rule + banned/correct phrasings:
+`mivalta-rust-engine/docs/VITERBI_TERMINOLOGY.md`. Read it before describing or
+touching any readiness/Viterbi/HMM code or display.
+
 ## Working Protocol — Quality Charter (READ FIRST · NON-NEGOTIABLE)
 
 Full text: [`docs/QUALITY_CHARTER.md`](docs/QUALITY_CHARTER.md). The bar is
