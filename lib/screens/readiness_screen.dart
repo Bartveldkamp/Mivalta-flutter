@@ -332,6 +332,28 @@ class _ReadinessScreenState extends State<ReadinessScreen>
             vaultPath: vaultDir.path,
             viterbiStateJson: persistedState,
           );
+          // Proof instrument (kDebugMode), symmetric with the failure log
+          // below: an affirmative restore-SUCCESS line so a cold-restart proof
+          // can confirm restoration POSITIVELY — not merely the absence of an
+          // error — and cross-check that the surviving value came from the
+          // vault. Reads straight from the persisted blob the engine just
+          // restored from (`current_state` + `observation_count` are top-level
+          // in ViterbiMonitor::save_state). Pure observation: no engine call,
+          // no behavioural change, never affects the restore.
+          if (kDebugMode) {
+            try {
+              final restored =
+                  jsonDecode(persistedState) as Map<String, dynamic>;
+              // ignore: avoid_print
+              print(
+                'persisted-state restored — '
+                'current_state=${restored['current_state']}, '
+                'obs=${restored['observation_count']}',
+              );
+            } catch (_) {
+              // Log-only; a parse hiccup must never affect a successful restore.
+            }
+          }
         } catch (e) {
           // Capture WHY the restore failed before discarding the blob, so a
           // field "history reset" is diagnosable rather than mysterious
