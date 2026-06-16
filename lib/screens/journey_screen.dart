@@ -16,6 +16,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../copy/journey_labels.dart';
@@ -266,6 +267,15 @@ class _JourneyScreenState extends State<JourneyScreen> {
       }
     } catch (e) {
       d.error = e.toString();
+      // WU3 Phase-2 observation: the Journey wraps all 8 FFI reads in ONE
+      // try/catch, so a single throwing call collapses the whole page to
+      // "Couldn't load your journey." Capture the runtimeType so the throwing
+      // call is NAMED, not guessed, before the per-card-resilience fix (#4).
+      // Log-only.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('WU3 journey fetch failed — ${e.runtimeType}: $e');
+      }
     }
     if (!mounted) return;
     setState(() => _data = d);

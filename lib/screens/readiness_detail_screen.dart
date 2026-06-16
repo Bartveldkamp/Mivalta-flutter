@@ -10,6 +10,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../copy/axis_labels.dart';
@@ -250,6 +251,22 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
       final tierJson =
           await widget.binding.lastObservationSourceTier(widget.handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
+
+      // WU3 Phase-2 observation: dump the LITERAL FFI output of the four
+      // panels under audit (trend/load/source + the indicator headline), so the
+      // observation run reads raw engine JSON rather than eyeballing rendered
+      // empty states. Log-only; no behavioural change, consumes already-fetched
+      // strings, never crosses the Dart↔Rust boundary.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('WU3 readiness_indicator -> $indicatorJson');
+        // ignore: avoid_print
+        print('WU3 read_readiness_history(30) -> $historyJson');
+        // ignore: avoid_print
+        print('WU3 read_daily_loads(30) -> $loadsJson');
+        // ignore: avoid_print
+        print('WU3 last_observation_source_tier -> $tierJson');
+      }
 
       // getStateWidget() — confidence_advisory for calibration banner
       final stateWidgetJson =

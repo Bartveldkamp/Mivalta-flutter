@@ -350,6 +350,24 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                 'current_state=${restored['current_state']}, '
                 'obs=${restored['observation_count']}',
               );
+              // WU3 Phase-2 observation: dump the LAST persisted observation's
+              // subjective + source fields, so #5 (Feel-axis provenance) and the
+              // data-source question are confirmed against the literal restored
+              // record, not inferred. Log-only.
+              final obsList = restored['observations'];
+              if (obsList is List && obsList.isNotEmpty) {
+                final last = obsList.last;
+                if (last is Map) {
+                  // ignore: avoid_print
+                  print(
+                    'persisted-state last-obs — '
+                    'source=${last['source']}, '
+                    'wellness=${last['wellness']}, '
+                    'mental_state=${last['mental_state']}, '
+                    'rpe_actual=${last['rpe_actual']}',
+                  );
+                }
+              }
             } catch (_) {
               // Log-only; a parse hiccup must never affect a successful restore.
             }
