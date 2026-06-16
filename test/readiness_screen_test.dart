@@ -498,8 +498,10 @@ void main() {
       expect(find.text('Endurance Ride'), findsNothing);
       expect(find.text('156W'), findsNothing);
       expect(find.textContaining('Endurance Ride'), findsNothing);
-      // No zone-cap chip.
-      expect(find.text('Up to Z8'), findsNothing);
+      // No zone-cap chip (assert the REAL rendered label is absent, not the
+      // raw 'Z8' code which can never render post-F-ZONE — that would pass
+      // even if the chip wrongly appeared).
+      expect(find.text('Up to Sprint'), findsNothing);
       // No advisor entry (the advisor surfaces prior-derived prescriptions).
       expect(find.text('See workout options'), findsNothing);
       // No prior-based state prose.
