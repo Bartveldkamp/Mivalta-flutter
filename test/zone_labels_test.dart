@@ -14,15 +14,15 @@ void main() {
       expect(zoneLabel('Z2'), 'Endurance');
       expect(zoneLabel('Z3'), 'Threshold');
       // The engine puts VO2max at Z4/Z5 (aerobic_power) — NOT "Threshold".
-      expect(zoneLabel('Z4'), 'VO2 Max');
-      expect(zoneLabel('Z5'), 'VO2 Max');
+      expect(zoneLabel('Z4'), 'VO₂max / aerobic power');
+      expect(zoneLabel('Z5'), 'VO₂max / aerobic power');
       expect(zoneLabel('Z6'), 'Anaerobic');
       expect(zoneLabel('Z7'), 'Sprint');
       expect(zoneLabel('Z8'), 'Sprint');
     });
 
     test('is case-insensitive and trims', () {
-      expect(zoneLabel('z4'), 'VO2 Max');
+      expect(zoneLabel('z4'), 'VO₂max / aerobic power');
       expect(zoneLabel(' Z2 '), 'Endurance');
     });
 
@@ -37,7 +37,7 @@ void main() {
   group('zoneCapLabel — "what is available today" chip', () {
     test('phrases the cap by system, recovery as a floor', () {
       expect(zoneCapLabel('Z8'), 'Up to Sprint');
-      expect(zoneCapLabel('Z4'), 'Up to VO2 Max');
+      expect(zoneCapLabel('Z4'), 'Up to VO₂max / aerobic power');
       expect(zoneCapLabel('Z2'), 'Up to Endurance');
       expect(zoneCapLabel('R'), 'Recovery only');
     });

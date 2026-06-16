@@ -592,7 +592,6 @@ void main() {
     HomeData seededLowConfidence() => HomeData()
       ..insufficientData = false
       ..readinessScore = 62
-      ..readinessLevel = 'yellow'
       ..fatigueState = 'Productive'
       ..confidence = 0.4
       ..stateRecommendation = 'Early read — take it easy.'
@@ -603,7 +602,6 @@ void main() {
     HomeData seededConfident() => HomeData()
       ..insufficientData = false
       ..readinessScore = 78
-      ..readinessLevel = 'green'
       ..fatigueState = 'Recovered'
       ..stateRecommendation = 'Recovered — fully charged.'
       // Empty advisory = engine is confident.
@@ -690,7 +688,6 @@ void main() {
         'word', (tester) async {
       final data = seededConfident()
         ..readinessScore = 35
-        ..readinessLevel = 'red'
         ..fatigueState = 'IllnessRisk'
         ..stateRecommendation = 'Run down — back off today.';
       await tester.pumpWidget(pumpableHome(data));
@@ -739,7 +736,6 @@ void main() {
       final data = HomeData()
         ..insufficientData = false
         ..readinessScore = 78
-        ..readinessLevel = 'green'
         ..confidence = 0.9
         ..stateRecommendation = 'Recovered — fully charged.'
         ..lastNightSleepHours = 7.5
@@ -803,7 +799,6 @@ void main() {
       final data = HomeData()
         ..insufficientData = false
         ..readinessScore = 78
-        ..readinessLevel = 'green'
         ..confidence = 0.9
         ..stateRecommendation = 'Recovered — fully charged.';
       await tester.pumpWidget(pumpableHome(data));
