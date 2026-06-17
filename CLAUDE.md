@@ -13,6 +13,18 @@ HMM. Canonical rule + banned/correct phrasings:
 `mivalta-rust-engine/docs/VITERBI_TERMINOLOGY.md`. Read it before describing or
 touching any readiness/Viterbi/HMM code or display.
 
+## Architecture — carved-in-stone facts (READ FIRST before architectural design)
+
+The canonical data-architecture facts live in the **Immovable Facts** at the top
+of `mivalta-rust-engine/docs/ARCHITECTURE.md` (data flow, vault-first/sovereignty,
+encryption boundary, layer responsibilities) — each verified against real code
+with a `path:line` citation, including the Flutter side (e.g. the vault-first
+auto-sync in `lib/services/health_ingest.dart`, Dart-is-display-only). **Read it
+before any design touching the data flow / vault / FFI boundary, and verify your
+premise against it / the code first** — a design built on a wrong architectural
+premise has no other mechanical catch. Engine DECIDES, Flutter DISPLAYS; the
+edges courier, the engine computes.
+
 ## Working Protocol — Quality Charter (READ FIRST · NON-NEGOTIABLE)
 
 Full text: [`docs/QUALITY_CHARTER.md`](docs/QUALITY_CHARTER.md). The bar is
