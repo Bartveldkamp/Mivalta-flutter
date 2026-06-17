@@ -39,9 +39,14 @@ import '../widgets/analytics/workout_detail_card.dart';
 
 /// Detail screen data from engine
 class _DetailData {
-  // From readinessIndicator()
+  // From viterbiFatigueState() — the SINGLE-SOURCE headline, matching the home
+  // so the score the user tapped is the score they see in the detail hero.
   int? score;
   String? level;
+  String? fatigueState;
+
+  // From readinessIndicator() — confidence for learning gate + contributions
+  // for the axis breakdown (NOT the headline score, which comes from above).
   double? confidence;
   List<Map<String, dynamic>> contributions = [];
 
@@ -119,13 +124,22 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
   Future<void> _fetch() async {
     final d = _DetailData();
     try {
-      // readinessIndicator() — score, level, confidence, contributions
+      // viterbiFatigueState() — the SINGLE-SOURCE headline (state + score +
+      // level), matching the home so the user sees the same number they tapped.
+      // This is the HMM posterior-derived state_score, NOT the blended
+      // readiness indicator. See readiness_screen.dart:448-456 rationale.
+      final snapshotJson =
+          await widget.binding.viterbiFatigueState(widget.handle);
+      final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
+      d.score = (snapshot['score'] as num?)?.round();
+      d.level = snapshot['level']?.toString();
+      d.fatigueState = snapshot['state']?.toString();
+
+      // readinessIndicator() — confidence (for learning gate / bar) +
+      // contributions (for axis breakdown). NOT the headline score.
       final indicatorJson =
           await widget.binding.readinessIndicator(widget.handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      final num? score = indicator['score'] as num?;
-      d.score = score?.round();
-      d.level = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
       final contributions = indicator['contributions'];
