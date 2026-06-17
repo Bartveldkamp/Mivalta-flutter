@@ -93,6 +93,26 @@ jobs:
           cd rust
           cargo ndk --target arm64-v8a --platform 21 -- check --release
 
+      - name: FRB drift-guard — regenerated bindings must match the committed shim
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          # Layer-3 guard (2026-06-17): stop a stale binary shipping against
+          # fresh bindings — the "expected i32" hash-mismatch class that cost a
+          # full day by masquerading as a runtime/sim failure. Regenerate the
+          # FRB bindings from rust/src/api.rs and assert NOTHING changed: the
+          # committed lib/src/rust/* and rust/src/frb_generated.rs already match
+          # the shim. A PR that touched the shim or the engine pin but forgot to
+          # regen (or hand-edited the generated files) fails here, in CI, in
+          # seconds — never again on the simulator.
+          cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
+          flutter_rust_bridge_codegen generate
+          if ! git diff --quiet -- lib/src/rust rust/src/frb_generated.rs; then
+            echo "::error::FRB bindings are stale — regen produced changes. Run scripts/build_ios.sh (or 'flutter_rust_bridge_codegen generate') and commit lib/src/rust + rust/src/frb_generated.rs."
+            git --no-pager diff --stat -- lib/src/rust rust/src/frb_generated.rs
+            exit 1
+          fi
+          echo "FRB bindings match the shim — no drift."
+
       - name: flutter analyze
         if: steps.check_key.outputs.skip == 'false'
         run: flutter analyze
