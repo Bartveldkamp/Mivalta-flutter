@@ -79,13 +79,23 @@ jobs:
         if: steps.check_key.outputs.skip == 'false'
         run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
 
-      - name: Regenerate bindings and assert no drift
+      - name: Regenerate bindings and assert the Dart contract has no drift
         if: steps.check_key.outputs.skip == 'false'
         run: |
+          # Assert ONLY on lib/src/rust/ — the Dart bindings are the
+          # consumer-facing contract and are toolchain-stable (frb's Dart output
+          # + the pinned dart format). rust/src/frb_generated.rs is deliberately
+          # NOT checked: it is produced by `cargo expand`, whose output depends
+          # on the rustc / cargo-expand version, so it diffs harmlessly between
+          # CI and the toolchain that generated the committed copy (a false
+          # positive — observed 2026-06-17: 182-line frb_generated.rs diff while
+          # lib/src/rust was clean). The real drift class — shim/pin moved, Dart
+          # facade calls stale bindings ("expected i32") — surfaces in
+          # lib/src/rust/; a genuinely stale rust glue fails the build, not here.
           flutter_rust_bridge_codegen generate
-          if ! git diff --quiet -- lib/src/rust rust/src/frb_generated.rs; then
-            echo "::error::FRB bindings are stale — codegen produced changes. Run scripts/build_ios.sh (or 'flutter_rust_bridge_codegen generate') and commit lib/src/rust + rust/src/frb_generated.rs."
-            git --no-pager diff --stat -- lib/src/rust rust/src/frb_generated.rs
+          if ! git diff --quiet -- lib/src/rust; then
+            echo "::error::FRB Dart bindings are stale — codegen changed lib/src/rust/. Run scripts/build_ios.sh (or 'flutter_rust_bridge_codegen generate') and commit lib/src/rust/."
+            git --no-pager diff --stat -- lib/src/rust
             exit 1
           fi
-          echo "FRB bindings match the shim — no drift."
+          echo "FRB Dart bindings match the shim — no drift."

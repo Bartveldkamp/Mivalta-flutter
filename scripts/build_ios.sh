@@ -34,8 +34,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
-# Every path flutter_rust_bridge_codegen writes (both sides of the boundary).
-GEN_PATHS=(lib/src/rust rust/src/frb_generated.rs)
+# The Dart bindings — the consumer-facing, toolchain-stable contract. We do NOT
+# check rust/src/frb_generated.rs: it comes from `cargo expand`, whose output is
+# rustc / cargo-expand-version dependent and diffs harmlessly across toolchains
+# (a false positive). A genuinely stale rust glue fails the build below, not here.
+GEN_PATHS=(lib/src/rust)
 
 echo "=== [1/3] flutter_rust_bridge_codegen generate ==="
 flutter_rust_bridge_codegen generate
