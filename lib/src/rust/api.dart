@@ -514,6 +514,21 @@ Future<void> writeBiometric({
   required String json,
 }) => RustLib.instance.api.crateApiWriteBiometric(handle: handle, json: json);
 
+/// `VaultEngine::write_biometric_from_observation(json)` — persist a biometric
+/// row from a normalized observation (`UniversalObservation` JSON, the
+/// `normalizeObservation` output). The engine converts the observation shape
+/// (`resting_hr` f64, engine-internal fields) to the vault row shape
+/// (`resting_hr` i32, `sleep_quality` categorical String). Use this on the
+/// ingest path — handing `normalizeObservation`'s output straight to
+/// `write_biometric` fails on the type mismatch (float `resting_hr` → i32).
+Future<void> writeBiometricFromObservation({
+  required EnginesHandle handle,
+  required String json,
+}) => RustLib.instance.api.crateApiWriteBiometricFromObservation(
+  handle: handle,
+  json: json,
+);
+
 /// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
 /// a raw observation as processed after the pipeline consumed it. Stores the
 /// normalized `UniversalObservation` JSON alongside the raw payload (pass empty

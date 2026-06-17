@@ -494,6 +494,15 @@ class RustEngineBinding {
   Future<void> writeBiometric(EnginesHandle handle, {required String json}) =>
       rust_api.writeBiometric(handle: handle, json: json);
 
+  /// Persist a biometric row from a normalized observation
+  /// (`UniversalObservation` JSON from [normalizeObservation]). The engine
+  /// converts the observation shape (`resting_hr` f64) to the vault row shape
+  /// (`resting_hr` i32). Use this on the ingest path instead of
+  /// [writeBiometric], which rejects the observation's float `resting_hr`.
+  Future<void> writeBiometricFromObservation(EnginesHandle handle,
+          {required String json}) =>
+      rust_api.writeBiometricFromObservation(handle: handle, json: json);
+
   /// `VaultEngine::mark_raw_observation_processed(id, observation_json)` — flag
   /// a raw observation as processed. Pass empty string for observationJson to
   /// skip storing the normalized form alongside the raw.

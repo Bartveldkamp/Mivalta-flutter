@@ -97,16 +97,24 @@ ReadinessLightProfile lightProfileForState(String? state) {
 class ReadinessLightField extends StatefulWidget {
   const ReadinessLightField({
     super.key,
-    required this.fatigueState, // engine Viterbi state → light look
-    required this.stateWord,    // humanized state word (confirmation)
-    required this.score,        // indicator['score'], rounded (confirmation)
+    required this.fatigueState, // engine Viterbi state → glow-feel + safety
+    this.level,                 // indicator band → hero colour (decision (1))
+    required this.stateWord,    // hero word = band label (indicator-sourced)
+    required this.score,        // indicator['score'], rounded
     required this.noData,
     required this.learning,
   });
 
   /// Raw engine Viterbi state (e.g. "Recovered", "IllnessRisk"); drives the
-  /// light look + palette colour. Null when no state is claimed.
+  /// light's glow-feel + the IllnessRisk safety haptic ONLY — NOT the hero
+  /// colour, which is the indicator band (see [level]). Null when no state.
   final String? fatigueState;
+
+  /// Indicator band (Green/Yellow/Orange/Red) → the hero light colour, so the
+  /// number, word and colour are three faces of ONE source (the readiness
+  /// indicator) and can never disagree (decision (1), 2026-06-17). Null falls
+  /// back to the state palette colour (honest fallback).
+  final String? level;
 
   /// Display state word beneath the light (already humanized by the caller).
   final String? stateWord;
@@ -139,7 +147,22 @@ class _ReadinessLightFieldState extends State<ReadinessLightField> {
               glowExtent: 0.6,
               intensity: 0.42,
               safety: false)
-          : lightProfileForState(widget.fatigueState);
+          // Glow-feel + safety from the HMM state; colour from the indicator
+          // band so the hero's three faces share one source (decision (1)).
+          : _bandColoured(lightProfileForState(widget.fatigueState));
+
+  /// Override the state-derived profile's COLOUR with the indicator band
+  /// (decision (1), 2026-06-17) while keeping its glow-feel + safety haptic.
+  /// Null band → keep the state palette colour (honest fallback).
+  ReadinessLightProfile _bandColoured(ReadinessLightProfile base) =>
+      widget.level == null
+          ? base
+          : ReadinessLightProfile(
+              color: readinessLevelColor(widget.level),
+              glowExtent: base.glowExtent,
+              intensity: base.intensity,
+              safety: base.safety,
+            );
 
   @override
   Widget build(BuildContext context) {

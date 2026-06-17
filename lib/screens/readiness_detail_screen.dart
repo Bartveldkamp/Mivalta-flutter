@@ -39,9 +39,14 @@ import '../widgets/analytics/workout_detail_card.dart';
 
 /// Detail screen data from engine
 class _DetailData {
-  // From readinessIndicator()
+  // From viterbiFatigueState() — the SINGLE-SOURCE headline, matching the home
+  // so the score the user tapped is the score they see in the detail hero.
   int? score;
   String? level;
+  String? fatigueState;
+
+  // From readinessIndicator() — confidence for learning gate + contributions
+  // for the axis breakdown (NOT the headline score, which comes from above).
   double? confidence;
   List<Map<String, dynamic>> contributions = [];
 
@@ -119,12 +124,22 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
   Future<void> _fetch() async {
     final d = _DetailData();
     try {
-      // readinessIndicator() — score, level, confidence, contributions
+      // viterbiFatigueState() — kept ONLY for the HMM fatigue STATE, rendered
+      // as the contextual fatigue-state line in the hero. NOT the headline
+      // (decision (1), 2026-06-17).
+      final snapshotJson =
+          await widget.binding.viterbiFatigueState(widget.handle);
+      final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
+      d.fatigueState = snapshot['state']?.toString();
+
+      // readinessIndicator() — the HEADLINE: score + band level (→ hero
+      // colour), plus confidence (learning gate / bar) + contributions (axis
+      // breakdown). Honest under sparse sensors and the SAME source as the home
+      // hero, so the two screens can never show different numbers.
       final indicatorJson =
           await widget.binding.readinessIndicator(widget.handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      final num? score = indicator['score'] as num?;
-      d.score = score?.round();
+      d.score = (indicator['score'] as num?)?.round();
       d.level = indicator['level']?.toString();
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
 
@@ -452,9 +467,30 @@ class _HeroSection extends StatelessWidget {
           data.level ?? '—',
           style: textTheme.titleMedium?.copyWith(color: color),
         ),
+        // Relocated from the home hero (decision (1), 2026-06-17): the HMM
+        // fatigue STATE as contextual detail, where it cannot contradict the
+        // band hero above (the hero is the indicator; this is one axis of it).
+        if (data.fatigueState != null) ...[
+          const SizedBox(height: MivaltaSpace.x2),
+          Text(
+            'Fatigue state: ${_humanizeState(data.fatigueState)}',
+            style:
+                textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
+          ),
+        ],
       ],
     );
   }
+}
+
+/// Humanize the engine Viterbi state for display, e.g. "IllnessRisk" →
+/// "Illness risk". Presentation-only (no meaning derived).
+String _humanizeState(String? state) {
+  if (state == null || state.isEmpty) return '—';
+  return state.replaceAllMapped(
+    RegExp(r'([a-z])([A-Z])'),
+    (m) => '${m[1]} ${m[2]!.toLowerCase()}',
+  );
 }
 
 /// Section 1: Axis Breakdown — contributions[] as horizontal bars

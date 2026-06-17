@@ -64,10 +64,38 @@ flutter_rust_bridge = "=2.12.0"
 # executor must FRB-regen IF the engine_registry surface changed in that range
 # (verify on regen) and rebuild the xcframework. Cold-restart survival on the
 # simulator is the semantic proof this bump exists for.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
+# Re-pinned e0262f9 → 7bc3f34 (main after #271): +write_biometric_from_observation
+# — the engine-side UniversalObservation→VaultBiometric conversion that fixes the
+# biometric-write contract bug (the normalizer output's f64 resting_hr was rejected
+# by write_biometric's i32 field, so every biometric write failed). This DOES change
+# the gatc-ffi UniFFI surface (new VaultEngine method), so the build executor MUST
+# FRB-regen lib/src/rust/ and rebuild the xcframework. The range also sweeps the
+# Viterbi-terminology rule docs (#270) and the Layer-1 quality gate (#265/#266) —
+# docs/CI only.
+# Re-pinned 7bc3f34 → 9f2ee86 (main after #272): the feel-axis fix — 5 normalizers
+# (Apple/Health-Connect SpO2, Garmin stress, COROS fitness, Polar ANS-charge) stop
+# writing a 0–1 vendor composite into the subjective `wellness` field Viterbi reads
+# as 1–10, which was zeroing the psych axis + false-triggering the guardrail. Value-
+# only change in gatc-normalizer (no UniFFI surface change), but it ships together
+# with the #271 surface change, so the FRB-regen + xcframework rebuild is required
+# for this bump regardless. Expected on-sim: readiness headline ~68 → ~77 (corruption
+# removed; a zero-confidence psych axis still contributes neutral-65 — NOT "fixed").
+# Re-pinned 9f2ee86 → 79b7c93 (main HEAD after #273+#274 — the 2026-06-17 bug audit):
+# #273 removes the device-data fabrication cluster across all 9 normalizers (invented
+# recovery/load/FTP constants → honest absence/0.0 sentinel, with an absence-propagation
+# test), closes safety/correctness items S1+M2–M7 (monotony/replan/rule_resolver fail
+# loud instead of permissive defaults; M3 kills a Utc::now() determinism violation; M4
+# clamps the RPE-HR-drift emission weight; M7 refuses a plaintext audit ledger), splits
+# M1 (Overreached → Z1 active recovery; IllnessRisk → real rest), and removes dead
+# guardrails/I6 enforcers (S2). #274 adds the card-driven recovery-strides pool for
+# Overreached active recovery. engine_registry verified UNCHANGED across this range
+# (v2.24, zero method delta — confirmed via `git diff 9f2ee86 79b7c93 -- engine_registry.json`),
+# so this bump adds NO FFI surface; the FRB-regen is still required only for the #271
+# write_biometric_from_observation binding (already in 9f2ee86) that lib/src/rust/ lacks.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "e0262f9" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

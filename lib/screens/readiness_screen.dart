@@ -113,8 +113,9 @@ String _fallbackProfile() {
 /// call site: [_ReadinessScreenState.build].
 class HomeData {
   // Zone 1 — State (hero)
-  int? readinessScore;           // SINGLE SOURCE: snapshot['score'] (state_score) — same object as state + level
-  double? confidence;            // indicator['confidence'] — kept ONLY for the no-data/learning gate
+  int? readinessScore;           // HEADLINE: indicator['score'] (4-axis blend) — decision (1) 2026-06-17
+  double? confidence;            // indicator['confidence'] — no-data/learning gate
+  String? level;                 // HEADLINE band: indicator['level'] (Green/Yellow/Orange/Red) → colour + word
   // Item 4: indicator['contributions'] — 4-axis reasons for Josi's why-reveal
   List<Map<String, dynamic>> contributions = const [];
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
@@ -417,6 +418,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
       d.confidence = (indicator['confidence'] as num?)?.toDouble();
+      // Decision (1), 2026-06-17: the HEADLINE is the 4-axis readiness
+      // indicator, NOT the lone HMM posterior. It is honest under sparse
+      // sensors — an axis with no data drops its weight (Fitness → 0% with no
+      // workouts), whereas the HMM always decodes a crisp state and looks
+      // confident on thin data. Number + band-level (→ colour + word) both come
+      // from this ONE object, so the three faces can never disagree.
+      d.readinessScore = (indicator['score'] as num?)?.round();
+      d.level = indicator['level']?.toString();
 
       // Item 4: 4-axis contributions for the why-reveal (same shape the
       // detail screen renders; Josi shows the compact cut).
@@ -445,19 +454,16 @@ class _ReadinessScreenState extends State<ReadinessScreen>
         d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
       }
 
-      // Fatigue state badge + the SINGLE-SOURCE headline number.
-      // get_readiness() returns ONE consistent snapshot: state + score
-      // (state_score) + level, all derived from current_state. The headline
-      // number now reads snapshot['score'] — the SAME object the word and the
-      // colour come from — so the score, word, and colour are three faces of
-      // one fact and can never disagree (e.g. 85 / Recovered / Green).
-      // The cold-start default (85/Recovered/Green) is NEVER shown: the
-      // insufficientData gate (indicator confidence == 0 during the ~28-day
-      // learning period) suppresses the whole hero until real data is earned.
+      // The HMM fatigue STATE (Recovered/.../IllnessRisk). NO LONGER the
+      // headline number/word — that is the indicator above. Kept ONLY for the
+      // ring's glow-feel + safety haptic (lightProfileForState) and relocated
+      // to the detail's fatigue-state line, where it cannot contradict the
+      // band hero. The cold-start default is never shown: the insufficientData
+      // gate (indicator confidence == 0 during the ~28-day learning period)
+      // suppresses the whole hero until real data is earned.
       final snapshotJson = await binding.viterbiFatigueState(handle);
       final snapshot = jsonDecode(snapshotJson) as Map<String, dynamic>;
       d.fatigueState = snapshot['state']?.toString();
-      d.readinessScore = (snapshot['score'] as num?)?.round();
 
       // Step 2: observation-day count for the learning ring's "day X" why.
       // Engine rows in (one daily snapshot per observed day), distinct-date
@@ -1030,9 +1036,10 @@ class _Zone1State extends StatelessWidget {
           child: GestureDetector(
             onTap: data.insufficientData ? null : onTapRing,
             child: ReadinessLightField(
-              fatigueState: data.fatigueState,
-              stateWord: _humanizeFatigueState(data.fatigueState),
-              score: data.readinessScore,
+              fatigueState: data.fatigueState, // glow-feel + safety haptic only
+              level: data.level, // band → colour (indicator-sourced)
+              stateWord: data.level, // hero word = band, not the HMM state
+              score: data.readinessScore, // indicator['score']
               noData: data.insufficientData,
               learning: learning,
             ),

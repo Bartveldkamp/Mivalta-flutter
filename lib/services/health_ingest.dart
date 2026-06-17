@@ -422,9 +422,13 @@ class HealthIngestService {
           );
 
           // Step 3: Write normalized biometrics to the vault (populates
-          // biometrics table for Journey HRV/RHR/sleep pillars).
+          // biometrics table for Journey HRV/RHR/sleep pillars). Uses
+          // writeBiometricFromObservation: the engine converts the normalized
+          // UniversalObservation (f64 resting_hr) to the vault row (i32) —
+          // writeBiometric rejects the observation's float resting_hr.
           if (hasBiometrics) {
-            await binding.writeBiometric(handle, json: normalizedJson);
+            await binding.writeBiometricFromObservation(
+                handle, json: normalizedJson);
           }
 
           // Step 4: Feed the normalized observation into the HMM. This
