@@ -1,0 +1,91 @@
+name: FRB drift-guard
+
+# Layer-3 guard (2026-06-17), HOST-ONLY by design.
+#
+# Regenerates the flutter_rust_bridge bindings from rust/src/api.rs and FAILS if
+# the committed lib/src/rust/* or rust/src/frb_generated.rs differ from what
+# codegen produces. Catches the stale-binding class — shim/engine-pin moved but
+# bindings not regenerated — in seconds, so it can never again surface as a
+# cryptic runtime hash-mismatch ("expected i32") chased on the simulator.
+#
+# WHY ITS OWN JOB, NOT INSIDE smoke-build: frb codegen parses the shim on the
+# HOST to generate bindings — it needs neither the Android NDK nor the
+# SQLCipher-for-Android cross-compile. smoke-build's Android cross-compile has a
+# separate, parked OpenSSL/SQLCipher gap (iOS-first; Android off the critical
+# path); coupling the guard to it would block a validated guard for an unrelated
+# reason. This job goes green on exactly what the guard needs (host codegen),
+# which is the same path the working host + iOS builds use.
+#
+# Needs RUST_ENGINE_DEPLOY_KEY (SSH) to resolve the private gatc-ffi git dep so
+# codegen can see the shim's types. Skips with a notice if unset (same pattern
+# as smoke-build.yml).
+#
+# Validated both directions on the Mac (2026-06-17): clean tree -> empty diff
+# (no toolchain/format false-positive); shim probe -> codegen -> git diff exit 1
+# (drift caught).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  drift-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check for RUST_ENGINE_DEPLOY_KEY secret
+        id: check_key
+        env:
+          KEY: ${{ secrets.RUST_ENGINE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::notice::RUST_ENGINE_DEPLOY_KEY not set — skipping drift-guard (need the SSH deploy key to resolve the private gatc-ffi dep for codegen)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.check_key.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Set up SSH for rust-engine git dep
+        if: steps.check_key.outputs.skip == 'false'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.RUST_ENGINE_DEPLOY_KEY }}
+
+      - name: Set up Flutter (pinned to match the committed bindings' toolchain)
+        if: steps.check_key.outputs.skip == 'false'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.44.0'
+
+      - name: Host build deps (OpenSSL headers for the SQLCipher dep on host)
+        if: steps.check_key.outputs.skip == 'false'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config perl
+
+      - name: flutter pub get
+        if: steps.check_key.outputs.skip == 'false'
+        run: flutter pub get
+
+      - name: Install flutter_rust_bridge_codegen (pinned 2.12.0)
+        if: steps.check_key.outputs.skip == 'false'
+        run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
+
+      - name: Regenerate bindings and assert no drift
+        if: steps.check_key.outputs.skip == 'false'
+        run: |
+          flutter_rust_bridge_codegen generate
+          if ! git diff --quiet -- lib/src/rust rust/src/frb_generated.rs; then
+            echo "::error::FRB bindings are stale — codegen produced changes. Run scripts/build_ios.sh (or 'flutter_rust_bridge_codegen generate') and commit lib/src/rust + rust/src/frb_generated.rs."
+            git --no-pager diff --stat -- lib/src/rust rust/src/frb_generated.rs
+            exit 1
+          fi
+          echo "FRB bindings match the shim — no drift."
