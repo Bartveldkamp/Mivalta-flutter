@@ -51,6 +51,21 @@ writes the repo in scope). The **Mac** terminal builds/runs (iOS / simulator)
 only; **Hetzner** does GPU only. **Flat git:** small change → PR → merge on
 green → delete branch.
 
+## Working Discipline — the session method (READ FIRST · companion to the Charter)
+
+The Charter says *what must be true*; the **Working Discipline** says *how a
+session proves it and works without doing damage* — the rules that actually held
+in practice, each pointing to the **mechanical thing that catches you breaking
+it** (seam-test template + machine-closed loop, verify-your-own-output before
+reporting, commit-local-hold-push with ambiguity = hold-not-permission,
+design-surface-and-hold before any engine-path edit, branch-off-`main`,
+untested≠broken / don't inflate scope, the logic→tests / build→drift-guard /
+integration→one-sync layer split). Judgment-only rules are marked **[JUDGMENT]**;
+everything else names its backstop. Canonical doc:
+`mivalta-rust-engine/docs/WORKING_DISCIPLINE.md`. Read it before any code or
+verify work. (In this repo the build→drift-guard layer is live as
+`.github/workflows/frb-drift-guard.yml` + `scripts/build_ios.sh`.)
+
 ## Repo scope
 
 - WRITE scope for this Claude session: this repo only.
