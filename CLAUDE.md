@@ -25,6 +25,11 @@ premise against it / the code first** — a design built on a wrong architectura
 premise has no other mechanical catch. Engine DECIDES, Flutter DISPLAYS; the
 edges courier, the engine computes.
 
+Its granular companion is `mivalta-rust-engine/docs/VERIFIED_FINDINGS.md` —
+durable code-traced facts (each `file:line` + verification date) so sessions
+don't re-derive what's known. **Check it before tracing a code fact; spot-re-
+confirm a cited line before relying on it for high-stakes work.**
+
 ## Working Protocol — Quality Charter (READ FIRST · NON-NEGOTIABLE)
 
 Full text: [`docs/QUALITY_CHARTER.md`](docs/QUALITY_CHARTER.md). The bar is
