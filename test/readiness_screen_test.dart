@@ -147,6 +147,44 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'decision (1) 2026-06-17: hero number/word/colour all come from the '
+      'indicator BAND, never the lone HMM state',
+      (WidgetTester tester) async {
+        // The indicator says Green / 76. The HMM state passed in is the WORST
+        // state (IllnessRisk) — it must drive only the glow-feel, NEVER the
+        // hero colour. If colour followed the HMM axis the ring would paint
+        // red; decision (1) requires it follow the band (Green) so the three
+        // faces share ONE source and can never disagree.
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ReadinessLightField(
+                fatigueState: 'IllnessRisk', // glow-feel + safety only
+                level: 'Green', // indicator band → colour + word
+                stateWord: 'Green', // hero word = band, not "Illness risk"
+                score: 76, // indicator score
+                noData: false,
+                learning: false,
+              ),
+            ),
+          ),
+        );
+
+        // Number = indicator score; word = band, not the HMM state.
+        expect(find.text('76'), findsOneWidget);
+        expect(find.text('Green'), findsOneWidget);
+        expect(find.text('Illness risk'), findsNothing);
+        expect(find.text('IllnessRisk'), findsNothing);
+
+        // Colour = the Green band token (indicator-sourced), NOT the red
+        // IllnessRisk state colour. This is the heart of decision (1).
+        final word = tester.widget<Text>(find.text('Green'));
+        expect(word.style?.color, readinessLevelColor('Green'));
+        expect(word.style?.color, isNot(fatigueStateColor('IllnessRisk')));
+      },
+    );
   });
 
   // The state→light mapping is the core of readiness-as-light: a pure
