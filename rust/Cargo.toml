@@ -92,10 +92,25 @@ flutter_rust_bridge = "=2.12.0"
 # (v2.24, zero method delta — confirmed via `git diff 9f2ee86 79b7c93 -- engine_registry.json`),
 # so this bump adds NO FFI surface; the FRB-regen is still required only for the #271
 # write_biometric_from_observation binding (already in 9f2ee86) that lib/src/rust/ lacks.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
+# Re-pinned 79b7c93 -> 2d51fea (main HEAD after #307) for the #3 readiness write-back
+# single-writer (#298 / 44b0566): write_biometric NO LONGER writes the biometrics
+# readiness columns (readiness_score/readiness_level/fatigue_state/viterbi_confidence)
+# — ONLY write_assessment does. That removes the dual-writer clobber so the Flutter
+# call-site can write the 4-axis readiness_indicator back to the latest day's row
+# without racing write_biometric. engine_registry verified UNCHANGED across this range
+# (v2.24, zero method delta — `git diff 79b7c93 2d51fea -- engine_registry.json` is
+# empty), so this bump adds NO FFI surface and needs NO FRB regen on its own: a pure
+# rev-SHA replacement + .so rebuild (same class as the d79fbd3->793bb44 bump above).
+# The range also sweeps #4a re-ingest-reproducible normalizer timestamps (#291) and
+# #4b gated fail-safe load dedup in record_activity (#295) — both behaviour-only in
+# gatc-normalizer/gatc-viterbi (no UniFFI surface) — plus the WIRING_COVERAGE_MAP and
+# a batch of FFI seam tests (#276/#278/#280/#299–#307, test/docs only). The
+# write_assessment SHIM binding that lib/src/rust/ still lacks lands in the follow-up
+# wiring commit, which IS the FRB-regen trigger (this bump is not).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "2d51fea" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "2d51fea" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
