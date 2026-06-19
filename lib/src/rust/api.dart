@@ -8,8 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `extract_athlete_id`, `readiness_assessment_fields`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AssessmentFields`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Day-2 smoke test — kept so the existing engine-hello status line
 /// in main.dart stays green.
@@ -223,6 +224,27 @@ Future<String> recommendWorkoutWithHistory({
   mood: mood,
   equipment: equipment,
   terrain: terrain,
+);
+
+/// `VaultEngine::write_assessment(...)` — the #3 readiness write-back (go-live).
+///
+/// Persists the engine's CURRENT 4-axis readiness indicator (+ HMM fatigue state)
+/// to `date`'s biometrics readiness columns, so the Journey charts read it back
+/// (`read_readiness_history`, filtered `WHERE readiness_score IS NOT NULL`).
+/// `write_assessment` is the SINGLE writer of those columns (#298), so this no
+/// longer races `write_biometric`.
+///
+/// Courier-not-computer: the shim reads the engine's own values and writes them
+/// back, computing nothing. The only decision is the honest-absence skip, owned
+/// here in Rust (NOT in Dart) via [`readiness_assessment_fields`]. Returns `true`
+/// if a row was written, `false` if skipped on honest absence — Dart only couriers
+/// the date.
+Future<bool> writeReadinessAssessment({
+  required EnginesHandle handle,
+  required String date,
+}) => RustLib.instance.api.crateApiWriteReadinessAssessment(
+  handle: handle,
+  date: date,
 );
 
 /// `VaultEngine::read_default_profile()` — round-trips the profile
