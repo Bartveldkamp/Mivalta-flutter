@@ -443,7 +443,7 @@ class HealthIngestService {
           );
           mutated++;
           if (latestProcessedDate == null ||
-              date.compareTo(latestProcessedDate!) > 0) {
+              date.compareTo(latestProcessedDate) > 0) {
             latestProcessedDate = date;
           }
 
@@ -484,7 +484,7 @@ class HealthIngestService {
         // yet → no row written, never a fabricated 0); Dart only couriers the date.
         if (latestProcessedDate != null) {
           await binding.writeReadinessAssessment(handle,
-              date: latestProcessedDate!);
+              date: latestProcessedDate);
         }
       }
 
