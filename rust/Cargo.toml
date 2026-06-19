@@ -107,10 +107,20 @@ flutter_rust_bridge = "=2.12.0"
 # a batch of FFI seam tests (#276/#278/#280/#299–#307, test/docs only). The
 # write_assessment SHIM binding that lib/src/rust/ still lacks lands in the follow-up
 # wiring commit, which IS the FRB-regen trigger (this bump is not).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "2d51fea" }
+#
+# Phase 2 (#3 write-back go-live, founder GO 2026-06-19): re-pinned
+# 2d51fea -> cb2e99a (current main HEAD after #317). This carries the #315
+# hardening (gatc-wbal::time_to_failure_secs + gatc-cp::fit_cp non-physical-input
+# guards) engine-wide, per the #317 pin-precondition analysis — folded into THIS
+# round-trip at zero extra hardware cost (the write-back regen already needs a Mac
+# trip). engine_registry verified UNCHANGED 2d51fea..cb2e99a (v2.24, zero method
+# delta — `git diff 2d51fea cb2e99a -- engine_registry.json` is empty), so the
+# re-pin itself adds NO FFI surface. The FRB-regen trigger for THIS commit is the
+# new `write_readiness_assessment` shim fn below (api.rs), not the pin move.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "cb2e99a" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "2d51fea" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "cb2e99a" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

@@ -634,6 +634,107 @@ pub fn recommend_workout_with_history(
         .map_err(Into::into)
 }
 
+/// The four readiness-assessment fields the #3 write-back persists.
+#[derive(Debug)]
+struct AssessmentFields {
+    score: i32,
+    level: String,
+    state: String,
+    confidence: f64,
+}
+
+/// Extract the write-back fields from the engine's own `readiness_indicator` +
+/// `get_readiness` JSON, applying the HONEST-ABSENCE guard. Pure (no engine
+/// calls) so the guard is unit-testable in isolation.
+///
+/// Returns `None` — **skip the write entirely** — when the engine has no
+/// readiness yet: `score == 0` AND the 4-axis `contributions` array is empty.
+/// Absence must stay absence (Charter prime directive / #136 lesson): we never
+/// write a fabricated 0/neutral readiness row. The guard is the *conjunction* —
+/// a genuine engine-produced low score that still carries axis contributions is
+/// real data and IS written.
+fn readiness_assessment_fields(
+    indicator_json: &str,
+    readiness_json: &str,
+) -> Result<Option<AssessmentFields>, BridgeError> {
+    let indicator: serde_json::Value = serde_json::from_str(indicator_json)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("readiness_indicator JSON: {e}")))?;
+
+    let score_f = indicator.get("score").and_then(|v| v.as_f64()).ok_or_else(|| {
+        BridgeError::RoundTripFailed("readiness_indicator missing 'score'".into())
+    })?;
+    let contributions_empty = indicator
+        .get("contributions")
+        .and_then(|v| v.as_array())
+        .map(|a| a.is_empty())
+        .unwrap_or(true);
+
+    // HONEST-ABSENCE GUARD: no readiness yet → write nothing.
+    if score_f == 0.0 && contributions_empty {
+        return Ok(None);
+    }
+
+    let level = indicator.get("level").and_then(|v| v.as_str()).ok_or_else(|| {
+        BridgeError::RoundTripFailed("readiness_indicator missing 'level'".into())
+    })?;
+    let confidence = indicator.get("confidence").and_then(|v| v.as_f64()).ok_or_else(|| {
+        BridgeError::RoundTripFailed("readiness_indicator missing 'confidence'".into())
+    })?;
+
+    let readiness: serde_json::Value = serde_json::from_str(readiness_json)
+        .map_err(|e| BridgeError::RoundTripFailed(format!("get_readiness JSON: {e}")))?;
+    let state = readiness.get("state").and_then(|v| v.as_str()).ok_or_else(|| {
+        BridgeError::RoundTripFailed("get_readiness missing 'state'".into())
+    })?;
+
+    Ok(Some(AssessmentFields {
+        score: score_f as i32,
+        level: level.to_string(),
+        state: state.to_string(),
+        confidence,
+    }))
+}
+
+/// `VaultEngine::write_assessment(...)` — the #3 readiness write-back (go-live).
+///
+/// Persists the engine's CURRENT 4-axis readiness indicator (+ HMM fatigue state)
+/// to `date`'s biometrics readiness columns, so the Journey charts read it back
+/// (`read_readiness_history`, filtered `WHERE readiness_score IS NOT NULL`).
+/// `write_assessment` is the SINGLE writer of those columns (#298), so this no
+/// longer races `write_biometric`.
+///
+/// Courier-not-computer: the shim reads the engine's own values and writes them
+/// back, computing nothing. The only decision is the honest-absence skip, owned
+/// here in Rust (NOT in Dart) via [`readiness_assessment_fields`]. Returns `true`
+/// if a row was written, `false` if skipped on honest absence — Dart only couriers
+/// the date.
+// Planned wiring: goes live when flutter_rust_bridge_codegen regenerates
+// lib/src/rust/ on the build executor — the generated frb code is this fn's
+// caller. Until that regen the crate-local lint cannot see the caller.
+#[allow(dead_code)]
+pub fn write_readiness_assessment(
+    handle: &EnginesHandle,
+    date: String,
+) -> Result<bool, BridgeError> {
+    let indicator_str = handle
+        .viterbi
+        .readiness_indicator()
+        .map_err(BridgeError::from)?;
+    let readiness_str = handle.viterbi.get_readiness().map_err(BridgeError::from)?;
+
+    match readiness_assessment_fields(&indicator_str, &readiness_str)? {
+        // Honest absence — the engine has no readiness yet; write nothing.
+        None => Ok(false),
+        Some(f) => {
+            handle
+                .vault
+                .write_assessment(date, f.score, f.level, f.state, f.confidence)
+                .map_err(BridgeError::from)?;
+            Ok(true)
+        }
+    }
+}
+
 // =============================================================================
 // VAULT ENGINE — on-device encrypted storage
 // =============================================================================
@@ -1438,6 +1539,49 @@ mod tests {
         let obs_json = serde_json::to_string(&obs)
             .map_err(|e| BridgeError::RoundTripFailed(format!("serialize: {e}")))?;
         viterbi.process_observation(obs_json).map_err(Into::into)
+    }
+
+    // ---- #3 readiness write-back: honest-absence guard (readiness_assessment_fields) ----
+
+    #[test]
+    fn write_back_skips_on_honest_absence() {
+        // Engine has no readiness yet: score 0 AND empty contributions → None.
+        // The write-back must SKIP (never a fabricated 0/neutral row).
+        let indicator = r#"{"score":0.0,"level":"unknown","contributions":[],"confidence":0.0}"#;
+        let readiness = r#"{"state":"Recovered"}"#;
+        let got = readiness_assessment_fields(indicator, readiness).expect("parse");
+        assert!(
+            got.is_none(),
+            "no-data readiness (score 0 + empty contributions) must skip the write, got {got:?}"
+        );
+    }
+
+    #[test]
+    fn write_back_extracts_real_values() {
+        // A real indicator → the exact 4 fields, ready to write (score is the
+        // i32 of the f64 blend; level/state/confidence pass through verbatim).
+        let indicator = r#"{"score":72.0,"level":"green","contributions":[{"axis":"hmm","value":0.4}],"confidence":0.81}"#;
+        let readiness = r#"{"state":"Productive"}"#;
+        let f = readiness_assessment_fields(indicator, readiness)
+            .expect("parse")
+            .expect("real data must produce fields to write");
+        assert_eq!(f.score, 72);
+        assert_eq!(f.level, "green");
+        assert_eq!(f.state, "Productive");
+        assert!((f.confidence - 0.81).abs() < 1e-9);
+    }
+
+    #[test]
+    fn write_back_score_zero_with_contributions_still_writes() {
+        // The guard is the CONJUNCTION. A genuine engine-produced score of 0 that
+        // STILL carries axis contributions is real data, not absence → must write.
+        let indicator = r#"{"score":0.0,"level":"red","contributions":[{"axis":"hmm","value":0.1}],"confidence":0.5}"#;
+        let readiness = r#"{"state":"IllnessRisk"}"#;
+        let f = readiness_assessment_fields(indicator, readiness)
+            .expect("parse")
+            .expect("score 0 WITH contributions is real data, must write");
+        assert_eq!(f.score, 0);
+        assert_eq!(f.state, "IllnessRisk");
     }
 
     #[test]
