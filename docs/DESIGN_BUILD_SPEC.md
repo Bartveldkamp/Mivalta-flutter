@@ -255,7 +255,7 @@ not new plumbing — with three known build gaps the design should account for:
 **workout ingestion** (so charts/post-workout fill — Mac brief), the **advisor
 lead-A** restyle, and the **manual-entry optional inputs** (sick flag etc.).
 
-## 7. Platform surfaces — iOS & Android (ambient / post-MVP)
+## 6. Platform surfaces — iOS & Android (ambient / post-MVP)
 
 > *Folded in 2026-06-20 from the former `UI_UX_DESIGN_IOS_ANDROID.md` (archived).
 > This is the **platform** layer — how the calm-PULL, ambient-first design is built
@@ -274,7 +274,7 @@ Marker convention: `[LOCKED]` fixed by an existing rule · `[DECISION NEEDED]` o
 choice (UX rule given, value flagged for Okapion) · `[iOS]` / `[Android]`
 platform-specific; everything else is shared.
 
-### 7.1 Shared foundations (one design system, two platforms)
+### 6.1 Shared foundations (one design system, two platforms)
 
 **Design tokens.** Source-tier tokens `[LOCKED]` (per Flutter `CLAUDE.md` rule 4 /
 `lib/theme/source_tier.dart`): Medical `#2BD974` · Device `#00C6A7` · Partial
@@ -327,7 +327,7 @@ celebratory / streak / confetti motion** `[LOCKED §6/§11]`. The spinner is dea
 (§15.4) — Josi's "Why this session?" reasoning **resolves step-by-step** in the
 material; the wait is trust-building, never theatrical fake thinking.
 
-### 7.2 Surface map (iOS ↔ Android equivalence) — the ambient-first strategy (§17.6)
+### 6.2 Surface map (iOS ↔ Android equivalence) — the ambient-first strategy (§17.6)
 
 Build priority is left-to-right within each row.
 
@@ -346,7 +346,7 @@ session Live-Update + Wear tile are the cross-platform core and ship **first**:
 they carry the thesis on the ~340 days a year nothing is wrong (presence without
 demand is the retention answer, not gamification).
 
-### 7.3 iOS surfaces (detail) `[iOS]`
+### 6.3 iOS surfaces (detail) `[iOS]`
 
 - **Widgets (WidgetKit)** — the quiet default: readiness-as-light field + state word
   + small number + source-tier dot; lock-screen complication-style for at-a-glance.
@@ -365,7 +365,7 @@ demand is the retention answer, not gamification).
   generates one.
 - **Vision Pro** — horizon (not v1): spatial post-ride review; catalogue ports.
 
-### 7.4 Android surfaces (detail) `[Android]`
+### 6.4 Android surfaces (detail) `[Android]`
 
 - **App Widgets (Jetpack Glance)** — the quiet default mirroring the iOS daily
   glance; must render with the solid (no-blur) fallback + meet contrast minimums on
@@ -380,7 +380,7 @@ demand is the retention answer, not gamification).
 - **App Actions / Assistant + Quick Settings** — readiness query (read-only engine
   getter) + an optional one-tap glance tile.
 
-### 7.5 Flutter build notes (ambient)
+### 6.5 Flutter build notes (ambient)
 
 - **Native vs. Dart:** widgets, Live Activity/Live Updates, StandBy, Wear tiles, and
   the intent layer are small **native** surfaces (Swift/WidgetKit, Kotlin/Glance)
@@ -397,7 +397,7 @@ demand is the retention answer, not gamification).
   with a concrete-value assertion (rule 8); every new public Dart symbol has a
   production call site within one PR (rule 7).
 
-### 7.6 Accessibility (both platforms, non-negotiable — direction 14.13)
+### 6.6 Accessibility (both platforms, non-negotiable — direction 14.13)
 
 State never by colour/light alone (always named state + text); Dynamic Type / font
 scale respected, layouts reflow; screen-reader labels on every data point including
@@ -406,7 +406,7 @@ Transparency` / `Reduce Motion` honoured (solid material, static light, no re-se
 — the safety seriousness still reads); haptics supplement, never replace,
 visual/textual confirmation.
 
-### 7.7 Platform open decisions (carried from direction §17 — for Okapion + spec)
+### 6.7 Platform open decisions (carried from direction §17 — for Okapion + spec)
 
 - Adopt the single adaptive material and formally rewrite §5.5? (§17.1)
 - Readiness-as-light demoting the number — confirm against spec (§17.2).
@@ -423,7 +423,7 @@ resolve-in-material).
 
 ---
 
-## 8. References
+## 7. References
 
 - `UI_UX_DIRECTION.md` (rust-engine) — the parent direction + the §17 "north star"
   (ambient surfaces) that is **post-MVP**, not the in-app MVP spec.
