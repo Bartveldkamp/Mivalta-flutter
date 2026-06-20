@@ -2,7 +2,7 @@
 
 **Status:** BLOCKED — requires dependency approval before implementation.
 
-## Overview (NEXT_UPDATE_V2_ADOPTIONS A5)
+## Overview (V2 adoption A5 — see NEXT_BUILD_BRIEF.md §F; rationale archived in docs/archive/NEXT_UPDATE_V2_ADOPTIONS.md)
 
 One daily local notification — a morning state line from the engine, written
 like a coach's text. No cloud push; purely local-only.

@@ -255,10 +255,178 @@ not new plumbing — with three known build gaps the design should account for:
 **workout ingestion** (so charts/post-workout fill — Mac brief), the **advisor
 lead-A** restyle, and the **manual-entry optional inputs** (sick flag etc.).
 
-## 6. References
+## 7. Platform surfaces — iOS & Android (ambient / post-MVP)
+
+> *Folded in 2026-06-20 from the former `UI_UX_DESIGN_IOS_ANDROID.md` (archived).
+> This is the **platform** layer — how the calm-PULL, ambient-first design is built
+> on each OS, and which parts are one shared Flutter codebase vs. a small native
+> surface. Reconciles to `UI_UX_DIRECTION.md` §17 (rust-engine, v1.5 — "Material &
+> Ambient Direction"); where direction and this disagree, the direction wins. The
+> ambient surfaces below are **post-MVP** (the §17 north star), captured here so the
+> in-app MVP spec above and the platform plan live in one place.*
+
+Principle (every surface obeys it): **the Rust engine DECIDES/COMPUTES, the FFI
+PASSES THROUGH, Flutter DISPLAYS.** No thresholds, math, or fabrication in Dart.
+Ambient surfaces (widgets, Live Activities, tiles) render the engine's *persisted*
+state — they never recompute it.
+
+Marker convention: `[LOCKED]` fixed by an existing rule · `[DECISION NEEDED]` open
+choice (UX rule given, value flagged for Okapion) · `[iOS]` / `[Android]`
+platform-specific; everything else is shared.
+
+### 7.1 Shared foundations (one design system, two platforms)
+
+**Design tokens.** Source-tier tokens `[LOCKED]` (per Flutter `CLAUDE.md` rule 4 /
+`lib/theme/source_tier.dart`): Medical `#2BD974` · Device `#00C6A7` · Partial
+`#E6872F` · Manual `#878C8C`. Okapion anchors `[LOCKED]` (direction §5.1): primary
+green `#1DBF60`, tertiary teal `rgba(32,183,186,0.38)`, yellow `#FFCE2E`, glass
+focus teal `#007166`. Never hardcode hex in widgets — use the token; if a needed
+semantic colour is missing, surface it to Okapion, don't invent one.
+
+**Dark surface levels** (direction §5.3): four luminance-based levels on a dark
+canvas (L0 true background → L3 overlay/sheet); depth from luminance + 1px borders,
+**never drop shadows** (they don't read on dark). Exact hex are Okapion's to set
+`[DECISION NEEDED]`.
+
+**Adaptive material** (direction §17.1) `[DECISION NEEDED — evolves §5.5]`:
+direction proposes ONE material whose opacity adapts to content behind it. Until
+§5.5 is rewritten the **build rule remains §15.5** — glass/blur is **one surface
+region only** (the Josi bottom sheet) `[LOCKED §15.5]`, never nested/animated-blur,
+bound with `ClipRRect`, Impeller on, with a **mandatory solid fallback** for
+mid/low Android + reduce-transparency; data surfaces stay opaque. Flutter today:
+model a single `MivaltaMaterial` widget with an adaptive backdrop + baked-in solid
+fallback, positioning for the §17.1 future without a rewrite.
+
+**Readiness-as-light state machine** (direction §17.2 / §5.2): state is read
+pre-cognitively from how the top surface *behaves*, then confirmed by the named
+state + number beneath (never colour/light alone — accessibility §5.2 / 14.13):
+Recovered = calm/cool/slow pooling light; Productive = confident steady glow
+(`#00C6A7` family); Accumulated = warmer/thicker (`#FFCE2E` family, restrained);
+Overreached = dimmed/settling (muted terracotta); IllnessRisk = light recedes and
+stills (quieted grey-red). Confidence is expressed in the *certainty of the light*
+plus the worded band — **no confidence decimals** `[LOCKED §3/§11]`. The number
+stays smaller, as confirmation. Flutter: a custom-painted surface keyed off the
+engine's persisted state + confidence band; no per-pixel Liquid Glass required.
+
+**Muted-alarm rule** (direction §17.3): a safety state (`IllnessRisk`, ACWR danger)
+is communicated by **changing the surface physics** — stillness, receding light,
+one slow low-frequency haptic on first appearance — not bright red or motion. The
+safety floor is **exempt from the presence dial** `[LOCKED §16.3]`. Always
+accompanied by the named state + text; reduce-motion/-transparency renders the same
+seriousness as a solid treatment.
+
+**Typography** (direction §5.4 / §17.4): two-role system — a display face for the
+state word + readiness number (the glance), a refined body face for prose and Josi.
+**Tabular figures only where numbers are compared.** Respect Dynamic Type (iOS) /
+font scale (Android); layouts reflow `[LOCKED 14.13]`.
+
+**Motion & haptics** (direction §6 / §17.5): state transitions **re-settle**
+(~500–600ms, interruptible), they don't fade/pop. Haptics carry meaning (soft
+"settle" tap on state confirm; heavier/slower report for a safety state). **No
+celebratory / streak / confetti motion** `[LOCKED §6/§11]`. The spinner is dead
+(§15.4) — Josi's "Why this session?" reasoning **resolves step-by-step** in the
+material; the wait is trust-building, never theatrical fake thinking.
+
+### 7.2 Surface map (iOS ↔ Android equivalence) — the ambient-first strategy (§17.6)
+
+Build priority is left-to-right within each row.
+
+| Surface intent | `[iOS]` | `[Android]` | Flutter delivery |
+|---|---|---|---|
+| **Daily glance** | Home/Lock widget (WidgetKit) + Dynamic Island morning read | Home/Lock widget (Glance / App Widget) + "At a Glance" line | Native widget UI; reads persisted engine state via shared storage |
+| **The session** | Live Activity (lock screen + Dynamic Island) | Live Updates (Android 16 API where available; ongoing notification fallback) | Native activity/notification; data pushed from Dart while app runs |
+| **Bedside / recovery** | StandBy (charging, landscape) | AOD-friendly / charging surface where OEM allows | Native; iOS-led |
+| **Wrist** | Watch complication + Smart Stack | Wear OS Tile + complication | Separate watch target; reads same state |
+| **Voice / system** | App Intents / Siri / Spotlight | App Actions / Assistant + Quick Settings tile | Intent layer → on-device engine getter (read-only) |
+| **Spatial (horizon)** | Vision Pro spatial review | — | Static-Generative catalogue ports (direction §15.3/§15.6) |
+
+**Honesty about parity:** Dynamic Island, StandBy, and Vision Pro are iOS-only —
+that's why Apple is the north star even while Flutter is the build. The widget +
+session Live-Update + Wear tile are the cross-platform core and ship **first**:
+they carry the thesis on the ~340 days a year nothing is wrong (presence without
+demand is the retention answer, not gamification).
+
+### 7.3 iOS surfaces (detail) `[iOS]`
+
+- **Widgets (WidgetKit)** — the quiet default: readiness-as-light field + state word
+  + small number + source-tier dot; lock-screen complication-style for at-a-glance.
+  Timeline updated on engine state change, not a poll. Tap → deep-links to the
+  three-zone home.
+- **Live Activity + Dynamic Island** — the session: holds the prescription (target
+  W/pace + the *why*) for the session's duration; Island shows compact state +
+  target; resolves into the post-workout read on end. Values verbatim from the
+  engine; never computes.
+- **StandBy** — bedside: charging + landscape → a calm readiness face (light field +
+  state word), zero interaction. The most on-brand surface for a recovery product.
+- **Apple Watch** — complication (state-as-light dial/tint + one word) + Smart Stack
+  ("today's read" in the morning). Co-equal with the phone, not a port afterthought.
+- **App Intents / Siri / Spotlight** — "What's my readiness?" answered from the
+  on-device engine. Uniquely safe: the assistant reads a *computed* value, never
+  generates one.
+- **Vision Pro** — horizon (not v1): spatial post-ride review; catalogue ports.
+
+### 7.4 Android surfaces (detail) `[Android]`
+
+- **App Widgets (Jetpack Glance)** — the quiet default mirroring the iOS daily
+  glance; must render with the solid (no-blur) fallback + meet contrast minimums on
+  mid/low-end Health-Connect devices.
+- **Live Updates / ongoing notification** — the session: Android 16 Live Updates API
+  where available, ongoing notification as universal fallback; carries target
+  W/pace + the *why*; resolves to the post-workout read.
+- **AOD / at-a-glance** — bedside-equivalent where the OEM permits; otherwise the
+  widget on a charging screen (no exact StandBy twin — degrade gracefully).
+- **Wear OS** — Tile for the state read + watch-face complication; same persisted
+  state source as the phone.
+- **App Actions / Assistant + Quick Settings** — readiness query (read-only engine
+  getter) + an optional one-tap glance tile.
+
+### 7.5 Flutter build notes (ambient)
+
+- **Native vs. Dart:** widgets, Live Activity/Live Updates, StandBy, Wear tiles, and
+  the intent layer are small **native** surfaces (Swift/WidgetKit, Kotlin/Glance)
+  wired via platform channels; they read engine state from shared storage written by
+  the Dart app. The in-app UI is Dart. FFI shim rule unchanged: one `gatc_ffi::*`
+  call per fn, no compute (`CLAUDE.md` rule 2; `rust/src/api.rs`).
+- **State for ambient surfaces:** they render a *persisted* engine read (the
+  continuity state saved on every state-changing op). They never construct an engine
+  or recompute — they display the last good computed state, with source tier +
+  confidence.
+- **Glass:** exactly one blur region (Josi), `ClipRRect`-bounded, solid fallback, no
+  animated blur, Impeller on, profiled on real mid/low Android (§15.5).
+- **Tests / dead code** `[LOCKED]`: each new surface gets a widget/integration test
+  with a concrete-value assertion (rule 8); every new public Dart symbol has a
+  production call site within one PR (rule 7).
+
+### 7.6 Accessibility (both platforms, non-negotiable — direction 14.13)
+
+State never by colour/light alone (always named state + text); Dynamic Type / font
+scale respected, layouts reflow; screen-reader labels on every data point including
+**provenance and confidence**; contrast minimums met on the dark canvas; `Reduce
+Transparency` / `Reduce Motion` honoured (solid material, static light, no re-settle
+— the safety seriousness still reads); haptics supplement, never replace,
+visual/textual confirmation.
+
+### 7.7 Platform open decisions (carried from direction §17 — for Okapion + spec)
+
+- Adopt the single adaptive material and formally rewrite §5.5? (§17.1)
+- Readiness-as-light demoting the number — confirm against spec (§17.2).
+- Collapse the tab spine toward two glance-surfaces (Today / History)? (§17.8 / 14.1)
+- iOS-first vs Android-first **sequencing** (14.7 / §15.6) — design supports either
+  order; the build focus is the open call.
+- Exact dark surface-level hex values — Okapion to set.
+
+**Ambient build priority** (where to spend first): (1) readiness-as-light home +
+daily-glance widget reading persisted state; (2) the session surface (Live Activity
+/ Live Updates); (3) the wrist (complication / Wear Tile); (4) voice (App Intents /
+App Actions); (5) polish (StandBy, motion/haptic refinement, "Why this session?"
+resolve-in-material).
+
+---
+
+## 8. References
 
 - `UI_UX_DIRECTION.md` (rust-engine) — the parent direction + the §17 "north star"
-  (ambient surfaces) that is **post-MVP**, not this spec.
+  (ambient surfaces) that is **post-MVP**, not the in-app MVP spec.
 - `docs/frontend/DATA_CATALOG.md` + `FFI_API_CONTRACT.md` (rust-engine) — the exact
   payload behind every element here.
 - `MAC_BRIEF_*` (this repo) — the build tasks that fill the gaps above.
