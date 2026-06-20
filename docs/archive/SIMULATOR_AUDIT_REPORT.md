@@ -1,0 +1,2 @@
+# ARCHIVED 2026-06-20 — superseded; its core finding is fixed
+# This 2025-06-15 simulator walkthrough's "Critical Finding: Engine Restore Failure" was the double-encode / Missing 'current_state' restore bug. That bug is FIXED (rust-engine #267/#268; continuity certified, PROOF 1) per docs/WU3_EVIDENCE_MATRIX.md, which re-derived every "engine unavailable" verdict under a working engine. Retained for provenance.

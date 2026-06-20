@@ -10,7 +10,7 @@ but dropped, or the path can never populate).
 Traced this session (2026-06-16) against the working tree on
 `claude/modest-turing-bn7qoo`. Engine repo at `b313a0c`, flutter at `cf76557`.
 
-> **Frame:** The prior `docs/SIMULATOR_AUDIT_REPORT.md` (dated 2025-06-15) was
+> **Frame:** The prior `docs/archive/SIMULATOR_AUDIT_REPORT.md` (dated 2025-06-15, now archived) was
 > captured while the engine **restore was failing** (`Missing 'current_state'`,
 > the double-encode bug). That bug is fixed (rust-engine #267/#268; PROOF 1
 > continuity is certified, `current_state=Recovered`, `obs=150`). So every
