@@ -135,8 +135,12 @@ Mivalta-flutter/
 ├── lib/                # Dart source
 │   ├── main.dart       # Entry point — first-launch detection → OnboardingScreen or ReadinessScreen
 │   ├── rust_engine.dart # Dart facade over FRB bindings
-│   ├── screens/        # 8 UI screens (readiness, readiness detail, advisor, explore,
-│   │                   # manual entry, onboarding, settings, debug swatch exerciser)
+│   ├── screens/        # 13 UI screens: app_shell (Today/Plan/You nav shell) +
+│   │                   # journey_screen + you_screen, readiness_screen,
+│   │                   # readiness_detail_screen, advisor_screen, explore_screen,
+│   │                   # manual_entry_screen, onboarding_screen, sensor_check_screen,
+│   │                   # settings_screen, workout_detail_page, and
+│   │                   # debug_swatch_exerciser (kDebugMode-only)
 │   ├── models/         # Display-side parse models (activity, power curve, trends, …)
 │   ├── widgets/        # readiness_ring + analytics/ chart cards
 │   ├── services/       # health_ingest, profile_service
