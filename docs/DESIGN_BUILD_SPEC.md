@@ -278,10 +278,14 @@ platform-specific; everything else is shared.
 
 **Design tokens.** Source-tier tokens `[LOCKED]` (per Flutter `CLAUDE.md` rule 4 /
 `lib/theme/source_tier.dart`): Medical `#2BD974` · Device `#00C6A7` · Partial
-`#E6872F` · Manual `#878C8C`. Okapion anchors `[LOCKED]` (direction §5.1): primary
-green `#1DBF60`, tertiary teal `rgba(32,183,186,0.38)`, yellow `#FFCE2E`, glass
-focus teal `#007166`. Never hardcode hex in widgets — use the token; if a needed
-semantic colour is missing, surface it to Okapion, don't invent one.
+`#E6872F` · Manual `#878C8C`. These four source-tier tokens are the **only
+`[LOCKED]` palette**. Okapion anchors `[DIRECTION — not locked]` (direction
+§5.1): tertiary teal `rgba(32,183,186,0.38)`, yellow `#FFCE2E` are brand-direction
+references, not locked tokens. ⚠️ **Primary green `#1DBF60` and glass focus teal
+`#007166` are explicitly REJECTED for beta** (old Okapion token set — see
+`NEXT_BUILD_BRIEF.md §F`, the canonical record; use ours, do not hardcode them).
+Never hardcode hex in widgets — use the token; if a needed semantic colour is
+missing, surface it, don't invent one.
 
 **Dark surface levels** (direction §5.3): four luminance-based levels on a dark
 canvas (L0 true background → L3 overlay/sheet); depth from luminance + 1px borders,
