@@ -368,7 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          activeColor: MivaltaColors.primaryGreen,
+          activeThumbColor: MivaltaColors.primaryGreen,
           value: _learningPaused!,
           onChanged:
               _learningPauseBusy ? null : (v) => _onPauseLearningChanged(v),
