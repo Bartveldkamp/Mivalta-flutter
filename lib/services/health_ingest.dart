@@ -615,24 +615,10 @@ class HealthIngestService {
 
     final caloriesRounded = workoutValue.totalEnergyBurned?.round();
 
-    // Build VaultActivity JSON (schema from gatc-vault/models.rs).
-    final activityJson = jsonEncode({
-      'id': activityId,
-      'date': _formatDate(workout.dateFrom),
-      'activity_type': activityType,
-      'duration_minutes': durationMinutes,
-      if (distanceKm != null) 'distance_km': distanceKm,
-      if (avgHr != null) 'avg_heart_rate': avgHr,
-      if (maxHr != null) 'max_heart_rate': maxHr,
-      if (caloriesRounded != null) 'calories': caloriesRounded,
-      'source': Platform.isAndroid ? 'health_connect' : 'apple',
-    });
-
-    // Persist the activity to the vault (journey list — unchanged).
-    await binding.writeActivity(handle, activityJson: activityJson);
-
     // ====================================================================
-    // ZERO-FABRICATION: route the workout load through the ENGINE.
+    // ZERO-FABRICATION: route the workout load through the ENGINE — and do it
+    // BEFORE persisting the activity row on the happy path, so the row can
+    // carry the engine's OWN computed load (A5 load half).
     // ====================================================================
     //
     // The previous code hand-built a fabricated load — `value: durationMinutes`
@@ -650,6 +636,13 @@ class HealthIngestService {
     // DurationOnly → None) and auto-records it (gatc-viterbi lib.rs
     // process_observation, the `activity_minutes > 0` branch calls
     // self.record_activity on the engine-computed score).
+    //
+    // ORDER (A5): we process the observation FIRST, then read the engine's
+    // computed load off the returned DailyAssessment (`recorded_load`) and
+    // courier it onto the activity row's `load_uls`. Dart does NO load math —
+    // it only transports the engine's number. On success the row is written
+    // once, carrying the engine-truth load; if processing FAILS, the row is
+    // still written (load-absent) so the journey log is never dropped.
     //
     // CRITICAL — no double-count: because process_observation already records
     // the load, we DO NOT call record_activity. Calling both would count the
@@ -669,23 +662,121 @@ class HealthIngestService {
       calories: caloriesRounded,
     );
 
-    // Normalize the workout payload → the engine computes load_score +
-    // load_method. Fail-loud: a normalize/process error propagates to the
-    // caller's per-workout try/catch (skippedWorkouts++), never swallowed.
-    final normalizedJson = await binding.normalizeObservation(
-      handle,
-      vendor: source,
-      json: workoutObsJson,
-    );
+    // Normalize + process the workout. The engine computes load_score +
+    // load_method and auto-records the load; the returned DailyAssessment
+    // carries that same load as `recorded_load` (A5 load half). On a
+    // normalize/process FAILURE we still log the workout to the journey list
+    // (load-absent) — preserving the original behaviour where the row was
+    // written before processing — then propagate so the caller counts the skip
+    // (skippedWorkouts++). Fail-loud, but the journey log is never silently
+    // dropped.
+    double? recordedLoad;
+    try {
+      final normalizedJson = await binding.normalizeObservation(
+        handle,
+        vendor: source,
+        json: workoutObsJson,
+      );
+      // This is the SOLE load recording path for the workout —
+      // process_observation auto-records the engine-computed load (we do NOT
+      // call record_activity; that would double-count). If load_method is None
+      // (no HR / calories / positive duration), the engine records NO load —
+      // honest absence, the engine's verdict, not a Dart fallback.
+      final assessmentJson = await binding.processObservation(
+        handle,
+        observationJson: normalizedJson,
+      );
+      // Read the engine's computed load off the assessment. Honest absence —
+      // null when the engine recorded no load OR the field is absent (older
+      // engine pin); then `load_uls` is omitted, never a Dart fallback.
+      recordedLoad = recordedLoadFromAssessment(assessmentJson);
+    } catch (_) {
+      // Engine could not process this workout. Still persist the journey row
+      // (load-absent) so the activity log is unchanged from the pre-A5
+      // ordering, then re-raise for the caller's skip accounting.
+      await binding.writeActivity(
+        handle,
+        activityJson: buildWorkoutActivityJson(
+          id: activityId,
+          date: _formatDate(workout.dateFrom),
+          activityType: activityType,
+          durationMinutes: durationMinutes,
+          distanceKm: distanceKm,
+          avgHr: avgHr,
+          maxHr: maxHr,
+          calories: caloriesRounded,
+          source: source,
+          recordedLoad: null,
+        ),
+      );
+      rethrow;
+    }
 
-    // Feed the normalized observation into the HMM. This is the SOLE load
-    // recording path for the workout — process_observation auto-records the
-    // engine-computed load. If the engine's load_method is None (no HR, no
-    // calories, no positive duration), the engine records NO load — honest
-    // absence, the engine's verdict, not a Dart fallback.
-    await binding.processObservation(handle, observationJson: normalizedJson);
+    // Build the VaultActivity JSON (schema from gatc-vault/models.rs) and
+    // persist to the vault (journey list). `load_uls` now carries the ENGINE's
+    // computed load when present — couriered, not computed in Dart.
+    final activityJson = buildWorkoutActivityJson(
+      id: activityId,
+      date: _formatDate(workout.dateFrom),
+      activityType: activityType,
+      durationMinutes: durationMinutes,
+      distanceKm: distanceKm,
+      avgHr: avgHr,
+      maxHr: maxHr,
+      calories: caloriesRounded,
+      source: source,
+      recordedLoad: recordedLoad,
+    );
+    await binding.writeActivity(handle, activityJson: activityJson);
 
     return activityId;
+  }
+
+  /// Extract the engine-computed Universal Load Score from a `DailyAssessment`
+  /// JSON (A5 load half). Returns the `recorded_load` value the ENGINE computed
+  /// and recorded for this workout, or `null` for honest absence — the field is
+  /// absent (older engine pin), the engine recorded no load (`load_method`
+  /// None → no HR/calories/positive duration), or the value is non-finite.
+  ///
+  /// Pure extraction: NO load computation in Dart (Law 2). The edge only reads
+  /// and couriers the engine's number.
+  static double? recordedLoadFromAssessment(String assessmentJson) {
+    final decoded = jsonDecode(assessmentJson);
+    if (decoded is! Map<String, dynamic>) return null;
+    final v = decoded['recorded_load'];
+    if (v is num && v.isFinite) return v.toDouble();
+    return null;
+  }
+
+  /// Build the VaultActivity JSON for a completed workout (schema from
+  /// gatc-vault/models.rs). Optional fields are omitted when absent — honest
+  /// absence, never a fabricated default. `load_uls` carries the ENGINE's
+  /// computed load ([recordedLoad]) when present; when null it is omitted (the
+  /// engine recorded no load, or the engine pin predates `recorded_load`).
+  static String buildWorkoutActivityJson({
+    required String id,
+    required String date,
+    required String activityType,
+    required double durationMinutes,
+    double? distanceKm,
+    int? avgHr,
+    int? maxHr,
+    int? calories,
+    required String source,
+    double? recordedLoad,
+  }) {
+    return jsonEncode({
+      'id': id,
+      'date': date,
+      'activity_type': activityType,
+      'duration_minutes': durationMinutes,
+      if (distanceKm != null) 'distance_km': distanceKm,
+      if (avgHr != null) 'avg_heart_rate': avgHr,
+      if (maxHr != null) 'max_heart_rate': maxHr,
+      if (calories != null) 'calories': calories,
+      'source': source,
+      if (recordedLoad != null) 'load_uls': recordedLoad,
+    });
   }
 
   /// Build the workout-shaped vendor payload the Rust normalizer expects, from
