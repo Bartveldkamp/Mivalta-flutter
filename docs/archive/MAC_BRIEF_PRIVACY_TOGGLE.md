@@ -1,3 +1,10 @@
+> **ARCHIVED 2026-06-21 — SHIPPED.** The "Pause personalization" toggle landed
+> in `lib/screens/settings_screen.dart` via PR #97 (squash `65fb839`), backed by
+> the widget test `test/pause_learning_toggle_test.dart`. The "not shipped"
+> premise that kept this brief live (per PR #95) is now false. Full original
+> brief retained below for provenance. Owed: real-device "persists across
+> restart" confirmation on the Mac (shipped, not yet device-proven).
+
 # Mac Brief — Privacy "Pause learning" toggle (+ shim hygiene)
 
 **Executor:** Mac Claude Code (Alta). **Scope:** this repo only.
