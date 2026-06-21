@@ -62,6 +62,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   String? _error;
 
+  /// The engine's V4 pause-learning flag, read at load time. `null` until the
+  /// first read settles. The engine is the source of truth — this field only
+  /// MIRRORS `ViterbiEngine::is_learning_paused()`; the toggle never decides.
+  bool? _learningPaused;
+
+  /// Guards the toggle while a pause/resume round-trip to the engine is in
+  /// flight (prevents a double-tap issuing overlapping engine calls).
+  bool _learningPauseBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -100,11 +109,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _sourceOverview = null;
       }
 
+      // Read the engine's current V4 pause-learning flag so the toggle opens
+      // reflecting the real engine state (source of truth), not a Dart guess.
+      // Optional — a failure here must not blank the whole screen, so it lands
+      // as honest absence (toggle hidden) rather than an error.
+      try {
+        _learningPaused = await widget.binding.isLearningPaused(widget.handle);
+      } catch (_) {
+        _learningPaused = null;
+      }
+
       _error = null;
     } catch (e) {
       _error = '$e';
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  /// Toggle the engine's V4 pause-learning flag. Display-only: this calls the
+  /// engine control, persists the engine's OWN serialized state so the choice
+  /// survives a restart (continuity contract — `learning_paused` is persisted
+  /// across save_state/from_persisted_state in gatc-viterbi), then re-reads the
+  /// engine flag and mirrors it. The toggle reflects the engine; it never
+  /// decides the value itself.
+  Future<void> _onPauseLearningChanged(bool pause) async {
+    if (_learningPauseBusy) return;
+    setState(() => _learningPauseBusy = true);
+    try {
+      if (pause) {
+        await widget.binding.pauseLearning(widget.handle);
+      } else {
+        await widget.binding.resumeLearning(widget.handle);
+      }
+
+      // Continuity: the flag lives in the engine's serialized state, so it only
+      // survives a restart once we persist that state to the vault. Mirror the
+      // documented save_state → writeViterbiState pattern (no new persist path).
+      final stateJson = await widget.binding.saveState(widget.handle);
+      await widget.binding.writeViterbiState(widget.handle, stateJson: stateJson);
+
+      // Re-read the engine flag — the engine is the source of truth.
+      final actual = await widget.binding.isLearningPaused(widget.handle);
+      if (mounted) setState(() => _learningPaused = actual);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not change personalization: $e'),
+            backgroundColor: MivaltaColors.levelRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _learningPauseBusy = false);
+    }
   }
 
   @override
@@ -151,6 +209,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildProfileSection(),
         const SizedBox(height: MivaltaSpace.x5),
         _buildPrivacyProofSection(),
+        const SizedBox(height: MivaltaSpace.x5),
+        _buildPersonalizationSection(),
         const SizedBox(height: MivaltaSpace.x5),
         _buildDataSourcesSection(),
         const SizedBox(height: MivaltaSpace.x5),
@@ -282,6 +342,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: MivaltaColors.textSecondary,
             fontSize: 14,
             height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===========================================================================
+  // Personalization control (V4 pause-learning privacy toggle)
+  // ===========================================================================
+  //
+  // Surfaces the EXISTING engine control `ViterbiEngine::pause_learning` /
+  // `resume_learning` / `is_learning_paused`. The engine still computes
+  // readiness while paused; only the on-device personal ADAPTATION (learned
+  // baseline, ceiling intelligence, outcome tracking) stops. Display-only: the
+  // switch mirrors the engine flag; it never decides it.
+
+  Widget _buildPersonalizationSection() {
+    // Honest absence: if the engine flag couldn't be read (e.g. host harness),
+    // don't render a control whose state we can't trust.
+    if (_learningPaused == null) return const SizedBox.shrink();
+
+    return _SectionCard(
+      title: 'Personalization',
+      children: [
+        // SwitchListTile (a ListTile) paints its ink + background on the
+        // nearest Material ancestor; _SectionCard's DecoratedBox bg would hide
+        // them (Flutter asserts in debug). A transparent Material restores the
+        // surface without altering the card's appearance.
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeThumbColor: MivaltaColors.primaryGreen,
+            value: _learningPaused!,
+            onChanged:
+                _learningPauseBusy ? null : (v) => _onPauseLearningChanged(v),
+            title: const Text(
+              'Pause personalization',
+              style: TextStyle(color: MivaltaColors.textPrimary),
+            ),
+            subtitle: const Text(
+              'The engine still reads your readiness — it just stops learning '
+              'your personal baseline on this device until you turn it back on.',
+              style: TextStyle(color: MivaltaColors.textSecondary, fontSize: 13),
+            ),
           ),
         ),
       ],
