@@ -366,20 +366,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return _SectionCard(
       title: 'Personalization',
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          activeThumbColor: MivaltaColors.primaryGreen,
-          value: _learningPaused!,
-          onChanged:
-              _learningPauseBusy ? null : (v) => _onPauseLearningChanged(v),
-          title: const Text(
-            'Pause personalization',
-            style: TextStyle(color: MivaltaColors.textPrimary),
-          ),
-          subtitle: const Text(
-            'The engine still reads your readiness — it just stops learning '
-            'your personal baseline on this device until you turn it back on.',
-            style: TextStyle(color: MivaltaColors.textSecondary, fontSize: 13),
+        // SwitchListTile (a ListTile) paints its ink + background on the
+        // nearest Material ancestor; _SectionCard's DecoratedBox bg would hide
+        // them (Flutter asserts in debug). A transparent Material restores the
+        // surface without altering the card's appearance.
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeThumbColor: MivaltaColors.primaryGreen,
+            value: _learningPaused!,
+            onChanged:
+                _learningPauseBusy ? null : (v) => _onPauseLearningChanged(v),
+            title: const Text(
+              'Pause personalization',
+              style: TextStyle(color: MivaltaColors.textPrimary),
+            ),
+            subtitle: const Text(
+              'The engine still reads your readiness — it just stops learning '
+              'your personal baseline on this device until you turn it back on.',
+              style: TextStyle(color: MivaltaColors.textSecondary, fontSize: 13),
+            ),
           ),
         ),
       ],
