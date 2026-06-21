@@ -94,6 +94,13 @@ Future<void> _pumpSettings(
   WidgetTester tester,
   _RecordingBinding binding,
 ) async {
+  // _buildContent is a ListView; its children build lazily, so a section below
+  // the default 800x600 test viewport (the personalization toggle is the 4th
+  // section) is never built as an element and `find` returns 0. Give the test a
+  // tall surface so every section renders (and is tappable without scrolling).
+  tester.view.physicalSize = const Size(1200, 4000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
       home: SettingsScreen(
