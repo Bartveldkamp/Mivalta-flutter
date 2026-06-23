@@ -92,10 +92,10 @@ flutter_rust_bridge = "=2.12.0"
 # (v2.24, zero method delta — confirmed via `git diff 9f2ee86 79b7c93 -- engine_registry.json`),
 # so this bump adds NO FFI surface; the FRB-regen is still required only for the #271
 # write_biometric_from_observation binding (already in 9f2ee86) that lib/src/rust/ lacks.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a2c9328" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "79b7c93" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a2c9328" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
