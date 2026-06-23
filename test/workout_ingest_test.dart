@@ -396,6 +396,58 @@ void main() {
       expect(hcDecoded.containsKey('value'), isFalse);
     });
 
+    test('forwards the workout start (dateFrom) as a sub-day `start` per source',
+        () {
+      // Task C precondition: the courier forwards the platform's real workout
+      // start so the engine normalizer anchors the load at a per-activity
+      // start-time (cross-source dedup). Pure forwarding — RFC3339, UTC.
+      final start = DateTime.utc(2026, 6, 16, 6, 0, 0);
+
+      final appleJson = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'apple',
+        durationMinutes: 60.0,
+        start: start,
+        avgHr: 145,
+        calories: 480,
+      );
+      final appleWorkout =
+          (jsonDecode(appleJson) as Map<String, dynamic>)['workout']
+              as Map<String, dynamic>;
+      expect(appleWorkout['start'], '2026-06-16T06:00:00.000Z');
+
+      final hcJson = HealthIngestService.buildWorkoutObservationJson(
+        date: '2026-06-16',
+        source: 'health_connect',
+        durationMinutes: 45.0,
+        start: start,
+        avgHr: 152,
+        calories: 360,
+      );
+      final hcExercise =
+          (jsonDecode(hcJson) as Map<String, dynamic>)['exercise']
+              as Map<String, dynamic>;
+      expect(hcExercise['start'], '2026-06-16T06:00:00.000Z');
+    });
+
+    test('omits `start` when no workout start is available (honest absence)',
+        () {
+      // Absent start → no `start` key (the engine degrades to the day anchor,
+      // the fail-safe direction), never a fabricated time.
+      for (final source in ['apple', 'health_connect']) {
+        final json = HealthIngestService.buildWorkoutObservationJson(
+          date: '2026-06-16',
+          source: source,
+          durationMinutes: 30.0,
+        );
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        final inner = (decoded['workout'] ?? decoded['exercise'])
+            as Map<String, dynamic>;
+        expect(inner.containsKey('start'), isFalse,
+            reason: 'no fabricated start for $source');
+      }
+    });
+
     test('regression: durationMinutes never appears as a load `value` field',
         () {
       // The exact canonical violation: `value: durationMinutes`. Prove the

@@ -636,6 +636,7 @@ class HealthIngestService {
       date: _formatDate(workout.dateFrom),
       source: source,
       durationMinutes: durationMinutes,
+      start: workout.dateFrom,
       avgHr: avgHr,
       calories: caloriesRounded,
     );
@@ -686,13 +687,22 @@ class HealthIngestService {
     required String date,
     required String source,
     required double durationMinutes,
+    DateTime? start,
     int? avgHr,
     int? calories,
   }) {
+    // Forward the platform's real workout start (`dateFrom`) so the engine's
+    // normalizer can anchor the recorded load at a per-activity start-time —
+    // the precondition for cross-source dedup (the SAME session arriving via a
+    // live device strap AND the health-store aggregate folds its load into
+    // Viterbi once, not twice). Pure courier: a forwarded timestamp, no math.
+    // Absent → the engine degrades to the day-level anchor (fail-safe).
+    final startIso = start?.toUtc().toIso8601String();
     if (source == 'apple') {
       return jsonEncode({
         'date': date,
         'workout': <String, dynamic>{
+          if (startIso != null) 'start': startIso,
           'duration': durationMinutes * 60.0, // minutes → seconds (unit conv)
           if (calories != null) 'totalEnergyBurned': calories,
           if (avgHr != null)
@@ -706,6 +716,7 @@ class HealthIngestService {
     return jsonEncode({
       'date': date,
       'exercise': <String, dynamic>{
+        if (startIso != null) 'start': startIso,
         'duration_min': durationMinutes,
         if (calories != null) 'calories': calories,
         if (avgHr != null) 'avg_hr': avgHr,
