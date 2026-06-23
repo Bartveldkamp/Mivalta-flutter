@@ -109,7 +109,11 @@ class BleHrService {
   /// session captured no readings (honest no-op — nothing ingested, no fake).
   /// `date` is the ISO session day.
   Future<IngestResult?> stopSessionAndIngest({required String date}) async {
-    await _sub?.cancel();
+    // Stop receiving (cleanup — not awaited; the notification listener is
+    // null-guarded on `_session`, so a late packet during teardown is dropped,
+    // never mis-attributed). Awaiting a subscription cancel must not gate the
+    // ingest path.
+    unawaited(_sub?.cancel());
     _sub = null;
     await transport.disconnect();
 
@@ -133,7 +137,7 @@ class BleHrService {
   /// Abort without ingesting (user cancelled / lost connection). Safe to call
   /// repeatedly.
   Future<void> abort() async {
-    await _sub?.cancel();
+    unawaited(_sub?.cancel());
     _sub = null;
     _session = null;
     await transport.disconnect();
