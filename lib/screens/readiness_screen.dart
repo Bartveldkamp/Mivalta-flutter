@@ -34,7 +34,10 @@ import '../copy/today_facts_labels.dart';
 import '../copy/zone_labels.dart';
 import '../models/activity_summary.dart';
 import '../rust_engine.dart';
+import '../services/ble/ble_hr_service.dart';
+import '../services/ble/flutter_blue_transport.dart';
 import '../services/health_ingest.dart';
+import '../services/ingest_adapter.dart';
 import '../services/today_tiles_prefs.dart';
 import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
@@ -661,9 +664,21 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   /// the live screen lands. Engine-free screen; the manual path closes it
   /// and reuses the existing manual-entry flow.
   void _openSensorCheck() {
+    // Wire the BLE HR-strap capture when the engine is live (Task A): the
+    // session couriers through the shared vault-first IngestAdapter over the
+    // real radio transport. Engine not ready → null → the screen's honest stub.
+    final handle = _handle;
+    final binding = _binding;
+    final BleHrService? bleService = (handle != null && binding != null)
+        ? BleHrService(
+            transport: FlutterBlueTransport(),
+            adapter: IngestAdapter(binding: binding, handle: handle),
+          )
+        : null;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SensorCheckScreen(
+          bleService: bleService,
           onLogManually: () {
             Navigator.of(context).pop(); // close the sensor check
             _openManualEntry();
