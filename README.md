@@ -140,10 +140,10 @@ outstanding work.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `b603b5e`
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `79b7c93`
 (rust-engine `main`, engine_registry v2.24). The `rev = "..."` line in
-`rust/Cargo.toml` is the source of truth; see `CLAUDE.md` for what the pin
-provides.
+`rust/Cargo.toml` is the source of truth; see `CLAUDE.md` → "Engine pin" for what
+the pin provides and the pending Mac-gated bump to current `main` (`73e17b1`).
 
 ## Quick start (Hetzner / founder laptop)
 
