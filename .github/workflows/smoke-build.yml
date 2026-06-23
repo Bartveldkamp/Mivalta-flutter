@@ -84,8 +84,13 @@ jobs:
           # The build only needs a working NDK for `cargo ndk --platform 21
           # arm64`; r27 is universally action-supported and uses a fresh cache
           # key. (Smallest consistent fix; no r28 requirement in the build.)
+          #
+          # local-cache:false — the runner's local NDK cache could be restored
+          # with CC_aarch64-linux-android set but the clang binary absent (the
+          # "clang not found" smoke failure). false forces a clean download so
+          # the toolchain is always complete. (Folds in PR #103.)
           ndk-version: r27
-          local-cache: true
+          local-cache: false
 
       - name: flutter pub get
         if: steps.check_key.outputs.skip == 'false'
