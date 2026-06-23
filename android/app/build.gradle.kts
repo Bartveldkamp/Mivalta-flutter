@@ -32,7 +32,11 @@ android {
     // namespace is for R class generation, can differ from applicationId.
     // Keep aligned with package in AndroidManifest.xml and MainActivity location.
     namespace = "com.mivalta.mivalta_flutter"
-    compileSdk = 35
+    // compileSdk 36: flutter_blue_plus_android (BLE, Task A) requires its
+    // dependents to compile against API 36+. compileSdk (which APIs we build
+    // against) is independent of targetSdk (runtime behaviour opt-in) and minSdk
+    // (install floor) — bumping it does not change Play Store targeting.
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
