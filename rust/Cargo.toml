@@ -92,10 +92,16 @@ flutter_rust_bridge = "=2.12.0"
 # (v2.24, zero method delta — confirmed via `git diff 9f2ee86 79b7c93 -- engine_registry.json`),
 # so this bump adds NO FFI surface; the FRB-regen is still required only for the #271
 # write_biometric_from_observation binding (already in 9f2ee86) that lib/src/rust/ lacks.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a2c9328" }
+# Re-pinned 79b7c93 → 3db58f2 (main after #342): gatc-vault switches rusqlite to
+# `bundled-sqlcipher-vendored-openssl` so SQLCipher cross-compiles for Android
+# (the `openssl/crypto.h not found` smoke blocker — system OpenSSL absent on the
+# target). Cargo.lock gains openssl-src + openssl-sys. engine_registry UNCHANGED
+# (v2.24, zero method delta), so NO FRB regen and NO shim change — pure build fix.
+# Proven green end-to-end by the Flutter `smoke` Android cross-compile (#105).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "3db58f2" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a2c9328" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "3db58f2" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
