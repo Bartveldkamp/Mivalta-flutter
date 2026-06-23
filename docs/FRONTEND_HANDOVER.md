@@ -168,10 +168,13 @@ Widget (lib/screens/*)
 - **The engine pin.** `rust/Cargo.toml` pins `gatc-ffi` (and `gatc-viterbi`, for
   the `UniversalObservation` type used by `process_manual_observation`) to a
   specific `mivalta-rust-engine` git revision over SSH (private repo; CI uses the
-  `RUST_ENGINE_DEPLOY_KEY` deploy key). On this branch the pin is **`b603b5e`**,
-  and the rust-engine `engine_registry.json` at that point is **v2.24**. (See §10
-  — `CLAUDE.md`/`README.md` quote older pins.) Local-dev can override the SSH pin
-  with a path patch in `.cargo/config.toml` (see `README.md`).
+  `RUST_ENGINE_DEPLOY_KEY` deploy key). The pin is **`79b7c93`** (the
+  authoritative `rev =` line in `rust/Cargo.toml`; see `CLAUDE.md` → "Engine pin"
+  for provenance), and the rust-engine `engine_registry.json` at that point is
+  **v2.24**. A bump to current rust-engine `main` (`73e17b1` — A3 recarve + Task C
+  dedup) is pending and **Mac-gated** (`.so`/xcframework rebuild + `Cargo.lock`
+  refresh). Local-dev can override the SSH pin with a path patch in
+  `.cargo/config.toml` (see `README.md`).
 
 ### Adding a new engine method end-to-end
 
