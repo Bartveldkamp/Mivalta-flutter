@@ -45,6 +45,7 @@ import 'package:health/health.dart';
 
 import '../models/time_in_zone.dart';
 import '../rust_engine.dart';
+import 'ingest_adapter.dart' as ingest;
 
 // ============================================================================
 // Workout type mapping: HealthWorkoutActivityType → engine activity_type
@@ -398,56 +399,26 @@ class HealthIngestService {
 
         try {
           // ================================================================
-          // VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B)
+          // VAULT-FIRST INGEST (NEXT_BUILD_BRIEF §B) — Task 0 shared adapter
           // ================================================================
           // Order: raw → normalize → biometric → HMM → mark processed.
-          // This preserves the original vendor payload for audit + replay,
-          // and populates the biometrics table for Journey pillars.
-
-          // Step 1: Write raw vendor observation BEFORE any processing.
-          final rawObsJson = buildRawObservationJson(
+          // The sequence lives in IngestAdapter so BLE/Polar/health all courier
+          // through the SAME audited path; this call is a faithful extraction of
+          // the former inline loop (behaviour-preserving — see ingest_adapter).
+          final result =
+              await ingest.IngestAdapter(binding: binding, handle: handle)
+                  .ingestObservation(
             date: date,
             source: source,
-            dataType: 'biometric',
-            payload: vendorJson,
+            vendorJson: vendorJson,
+            hasBiometrics: hasBiometrics,
           );
-          final rawId = await binding.writeRawObservation(handle, json: rawObsJson);
-
-          // Step 2: Normalize through Rust — HRV semantics, bounds clamping,
-          // sleep aggregation all happen here.
-          final normalizedJson = await binding.normalizeObservation(
-            handle,
-            vendor: source,
-            json: vendorJson,
-          );
-
-          // Step 3: Write normalized biometrics to the vault (populates
-          // biometrics table for Journey HRV/RHR/sleep pillars). Uses
-          // writeBiometricFromObservation: the engine converts the normalized
-          // UniversalObservation (f64 resting_hr) to the vault row (i32) —
-          // writeBiometric rejects the observation's float resting_hr.
-          if (hasBiometrics) {
-            await binding.writeBiometricFromObservation(
-                handle, json: normalizedJson);
+          // processObservation always advanced the HMM → persist after the batch.
+          if (result.mutated) {
+            mutated++;
           }
-
-          // Step 4: Feed the normalized observation into the HMM. This
-          // advances the HMM state and must be persisted.
-          await binding.processObservation(
-            handle,
-            observationJson: normalizedJson,
-          );
-          mutated++;
-
-          // Step 5: Mark raw observation as processed with the normalized form.
-          await binding.markRawObservationProcessed(
-            handle,
-            id: rawId,
-            observationJson: normalizedJson,
-          );
-
-          // Only count if we had real biometric content (RHR/HRV/sleep)
-          if (hasBiometrics) {
+          // Only count days that carried real biometric content (RHR/HRV/sleep).
+          if (result.hadBiometrics) {
             processed++;
           }
         } catch (e) {
@@ -1069,14 +1040,15 @@ class HealthIngestService {
     required String source,
     required String dataType,
     required String payload,
-  }) {
-    return jsonEncode({
-      'date': date,
-      'source': source,
-      'data_type': dataType,
-      'payload': payload,
-    });
-  }
+  }) =>
+      // Single source of truth lives in the shared ingest adapter (Task 0);
+      // this static is retained for existing callers/tests.
+      ingest.buildRawObservationJson(
+        date: date,
+        source: source,
+        dataType: dataType,
+        payload: payload,
+      );
 
   /// Compute the time-in-zone distribution for the athlete's most recent
   /// workout in the last [lookbackDays] days, by pulling its intra-workout HR
