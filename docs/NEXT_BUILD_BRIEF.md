@@ -13,8 +13,9 @@ FRB bindings (Mac), and CONFIRM the method exists at the pin — if not, re-pin 
 say so before proceeding.
 
 Detail specs (read alongside): `HOME_REDESIGN_BRIEF.md`, `JOURNEY_SPEC.md`,
-`FOUNDER_FEEDBACK_2026-06-12.md`, `NEXT_UPDATE_V2_ADOPTIONS.md`,
-`VAULT_DATAFLOW_AUDIT.md`.
+`FOUNDER_FEEDBACK_2026-06-12.md` (the V2 adoptions formerly in
+`NEXT_UPDATE_V2_ADOPTIONS.md` are now folded into §F below; original archived in
+`docs/archive/`), `VAULT_DATAFLOW_AUDIT.md`.
 
 ---
 
@@ -81,10 +82,30 @@ sport · Feeling worse · Feeling better → one follow-up level → recompute �
 updates). Chips map to existing `recommend_workout` optional params (no engine
 change). NO input bar. "Load with options" variety = rust-side; UI scales.
 
-### F. V2 adoptions (NEXT_UPDATE_V2_ADOPTIONS.md)
+### F. V2 adoptions (folded 2026-06-20 from the archived NEXT_UPDATE_V2_ADOPTIONS.md)
 Airplane-mode onboarding moment (copy = founder review); rest-as-content;
 post-workout verdict-first; verdict→reasons→data audit; ONE daily local
 notification (needs a local-notifications dep — flag before adding).
+
+These five (the A1–A5 set) come from the 2026-06-12 next-gen vision review
+(founder-approved: *"take what we are able to use and makes us better, and
+implement it now, for next update."*). **Locked beta invariants HOLD**: no chat
+box, no TTS, number-as-hero, engine decides / app displays. Execution: A1–A4 are
+Flutter display work (widget tests per rule 8); A5 needs the notifications
+dependency (Mac). Sequence AFTER the feedback-doc items 1–2–6–7 and the ingest wire.
+
+**Captured but NOT this update (post-beta / Coach tier):**
+- Live session surface (full-screen zone color, one chosen number, cues).
+- Plan as recovery canvas + drag-session → downstream state re-predicts (engine
+  replan/predict already exist).
+- Conversation layer everywhere = Coach tier, after the bounded voice ships.
+- Ambient no-number state surface = §17 north star (post-MVP, already doc'd —
+  see `DESIGN_BUILD_SPEC.md` §7).
+
+**Explicitly REJECTED for beta (do not build):**
+- Persistent chat input on every screen (violates the locked no-chat invariant).
+- Removing the readiness number (violates the number-as-hero founder decision).
+- The review's palette refs (#1DBF60 / #007166) — old Okapion token set; use ours.
 
 ---
 

@@ -77,7 +77,9 @@ brief in this repo's `docs/`:
 - **`MAC_BRIEF_WORKOUT_INGEST.md`** — *the #1 task.* Completed workouts aren't yet
   written to the vault, which starves five wired features (post-workout report,
   advisor rotation, power charts, the decoupling signal, workout RPE).
-- **`MAC_BRIEF_ADVISOR_LEAD_A.md`** — restyle the advisor to lead-with-A / offer-C.
+- Advisor lead-with-A / offer-C restyle — **done** (`AdvisorOptionsList`, pinned by
+  `test/advisor_options_test.dart`; brief archived at
+  `docs/archive/MAC_BRIEF_ADVISOR_LEAD_A.md`).
 - Privacy "pause learning" toggle (bound, no UI); manual-entry optional inputs
   (illness flag etc.); finish iOS bring-up.
 

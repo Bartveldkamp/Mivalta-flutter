@@ -497,4 +497,102 @@ void main() {
       expect(decoded['payload'], payloadWithSpecialChars);
     });
   });
+
+  // ==========================================================================
+  // A5 (load half): the engine's computed load (DailyAssessment.recorded_load)
+  // must land on the activity row's `load_uls`, couriered — never computed in
+  // Dart. These pin the two seams the FFI integration path relies on: reading
+  // the engine value off the assessment, and writing it onto the activity JSON
+  // with honest absence. (The actual process_observation → recorded_load and
+  // the write_activity FFI call are covered on-device — they need the engine.)
+  // ==========================================================================
+  group('recordedLoadFromAssessment (A5 load half)', () {
+    test('reads the engine-computed load when present', () {
+      const assessment = '{"date":"2026-06-16","recorded_load":62.5,'
+          '"recorded_load_method":"HeartRate"}';
+      expect(
+        HealthIngestService.recordedLoadFromAssessment(assessment),
+        62.5,
+      );
+    });
+
+    test('honest absence: field missing (older engine pin) → null', () {
+      // An assessment from an engine pin predating recorded_load.
+      const assessment = '{"date":"2026-06-16","recommendations":[]}';
+      expect(
+        HealthIngestService.recordedLoadFromAssessment(assessment),
+        isNull,
+      );
+    });
+
+    test('honest absence: explicit null (engine recorded no load) → null', () {
+      const assessment = '{"recorded_load":null,"recorded_load_method":null}';
+      expect(
+        HealthIngestService.recordedLoadFromAssessment(assessment),
+        isNull,
+      );
+    });
+
+    test('rejects a non-finite value rather than couriering it', () {
+      // jsonDecode yields a finite num for normal payloads; guard anyway —
+      // a non-finite load is not a real measurement.
+      const assessment = '{"recorded_load":0.0}';
+      // 0.0 is finite and a real engine verdict (a recorded zero-load), so it
+      // is couriered as-is; the guard is only against NaN/Infinity.
+      expect(
+        HealthIngestService.recordedLoadFromAssessment(assessment),
+        0.0,
+      );
+    });
+  });
+
+  group('buildWorkoutActivityJson (A5 load half)', () {
+    test('includes load_uls when the engine load is present', () {
+      final json = HealthIngestService.buildWorkoutActivityJson(
+        id: 'w1',
+        date: '2026-06-16',
+        activityType: 'ride',
+        durationMinutes: 60.0,
+        avgHr: 145,
+        maxHr: 172,
+        calories: 480,
+        source: 'apple',
+        recordedLoad: 62.5,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      expect(decoded['load_uls'], 62.5);
+      expect(decoded['activity_type'], 'ride');
+      expect(decoded['source'], 'apple');
+    });
+
+    test('omits load_uls when the engine recorded no load (honest absence)', () {
+      final json = HealthIngestService.buildWorkoutActivityJson(
+        id: 'w2',
+        date: '2026-06-16',
+        activityType: 'ride',
+        durationMinutes: 60.0,
+        source: 'apple',
+        recordedLoad: null,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      expect(decoded.containsKey('load_uls'), isFalse);
+    });
+
+    test('regression: duration is never used as the load (no fabrication)', () {
+      // The canonical violation was `value: durationMinutes`. With no engine
+      // load, load_uls must be ABSENT — not the raw minutes.
+      const durationMinutes = 72.0;
+      final json = HealthIngestService.buildWorkoutActivityJson(
+        id: 'w3',
+        date: '2026-06-16',
+        activityType: 'run',
+        durationMinutes: durationMinutes,
+        source: 'health_connect',
+        recordedLoad: null,
+      );
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      expect(decoded.containsKey('load_uls'), isFalse);
+      expect(decoded['duration_minutes'], durationMinutes);
+    });
+  });
 }

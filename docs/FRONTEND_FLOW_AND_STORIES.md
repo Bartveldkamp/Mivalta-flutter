@@ -4,7 +4,7 @@ Status: living map (single canonical Flutter UI doc). Date: 2026-06-09. Source: 
 from `lib/`** (current code, not spec). **Absorbed the former `UI_FLOW.md`** (wiring
 detail) on 2026-06-09 so there is one source of truth, not two near-identical maps.
 Design-intent SoT is `UI_UX_DIRECTION.md` v1.4 (in mivalta-rust-engine); platform design
-is `UI_UX_DESIGN_IOS_ANDROID.md`. Engine pin: `rust/Cargo.toml` (see the file for the
+is `DESIGN_BUILD_SPEC.md` §7 (folded in the former `UI_UX_DESIGN_IOS_ANDROID.md`). Engine pin: `rust/Cargo.toml` (see the file for the
 current `gatc-ffi` rev).
 
 **Purpose of this doc:** give a single, honest picture of *what the app does today*, *as user

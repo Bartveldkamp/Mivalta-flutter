@@ -1,7 +1,8 @@
 # MiValta — Metrics & Measurement
 
 How we measure the business **without** surveilling the user inside the app.
-Companion to [`DISTRIBUTION_AND_TIERS.md`](DISTRIBUTION_AND_TIERS.md).
+Companion to [`TIERS.md`](TIERS.md) (which folded in the former
+`DISTRIBUTION_AND_TIERS.md` — distribution, PAD, entitlement, privacy boundary).
 
 > **Principle:** "No harvesting" does **not** mean "no metrics." It means our
 > numbers come from the **app stores**, our **own billing**, and our **own
@@ -63,7 +64,8 @@ acceptable way to close it:
   privacy-first processor (e.g. Aptabase) — never Firebase/GA-style harvesters.
 - Opt-in or clearly disclosed, and declared in the Play Data-safety form.
 - Accept the trade: any in-app network call forfeits the "app needs zero
-  network permission" posture (see DISTRIBUTION_AND_TIERS §4).
+  network permission" posture (see `TIERS.md` → "Distribution, the privacy
+  boundary & entitlement" → "How the conversational AI model gets onto the device").
 
 Until then: **no in-app analytics.**
 

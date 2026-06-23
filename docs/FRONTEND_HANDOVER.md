@@ -364,8 +364,9 @@ In the **rust-engine** repo (<https://github.com/Bartveldkamp/mivalta-rust-engin
   omniscient").
 
 In **this** repo's `docs/`: `MVP1_BUILD_BRIEF.md` (current milestone), `TIERS.md`
-/ `DISTRIBUTION_AND_TIERS.md` (tier model), `FRONTEND_FLOW_AND_STORIES.md`,
-`UI_UX_DESIGN_IOS_ANDROID.md`, `METRICS.md`, `IOS_BRINGUP_BRIEF.md`,
+(tier model — now incl. the folded distribution/PAD/entitlement content),
+`FRONTEND_FLOW_AND_STORIES.md`, `DESIGN_BUILD_SPEC.md` (platform design §7, folded
+in the former `UI_UX_DESIGN_IOS_ANDROID.md`), `METRICS.md`, `IOS_BRINGUP_BRIEF.md`,
 `MAC_BATCH_RUNBOOK.md`, `RELEASE_CHECKLIST.md`.
 
 ---
