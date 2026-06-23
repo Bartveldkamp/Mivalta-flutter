@@ -78,14 +78,15 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: ndk
         with:
-          # r27 (current stable) not r28: the floating action + a poisoned
-          # local-cache for r28 left CC_aarch64-linux-android pointing at a
-          # clang that was never installed (smoke failed deterministically).
-          # The build only needs a working NDK for `cargo ndk --platform 21
-          # arm64`; r27 is universally action-supported and uses a fresh cache
-          # key. (Smallest consistent fix; no r28 requirement in the build.)
+          # local-cache MUST stay false. A poisoned/incomplete cached NDK (first
+          # r28, then r27) repeatedly left CC_aarch64-linux-android pointing at a
+          # clang that was never installed: on a cache hit, setup-ndk sets
+          # ndk-path from the cache but the toolchain binaries aren't present, so
+          # `cargo ndk` fails deterministically ("failed to find tool …/clang").
+          # false forces a fresh, complete NDK download each run. The build only
+          # needs a working NDK for `cargo ndk --platform 21 arm64`.
           ndk-version: r27
-          local-cache: true
+          local-cache: false
 
       - name: flutter pub get
         if: steps.check_key.outputs.skip == 'false'
