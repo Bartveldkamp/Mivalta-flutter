@@ -4,6 +4,27 @@ Production Flutter frontend for MiValta — a privacy-first, **on-device** AI
 fitness coach. The Rust engine DECIDES; Flutter DISPLAYS. Replaces the
 `mivalta-android-client` Kotlin app.
 
+## How it fits together (at a glance)
+
+**Engine DECIDES · Flutter DISPLAYS.** The Rust engine owns all computation; the
+app renders its output and couriers raw observations back — no thresholds, math,
+or fallback in Dart.
+
+```mermaid
+flowchart LR
+  subgraph ENGINE["Rust engine — DECIDES"]
+    E["gatc-* crates<br/>physics · Viterbi (HMM) · plan · encrypted vault"]
+  end
+  subgraph APP["Flutter — DISPLAYS"]
+    UI["screens · widgets"]
+  end
+  ENGINE -->|"JSON over FFI (flutter_rust_bridge)"| UI
+  UI -->|"couriers raw observations only — no math"| ENGINE
+```
+
+The full engine-side data flow lives in the rust-engine's
+[`docs/ARCHITECTURE.md`](https://github.com/Bartveldkamp/mivalta-rust-engine/blob/main/docs/ARCHITECTURE.md).
+
 ## 👋 New here? Start with the right door
 
 | You are a… | Start here |
