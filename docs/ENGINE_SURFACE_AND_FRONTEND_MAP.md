@@ -93,7 +93,7 @@ Flutter `CLAUDE.md` "Engine pin" section still narrates `b603b5e` — stale; the
    (`readiness_screen.dart:347`), so the **iOS HealthKit ingest path and any
    explicit "finish workout" flow are unconfirmed** — if iOS users never write
    an activity, their post-workout report / history-aware advisor read an empty
-   table. Verify iOS coverage (see `MAC_BRIEF_WORKOUT_INGEST.md`).
+   table. Verify iOS coverage (see `mac/MAC_BRIEF_WORKOUT_INGEST.md`).
 5. **Privacy/transparency depth.** `list_memories` / `forget_memory` (V4
    transparency, V3 granular revocation), `delete_by_source` / `delete_by_date_range`,
    and `import_encrypted_vault` (export is wired, import is not) are unexposed —
