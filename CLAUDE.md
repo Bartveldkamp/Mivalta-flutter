@@ -126,25 +126,25 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `79b7c93`
-(rust-engine `main` HEAD after the 2026-06-17 bug audit, #273+#274; engine_registry
-**v2.24** per `engine_registry.json` at that rev). That rev removes the device-data
-fabrication cluster across all 9 normalizers (invented recovery/load/FTP constants →
-honest absence), lands the S1/M2–M7 safety-and-correctness fixes (M1 split:
-Overreached → Z1 active recovery, IllnessRisk → real rest) + #274's recovery-strides
-pool, and carries the earlier advisor→GATC system selector +
-`AdvisorEngine::recommend_workout_with_history` (vault history → energy-system
-rotation; `advisor_screen.dart` is the live caller). The `rev = "79b7c93"` line in
-`rust/Cargo.toml` is **authoritative**; the comment block above it narrates the full
-re-pin history.
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `3db58f2`
+(rust-engine `main`; engine_registry **v2.24** per `engine_registry.json` at that
+rev). The `rev = "3db58f2"` line in `rust/Cargo.toml` is **authoritative**; the
+comment block above it narrates the full re-pin history. This rev carries:
+- **`gatc-vault` SQLCipher with vendored OpenSSL** (`bundled-sqlcipher-vendored-openssl`),
+  so the Android cross-compile resolves with no system OpenSSL — the Flutter `smoke`
+  CI job is green end-to-end on this pin. (See `mivalta-rust-engine/docs/PRODUCT_READINESS.md`
+  §6 for the standing OpenSSL-patch obligation this creates.)
+- **A3 metabolic-level recarve + Task C cross-source workout dedup** (the app now
+  forwards the workout `start` *and* the engine reads it to fold same-session load once).
+- The earlier `79b7c93` line: device-data fabrication cluster removed across all 9
+  normalizers (→ honest absence), S1/M2–M7 safety fixes (M1 split: Overreached → Z1
+  active recovery, IllnessRisk → real rest), and the advisor→GATC system selector +
+  `AdvisorEngine::recommend_workout_with_history` (`advisor_screen.dart` is the caller).
 
-**Pending bump (Mac-gated).** rust-engine `main` has since advanced to `73e17b1`
-(the A3 metabolic-level recarve + **Task C** cross-source workout dedup). Until the
-Mac rebuilds the engine artifact against that rev (`cargo update` + `.so`/xcframework
-rebuild + `Cargo.lock` refresh), the app does **not** yet read the workout `start`
-the Flutter side forwards for cross-source dedup — engine-side complete, app-side
-activation is the pending rebuild. engine_registry is unchanged across `79b7c93 →
-73e17b1` (still v2.24, zero method delta), so the bump needs no FRB regen on its own.
+engine_registry is **v2.24, zero method delta** across the whole `79b7c93 → 3db58f2`
+range, so no bump in this range needs an FRB regen on its own. The build executor
+still owes the **iOS xcframework rebuild** at this rev (Android is proven by smoke;
+iOS is Mac-only) — see `docs/MAC_BRIEF_BETA_BATCH.md`.
 
 ## Repository Structure
 
