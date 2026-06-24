@@ -370,7 +370,7 @@ In **this** repo's `docs/`: `MVP1_BUILD_BRIEF.md` (current milestone), `TIERS.md
 (tier model — now incl. the folded distribution/PAD/entitlement content),
 `FRONTEND_FLOW_AND_STORIES.md`, `DESIGN_BUILD_SPEC.md` (platform design §7, folded
 in the former `UI_UX_DESIGN_IOS_ANDROID.md`), `METRICS.md`, `IOS_BRINGUP_BRIEF.md`,
-`MAC_BATCH_RUNBOOK.md`, `RELEASE_CHECKLIST.md`.
+`MAC_BRIEF_BETA_BATCH.md`, `RELEASE_CHECKLIST.md`.
 
 ---
 
