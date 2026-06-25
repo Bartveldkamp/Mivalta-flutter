@@ -116,7 +116,7 @@
     {
       "readiness": "orange",
       "source": "meeusen_2013",
-      "zone_cap": "Z3"
+      "zone_cap": "Z1"
     },
     {
       "readiness": "red",
@@ -1696,7 +1696,7 @@
     },
     {
       "fatigue_state": "overreached",
-      "scalar": 0.0
+      "scalar": 0.45
     },
     {
       "fatigue_state": "illnessrisk",
@@ -5144,6 +5144,10 @@
     {
       "rationale": "Inherently cluster-set max-power structure",
       "variant_id": "z7_cluster"
+    },
+    {
+      "rationale": "Alactic recovery strides — 4–6×6s full recovery; fixed protocol so the 6s structure is never pattern-expanded or quantized (founder 2026-06-17)",
+      "variant_id": "z8_recovery_strides"
     }
   ],
   "interval_pattern_policy:load_class_pattern_filters": [
@@ -5556,6 +5560,130 @@
     {
       "context": "low_confidence",
       "template": "Being conservative while we calibrate. Better to underdo than overdo early on."
+    }
+  ],
+  "level_selection_policy:goal_relevance": [
+    {
+      "aerobic_base": 0.5,
+      "aerobic_endurance": 0.6,
+      "anaerobic_neuro": 0.2,
+      "archetype": "general",
+      "long_aerobic_target_days": 10,
+      "tempo": 0.5,
+      "threshold": 0.5,
+      "vo2max": 0.4
+    },
+    {
+      "aerobic_base": 0.7,
+      "aerobic_endurance": 1.0,
+      "anaerobic_neuro": 0.1,
+      "archetype": "marathon_endurance",
+      "long_aerobic_target_days": 7,
+      "tempo": 0.7,
+      "threshold": 0.4,
+      "vo2max": 0.3
+    },
+    {
+      "aerobic_base": 0.7,
+      "aerobic_endurance": 0.9,
+      "anaerobic_neuro": 0.2,
+      "archetype": "long_endurance",
+      "long_aerobic_target_days": 7,
+      "tempo": 0.7,
+      "threshold": 0.5,
+      "vo2max": 0.5
+    },
+    {
+      "aerobic_base": 0.5,
+      "aerobic_endurance": 0.6,
+      "anaerobic_neuro": 0.4,
+      "archetype": "short_endurance",
+      "long_aerobic_target_days": 14,
+      "tempo": 0.8,
+      "threshold": 0.7,
+      "vo2max": 0.7
+    },
+    {
+      "aerobic_base": 0.4,
+      "aerobic_endurance": 0.5,
+      "anaerobic_neuro": 0.6,
+      "archetype": "speed_endurance",
+      "long_aerobic_target_days": 14,
+      "tempo": 0.8,
+      "threshold": 0.9,
+      "vo2max": 1.0
+    },
+    {
+      "aerobic_base": 0.7,
+      "aerobic_endurance": 1.0,
+      "anaerobic_neuro": 0.1,
+      "archetype": "endurance_event",
+      "long_aerobic_target_days": 7,
+      "tempo": 0.7,
+      "threshold": 0.4,
+      "vo2max": 0.4
+    },
+    {
+      "aerobic_base": 0.5,
+      "aerobic_endurance": 0.6,
+      "anaerobic_neuro": 0.3,
+      "archetype": "threshold_event",
+      "long_aerobic_target_days": 10,
+      "tempo": 1.0,
+      "threshold": 0.8,
+      "vo2max": 0.7
+    }
+  ],
+  "level_selection_policy:level_params": [
+    {
+      "fatigue_type": "muscular",
+      "level": "aerobic_base",
+      "recovery_base_hours": 12,
+      "representative_duration_min": 40
+    },
+    {
+      "fatigue_type": "muscular",
+      "level": "aerobic_endurance",
+      "recovery_base_hours": 24,
+      "representative_duration_min": 60
+    },
+    {
+      "fatigue_type": "metabolic",
+      "level": "tempo",
+      "recovery_base_hours": 36,
+      "representative_duration_min": 40
+    },
+    {
+      "fatigue_type": "metabolic",
+      "level": "threshold",
+      "recovery_base_hours": 36,
+      "representative_duration_min": 30
+    },
+    {
+      "fatigue_type": "metabolic",
+      "level": "vo2max",
+      "recovery_base_hours": 36,
+      "representative_duration_min": 25
+    },
+    {
+      "fatigue_type": "nervous",
+      "level": "anaerobic_neuro",
+      "recovery_base_hours": 48,
+      "representative_duration_min": 15
+    }
+  ],
+  "level_selection_policy:weights": [
+    {
+      "cost_norm_days": 3.0,
+      "cost_w": 0.1,
+      "cross_type_spacing_h": 24.0,
+      "goal_w": 0.2,
+      "intensity_spacing_h": 36.0,
+      "long_aerobic_min_duration_min": 90.0,
+      "need_norm_pp": 25.0,
+      "need_w": 0.4,
+      "recency_cap_days": 10.0,
+      "recency_w": 0.3
     }
   ],
   "load_monitoring:confidence_multipliers": [
@@ -6357,6 +6485,526 @@
       "slice_end": 28,
       "slice_index": 4,
       "slice_start": 22
+    }
+  ],
+  "methodology_distribution:methodology_distribution": [
+    {
+      "level": "aerobic_base",
+      "methodology": "daniels",
+      "pct_max": 37.0,
+      "pct_min": 31.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "daniels",
+      "pct_max": 50.0,
+      "pct_min": 44.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "tempo",
+      "methodology": "daniels",
+      "pct_max": 8.0,
+      "pct_min": 4.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "threshold",
+      "methodology": "daniels",
+      "pct_max": 10.0,
+      "pct_min": 6.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "daniels",
+      "pct_max": 5.0,
+      "pct_min": 1.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "daniels",
+      "pct_max": 3.0,
+      "pct_min": 1.0,
+      "phase": "base",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "daniels",
+      "pct_max": 36.0,
+      "pct_min": 30.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "daniels",
+      "pct_max": 48.0,
+      "pct_min": 42.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "tempo",
+      "methodology": "daniels",
+      "pct_max": 7.0,
+      "pct_min": 3.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "threshold",
+      "methodology": "daniels",
+      "pct_max": 12.0,
+      "pct_min": 8.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "daniels",
+      "pct_max": 7.0,
+      "pct_min": 3.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "daniels",
+      "pct_max": 3.0,
+      "pct_min": 1.0,
+      "phase": "build",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "daniels",
+      "pct_max": 35.0,
+      "pct_min": 29.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "daniels",
+      "pct_max": 47.0,
+      "pct_min": 41.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "tempo",
+      "methodology": "daniels",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "threshold",
+      "methodology": "daniels",
+      "pct_max": 10.0,
+      "pct_min": 6.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "daniels",
+      "pct_max": 11.0,
+      "pct_min": 7.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "daniels",
+      "pct_max": 4.0,
+      "pct_min": 2.0,
+      "phase": "peak",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "daniels",
+      "pct_max": 39.0,
+      "pct_min": 33.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "daniels",
+      "pct_max": 51.0,
+      "pct_min": 45.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "tempo",
+      "methodology": "daniels",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "threshold",
+      "methodology": "daniels",
+      "pct_max": 8.0,
+      "pct_min": 4.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "daniels",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "daniels",
+      "pct_max": 3.0,
+      "pct_min": 1.0,
+      "phase": "unload",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "coggan",
+      "pct_max": 37.0,
+      "pct_min": 31.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "coggan",
+      "pct_max": 49.0,
+      "pct_min": 43.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "tempo",
+      "methodology": "coggan",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "threshold",
+      "methodology": "coggan",
+      "pct_max": 10.0,
+      "pct_min": 6.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "coggan",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "coggan",
+      "pct_max": 6.0,
+      "pct_min": 2.0,
+      "phase": "base",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "coggan",
+      "pct_max": 36.0,
+      "pct_min": 30.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "coggan",
+      "pct_max": 49.0,
+      "pct_min": 43.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "tempo",
+      "methodology": "coggan",
+      "pct_max": 5.0,
+      "pct_min": 1.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "threshold",
+      "methodology": "coggan",
+      "pct_max": 13.0,
+      "pct_min": 9.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "coggan",
+      "pct_max": 7.0,
+      "pct_min": 3.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "coggan",
+      "pct_max": 3.0,
+      "pct_min": 1.0,
+      "phase": "build",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "coggan",
+      "pct_max": 36.0,
+      "pct_min": 30.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "coggan",
+      "pct_max": 48.0,
+      "pct_min": 42.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "tempo",
+      "methodology": "coggan",
+      "pct_max": 4.0,
+      "pct_min": 0.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "threshold",
+      "methodology": "coggan",
+      "pct_max": 11.0,
+      "pct_min": 7.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "coggan",
+      "pct_max": 10.0,
+      "pct_min": 6.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "coggan",
+      "pct_max": 5.0,
+      "pct_min": 1.0,
+      "phase": "peak",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_base",
+      "methodology": "coggan",
+      "pct_max": 41.0,
+      "pct_min": 35.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "aerobic_endurance",
+      "methodology": "coggan",
+      "pct_max": 52.0,
+      "pct_min": 46.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "tempo",
+      "methodology": "coggan",
+      "pct_max": 4.0,
+      "pct_min": 0.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "threshold",
+      "methodology": "coggan",
+      "pct_max": 8.0,
+      "pct_min": 4.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "vo2max",
+      "methodology": "coggan",
+      "pct_max": 5.0,
+      "pct_min": 1.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "level": "anaerobic_neuro",
+      "methodology": "coggan",
+      "pct_max": 3.0,
+      "pct_min": 1.0,
+      "phase": "unload",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    }
+  ],
+  "methodology_form_map:methodology_forms": [
+    {
+      "form": "continuous",
+      "level": "aerobic_base",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "continuous",
+      "level": "aerobic_endurance",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "tempo",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "varied_intervals",
+      "level": "threshold",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "varied_intervals",
+      "level": "vo2max",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "anaerobic_neuro",
+      "methodology": "daniels",
+      "source": "daniels_running_formula",
+      "sport": "running"
+    },
+    {
+      "form": "continuous",
+      "level": "aerobic_base",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "form": "continuous",
+      "level": "aerobic_endurance",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "tempo",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "threshold",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "vo2max",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
+    },
+    {
+      "form": "simple_intervals",
+      "level": "anaerobic_neuro",
+      "methodology": "coggan",
+      "source": "coggan_allen_2019",
+      "sport": "cycling"
     }
   ],
   "micro_training_commute_v4:micro_med": [
@@ -10184,6 +10832,15 @@
       "zone": "Z8"
     }
   ],
+  "recovery_policy:recovery_pool": [
+    {
+      "floor_exempt": true,
+      "notes": "Alactic neuromuscular touch permitted during active recovery — ATP-PC, ~zero metabolic load (Meeusen 2013 active recovery; Casado 2022; Barnes & Kilding 2015). Scoped exception to the Overreached×Z8→0.00 block above. Orange only, never red.",
+      "session_class": "recovery_strides",
+      "state": "Overreached",
+      "variant_id": "z8_recovery_strides"
+    }
+  ],
   "recovery_policy:state_multipliers": [
     {
       "multiplier": 1.0,
@@ -11286,6 +11943,28 @@
       "priority": 6,
       "rationale": "Tempo/lactate clearance",
       "zone": "Z3"
+    }
+  ],
+  "session_form:form_patterns": [
+    {
+      "form": "continuous",
+      "patterns": "continuous",
+      "source": "seiler_2010"
+    },
+    {
+      "form": "simple_intervals",
+      "patterns": "equal",
+      "source": "ronnestad_hansen_2015"
+    },
+    {
+      "form": "varied_intervals",
+      "patterns": "descending,ladder,pyramid",
+      "source": "daniels_running_formula"
+    },
+    {
+      "form": "surges",
+      "patterns": "wave,progressive",
+      "source": "seiler_2010"
     }
   ],
   "session_quality:delivery_thresholds": [
@@ -12731,6 +13410,23 @@
       "work_min_max": 0.25,
       "work_min_min": 0.15,
       "zone": "Z8"
+    },
+    {
+      "label_template": "{reps}×{work_sec}s strides (full recovery)",
+      "level_max": "elite",
+      "level_min": "beginner",
+      "pattern": "equal",
+      "phases_allowed": "all",
+      "priority": 4,
+      "reps_max": 6,
+      "reps_min": 4,
+      "rest_ratio": 15.0,
+      "variant_id": "z8_recovery_strides",
+      "variant_name": "Recovery Strides",
+      "work_min_default": 0.1,
+      "work_min_max": 0.1,
+      "work_min_min": 0.1,
+      "zone": "Z8"
     }
   ],
   "session_templates_v4:session_class_warmup": [
@@ -12821,6 +13517,19 @@
       "intensity_only": false,
       "session_class": "commute_tempo",
       "warmup_clamp_max": 8,
+      "warmup_clamp_min": 5,
+      "warmup_pct": 0.15,
+      "warmup_rule": "proportional"
+    },
+    {
+      "cooldown_clamp_max": 5,
+      "cooldown_clamp_min": 3,
+      "cooldown_pct": 0.1,
+      "fixed_cooldown": 0,
+      "fixed_warmup": 0,
+      "intensity_only": false,
+      "session_class": "recovery_strides",
+      "warmup_clamp_max": 10,
       "warmup_clamp_min": 5,
       "warmup_pct": 0.15,
       "warmup_rule": "proportional"
@@ -13079,7 +13788,7 @@
       "readiness": "yellow"
     },
     {
-      "max_zone": "Z2",
+      "max_zone": "Z1",
       "readiness": "orange"
     },
     {
@@ -13099,7 +13808,7 @@
       "readiness": "accumulated"
     },
     {
-      "max_zone": "R",
+      "max_zone": "Z1",
       "readiness": "overreached"
     },
     {
@@ -14398,23 +15107,23 @@
   ],
   "viterbi_advisories:state_recommendations": [
     {
-      "recommendation": "Good to train. Full intensity available.",
+      "recommendation": "You're fresh and clear — nothing's holding you back today. Full intensity is available.",
       "state": "Recovered"
     },
     {
-      "recommendation": "In productive training phase. Monitor recovery.",
+      "recommendation": "You're adapting well — this is where fitness gets built. Keep the rhythm and stay honest about recovery.",
       "state": "Productive"
     },
     {
-      "recommendation": "Fatigue accumulating. Consider lighter session.",
+      "recommendation": "Fatigue is starting to stack up. A lighter session today keeps the progress without digging a hole.",
       "state": "Accumulated"
     },
     {
-      "recommendation": "Overreached. Rest day recommended.",
+      "recommendation": "You've pushed past the productive line — today is active recovery: easy Z1 movement only, nothing that adds load. Gentle blood flow protects what you've built.",
       "state": "Overreached"
     },
     {
-      "recommendation": "Illness risk elevated. Complete rest recommended.",
+      "recommendation": "Your body is flagging illness risk — rest completely today. This isn't the day to train.",
       "state": "IllnessRisk"
     }
   ],

@@ -283,7 +283,7 @@ platform-specific; everything else is shared.
 §5.1): tertiary teal `rgba(32,183,186,0.38)`, yellow `#FFCE2E` are brand-direction
 references, not locked tokens. ⚠️ **Primary green `#1DBF60` and glass focus teal
 `#007166` are explicitly REJECTED for beta** (old Okapion token set — see
-`NEXT_BUILD_BRIEF.md §F`, the canonical record; use ours, do not hardcode them).
+`briefs/NEXT_BUILD_BRIEF.md §F`, the canonical record; use ours, do not hardcode them).
 Never hardcode hex in widgets — use the token; if a needed semantic colour is
 missing, surface it, don't invent one.
 
