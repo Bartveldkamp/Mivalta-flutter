@@ -1,0 +1,9 @@
+# Cargo configuration for Mivalta Rust bridge
+#
+# IPHONEOS_DEPLOYMENT_TARGET must match the Flutter project's iOS platform
+# (ios/Podfile: platform :ios, '13.0'). Without this, the cc crate derives
+# the deployment target from the Xcode SDK version, causing a compile/link
+# mismatch (___chkstk_darwin symbol not found) on aarch64-apple-ios builds.
+
+[env]
+IPHONEOS_DEPLOYMENT_TARGET = "13.0"
