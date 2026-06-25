@@ -144,7 +144,7 @@ comment block above it narrates the full re-pin history. This rev carries:
 engine_registry is **v2.24, zero method delta** across the whole `79b7c93 → 3db58f2`
 range, so no bump in this range needs an FRB regen on its own. The build executor
 still owes the **iOS xcframework rebuild** at this rev (Android is proven by smoke;
-iOS is Mac-only) — see `docs/MAC_BRIEF_BETA_BATCH.md`.
+iOS is Mac-only) — see `docs/mac/MAC_BRIEF_BETA_BATCH.md`.
 
 ## Repository Structure
 

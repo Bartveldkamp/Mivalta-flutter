@@ -23,7 +23,7 @@ references is in the repos; nothing here is verbal-only.
   Josi free-chat screen, that file is SUPERSEDED.** The beta has no chatbot, no
   open Q&A. The on-device conversational layer is a *later* phase.
 - **Platforms: iOS + Android** (that's why it's Flutter). iOS bring-up needs
-  finishing — see `docs/IOS_BRINGUP_BRIEF.md`.
+  finishing — see `docs/mac/IOS_BRINGUP_BRIEF.md`.
 
 ## 2. The design north star — a next-generation **"training buddy," not a dashboard**
 
@@ -74,7 +74,7 @@ The engine is complete; the app already renders real engine output on every core
 screen (verified by a bidirectional wiring audit). The build work — each with a
 brief in this repo's `docs/`:
 
-- **`MAC_BRIEF_WORKOUT_INGEST.md`** — *the #1 task.* Completed workouts aren't yet
+- **`mac/MAC_BRIEF_WORKOUT_INGEST.md`** — *the #1 task.* Completed workouts aren't yet
   written to the vault, which starves five wired features (post-workout report,
   advisor rotation, power charts, the decoupling signal, workout RPE).
 - Advisor lead-with-A / offer-C restyle — **done** (`AdvisorOptionsList`, pinned by
