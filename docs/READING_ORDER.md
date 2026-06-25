@@ -68,7 +68,7 @@ Two design decisions you must build to (founder, 2026-06-11):
    *display* side IS wired — post-workout report, history-aware advisor
    rotation, MMP/CP charts — but it reads from a table nothing fills, so those
    features show empty until this lands. The executable fix is
-   `MAC_BRIEF_WORKOUT_INGEST.md`. Don't debug "report never appears" — it's
+   `mac/MAC_BRIEF_WORKOUT_INGEST.md`. Don't debug "report never appears" — it's
    this.
 2. ~~Advisor screen still equal-weight~~ **RESOLVED (2026-06-12):**
    `AdvisorOptionsList` now leads with A ("Recommended for today"), offers C
@@ -98,3 +98,14 @@ flutter build apk --debug --target-platform android-arm64
 ```
 CI gate is `flutter analyze --fatal-infos`: **local `flutter test` passing is not
 sufficient** — analyze must be clean too.
+
+## Docs layout (where to find things)
+
+The persona doors above are all at `docs/` top level. The rest is grouped so
+`ls docs/` is navigable, not a wall — nothing hidden, nothing archived here:
+
+- **`docs/mac/`** — Mac/iOS executor briefs (`MAC_BRIEF_BETA_BATCH`,
+  `MAC_BRIEF_WORKOUT_INGEST`, `IOS_BRINGUP_BRIEF`, the N1-beta + daily-notification briefs).
+- **`docs/briefs/`** — engine/feature briefs & plans (`ENGINE_BRIEF_WORKOUT_LOAD`,
+  `NEXT_BUILD_BRIEF`, `HOME_REDESIGN_BRIEF`, `SIMULATOR_DEMO_DATA`, founder-feedback log).
+- **`docs/archive/`** — superseded/shipped, indexed in [`ARCHIVE_INDEX.md`](ARCHIVE_INDEX.md).
