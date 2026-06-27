@@ -58,8 +58,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   Future<void> _fetchLoadContext() async {
     try {
-      final json = await widget.binding.getContextWidget(widget.handle);
-      final ctx = LoadContext.fromJson(jsonDecode(json));
+      // Dashboard removal Phase 2: build the load context from the two canonical
+      // engine results directly (get_acwr + get_monotony_strain), not the
+      // dashboard context widget.
+      final acwrJson = await widget.binding.getAcwr(widget.handle);
+      final monoJson = await widget.binding.getMonotonyStrain(widget.handle);
+      final ctx = LoadContext.fromEngine(
+        acwr: jsonDecode(acwrJson) as Map,
+        monotony: jsonDecode(monoJson) as Map,
+      );
       if (mounted) setState(() => _loadContext = ctx);
     } catch (_) {
       // Leave null — the section renders its loading/empty path.

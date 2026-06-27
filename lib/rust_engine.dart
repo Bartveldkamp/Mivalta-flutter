@@ -154,6 +154,32 @@ class RustEngineBinding {
   Future<String> readinessIndicator(EnginesHandle handle) =>
       rust_api.readinessIndicator(handle: handle);
 
+  /// `ViterbiEngine::state_advisory()` — `{state_recommendation,
+  /// confidence_advisory}`, card-sourced. Dashboard removal Phase 2: the home +
+  /// detail read state prose from here (replaces the dashboard StateWidget).
+  Future<String> stateAdvisory(EnginesHandle handle) =>
+      rust_api.stateAdvisory(handle: handle);
+
+  /// `ViterbiEngine::get_acwr()` — AcwrResult JSON (acwr, zone, recommendation,
+  /// …). Dashboard removal Phase 2: home today-facts + Explore load context.
+  Future<String> getAcwr(EnginesHandle handle) =>
+      rust_api.getAcwr(handle: handle);
+
+  /// `ViterbiEngine::get_monotony_strain()` — MonotonyStrainResult JSON
+  /// (monotony, strain, zone, recommendation, …). Explore load context.
+  Future<String> getMonotonyStrain(EnginesHandle handle) =>
+      rust_api.getMonotonyStrain(handle: handle);
+
+  /// `ViterbiEngine::pending_advisories()` — PendingAdvisories JSON
+  /// (reactive_alerts[].message, pattern_advisories[].description). Home context.
+  Future<String> pendingAdvisories(EnginesHandle handle) =>
+      rust_api.pendingAdvisories(handle: handle);
+
+  /// `VaultEngine::last_workout_summary()` — one-line narrative summary of the
+  /// most recent activity (empty when none). Home "last workout" line.
+  Future<String> lastWorkoutSummary(EnginesHandle handle) =>
+      rust_api.lastWorkoutSummary(handle: handle);
+
   /// `ViterbiEngine::get_readiness()` — full snapshot JSON, contains
   /// `fatigue_state` alongside the rest of the readiness state.
   Future<String> viterbiFatigueState(EnginesHandle handle) =>
@@ -545,25 +571,12 @@ class RustEngineBinding {
       rust_api.readActivityById(handle: handle, activityId: activityId);
 
   // ===========================================================================
-  // DASHBOARD ENGINE — three-zone PULL home widgets
+  // DASHBOARD ENGINE — REMOVED (dashboard removal Phase 2)
   // ===========================================================================
-
-  /// `DashboardEngine::get_dashboard()` — composite payload (state + session
-  /// + context) as JSON. Drives the three-zone PULL home layout.
-  Future<String> getDashboard(EnginesHandle handle) =>
-      rust_api.getDashboard(handle: handle);
-
-  /// `DashboardEngine::get_state_widget()` — Tier 1 state widget JSON.
-  Future<String> getStateWidget(EnginesHandle handle) =>
-      rust_api.getStateWidget(handle: handle);
-
-  /// `DashboardEngine::get_session_widget()` — Tier 2 session widget JSON.
-  Future<String> getSessionWidget(EnginesHandle handle) =>
-      rust_api.getSessionWidget(handle: handle);
-
-  /// `DashboardEngine::get_context_widget()` — history/load context widget JSON.
-  Future<String> getContextWidget(EnginesHandle handle) =>
-      rust_api.getContextWidget(handle: handle);
+  // The home/detail/explore now read the canonical engines directly
+  // (state_advisory, get_acwr, get_monotony_strain, pending_advisories,
+  // recommend_workout_with_history, last_workout_summary). The dashboard FFI
+  // engine + shim fns are deleted in Phase 3.
 
   // ===========================================================================
   // NORMALIZER ENGINE — vendor data normalization

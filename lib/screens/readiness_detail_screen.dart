@@ -266,11 +266,12 @@ class _ReadinessDetailScreenState extends State<ReadinessDetailScreen> {
           await widget.binding.lastObservationSourceTier(widget.handle);
       d.sourceTier = sourceTierFromEngine(jsonDecode(tierJson));
 
-      // getStateWidget() — confidence_advisory for calibration banner
-      final stateWidgetJson =
-          await widget.binding.getStateWidget(widget.handle);
-      final stateWidget = jsonDecode(stateWidgetJson) as Map<String, dynamic>;
-      d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
+      // state_advisory() — confidence_advisory for calibration banner
+      // (dashboard removal Phase 2: replaces getStateWidget).
+      final stateAdvisoryJson =
+          await widget.binding.stateAdvisory(widget.handle);
+      final stateAdvisory = jsonDecode(stateAdvisoryJson) as Map<String, dynamic>;
+      d.confidenceAdvisory = stateAdvisory['confidence_advisory']?.toString();
 
       // "How MiValta is learning you" — personalization diagnostics + the
       // on-device validation report (engine owns every number/bucket).

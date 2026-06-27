@@ -76,6 +76,35 @@ Future<String> readinessScore({required EnginesHandle handle}) =>
 Future<String> readinessIndicator({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiReadinessIndicator(handle: handle);
 
+/// `ViterbiEngine::state_advisory()` — per-state recommendation + low-confidence
+/// advisory (card-sourced). Dashboard removal Phase 2: replaces the StateWidget
+/// prose the home + detail read. Pure pass-through.
+Future<String> stateAdvisory({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiStateAdvisory(handle: handle);
+
+/// `ViterbiEngine::get_acwr()` — ACWR value + zone + recommendation. Dashboard
+/// removal Phase 2: replaces the ContextWidget acwr fields. Pure pass-through.
+Future<String> getAcwr({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetAcwr(handle: handle);
+
+/// `ViterbiEngine::get_monotony_strain()` — monotony/strain + zones + recs.
+/// Dashboard removal Phase 2: replaces the ContextWidget/LoadContext monotony
+/// fields. Pure pass-through.
+Future<String> getMonotonyStrain({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiGetMonotonyStrain(handle: handle);
+
+/// `ViterbiEngine::pending_advisories()` — reactive alerts + pattern advisories.
+/// Dashboard removal Phase 2: replaces the ContextWidget alert lists. Pure
+/// pass-through.
+Future<String> pendingAdvisories({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiPendingAdvisories(handle: handle);
+
+/// `VaultEngine::last_workout_summary()` — one-line narrative summary of the most
+/// recent activity (empty when none). Dashboard removal Phase 2: replaces the
+/// ContextWidget `last_workout` string. Pure pass-through.
+Future<String> lastWorkoutSummary({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiLastWorkoutSummary(handle: handle);
+
 /// `ViterbiEngine::get_readiness()` — full snapshot JSON including
 /// `fatigue_state`. gatc-ffi exposes the state through the snapshot,
 /// not as a standalone scalar; Dart parses/renders as-is.

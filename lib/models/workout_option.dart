@@ -24,6 +24,13 @@ class WorkoutOption {
   final String? targetPaceMss;
   final String? expression;
 
+  /// Main-set opening cue (`structure.main_set.cue_start`). Parse-only add for
+  /// the home "Today" card (dashboard removal Phase 2 — was SessionWidget.focus_cue).
+  final String? focusCue;
+
+  /// Card-sourced zone-purpose prose (`zone_purpose`), engine-owned (Phase 1).
+  final String? zonePurpose;
+
   WorkoutOption({
     required this.optionId,
     required this.title,
@@ -34,6 +41,8 @@ class WorkoutOption {
     this.targetWatts,
     this.targetPaceMss,
     this.expression,
+    this.focusCue,
+    this.zonePurpose,
   });
 
   factory WorkoutOption.fromJson(dynamic json) {
@@ -49,8 +58,14 @@ class WorkoutOption {
 
     final structure = json['structure'];
     int? duration;
+    String? cueStart;
     if (structure is Map) {
       duration = (structure['total_minutes'] as num?)?.toInt();
+      // focus_cue = the main set's opening cue (display string, engine-authored).
+      final mainSet = structure['main_set'];
+      if (mainSet is Map) {
+        cueStart = mainSet['cue_start']?.toString();
+      }
     }
 
     return WorkoutOption(
@@ -62,6 +77,9 @@ class WorkoutOption {
       durationMin: duration,
       targetWatts: (json['target_watts'] as num?)?.toInt(),
       targetPaceMss: json['target_pace_mss']?.toString(),
+      focusCue: cueStart,
+      // zone_purpose: card-sourced prose now carried on the option (Phase 1).
+      zonePurpose: json['zone_purpose']?.toString(),
       // Engine emits `expression` as an ExpressionData STRUCT
       // (gatc-types WorkoutOptionData.expression: Option<ExpressionData>,
       // fields expression_id/title/…), NOT a string. The badge renders the

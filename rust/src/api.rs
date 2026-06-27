@@ -251,6 +251,40 @@ pub fn readiness_indicator(handle: &EnginesHandle) -> Result<String, BridgeError
     handle.viterbi.readiness_indicator().map_err(Into::into)
 }
 
+/// `ViterbiEngine::state_advisory()` — per-state recommendation + low-confidence
+/// advisory (card-sourced). Dashboard removal Phase 2: replaces the StateWidget
+/// prose the home + detail read. Pure pass-through.
+pub fn state_advisory(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.state_advisory().map_err(Into::into)
+}
+
+/// `ViterbiEngine::get_acwr()` — ACWR value + zone + recommendation. Dashboard
+/// removal Phase 2: replaces the ContextWidget acwr fields. Pure pass-through.
+pub fn get_acwr(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.get_acwr().map_err(Into::into)
+}
+
+/// `ViterbiEngine::get_monotony_strain()` — monotony/strain + zones + recs.
+/// Dashboard removal Phase 2: replaces the ContextWidget/LoadContext monotony
+/// fields. Pure pass-through.
+pub fn get_monotony_strain(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.get_monotony_strain().map_err(Into::into)
+}
+
+/// `ViterbiEngine::pending_advisories()` — reactive alerts + pattern advisories.
+/// Dashboard removal Phase 2: replaces the ContextWidget alert lists. Pure
+/// pass-through.
+pub fn pending_advisories(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.pending_advisories().map_err(Into::into)
+}
+
+/// `VaultEngine::last_workout_summary()` — one-line narrative summary of the most
+/// recent activity (empty when none). Dashboard removal Phase 2: replaces the
+/// ContextWidget `last_workout` string. Pure pass-through.
+pub fn last_workout_summary(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.vault.last_workout_summary().map_err(Into::into)
+}
+
 /// `ViterbiEngine::get_readiness()` — full snapshot JSON including
 /// `fatigue_state`. gatc-ffi exposes the state through the snapshot,
 /// not as a standalone scalar; Dart parses/renders as-is.
