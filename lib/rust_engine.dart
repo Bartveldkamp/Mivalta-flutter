@@ -576,7 +576,8 @@ class RustEngineBinding {
   // The home/detail/explore now read the canonical engines directly
   // (state_advisory, get_acwr, get_monotony_strain, pending_advisories,
   // recommend_workout_with_history, last_workout_summary). The dashboard FFI
-  // engine + shim fns are deleted in Phase 3.
+  // engine + shim fns were deleted in Phase 3 (rust-engine #356; shim re-pin
+  // to the dashboard-less engine in this PR).
 
   // ===========================================================================
   // NORMALIZER ENGINE — vendor data normalization
@@ -685,7 +686,7 @@ class RustEngineBinding {
 
   /// Update the athlete profile across all engines.
   ///
-  /// Re-binds ViterbiEngine, AdvisorEngine, NormalizerEngine, DashboardEngine.
+  /// Re-binds ViterbiEngine, AdvisorEngine, and NormalizerEngine.
   /// Call this when the user edits their profile in Settings.
   Future<void> updateProfile(EnginesHandle handle, {required String athleteProfileJson}) =>
       rust_api.updateProfile(handle: handle, athleteProfileJson: athleteProfileJson);
