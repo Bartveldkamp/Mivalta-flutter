@@ -33,6 +33,7 @@ import 'package:path_provider/path_provider.dart';
 import '../copy/today_facts_labels.dart';
 import '../copy/zone_labels.dart';
 import '../models/activity_summary.dart';
+import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../services/ble/ble_hr_service.dart';
 import '../services/ble/flutter_blue_transport.dart';
@@ -449,12 +450,14 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       // transient advisories.last_observation_at the gate used to key off.
       d.insufficientData = insufficientDataFromConfidence(d.confidence);
 
-      // StateWidget — FIXED: use real field names from engine schema
-      final stateWidgetJson = await binding.getStateWidget(handle);
-      final stateWidget = jsonDecode(stateWidgetJson);
-      if (stateWidget is Map) {
-        d.stateRecommendation = stateWidget['state_recommendation']?.toString();
-        d.confidenceAdvisory = stateWidget['confidence_advisory']?.toString();
+      // State advisory — card prose (state recommendation + low-confidence
+      // advisory), engine-owned. Dashboard removal Phase 2: replaces
+      // getStateWidget; identical field names, sourced from ViterbiEngine.
+      final stateAdvisoryJson = await binding.stateAdvisory(handle);
+      final stateAdvisory = jsonDecode(stateAdvisoryJson);
+      if (stateAdvisory is Map) {
+        d.stateRecommendation = stateAdvisory['state_recommendation']?.toString();
+        d.confidenceAdvisory = stateAdvisory['confidence_advisory']?.toString();
       }
 
       // The HMM fatigue STATE (Recovered/.../IllnessRisk). NO LONGER the
@@ -508,17 +511,21 @@ class _ReadinessScreenState extends State<ReadinessScreen>
 
       // ---------- Zone 2: Today ----------
 
-      // SessionWidget — FIXED: use real field names from engine schema
-      final sessionWidgetJson = await binding.getSessionWidget(handle);
-      final sessionWidget = jsonDecode(sessionWidgetJson);
-      if (sessionWidget is Map) {
-        d.workoutTitle = sessionWidget['workout_title']?.toString();
-        d.durationMin = sessionWidget['duration_min'] as int?;
-        d.sessionZone = sessionWidget['zone']?.toString();
-        d.targetWatts = sessionWidget['target_watts'] as int?;
-        d.targetPaceMss = sessionWidget['target_pace_mss']?.toString();
-        d.focusCue = sessionWidget['focus_cue']?.toString();
-        d.rationaleProse = sessionWidget['rationale_prose']?.toString();
+      // Today's session — the advisor's option A, read directly from the engine
+      // (dashboard removal Phase 2: replaces getSessionWidget). The shim
+      // assembles the advisor call from engine values in Rust; the home passes
+      // nothing it derives (couriering guard). Option A is the primary suggestion.
+      final optionsJson = await binding.recommendWorkoutWithHistory(handle);
+      final optionsRaw = jsonDecode(optionsJson);
+      if (optionsRaw is List && optionsRaw.isNotEmpty) {
+        final a = WorkoutOption.fromJson(optionsRaw.first);
+        d.workoutTitle = a.title;
+        d.durationMin = a.durationMin;
+        d.sessionZone = a.zone;
+        d.targetWatts = a.targetWatts;
+        d.targetPaceMss = a.targetPaceMss;
+        d.focusCue = a.focusCue;
+        d.rationaleProse = a.why;
       }
 
       // Zone cap
@@ -528,24 +535,44 @@ class _ReadinessScreenState extends State<ReadinessScreen>
 
       // ---------- Zone 3: Context ----------
 
-      // ContextWidget — FIXED: use real field names from engine schema
-      final contextWidgetJson = await binding.getContextWidget(handle);
-      final contextWidget = jsonDecode(contextWidgetJson);
-      if (contextWidget is Map) {
-        // Step 3: only the fields the today-facts copy layer keys on — raw
-        // acwr/monotony/strain scalars stay off the home (brief §5).
-        d.acwrZone = contextWidget['acwr_zone']?.toString();
-        d.acwrRecommendation = contextWidget['acwr_recommendation']?.toString();
-        d.dataStatus = contextWidget['data_status']?.toString();
-        d.lastWorkout = contextWidget['last_workout']?.toString();
+      // Load context — read directly from the engines (dashboard removal Phase 2:
+      // replaces getContextWidget). ACWR zone + recommendation from get_acwr; raw
+      // acwr/monotony scalars stay off the home (Explore surfaces those).
+      final acwrJson = await binding.getAcwr(handle);
+      final acwr = jsonDecode(acwrJson);
+      if (acwr is Map) {
+        d.acwrZone = acwr['zone']?.toString();
+        d.acwrRecommendation = acwr['recommendation']?.toString();
+        // FLAG 2 (founder-approved): the home gates the today-facts on the
+        // engine's honest-absence zone, not a dashboard data_status. A real
+        // reading carries a zone other than "insufficient_data".
+        d.dataStatus = (d.acwrZone == 'insufficient_data') ? 'insufficient' : 'ok';
+      }
 
-        final alerts = contextWidget['reactive_alerts'];
+      // Last workout: one-line summary, narrative-formatted by the engine
+      // (returns the string directly; empty when no activities).
+      d.lastWorkout = await binding.lastWorkoutSummary(handle);
+
+      // Reactive alerts + pattern advisories from the engine's pending advisories
+      // (ReactiveAlert.message / PatternAdvisory.description).
+      final pendingJson = await binding.pendingAdvisories(handle);
+      final pending = jsonDecode(pendingJson);
+      if (pending is Map) {
+        final alerts = pending['reactive_alerts'];
         if (alerts is List) {
-          d.reactiveAlerts = alerts.map((e) => e.toString()).toList();
+          d.reactiveAlerts = alerts
+              .whereType<Map>()
+              .map((e) => e['message']?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toList();
         }
-        final advisories = contextWidget['pattern_advisories'];
-        if (advisories is List) {
-          d.patternAdvisories = advisories.map((e) => e.toString()).toList();
+        final patterns = pending['pattern_advisories'];
+        if (patterns is List) {
+          d.patternAdvisories = patterns
+              .whereType<Map>()
+              .map((e) => e['description']?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toList();
         }
       }
 

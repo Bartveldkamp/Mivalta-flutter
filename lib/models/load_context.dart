@@ -1,10 +1,11 @@
 // Load Context model — for the Explore load/strain rollup.
 //
-// Display-only. Parses the engine's `DashboardEngine::get_context_widget()`
-// payload (already bridged as `getContextWidget`): ACWR (acute:chronic, Lolli
-// 2019) + Foster monotony/strain, each with an engine-assigned zone and
-// card-sourced recommendation prose. The engine computes everything; Dart only
-// renders. No buckets summed in Dart — these ARE the engine's load rollup.
+// Display-only. Built from TWO canonical engine results (dashboard removal
+// Phase 2 — replaces the DashboardEngine context widget): `ViterbiEngine::
+// get_acwr()` (acute:chronic, Lolli 2019) + `get_monotony_strain()` (Foster
+// monotony/strain), each with an engine-assigned zone and card-sourced
+// recommendation prose. The engine computes everything; Dart only renders. No
+// buckets summed in Dart — these ARE the engine's load rollup.
 
 class LoadContext {
   final double acwr;
@@ -15,7 +16,10 @@ class LoadContext {
   final String monotonyZone;
   final String monotonyRecommendation;
 
-  /// `data_status == "ok"` — a real reading rather than a corrupt-state blank.
+  /// Whether the engine returned a result to render. The engines always return
+  /// a result (the corrupt-vault case is handled upstream at engine construction
+  /// via FL-3, not here) — a fetch error leaves `_loadContext` null, which the
+  /// screen renders as its empty path. Kept for the card's display gate.
   final bool available;
 
   const LoadContext({
@@ -29,20 +33,30 @@ class LoadContext {
     required this.available,
   });
 
-  /// True when the engine actually produced load readings (zones populated).
-  /// On a cold start the engine returns `data_status: ok` with blank zones —
-  /// that is "not enough history yet", not a reading.
-  bool get hasReadings =>
-      available && (acwrZone.isNotEmpty || monotonyZone.isNotEmpty);
+  /// True when the engine actually produced load readings. On a cold start the
+  /// engine returns the honest-absence zone `"insufficient_data"` — that is "not
+  /// enough history yet", not a reading (FLAG 2: gate on the engine's zone, not a
+  /// dashboard data_status).
+  bool get hasReadings {
+    bool real(String z) => z.isNotEmpty && z != 'insufficient_data';
+    return real(acwrZone) || real(monotonyZone);
+  }
 
-  factory LoadContext.fromJson(Map json) => LoadContext(
-        acwr: (json['acwr'] as num?)?.toDouble() ?? 0.0,
-        acwrZone: json['acwr_zone']?.toString() ?? '',
-        acwrRecommendation: json['acwr_recommendation']?.toString() ?? '',
-        monotony: (json['monotony'] as num?)?.toDouble() ?? 0.0,
-        strain: (json['strain'] as num?)?.toDouble() ?? 0.0,
-        monotonyZone: json['monotony_zone']?.toString() ?? '',
-        monotonyRecommendation: json['monotony_recommendation']?.toString() ?? '',
-        available: (json['data_status']?.toString() ?? '') == 'ok',
+  /// Build from the two canonical engine payloads: `get_acwr()` (AcwrResult) and
+  /// `get_monotony_strain()` (MonotonyStrainResult).
+  factory LoadContext.fromEngine({
+    required Map acwr,
+    required Map monotony,
+  }) =>
+      LoadContext(
+        acwr: (acwr['acwr'] as num?)?.toDouble() ?? 0.0,
+        acwrZone: acwr['zone']?.toString() ?? '',
+        acwrRecommendation: acwr['recommendation']?.toString() ?? '',
+        monotony: (monotony['monotony'] as num?)?.toDouble() ?? 0.0,
+        strain: (monotony['strain'] as num?)?.toDouble() ?? 0.0,
+        monotonyZone: monotony['zone']?.toString() ?? '',
+        monotonyRecommendation:
+            monotony['recommendation']?.toString() ?? '',
+        available: true,
       );
 }
