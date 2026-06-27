@@ -98,10 +98,22 @@ flutter_rust_bridge = "=2.12.0"
 # target). Cargo.lock gains openssl-src + openssl-sys. engine_registry UNCHANGED
 # (v2.24, zero method delta), so NO FRB regen and NO shim change — pure build fix.
 # Proven green end-to-end by the Flutter `smoke` Android cross-compile (#105).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7955ea" }
+# Re-pinned b7955ea → 8b3b95a (main after #356 — dashboard removal Phase 3).
+# DELETES gatc-dashboard + DashboardEngine entirely (CLAUDE.md Rule 9 / one
+# engine of record per value): the engine that rebuilt a second Viterbi monitor
+# + re-ran the advisor for display is gone, and a permanent guard test
+# (`dashboard_pattern_stays_deleted`) keeps it out. engine_registry 16→15 engines,
+# v2.26→v2.27. b7955ea is a verified ancestor of 8b3b95a; the only CODE change in
+# the b7955ea..8b3b95a range is #356 (#354/#355 are docs-only), so this bump
+# carries exactly the deletion. This DOES change the gatc-ffi UniFFI surface
+# (the 4 DashboardEngine getters are removed), so the shim drops its dashboard
+# field + construction + the 4 dead get_*_widget/get_dashboard fns, and the build
+# executor MUST FRB-regen lib/src/rust/ + rebuild the xcframework. The Dart facade
+# was already off DashboardEngine since Phase 2 (Flutter #112).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8b3b95a" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7955ea" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8b3b95a" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

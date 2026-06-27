@@ -607,8 +607,8 @@ Future<String> readActivityById({
 
 /// Update the athlete profile across all engines.
 ///
-/// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,
-/// and DashboardEngine. The Vault profile is updated via `write_profile`.
+/// This re-binds the profile in ViterbiEngine, AdvisorEngine, and
+/// NormalizerEngine. The Vault profile is updated via `write_profile`.
 /// Call this when the user edits their profile in Settings.
 Future<void> updateProfile({
   required EnginesHandle handle,
@@ -686,23 +686,6 @@ Future<String> clearAllUserData({
 /// The main vault is unaffected. Use `clear_all_user_data` to wipe everything.
 Future<void> cryptoEraseCache({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiCryptoEraseCache(handle: handle);
-
-/// `DashboardEngine::get_dashboard()` — composite payload (state + session
-/// + context) as JSON. Drives the three-zone PULL home layout.
-Future<String> getDashboard({required EnginesHandle handle}) =>
-    RustLib.instance.api.crateApiGetDashboard(handle: handle);
-
-/// `DashboardEngine::get_state_widget()` — Tier 1 state widget JSON.
-Future<String> getStateWidget({required EnginesHandle handle}) =>
-    RustLib.instance.api.crateApiGetStateWidget(handle: handle);
-
-/// `DashboardEngine::get_session_widget()` — Tier 2 session widget JSON.
-Future<String> getSessionWidget({required EnginesHandle handle}) =>
-    RustLib.instance.api.crateApiGetSessionWidget(handle: handle);
-
-/// `DashboardEngine::get_context_widget()` — history/load context widget JSON.
-Future<String> getContextWidget({required EnginesHandle handle}) =>
-    RustLib.instance.api.crateApiGetContextWidget(handle: handle);
 
 /// `NormalizerEngine::normalize_observation(vendor, json)` — normalize
 /// vendor-specific observation JSON to a UniversalObservation.

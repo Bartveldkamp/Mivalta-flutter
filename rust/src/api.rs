@@ -76,14 +76,12 @@ impl From<gatc_ffi::BridgeError> for BridgeError {
 /// - ViterbiEngine — fatigue monitoring, readiness, zone cap
 /// - AdvisorEngine — workout suggestions (A/B/C options)
 /// - VaultEngine — on-device encrypted storage
-/// - DashboardEngine — three-zone PULL home widgets
 /// - NormalizerEngine — vendor data normalizer (Garmin/Oura/Whoop/Polar/Apple/Wahoo/COROS/BLE)
 #[frb(opaque)]
 pub struct EnginesHandle {
     viterbi: Arc<gatc_ffi::ViterbiEngine>,
     advisor: Arc<gatc_ffi::AdvisorEngine>,
     vault: Arc<gatc_ffi::VaultEngine>,
-    dashboard: Arc<gatc_ffi::DashboardEngine>,
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
     /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
     cp: Arc<gatc_ffi::CpEngine>,
@@ -130,12 +128,6 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
-    let dashboard = gatc_ffi::DashboardEngine::new(
-        athlete_profile_json.clone(),
-        vault_path.clone(),
-        tables_json.clone(),
-    )
-    .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -147,7 +139,6 @@ pub fn construct_engines_fresh(
         viterbi,
         advisor,
         vault,
-        dashboard,
         normalizer,
         cp,
         postprocess,
@@ -188,12 +179,6 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
-    let dashboard = gatc_ffi::DashboardEngine::new(
-        athlete_profile_json.clone(),
-        vault_path.clone(),
-        tables_json.clone(),
-    )
-    .map_err(|e| BridgeError::EngineConstructionFailed(format!("dashboard: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -205,7 +190,6 @@ pub fn construct_engines_from_state(
         viterbi,
         advisor,
         vault,
-        dashboard,
         normalizer,
         cp,
         postprocess,
@@ -1078,8 +1062,8 @@ pub fn read_activity_by_id(
 
 /// Update the athlete profile across all engines.
 ///
-/// This re-binds the profile in ViterbiEngine, AdvisorEngine, NormalizerEngine,
-/// and DashboardEngine. The Vault profile is updated via `write_profile`.
+/// This re-binds the profile in ViterbiEngine, AdvisorEngine, and
+/// NormalizerEngine. The Vault profile is updated via `write_profile`.
 /// Call this when the user edits their profile in Settings.
 pub fn update_profile(
     handle: &EnginesHandle,
@@ -1096,10 +1080,6 @@ pub fn update_profile(
         .map_err(BridgeError::from)?;
     handle
         .normalizer
-        .update_profile(athlete_profile_json.clone())
-        .map_err(BridgeError::from)?;
-    handle
-        .dashboard
         .update_profile(athlete_profile_json.clone())
         .map_err(BridgeError::from)?;
     Ok(())
@@ -1178,31 +1158,6 @@ pub fn clear_all_user_data(
 /// The main vault is unaffected. Use `clear_all_user_data` to wipe everything.
 pub fn crypto_erase_cache(handle: &EnginesHandle) -> Result<(), BridgeError> {
     handle.vault.crypto_erase_cache().map_err(Into::into)
-}
-
-// =============================================================================
-// DASHBOARD ENGINE — three-zone PULL home widgets
-// =============================================================================
-
-/// `DashboardEngine::get_dashboard()` — composite payload (state + session
-/// + context) as JSON. Drives the three-zone PULL home layout.
-pub fn get_dashboard(handle: &EnginesHandle) -> Result<String, BridgeError> {
-    handle.dashboard.get_dashboard().map_err(Into::into)
-}
-
-/// `DashboardEngine::get_state_widget()` — Tier 1 state widget JSON.
-pub fn get_state_widget(handle: &EnginesHandle) -> Result<String, BridgeError> {
-    handle.dashboard.get_state_widget().map_err(Into::into)
-}
-
-/// `DashboardEngine::get_session_widget()` — Tier 2 session widget JSON.
-pub fn get_session_widget(handle: &EnginesHandle) -> Result<String, BridgeError> {
-    handle.dashboard.get_session_widget().map_err(Into::into)
-}
-
-/// `DashboardEngine::get_context_widget()` — history/load context widget JSON.
-pub fn get_context_widget(handle: &EnginesHandle) -> Result<String, BridgeError> {
-    handle.dashboard.get_context_widget().map_err(Into::into)
 }
 
 // =============================================================================
