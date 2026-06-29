@@ -126,25 +126,34 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `3db58f2`
-(rust-engine `main`; engine_registry **v2.24** per `engine_registry.json` at that
-rev). The `rev = "3db58f2"` line in `rust/Cargo.toml` is **authoritative**; the
-comment block above it narrates the full re-pin history. This rev carries:
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`8b3b95a`**
+(rust-engine `main` at the dashboard-removal merge; engine_registry **v2.27** per
+`engine_registry.json` at that rev). The `rev = "8b3b95a"` line in
+`rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
+the full re-pin history (`…b7955ea → 8b3b95a`); this section only summarizes. This
+rev carries:
 - **`gatc-vault` SQLCipher with vendored OpenSSL** (`bundled-sqlcipher-vendored-openssl`),
   so the Android cross-compile resolves with no system OpenSSL — the Flutter `smoke`
   CI job is green end-to-end on this pin. (See `mivalta-rust-engine/docs/PRODUCT_READINESS.md`
   §6 for the standing OpenSSL-patch obligation this creates.)
-- **A3 metabolic-level recarve + Task C cross-source workout dedup** (the app now
-  forwards the workout `start` *and* the engine reads it to fold same-session load once).
-- The earlier `79b7c93` line: device-data fabrication cluster removed across all 9
-  normalizers (→ honest absence), S1/M2–M7 safety fixes (M1 split: Overreached → Z1
-  active recovery, IllnessRisk → real rest), and the advisor→GATC system selector +
-  `AdvisorEngine::recommend_workout_with_history` (`advisor_screen.dart` is the caller).
+- **A3 metabolic-level recarve + Task C cross-source workout dedup**, and the
+  earlier device-data fabrication cluster removal + S1/M2–M7 safety fixes + the
+  advisor→GATC system selector (`AdvisorEngine::recommend_workout_with_history`,
+  `advisor_screen.dart` is the caller).
+- **Dashboard removal (#356)** — `gatc-dashboard`/`DashboardEngine` deleted; the
+  shim (`rust/src/api.rs`) is dashboard-free (Flutter PR #113 re-pinned here,
+  stripped the dashboard shim fns, and FRB-regenerated).
 
-engine_registry is **v2.24, zero method delta** across the whole `79b7c93 → 3db58f2`
-range, so no bump in this range needs an FRB regen on its own. The build executor
-still owes the **iOS xcframework rebuild** at this rev (Android is proven by smoke;
-iOS is Mac-only) — see `docs/mac/MAC_BRIEF_BETA_BATCH.md`.
+The build executor still owes the **iOS xcframework rebuild** at this rev (Android
+is proven by smoke; iOS is Mac-only) — see `docs/mac/MAC_BRIEF_BETA_BATCH.md`.
+
+**Skew vs engine HEAD (2026-06-28):** engine `main` has since advanced to
+`f1554dd` / **v2.29** via **#358** (ChatEngine removal) + **#359** (trend layer:
+`fitness_trend`/`hrv_trend`/`rhr_trend`). The client is **3 commits behind, skew
+benign** — ChatEngine was never wired into the shim, and the trend accessors are
+additive/unwired-by-design (readiness audit: no dangerous FFI drift). Re-pinning
+to HEAD is a `cargo update` + FRB regen + xcframework, needed only when the UI
+consumes the trend surface — no urgency.
 
 ## Repository Structure
 
