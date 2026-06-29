@@ -123,6 +123,12 @@ class _JosiPresenterState extends State<JosiPresenter> {
     final safetyItems =
         widget.insufficientData ? const <String>[] : (widget.realizedLine?.safety ?? const <String>[]);
 
+    // Degraded — the engine fell back to its plain render (a card line could not
+    // be faithfully filled). The line above is still engine-truth; we add a
+    // quiet, honest note and never fake warmth the engine didn't produce.
+    final degraded =
+        !widget.insufficientData && (widget.realizedLine?.degraded ?? false);
+
     // Nothing the engine has given us to present yet — stay silent rather than
     // invent. (Guards against an all-null transient before first load.)
     if (headline.isEmpty) return const SizedBox.shrink();
@@ -182,23 +188,23 @@ class _JosiPresenterState extends State<JosiPresenter> {
             ),
           ),
 
-          // Safety cautions — firewall-preserved, rendered verbatim and ALWAYS
-          // shown (one Text per item, never branched on or softened). Minimal
-          // styling for the witness; the designed surface is Claude Design's
-          // later chapter.
+          // Degraded — quiet "plain read" note under the real line. Honest, not
+          // warm: the engine couldn't add detail today, and we say so plainly.
+          if (degraded) ...[
+            const SizedBox(height: MivaltaSpace.x1),
+            Text(
+              'Plain read — Josi kept today’s note factual.',
+              style: textTheme.bodySmall?.copyWith(color: MivaltaColors.textMuted),
+            ),
+          ],
+
+          // Safety cautions — firewall-preserved. EVERY item, verbatim, in FULL
+          // (no truncation, no maxLines, no "show more", no character cap),
+          // ALWAYS shown, never branched on. Rendered in the caution-weighted
+          // register (locked levelOrange / Partial token — no hardcoded hex).
           if (safetyItems.isNotEmpty) ...[
-            const SizedBox(height: MivaltaSpace.x2),
-            for (final item in safetyItems)
-              Padding(
-                padding: const EdgeInsets.only(top: MivaltaSpace.x1),
-                child: Text(
-                  item,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: MivaltaColors.textPrimary,
-                    height: 1.35,
-                  ),
-                ),
-              ),
+            const SizedBox(height: MivaltaSpace.x3),
+            _SafetyBox(items: safetyItems, textTheme: textTheme),
           ],
 
           // "why?" — progressive disclosure of the engine's reasoning prose.
@@ -214,7 +220,7 @@ class _JosiPresenterState extends State<JosiPresenter> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _showWhy ? 'Hide why' : 'Why?',
+                      _showWhy ? 'Hide why' : 'Why this read?',
                       style: textTheme.labelLarge?.copyWith(
                         color: MivaltaColors.primaryGreen,
                         fontWeight: FontWeight.w600,
@@ -255,10 +261,22 @@ class _JosiPresenterState extends State<JosiPresenter> {
                                 height: 1.35,
                               ),
                             ),
-                          // Which signals moved — the engine's 4-axis
-                          // contributions, rendered verbatim (item 4).
+                          // The readiness evidence behind today's STATE —
+                          // engine-ordered, rendered verbatim. Framed honestly:
+                          // this is the readiness blend's evidence, NOT the exact
+                          // provenance of Josi's sentence (Decision 1, Option A —
+                          // CommunicationPlan line-provenance is the deferred
+                          // Option-B fidelity upgrade). The surface reveals the
+                          // engine's order; it never re-sorts or invents.
                           if (_revealContributions.isNotEmpty) ...[
                             const SizedBox(height: MivaltaSpace.x3),
+                            Text(
+                              'The readiness signals behind today’s state',
+                              style: textTheme.labelMedium?.copyWith(
+                                color: MivaltaColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: MivaltaSpace.x2),
                             _ContributionRows(
                               contributions: _revealContributions,
                               textTheme: textTheme,
@@ -372,6 +390,70 @@ class _ContributionRows extends StatelessWidget {
           if (c != contributions.last) const SizedBox(height: MivaltaSpace.x2),
         ],
       ],
+    );
+  }
+}
+
+/// Caution-weighted box for engine-owned safety items. The fidelity firewall
+/// preserved these verbatim; the box honors that by rendering EVERY item in
+/// FULL — no truncation, no `maxLines`, no "show more", no character cap. The
+/// muted-terracotta register comes from the locked `levelOrange` (Partial-tier)
+/// token; never a hardcoded hex.
+class _SafetyBox extends StatelessWidget {
+  const _SafetyBox({required this.items, required this.textTheme});
+
+  final List<String> items;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(MivaltaSpace.x3),
+      decoration: BoxDecoration(
+        color: MivaltaColors.surface2,
+        borderRadius: BorderRadius.circular(MivaltaRadii.md),
+        border: Border(
+          left: BorderSide(color: MivaltaColors.levelOrange, width: 3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.shield_outlined,
+                size: 16,
+                color: MivaltaColors.levelOrange,
+              ),
+              const SizedBox(width: MivaltaSpace.x2),
+              Text(
+                'SAFETY',
+                style: textTheme.labelSmall?.copyWith(
+                  color: MivaltaColors.levelOrange,
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MivaltaSpace.x2),
+          // Every item, in full, verbatim. No truncation anywhere — a UI cut
+          // would be a softening, which the firewall forbids.
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MivaltaSpace.x1),
+              child: Text(
+                item,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: MivaltaColors.textPrimary,
+                  height: 1.35,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

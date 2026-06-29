@@ -580,10 +580,11 @@ void main() {
       );
 
       // Open Josi's why-reveal. (Step 2: the learning ring has its own muted
-      // "Why?" too, so target Josi's card explicitly.)
+      // "Why?" too, so target Josi's card explicitly. Brief A renamed Josi's
+      // affordance to "Why this read?"; the ring keeps the plain "Why?".)
       await tester.tap(find.descendant(
         of: find.byType(JosiPresenter),
-        matching: find.text('Why?'),
+        matching: find.text('Why this read?'),
       ));
       await tester.pumpAndSettle();
 
@@ -689,8 +690,8 @@ void main() {
       // Learning-why copy hidden until asked.
       expect(find.textContaining("I'm still learning you"), findsNothing);
 
-      // Two "Why?" affordances render in the Today column: Josi's card first,
-      // the learning field's muted why second — tap the field's.
+      // After Brief A, Josi's card uses "Why this read?"; the learning field's
+      // muted "Why?" is the only plain "Why?" left — tap the field's.
       await tester.tap(find.text('Why?').last);
       await tester.pumpAndSettle();
 
