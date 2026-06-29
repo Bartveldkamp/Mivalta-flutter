@@ -82,6 +82,11 @@ pub struct EnginesHandle {
     viterbi: Arc<gatc_ffi::ViterbiEngine>,
     advisor: Arc<gatc_ffi::AdvisorEngine>,
     vault: Arc<gatc_ffi::VaultEngine>,
+    /// Display-layer narrative engine — opens the SAME SQLCipher vault as
+    /// `vault` (same `vault_path`, same profile-derived key), not a divergent
+    /// instance. Needed by the `realize_advisor_line` seam to build the Facts
+    /// (vault → EnrichedContext) half of the deterministic Josi line.
+    narrative: Arc<gatc_ffi::NarrativeEngine>,
     normalizer: Arc<gatc_ffi::NormalizerEngine>,
     /// Critical Power fit (CP + W′) over an MMP curve — Monitor power-profile depth.
     cp: Arc<gatc_ffi::CpEngine>,
@@ -128,6 +133,10 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
+    // Same vault_path + profile-derived key as `vault` above — one vault of
+    // record, not a divergent instance (founder consistency requirement).
+    let narrative = gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -139,6 +148,7 @@ pub fn construct_engines_fresh(
         viterbi,
         advisor,
         vault,
+        narrative,
         normalizer,
         cp,
         postprocess,
@@ -179,6 +189,10 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
+    // Same vault_path + profile-derived key as `vault` above — one vault of
+    // record, not a divergent instance (founder consistency requirement).
+    let narrative = gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -190,6 +204,7 @@ pub fn construct_engines_from_state(
         viterbi,
         advisor,
         vault,
+        narrative,
         normalizer,
         cp,
         postprocess,
@@ -240,6 +255,30 @@ pub fn readiness_indicator(handle: &EnginesHandle) -> Result<String, BridgeError
 /// prose the home + detail read. Pure pass-through.
 pub fn state_advisory(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle.viterbi.state_advisory().map_err(Into::into)
+}
+
+/// `gatc_ffi::realize_advisor_line(viterbi, narrative, advisor, athlete_id, date)`
+/// — the deterministic Josi ADVISOR line (Brief #6 seam). The engine assembles
+/// the CommunicationPlan (viterbi) + Facts (narrative→vault) + AdvisorLines
+/// (advisor), runs the fidelity firewall IN RUST, and returns a serialized
+/// `RealizedLine` JSON (`text`, `safety[]`, `degraded`). `date` is supplied by
+/// the caller — the engine has no clock (determinism invariant; legitimate
+/// data-in, same category as cycle_day). Pure pass-through: one gatc_ffi call,
+/// no logic. Fails loud (Err) when the engine cannot supply a faithful render —
+/// the Dart caller treats that as honest absence and falls back to its existing
+/// state-recommendation line.
+pub fn realize_advisor_line(
+    handle: &EnginesHandle,
+    date: String,
+) -> Result<String, BridgeError> {
+    gatc_ffi::realize_advisor_line(
+        &handle.viterbi,
+        &handle.narrative,
+        &handle.advisor,
+        handle.athlete_id.clone(),
+        date,
+    )
+    .map_err(Into::into)
 }
 
 /// `ViterbiEngine::get_acwr()` — ACWR value + zone + recommendation. Dashboard

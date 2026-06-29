@@ -110,10 +110,19 @@ flutter_rust_bridge = "=2.12.0"
 # field + construction + the 4 dead get_*_widget/get_dashboard fns, and the build
 # executor MUST FRB-regen lib/src/rust/ + rebuild the xcframework. The Dart facade
 # was already off DashboardEngine since Phase 2 (Flutter #112).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8b3b95a" }
+# Re-pinned 8b3b95a → b7264cb (main after #367 — the deterministic Josi voice
+# pipeline merged through the FFI seam). Carries the whole intervening range:
+# #358 ChatEngine removal, #359 trend layer (additive), #363–#365 voice pipeline
+# (CommunicationPlan → microplanner → firewall → RealizedLine) + the
+# `gatc_ffi::realize_advisor_line` seam, #367 HmmPosteriors removal. LARGE bump:
+# it adds the realize seam (new gatc_ffi pub fn) and requires a NarrativeEngine
+# in the shim handle, so the build executor MUST `cargo update`, FRB-regen
+# lib/src/rust/, and rebuild the xcframework; drift-guard surfaces any
+# reconciliation the trend layer / intervening FFI changes require.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7264cb" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8b3b95a" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7264cb" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

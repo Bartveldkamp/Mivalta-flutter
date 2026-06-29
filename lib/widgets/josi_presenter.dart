@@ -30,6 +30,7 @@ import 'package:flutter/material.dart';
 import '../copy/axis_labels.dart';
 import '../copy/f1.dart';
 import '../copy/trust_story.dart';
+import '../models/realized_line.dart';
 import '../theme/tokens.dart';
 
 /// Josi's autocue read at the top of the home. Presents the engine's current
@@ -43,12 +44,22 @@ class JosiPresenter extends StatefulWidget {
     this.confidenceAdvisory,
     this.rationaleProse,
     this.contributions = const [],
+    this.realizedLine,
   });
 
   /// No observations yet — Josi honestly presents the locked F1 no-data line.
   final bool insufficientData;
 
-  /// Engine `state_widget.state_recommendation` — Josi's one-line verdict.
+  /// The deterministic, firewall-validated Josi line from the engine seam
+  /// (`gatc_ffi::realize_advisor_line`). When present (and data is sufficient),
+  /// its `text` is the spoken headline and its `safety` cautions render verbatim,
+  /// ALWAYS, never branched on — the firewall preserved them engine-side and the
+  /// presenter must honor that. Null → fall back to `stateRecommendation` (honest
+  /// absence when the engine couldn't supply a faithful line).
+  final RealizedLine? realizedLine;
+
+  /// Engine `state_widget.state_recommendation` — Josi's one-line verdict
+  /// (fallback headline when `realizedLine` is absent).
   final String? stateRecommendation;
 
   /// Engine `state_widget.confidence_advisory` — honest "still learning you".
@@ -103,7 +114,14 @@ class _JosiPresenterState extends State<JosiPresenter> {
     // verbatim state recommendation.
     final headline = widget.insufficientData
         ? kF1NoDataCopy
-        : (widget.stateRecommendation ?? '');
+        // Prefer the firewall-validated seam line; fall back to the
+        // state-recommendation prose when the seam couldn't supply one.
+        : (widget.realizedLine?.text ?? widget.stateRecommendation ?? '');
+
+    // Engine-owned safety cautions, rendered verbatim and ALWAYS (never gated on
+    // content, never softened). Empty unless the seam attached safety items.
+    final safetyItems =
+        widget.insufficientData ? const <String>[] : (widget.realizedLine?.safety ?? const <String>[]);
 
     // Nothing the engine has given us to present yet — stay silent rather than
     // invent. (Guards against an all-null transient before first load.)
@@ -163,6 +181,25 @@ class _JosiPresenterState extends State<JosiPresenter> {
               height: 1.35,
             ),
           ),
+
+          // Safety cautions — firewall-preserved, rendered verbatim and ALWAYS
+          // shown (one Text per item, never branched on or softened). Minimal
+          // styling for the witness; the designed surface is Claude Design's
+          // later chapter.
+          if (safetyItems.isNotEmpty) ...[
+            const SizedBox(height: MivaltaSpace.x2),
+            for (final item in safetyItems)
+              Padding(
+                padding: const EdgeInsets.only(top: MivaltaSpace.x1),
+                child: Text(
+                  item,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: MivaltaColors.textPrimary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
 
           // "why?" — progressive disclosure of the engine's reasoning prose.
           // A reveal, never an input. No chat box.
