@@ -3,7 +3,7 @@
 Product/pricing tiers — named, never numbered (the engine's "Tier 1/2/3"
 in W1_SPEC = Viterbi/GATC/Josi is a *different* axis; don't conflate).
 
-| Tier | Price | What the user gets | Josi (LLM) | Engine |
+| Tier | Price | What the user gets | Josi | Engine |
 |------|-------|--------------------|-----------|--------|
 | **Monitor** | **Free** | Biometric numbers, stats, readiness/state — display only. No account. | ❌ | ViterbiEngine |
 | **Advisory** | **Paid** | Monitor + Josi (explains, interactive) + a single-day training idea | ✅ | + AdvisorEngine + Josi |
@@ -11,6 +11,11 @@ in W1_SPEC = Viterbi/GATC/Josi is a *different* axis; don't conflate).
 
 Ascending: Monitor → Advisory → Coach. Two paid price points; Coach is the top tier.
 Josi switches on at Advisory and stays through Coach.
+
+> **Beta Advisory Josi is the deterministic in-engine realizer** (no model;
+> firewall-validated prose). The on-device LLM (model **W**) is a post-beta
+> warmth upgrade that downloads at the first paid upgrade. The `Josi` column
+> above is "✅ = Josi present," not "LLM present" — in beta she is deterministic.
 
 **Consequences:**
 - Free Monitor has **no Josi → no model download → genuinely zero network** (the app holds no INTERNET permission).

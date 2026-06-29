@@ -55,9 +55,9 @@ void main() {
 
       // Rationale hidden until asked.
       expect(find.text('A clean stimulus while you are fresh.'), findsNothing);
-      expect(find.text('Why?'), findsOneWidget);
+      expect(find.text('Why this read?'), findsOneWidget);
 
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
 
       expect(find.text('A clean stimulus while you are fresh.'), findsOneWidget);
@@ -89,7 +89,7 @@ void main() {
       );
 
       expect(find.text('Recovered — fully charged.'), findsOneWidget);
-      expect(find.text('Why?'), findsNothing);
+      expect(find.text('Why this read?'), findsNothing);
     });
 
     testWidgets('nothing to present yet → renders nothing (no fabrication)', (tester) async {
@@ -123,7 +123,7 @@ void main() {
       // Hidden until asked.
       expect(find.text('Fatigue model'), findsNothing);
 
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
 
       // Humanized names (never raw engine keys), scores verbatim.
@@ -151,7 +151,7 @@ void main() {
           contributions: contributions,
         ),
       );
-      expect(find.text('Why?'), findsOneWidget);
+      expect(find.text('Why this read?'), findsOneWidget);
     });
 
     testWidgets('no data → contributions stay silent (priors, not signals)', (tester) async {
@@ -165,7 +165,7 @@ void main() {
       // F1 honest no-data presentation. The "Why?" now exists (item 13 trust
       // story) but the prior-based contributions stay silent — no axis rows,
       // no scores (feedback item 1: silence over fabricated state).
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
       expect(find.text('Fatigue model'), findsNothing);
       expect(find.text('72'), findsNothing);
@@ -182,11 +182,11 @@ void main() {
       await _pump(tester, const JosiPresenter(insufficientData: true));
 
       expect(find.text(kF1NoDataCopy), findsOneWidget);
-      expect(find.text('Why?'), findsOneWidget);
+      expect(find.text('Why this read?'), findsOneWidget);
       // Hidden until asked.
       expect(find.text(kTrustStoryWhatData), findsNothing);
 
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
 
       expect(find.text(kTrustStoryWhatData), findsOneWidget);
@@ -210,7 +210,7 @@ void main() {
           confidenceAdvisory: 'Confidence is low — still learning you.',
         ),
       );
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
 
       expect(
@@ -234,7 +234,7 @@ void main() {
           rationaleProse: 'Fatigue is clearing.',
         ),
       );
-      await tester.tap(find.text('Why?'));
+      await tester.tap(find.text('Why this read?'));
       await tester.pumpAndSettle();
 
       expect(find.text('Fatigue is clearing.'), findsOneWidget);
@@ -322,6 +322,72 @@ void main() {
       expect(find.text(kF1NoDataCopy), findsOneWidget);
       expect(find.text('should not show'), findsNothing);
       expect(find.text('should not show either'), findsNothing);
+    });
+
+    testWidgets('safety: 3+ long items ALL render in full — no truncation, no '
+        'maxLines, no ellipsis (firewall hard constraint)', (tester) async {
+      const items = [
+        'Focus on active recovery today — keep it conversational and short, '
+            'well below threshold.',
+        'Skip the planned intervals; an easy spin or a walk is plenty while '
+            'your readiness recovers.',
+        'If anything feels off — elevated resting heart rate, a sore throat, '
+            'poor sleep — treat today as full rest.',
+      ];
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          realizedLine: RealizedLine(
+            text: 'Recovery first today.',
+            safety: items,
+            degraded: false,
+          ),
+        ),
+      );
+
+      // Every item present in FULL, and not clipped at the widget level — a
+      // maxLines/ellipsis cap would be a softening the firewall forbids.
+      for (final item in items) {
+        final finder = find.text(item);
+        expect(finder, findsOneWidget);
+        final t = tester.widget<Text>(finder);
+        expect(t.maxLines, isNull, reason: 'safety must not be line-capped');
+        expect(t.overflow, isNot(TextOverflow.ellipsis),
+            reason: 'safety must not ellipsis-truncate');
+      }
+    });
+
+    testWidgets('degraded → real line shown + a quiet plain-read note',
+        (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          realizedLine: RealizedLine(
+            text: 'Productive — readiness is holding.',
+            safety: [],
+            degraded: true,
+          ),
+        ),
+      );
+      expect(find.text('Productive — readiness is holding.'), findsOneWidget);
+      expect(find.textContaining('Plain read'), findsOneWidget);
+    });
+
+    testWidgets('not degraded → no plain-read note', (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          realizedLine: RealizedLine(
+            text: 'Recovered — fully charged.',
+            safety: [],
+            degraded: false,
+          ),
+        ),
+      );
+      expect(find.textContaining('Plain read'), findsNothing);
     });
   });
 }
