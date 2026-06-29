@@ -3,9 +3,13 @@
 // WHAT THIS IS (and is not):
 //   It replays a committed, SYNTHETIC season of raw HealthKit-shaped biometrics
 //   (assets/debug/demo_season.json) through the EXACT SAME ingest path a real
-//   watch/Oura sync uses: normalizeObservation -> processObservation ->
-//   saveState/writeViterbiState. The engine genuinely computes every readiness
-//   state from this input. Nothing on the DISPLAY side is fabricated — the only
+//   watch/Oura sync uses: the shared `IngestAdapter.ingestObservation` 5-step
+//   vault-first sequence (write raw -> normalize -> write biometric -> process
+//   -> mark processed) -> saveState/writeViterbiState. Routing through the
+//   adapter (not a hand-rolled subset) is what makes this claim true and writes
+//   the biometric rows the Journey/HRV/RHR/sleep surfaces read. The engine
+//   genuinely computes every readiness state from this input. Nothing on the
+//   DISPLAY side is fabricated — the only
 //   synthetic thing is the biometric stream, exactly as it would be on a bench
 //   test. This is the on-device analog of dev_sim / realworld_sim: synthetic
 //   INPUT, real PIPELINE.
@@ -33,6 +37,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../rust_engine.dart';
+import '../services/ingest_adapter.dart' as ingest;
 
 /// Outcome of a seed run — how many days were replayed out of the season.
 class DemoSeedResult {
@@ -116,8 +121,9 @@ class DemoSeeder {
   }
 
   /// Replay the first [days] entries of the season (oldest first, ending today)
-  /// through normalize -> process, then persist HMM state — mirroring
-  /// `HealthIngestService.syncHealthData`. Returns how many days were fed.
+  /// through the shared `IngestAdapter` 5-step vault-first path, then persist
+  /// HMM state — the SAME audited path `HealthIngestService.syncHealthData`
+  /// uses. Returns how many days were fed.
   ///
   /// [days] is clamped to the season length; pass a large number to seed the
   /// full ~30-day arc, or e.g. 10 for a mid-calibration state.
@@ -130,15 +136,24 @@ class DemoSeeder {
     // Take the most RECENT n days so the seeded window always ends today.
     final slice = season.sublist(season.length - n);
 
+    // Route every seeded day through the SAME audited 5-step vault-first path
+    // production uses (HealthIngestService + BLE/Polar all funnel through this
+    // one adapter): write raw -> normalize -> write biometric -> process ->
+    // mark processed. The adapter runs all five steps internally, so we must
+    // NOT also call normalize/process here (that would double-process). Writing
+    // the biometric row is what makes HRV/RHR/sleep tiles + the Journey screen
+    // render real data during the device witness. Every demo_season row carries
+    // RHR+HRV+sleep, so hasBiometrics is always true.
+    final adapter = ingest.IngestAdapter(binding: binding, handle: handle);
     var mutated = 0;
     for (final row in slice) {
-      final vendorJson = jsonEncode(_toHealthKitJson(row, today));
-      final normalized = await binding.normalizeObservation(
-        handle,
-        vendor: _vendor,
-        json: vendorJson,
+      final wire = _toHealthKitJson(row, today);
+      await adapter.ingestObservation(
+        date: wire['date'] as String,
+        source: _vendor,
+        vendorJson: jsonEncode(wire),
+        hasBiometrics: true,
       );
-      await binding.processObservation(handle, observationJson: normalized);
       mutated++;
     }
 

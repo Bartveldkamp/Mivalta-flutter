@@ -2,7 +2,10 @@
 //
 // The seeder's whole reason to exist is to give a data-starved simulator real
 // functionality WITHOUT faking the display. These tests pin that contract:
-//   - it feeds each day through normalize -> process (the REAL ingest path),
+//   - it feeds each day through the SHARED 5-step vault-first IngestAdapter path
+//     (write raw -> normalize -> write biometric -> process -> mark processed) —
+//     the SAME audited path production uses, so the seeded vault carries the
+//     biometric rows the Journey/HRV/RHR/sleep surfaces read,
 //   - it persists only the engine's OWN computed state (never a fabricated one),
 //   - it dates the seeded window to end today (calendar-day windowing safety),
 //   - it clamps to the season length.
@@ -19,15 +22,31 @@ class _FakeHandle implements EnginesHandle {
 }
 
 /// Records the calls the seeder makes. Implements (not extends) the binding —
-/// the private constructor blocks subclassing — and overrides only the four
-/// methods the seeder touches; everything else no-ops.
+/// the private constructor blocks subclassing — and overrides only the methods
+/// the seeder touches via the shared IngestAdapter (writeRawObservation,
+/// normalizeObservation, writeBiometricFromObservation, processObservation,
+/// markRawObservationProcessed, saveState, writeViterbiState); everything else
+/// no-ops/throws.
 class _RecordingBinding implements RustEngineBinding {
+  final List<String> rawWrites = [];
   final List<({String vendor, String json})> normalized = [];
+  final List<String> biometricWrites = [];
   final List<String> processed = [];
+  final List<({int id, String observationJson})> marked = [];
   int saveStateCalls = 0;
   final List<String> persistedStates = [];
 
   int _counter = 0;
+  int _rawId = 0;
+
+  @override
+  Future<int> writeRawObservation(
+    EnginesHandle handle, {
+    required String json,
+  }) async {
+    rawWrites.add(json);
+    return _rawId++;
+  }
 
   @override
   Future<String> normalizeObservation(
@@ -36,8 +55,17 @@ class _RecordingBinding implements RustEngineBinding {
     required String json,
   }) async {
     normalized.add((vendor: vendor, json: json));
-    // Return a distinct sentinel so we can prove process() gets THIS output.
+    // Return a distinct sentinel so we can prove the downstream steps get THIS
+    // output (biometric write, process, mark all receive the normalized form).
     return 'normalized:${_counter++}';
+  }
+
+  @override
+  Future<void> writeBiometricFromObservation(
+    EnginesHandle handle, {
+    required String json,
+  }) async {
+    biometricWrites.add(json);
   }
 
   @override
@@ -47,6 +75,15 @@ class _RecordingBinding implements RustEngineBinding {
   }) async {
     processed.add(observationJson);
     return '{}';
+  }
+
+  @override
+  Future<void> markRawObservationProcessed(
+    EnginesHandle handle, {
+    required int id,
+    required String observationJson,
+  }) async {
+    marked.add((id: id, observationJson: observationJson));
   }
 
   @override
@@ -82,7 +119,8 @@ List<Map<String, dynamic>> _season(int n) => [
 
 void main() {
   group('DemoSeeder', () {
-    test('feeds each day through normalize -> process, persists once', () async {
+    test('feeds each day through the full 5-step vault-first path, persists once',
+        () async {
       final binding = _RecordingBinding();
       final seeder = DemoSeeder(
         binding: binding,
@@ -94,15 +132,29 @@ void main() {
 
       expect(result.daysSeeded, 3);
       expect(result.daysAvailable, 5);
+
+      // All five vault-first steps ran once per seeded day — the SAME audited
+      // path production uses, not a hand-rolled subset.
+      expect(binding.rawWrites.length, 3);
       expect(binding.normalized.length, 3);
+      expect(binding.biometricWrites.length, 3,
+          reason: 'biometric rows MUST be written — the Journey/HRV/RHR/sleep '
+              'tiles read these; skipping them was the false-witness bug');
       expect(binding.processed.length, 3);
+      expect(binding.marked.length, 3);
 
       // Every observation entered as the Apple HealthKit vendor wire.
       expect(binding.normalized.every((c) => c.vendor == 'apple'), isTrue);
 
-      // process() received exactly what normalize() returned — the real
-      // pipeline, in order, not a shortcut.
+      // The biometric write, process, and mark steps each received exactly what
+      // normalize() returned — the real pipeline, in order, not a shortcut.
+      expect(
+          binding.biometricWrites, ['normalized:0', 'normalized:1', 'normalized:2']);
       expect(binding.processed, ['normalized:0', 'normalized:1', 'normalized:2']);
+      expect(binding.marked.map((m) => m.observationJson).toList(),
+          ['normalized:0', 'normalized:1', 'normalized:2']);
+      // mark closes the SAME raw row the write opened (ids returned in order).
+      expect(binding.marked.map((m) => m.id).toList(), [0, 1, 2]);
     });
 
     test('persists ONLY the engine-computed state — never a fabricated one',
@@ -172,8 +224,11 @@ void main() {
 
       final result = await seeder.seedSeason(days: 0);
       expect(result.daysSeeded, 0);
+      expect(binding.rawWrites, isEmpty);
       expect(binding.normalized, isEmpty);
+      expect(binding.biometricWrites, isEmpty);
       expect(binding.processed, isEmpty);
+      expect(binding.marked, isEmpty);
       expect(binding.saveStateCalls, 0);
       expect(binding.persistedStates, isEmpty);
     });
