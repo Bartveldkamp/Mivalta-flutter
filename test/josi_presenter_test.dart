@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/copy/f1.dart';
 import 'package:mivalta_flutter/copy/trust_story.dart';
+import 'package:mivalta_flutter/models/realized_line.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
 import 'package:mivalta_flutter/widgets/josi_presenter.dart';
 
@@ -259,6 +260,68 @@ void main() {
           reason: 'founder: simple human words — no model talk');
       expect(all.toLowerCase().contains('calibrat'), isFalse,
           reason: 'founder: simple human words — no calibration jargon');
+    });
+  });
+
+  // Item 2 (the Mac round-trip): the deterministic, firewall-validated Josi line
+  // from the FFI seam. When a RealizedLine is present its `text` is the headline
+  // and its `safety` cautions render VERBATIM and ALWAYS (never branched on,
+  // never under "why?"). Null → fall back to the state-recommendation line.
+  group('JosiPresenter realized line (FFI seam)', () {
+    testWidgets('renders realized text as headline + safety verbatim, always '
+        '(no tap)', (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          realizedLine: RealizedLine(
+            text: "You're recovered today — readiness is sitting comfortably.",
+            safety: ['Focus on active recovery today.'],
+            degraded: false,
+          ),
+          // Present, but the realized line must win.
+          stateRecommendation: 'fallback should not show',
+        ),
+      );
+
+      expect(
+        find.text("You're recovered today — readiness is sitting comfortably."),
+        findsOneWidget,
+      );
+      // Safety caution rendered verbatim WITHOUT opening "why?".
+      expect(find.text('Focus on active recovery today.'), findsOneWidget);
+      // Realized text wins over the fallback state recommendation.
+      expect(find.text('fallback should not show'), findsNothing);
+    });
+
+    testWidgets('null realized line → falls back to state recommendation',
+        (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: false,
+          stateRecommendation: 'Productive — good day to build.',
+        ),
+      );
+      expect(find.text('Productive — good day to build.'), findsOneWidget);
+    });
+
+    testWidgets('no data wins → realized text + safety are not shown',
+        (tester) async {
+      await _pump(
+        tester,
+        const JosiPresenter(
+          insufficientData: true,
+          realizedLine: RealizedLine(
+            text: 'should not show',
+            safety: ['should not show either'],
+            degraded: false,
+          ),
+        ),
+      );
+      expect(find.text(kF1NoDataCopy), findsOneWidget);
+      expect(find.text('should not show'), findsNothing);
+      expect(find.text('should not show either'), findsNothing);
     });
   });
 }

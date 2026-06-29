@@ -82,6 +82,22 @@ Future<String> readinessIndicator({required EnginesHandle handle}) =>
 Future<String> stateAdvisory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiStateAdvisory(handle: handle);
 
+/// `gatc_ffi::realize_advisor_line(viterbi, narrative, advisor, athlete_id, date)`
+/// — the deterministic Josi ADVISOR line (Brief #6 seam). The engine assembles
+/// the CommunicationPlan (viterbi) + Facts (narrative→vault) + AdvisorLines
+/// (advisor), runs the fidelity firewall IN RUST, and returns a serialized
+/// `RealizedLine` JSON (`text`, `safety[]`, `degraded`). `date` is supplied by
+/// the caller — the engine has no clock (determinism invariant; legitimate
+/// data-in, same category as cycle_day). Pure pass-through: one gatc_ffi call,
+/// no logic. Fails loud (Err) when the engine cannot supply a faithful render —
+/// the Dart caller treats that as honest absence and falls back to its existing
+/// state-recommendation line.
+Future<String> realizeAdvisorLine({
+  required EnginesHandle handle,
+  required String date,
+}) =>
+    RustLib.instance.api.crateApiRealizeAdvisorLine(handle: handle, date: date);
+
 /// `ViterbiEngine::get_acwr()` — ACWR value + zone + recommendation. Dashboard
 /// removal Phase 2: replaces the ContextWidget acwr fields. Pure pass-through.
 Future<String> getAcwr({required EnginesHandle handle}) =>

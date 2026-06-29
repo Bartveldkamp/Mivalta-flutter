@@ -33,6 +33,7 @@ import 'package:path_provider/path_provider.dart';
 import '../copy/today_facts_labels.dart';
 import '../copy/zone_labels.dart';
 import '../models/activity_summary.dart';
+import '../models/realized_line.dart';
 import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../services/ble/ble_hr_service.dart';
@@ -125,6 +126,7 @@ class HomeData {
   String? stateRecommendation;   // FIXED: stateWidget['state_recommendation']
   String? confidenceAdvisory;    // FIXED: stateWidget['confidence_advisory']
   String? fatigueState;          // viterbiFatigueState().state
+  RealizedLine? realizedLine;    // gatc_ffi::realize_advisor_line — deterministic Josi line (text + safety)
 
   // Zone 2 — Today (from SessionWidget)
   String? workoutTitle;          // sessionWidget['workout_title']
@@ -458,6 +460,26 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       if (stateAdvisory is Map) {
         d.stateRecommendation = stateAdvisory['state_recommendation']?.toString();
         d.confidenceAdvisory = stateAdvisory['confidence_advisory']?.toString();
+      }
+
+      // Deterministic Josi line (firewall-validated) from the FFI seam. Flutter
+      // supplies the date (engine has no clock). The engine fails loud when it
+      // can't supply a faithful render (no advisories attached) — treat that as
+      // honest absence: leave realizedLine null and fall back to the
+      // state-recommendation line above. No Dart-side assembly (rule 3).
+      try {
+        final now = DateTime.now();
+        final date = '${now.year.toString().padLeft(4, '0')}-'
+            '${now.month.toString().padLeft(2, '0')}-'
+            '${now.day.toString().padLeft(2, '0')}';
+        final realizedJson = await binding.realizeAdvisorLine(handle, date: date);
+        d.realizedLine = RealizedLine.parse(realizedJson);
+      } catch (e) {
+        d.realizedLine = null;
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('realizeAdvisorLine: ${e.runtimeType}: $e');
+        }
       }
 
       // The HMM fatigue STATE (Recovered/.../IllnessRisk). NO LONGER the
@@ -999,6 +1021,7 @@ class ThreeZoneHome extends StatelessWidget {
           // One spoken line + why-reveal; the session moved to its own card.
           JosiPresenter(
             insufficientData: data.insufficientData,
+            realizedLine: data.realizedLine,
             stateRecommendation: data.stateRecommendation,
             confidenceAdvisory: data.confidenceAdvisory,
             rationaleProse: data.rationaleProse,

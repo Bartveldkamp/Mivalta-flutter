@@ -160,6 +160,16 @@ class RustEngineBinding {
   Future<String> stateAdvisory(EnginesHandle handle) =>
       rust_api.stateAdvisory(handle: handle);
 
+  /// `gatc_ffi::realize_advisor_line(...)` — the deterministic, firewall-validated
+  /// Josi ADVISOR line. Returns a raw `RealizedLine` JSON (`text`, `safety[]`,
+  /// `degraded`); the caller parses it with `RealizedLine.parse`. [date] is the
+  /// ISO `YYYY-MM-DD` the engine should realize for (engine has no clock). Pure
+  /// pass-through. Throws (BridgeError) when the engine can't supply a faithful
+  /// line — the caller treats that as honest absence.
+  Future<String> realizeAdvisorLine(EnginesHandle handle,
+          {required String date}) =>
+      rust_api.realizeAdvisorLine(handle: handle, date: date);
+
   /// `ViterbiEngine::get_acwr()` — AcwrResult JSON (acwr, zone, recommendation,
   /// …). Dashboard removal Phase 2: home today-facts + Explore load context.
   Future<String> getAcwr(EnginesHandle handle) =>
