@@ -56,7 +56,7 @@ class GlowHero extends StatelessWidget {
       onTap: noData ? null : onTap,
       child: SizedBox(
         width: size,
-        height: size + 24, // Extra space for state word
+        height: size + 28, // Extra space for state word + line height
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
