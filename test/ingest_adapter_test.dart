@@ -28,6 +28,14 @@ class _RecordingBinding implements RustEngineBinding {
   String? biometricJson;
   String? processedJson;
   ({int id, String observationJson})? markArgs;
+  final List<String> activityWrites = [];
+
+  /// The assessment process_observation returns (workout-core load courier).
+  String assessmentReturn = '{}';
+
+  /// When set, process_observation throws — exercises the workout core's
+  /// load-absent-row-then-rethrow failure path.
+  bool failProcess = false;
 
   @override
   Future<int> writeRawObservation(EnginesHandle handle,
@@ -57,7 +65,8 @@ class _RecordingBinding implements RustEngineBinding {
       {required String observationJson}) async {
     calls.add('process');
     processedJson = observationJson;
-    return '{}';
+    if (failProcess) throw Exception('engine boom');
+    return assessmentReturn;
   }
 
   @override
@@ -65,6 +74,13 @@ class _RecordingBinding implements RustEngineBinding {
       {required int id, required String observationJson}) async {
     calls.add('mark');
     markArgs = (id: id, observationJson: observationJson);
+  }
+
+  @override
+  Future<void> writeActivity(EnginesHandle handle,
+      {required String activityJson}) async {
+    calls.add('writeActivity');
+    activityWrites.add(activityJson);
   }
 
   @override
@@ -142,6 +158,92 @@ void main() {
       expect(binding.biometricJson, isNull);
       expect(result.mutated, isTrue);
       expect(result.hadBiometrics, isFalse);
+    });
+  });
+
+  group('IngestAdapter.ingestWorkout', () {
+    test('build → normalize → process → writeActivity, engine load couriered',
+        () async {
+      // process_observation returns the engine's assessment; the core couriers
+      // its recorded_load onto the activity row (Dart computes NO load).
+      final binding = _RecordingBinding()
+        ..assessmentReturn = '{"recorded_load":62.5}';
+
+      final result = await IngestAdapter(binding: binding, handle: _FakeHandle())
+          .ingestWorkout(
+        activityId: 'hk_1',
+        date: '2026-06-30',
+        activityType: 'ride',
+        durationMinutes: 60.0,
+        source: 'apple',
+        start: DateTime.utc(2026, 6, 30, 17),
+        avgHr: 145,
+        maxHr: 172,
+      );
+
+      // Exact order: no biometric write, no record_activity (no double-count).
+      expect(binding.calls, ['normalize', 'process', 'writeActivity']);
+
+      // normalize() receives the WORKOUT-shaped apple payload (duration in
+      // seconds, avg HR under associatedSamples) — not a biometric wire.
+      final obs = jsonDecode(binding.normalizeArgs!.json) as Map<String, dynamic>;
+      final workout = obs['workout'] as Map<String, dynamic>;
+      expect(workout['duration'], 3600.0); // 60 min → 3600 s (unit conv)
+      expect(workout['associatedSamples']['heartRate']['average'], 145);
+      expect(binding.normalizeArgs!.vendor, 'apple');
+
+      // process() consumes the engine's normalized output (Law 2 courier).
+      expect(binding.processedJson, 'NORMALIZED');
+
+      // The engine's recorded_load lands on load_uls — couriered, not computed.
+      final act = jsonDecode(binding.activityWrites.single) as Map<String, dynamic>;
+      expect(act['load_uls'], 62.5);
+      expect(act['activity_type'], 'ride');
+      expect(act['avg_heart_rate'], 145);
+      expect(act['max_heart_rate'], 172);
+
+      expect(result.recordedLoad, 62.5);
+      expect(result.activityId, 'hk_1');
+    });
+
+    test('engine recorded no load → load_uls omitted (honest absence)', () async {
+      final binding = _RecordingBinding()..assessmentReturn = '{}';
+
+      final result = await IngestAdapter(binding: binding, handle: _FakeHandle())
+          .ingestWorkout(
+        activityId: 'hk_2',
+        date: '2026-06-30',
+        activityType: 'run',
+        durationMinutes: 40.0,
+        source: 'apple',
+      );
+
+      final act = jsonDecode(binding.activityWrites.single) as Map<String, dynamic>;
+      expect(act.containsKey('load_uls'), isFalse);
+      expect(result.recordedLoad, isNull);
+    });
+
+    test('engine failure: writes the load-absent row, THEN rethrows (fail loud)',
+        () async {
+      final binding = _RecordingBinding()..failProcess = true;
+
+      await expectLater(
+        IngestAdapter(binding: binding, handle: _FakeHandle()).ingestWorkout(
+          activityId: 'hk_3',
+          date: '2026-06-30',
+          activityType: 'ride',
+          durationMinutes: 30.0,
+          source: 'apple',
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      // The journey row is still written (load-absent) before the rethrow — the
+      // activity log is never silently dropped (Law 6).
+      expect(binding.calls, ['normalize', 'process', 'writeActivity']);
+      final act = jsonDecode(binding.activityWrites.single) as Map<String, dynamic>;
+      expect(act.containsKey('load_uls'), isFalse);
+      expect(act['activity_type'], 'ride');
     });
   });
 }
