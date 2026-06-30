@@ -450,8 +450,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Seeded ${result.daysSeeded} simulated days — '
-              'pull-to-refresh Today to see it.',
+              'Seeded ${result.daysSeeded} simulated days'
+              '${result.workoutsSeeded > 0 ? ' + ${result.workoutsSeeded} workouts' : ''}'
+              ' — pull-to-refresh Today to see it.',
             ),
             backgroundColor: MivaltaColors.primaryGreen,
           ),

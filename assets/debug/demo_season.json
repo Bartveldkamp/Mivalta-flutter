@@ -96,7 +96,13 @@
         "value": 0.98,
         "unit": "%"
       },
-      "sleep_hours": 7.7
+      "sleep_hours": 7.7,
+      "workout": {
+        "activity_type": "ride",
+        "duration_min": 75,
+        "avg_hr": 136,
+        "max_hr": 150
+      }
     },
     {
       "offset": -23,
@@ -240,7 +246,13 @@
         "value": 0.97,
         "unit": "%"
       },
-      "sleep_hours": 6.9
+      "sleep_hours": 6.9,
+      "workout": {
+        "activity_type": "ride",
+        "duration_min": 60,
+        "avg_hr": 145,
+        "max_hr": 165
+      }
     },
     {
       "offset": -14,
@@ -416,7 +428,13 @@
         "value": 0.98,
         "unit": "%"
       },
-      "sleep_hours": 7.8
+      "sleep_hours": 7.8,
+      "workout": {
+        "activity_type": "ride",
+        "duration_min": 45,
+        "avg_hr": 124,
+        "max_hr": 132
+      }
     },
     {
       "offset": -3,

@@ -35,6 +35,7 @@ class _RecordingBinding implements RustEngineBinding {
   final List<({int id, String observationJson})> marked = [];
   int saveStateCalls = 0;
   final List<String> persistedStates = [];
+  final List<String> activityWrites = [];
 
   int _counter = 0;
   int _rawId = 0;
@@ -99,6 +100,14 @@ class _RecordingBinding implements RustEngineBinding {
     required String stateJson,
   }) async {
     persistedStates.add(stateJson);
+  }
+
+  @override
+  Future<void> writeActivity(
+    EnginesHandle handle, {
+    required String activityJson,
+  }) async {
+    activityWrites.add(activityJson);
   }
 
   @override
@@ -282,6 +291,76 @@ void main() {
       // The rest of the day still couriers through.
       expect(wire['resting_heart_rate'], isNotNull);
       expect(wire['sleep_samples'], isNotNull);
+    });
+
+    test('a fixture day with a workout drives the REAL shared workout core',
+        () async {
+      final binding = _RecordingBinding();
+      final seeder = DemoSeeder(
+        binding: binding,
+        handle: _FakeHandle(),
+        // A day carrying a completed workout (§8.0 activity seed) — given
+        // session scalars only (no HR series; TIZ is not seeded — Option B).
+        seasonLoader: () async => [
+          {
+            'offset': 0,
+            'resting_heart_rate': {'value': 53.0, 'unit': 'count/min'},
+            'hrv_sdnn': {'value': 64.0, 'unit': 'ms'},
+            'oxygen_saturation': {'value': 0.98, 'unit': '%'},
+            'sleep_hours': 7.5,
+            'workout': {
+              'activity_type': 'ride',
+              'duration_min': 60,
+              'avg_hr': 145,
+              'max_hr': 165,
+            },
+          },
+        ],
+      );
+
+      final result = await seeder.seedSeason(days: 1);
+
+      expect(result.workoutsSeeded, 1);
+
+      // The workout rode the SAME real core production uses → exactly one
+      // activity row written, carrying the couriered session scalars.
+      expect(binding.activityWrites, hasLength(1));
+      final act =
+          jsonDecode(binding.activityWrites.single) as Map<String, dynamic>;
+      expect(act['activity_type'], 'ride');
+      expect(act['duration_minutes'], 60.0);
+      expect(act['avg_heart_rate'], 145);
+      expect(act['max_heart_rate'], 165);
+      expect(act['source'], 'apple');
+      // The fake binding's process returns '{}' (no engine load) → the row omits
+      // load_uls (honest absence), never a Dart-fabricated load.
+      expect(act.containsKey('load_uls'), isFalse);
+
+      // The workout also went through normalize+process (HMM advanced): the day
+      // produced TWO normalize calls — the biometric wire AND the workout wire,
+      // the latter carrying the apple `workout` object.
+      expect(binding.normalized.length, 2);
+      expect(
+        binding.normalized
+            .any((c) => (jsonDecode(c.json) as Map).containsKey('workout')),
+        isTrue,
+        reason: 'the workout couriered through the real normalize/process path',
+      );
+    });
+
+    test('a day with no workout ingests none (workoutsSeeded 0, no rows)',
+        () async {
+      final binding = _RecordingBinding();
+      final seeder = DemoSeeder(
+        binding: binding,
+        handle: _FakeHandle(),
+        seasonLoader: () async => _season(3),
+      );
+
+      final result = await seeder.seedSeason(days: 3);
+
+      expect(result.workoutsSeeded, 0);
+      expect(binding.activityWrites, isEmpty);
     });
   });
 }
