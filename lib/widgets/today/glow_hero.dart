@@ -41,15 +41,16 @@ class GlowHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _stateColor(fatigueState);
-    const heroSize = 140.0;
-    const innerSize = heroSize * 0.61; // ~86px
+    const heroSize = 180.0; // Larger for softer field
+    const middleSize = heroSize * 0.72; // ~130px
+    const innerSize = heroSize * 0.50; // ~90px
 
     // Display: score number when data, state word only when insufficient.
     final showScore = !insufficientData && score != null;
     final stateWord = _formatState(fatigueState);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x3),
+      padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
       child: Center(
         child: SizedBox(
           width: heroSize,
@@ -57,7 +58,7 @@ class GlowHero extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer glow
+              // Outer halo (soft field layer 1)
               Container(
                 width: heroSize,
                 height: heroSize,
@@ -65,14 +66,31 @@ class GlowHero extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      color.withValues(alpha:0.26),
+                      color.withValues(alpha: 0.12),
+                      color.withValues(alpha: 0.04),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.62],
+                    stops: const [0.0, 0.5, 1.0],
                   ),
                 ),
               ),
-              // Inner glow (blur simulated with lower opacity gradient)
+              // Middle glow (soft field layer 2)
+              Container(
+                width: middleSize,
+                height: middleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      color.withValues(alpha: 0.22),
+                      color.withValues(alpha: 0.08),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+              // Inner core glow
               Container(
                 width: innerSize,
                 height: innerSize,
@@ -80,11 +98,11 @@ class GlowHero extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      color.withValues(alpha:0.6),
-                      color.withValues(alpha:0.14),
+                      color.withValues(alpha: 0.45),
+                      color.withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.56, 0.72],
+                    stops: const [0.0, 0.6, 1.0],
                   ),
                 ),
               ),
@@ -98,8 +116,8 @@ class GlowHero extends StatelessWidget {
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w500,
-                        fontSize: 38,
-                        letterSpacing: -0.03 * 38, // tracking tight
+                        fontSize: 42,
+                        letterSpacing: -0.03 * 42, // tracking tight
                         height: 1.05,
                         color: MivaltaColors.textPrimary,
                         fontFeatures: [FontFeature.tabularFigures()],
@@ -119,13 +137,14 @@ class GlowHero extends StatelessWidget {
                     ),
                   if (showScore && stateWord.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.only(top: 6),
                       child: Text(
                         stateWord,
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
                           color: color,
                         ),
                       ),

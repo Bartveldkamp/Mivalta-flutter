@@ -183,6 +183,49 @@ class _TodayScreenState extends State<TodayScreen> {
               )
             : _buildContent(),
       ),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: MivaltaColors.surfaceBackground,
+        border: Border(
+          top: BorderSide(
+            color: MivaltaColors.textPrimary.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.wb_sunny_outlined,
+                activeIcon: Icons.wb_sunny,
+                label: 'Today',
+                isActive: true,
+              ),
+              _NavItem(
+                icon: Icons.route_outlined,
+                activeIcon: Icons.route,
+                label: 'Journey',
+                isActive: false,
+              ),
+              _NavItem(
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
+                label: 'You',
+                isActive: false,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -242,6 +285,14 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
+              // Decision chip — shows zone cap or primary action
+              _DecisionChip(
+                zoneCap: _data.zoneCap,
+                sessionZone: _data.sessionZone,
+              ),
+
+              const SizedBox(height: MivaltaSpace.x4),
+
               // Module cards (I2 fix: honest-absence pattern, never blank)
               ModuleCard(
                 title: 'Load today',
@@ -260,6 +311,18 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
+              // Daily activity card
+              ModuleCard(
+                title: 'Daily activity',
+                icon: Icons.directions_walk,
+                child: const _HonestAbsence(
+                  label: 'No activity data',
+                  unlock: 'Connect a health source for steps & movement',
+                ),
+              ),
+
+              const SizedBox(height: MivaltaSpace.x3),
+
               ModuleCard(
                 title: 'Sleep',
                 icon: Icons.bedtime,
@@ -271,6 +334,44 @@ class _TodayScreenState extends State<TodayScreen> {
                     : const _HonestAbsence(
                         label: 'No sleep data',
                         unlock: 'Connect a health source',
+                      ),
+              ),
+
+              const SizedBox(height: MivaltaSpace.x3),
+
+              // Suggested workout card
+              ModuleCard(
+                title: 'Suggested workout',
+                icon: Icons.fitness_center,
+                child: _data.workoutTitle != null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _data.workoutTitle!,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: MivaltaColors.textPrimary,
+                            ),
+                          ),
+                          if (_data.durationMin != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_data.durationMin} min',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                color: MivaltaColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : const _HonestAbsence(
+                        label: 'No suggestion yet',
+                        unlock: 'Complete more workouts to unlock AI suggestions',
                       ),
               ),
 
@@ -322,6 +423,103 @@ class _HonestAbsence extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Bottom nav item for Today/Journey/You.
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive
+        ? MivaltaColors.stateProductive
+        : MivaltaColors.textSecondary;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isActive ? activeIcon : icon,
+          color: color,
+          size: 24,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Decision chip — shows the zone cap or primary action for today.
+class _DecisionChip extends StatelessWidget {
+  const _DecisionChip({
+    required this.zoneCap,
+    required this.sessionZone,
+  });
+
+  final String? zoneCap;
+  final String? sessionZone;
+
+  @override
+  Widget build(BuildContext context) {
+    // Show zone cap if available, otherwise session zone, otherwise honest absence
+    final chipText = zoneCap ?? sessionZone;
+
+    if (chipText == null || chipText.isEmpty) {
+      // No chip to show — honest absence
+      return const SizedBox.shrink();
+    }
+
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: MivaltaColors.stateProductive.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: MivaltaColors.stateProductive.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.bolt,
+              color: MivaltaColors.stateProductive,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              chipText,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: MivaltaColors.stateProductive,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
