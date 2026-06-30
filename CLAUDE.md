@@ -126,34 +126,34 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`8b3b95a`**
-(rust-engine `main` at the dashboard-removal merge; engine_registry **v2.27** per
-`engine_registry.json` at that rev). The `rev = "8b3b95a"` line in
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`b7264cb`**
+(rust-engine `main` after #367; engine_registry **v2.29** / **14 engines** per
+`engine_registry.json` at that rev). The `rev = "b7264cb"` line in
 `rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
-the full re-pin history (`…b7955ea → 8b3b95a`); this section only summarizes. This
-rev carries:
+the full re-pin history (`…8b3b95a → b7264cb`); this section only summarizes. This
+rev carries (superset of the prior `8b3b95a`/v2.27 pin):
 - **`gatc-vault` SQLCipher with vendored OpenSSL** (`bundled-sqlcipher-vendored-openssl`),
   so the Android cross-compile resolves with no system OpenSSL — the Flutter `smoke`
   CI job is green end-to-end on this pin. (See `mivalta-rust-engine/docs/PRODUCT_READINESS.md`
   §6 for the standing OpenSSL-patch obligation this creates.)
-- **A3 metabolic-level recarve + Task C cross-source workout dedup**, and the
-  earlier device-data fabrication cluster removal + S1/M2–M7 safety fixes + the
-  advisor→GATC system selector (`AdvisorEngine::recommend_workout_with_history`,
-  `advisor_screen.dart` is the caller).
+- **Deterministic Josi voice pipeline** — CommunicationPlan → microplanner →
+  fidelity firewall → `RealizedLine`, plus the `gatc_ffi::realize_advisor_line`
+  FFI seam (#363–#365). Wired to Flutter in **#116** (the realize-seam shim +
+  `NarrativeEngine` added to the engines handle) and surfaced in **#117** (the
+  ADVISOR present-and-disclose surface).
+- **#358 ChatEngine removal** + **#359 trend layer** (`fitness_trend` /
+  `hrv_trend` / `rhr_trend` — additive accessors) + **#367 HmmPosteriors removed
+  from the voice/finding contract** (it's the state estimator, not a peer finding).
 - **Dashboard removal (#356)** — `gatc-dashboard`/`DashboardEngine` deleted; the
-  shim (`rust/src/api.rs`) is dashboard-free (Flutter PR #113 re-pinned here,
-  stripped the dashboard shim fns, and FRB-regenerated).
+  shim (`rust/src/api.rs`) is dashboard-free.
 
 The build executor still owes the **iOS xcframework rebuild** at this rev (Android
-is proven by smoke; iOS is Mac-only) — see `docs/mac/MAC_BRIEF_BETA_BATCH.md`.
+is proven by the `smoke` CI cross-compile; iOS is Mac-only) — see
+`docs/mac/MAC_BRIEF_REALIZE_SEAM.md`.
 
-**Skew vs engine HEAD (2026-06-28):** engine `main` has since advanced to
-`f1554dd` / **v2.29** via **#358** (ChatEngine removal) + **#359** (trend layer:
-`fitness_trend`/`hrv_trend`/`rhr_trend`). The client is **3 commits behind, skew
-benign** — ChatEngine was never wired into the shim, and the trend accessors are
-additive/unwired-by-design (readiness audit: no dangerous FFI drift). Re-pinning
-to HEAD is a `cargo update` + FRB regen + xcframework, needed only when the UI
-consumes the trend surface — no urgency.
+**At engine HEAD:** `b7264cb` is rust-engine `main` HEAD as of the #116 re-pin —
+**no skew**. (The earlier "3 commits behind `8b3b95a`/v2.27" note is retired: #116
+jumped the pin straight to `b7264cb`/v2.29, and #117 consumed the voice surface.)
 
 ## Repository Structure
 
