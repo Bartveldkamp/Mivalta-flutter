@@ -111,7 +111,7 @@ class _TodayScreenState extends State<TodayScreen> {
       // Zone 1 — Readiness indicator (headline)
       final indicatorJson = await binding.readinessIndicator(handle);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
-      data.readinessScore = indicator['score'] as int?;
+      data.readinessScore = (indicator['score'] as num?)?.toInt();
       data.confidence = (indicator['confidence'] as num?)?.toDouble();
       data.level = indicator['level'] as String?;
       data.contributions = (indicator['contributions'] as List?)
