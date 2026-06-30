@@ -440,10 +440,6 @@
         "value": 53.0,
         "unit": "count/min"
       },
-      "hrv_sdnn": {
-        "value": 62.0,
-        "unit": "ms"
-      },
       "oxygen_saturation": {
         "value": 0.98,
         "unit": "%"
