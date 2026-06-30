@@ -35,13 +35,22 @@ The state-word wiring bug is fixed. The screen now correctly displays engine sta
 
 ---
 
-## Josi Line — DESIGNED ABSENCE ✓
+## Josi Line — TRACED GENUINE ABSENCE ✓
 
-**Status:** Not rendered (engine returns empty `state_recommendation`)
+**Status:** Not rendered
 
-**Verdict:** This is **correct behavior**. The JosiCard collapses to `SizedBox.shrink()` when line is null/empty. This is the designed honest-absence pattern — no card, no placeholder, no "Josi is thinking..." fabrication.
+**Trace performed:**
+```
+state_advisory() → {"state_recommendation":""}
+realizeAdvisorLine() → THREW: "empty state recommendation (advisories not attached)
+  — no faithful degrade-to-truth render_text available; refusing to fabricate"
+```
 
-**Note:** When the engine provides a recommendation, the card will render. No code change needed.
+**Root cause:** Engine explicitly states "advisories not attached" to this demo profile. The engine refuses to fabricate text without advisor content.
+
+**Verdict:** This is **genuine absence** — the engine has no advisory content for this profile, not a wiring bug. The JosiCard correctly collapses.
+
+**Follow-up:** The demo seeder creates biometrics but doesn't attach advisor content. If Josi should appear in demos, the seeder needs to attach advisories. This is a **seeder gap**, not a UI bug.
 
 ---
 
