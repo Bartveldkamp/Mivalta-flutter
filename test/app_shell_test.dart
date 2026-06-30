@@ -16,8 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mivalta_flutter/copy/journey_labels.dart';
 import 'package:mivalta_flutter/screens/app_shell.dart';
-import 'package:mivalta_flutter/screens/readiness_screen.dart'
-    show ThreeZoneHome;
+import 'package:mivalta_flutter/widgets/today/today_body.dart' show TodayBody;
 import 'package:mivalta_flutter/screens/sensor_check_screen.dart';
 import 'package:mivalta_flutter/screens/you_screen.dart';
 import 'package:mivalta_flutter/theme/tokens.dart';
@@ -318,7 +317,7 @@ void main() {
       expect(find.text('18° / 9°'), findsNothing);
       // The home stays visible BENEATH the overlay (founder: main screen
       // visible underneath).
-      expect(find.byType(ThreeZoneHome), findsOneWidget);
+      expect(find.byType(TodayBody), findsOneWidget);
       // Item 21 carry: the control lights green while open.
       final button = tester.widget<TextButton>(
         find.descendant(

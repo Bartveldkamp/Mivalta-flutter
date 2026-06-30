@@ -40,12 +40,13 @@ import '../services/ble/ble_hr_service.dart';
 import '../services/ble/flutter_blue_transport.dart';
 import '../services/health_ingest.dart';
 import '../services/ingest_adapter.dart';
-import '../services/today_tiles_prefs.dart';
+// NOTE: today_tiles_prefs import deferred to edit-mode follow-up PR.
 import '../services/weather_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/josi_presenter.dart';
 import '../widgets/readiness_light_field.dart';
+import '../widgets/today/today_body.dart';
 import '../widgets/today_facts.dart';
 import '../widgets/weather.dart';
 import 'advisor_screen.dart';
@@ -205,10 +206,8 @@ class _ReadinessScreenState extends State<ReadinessScreen>
   WeatherReport? _weather;
   bool _showForecast = false;
 
-  // Round 3 item 12: which today-facts tiles the user wants on the home.
-  // Pure UI preference — persisted as plain JSON, defaults to all on.
-  final TodayTilesPrefs _tilesPrefs = TodayTilesPrefs();
-  Set<String> _visibleTiles = Set.of(kDefaultTodayTiles);
+  // NOTE: tile prefs (_tilesPrefs, _visibleTiles) deferred to edit-mode
+  // follow-up PR — today-design-ui is read-only first.
 
   // PR-C: Store handle and binding for navigation to detail screen
   EnginesHandle? _handle;
@@ -226,34 +225,7 @@ class _ReadinessScreenState extends State<ReadinessScreen>
     WidgetsBinding.instance.addObserver(this);
     _fetch();
     _loadWeather();
-    _loadTilePrefs();
-  }
-
-  /// Item 12: restore the user's tile choices (any failure → defaults).
-  Future<void> _loadTilePrefs() async {
-    final tiles = await _tilesPrefs.load();
-    if (!mounted) return;
-    setState(() => _visibleTiles = tiles);
-  }
-
-  /// Item 12: the tile-picker sheet — one switch per tile, persisted on
-  /// every toggle (best-effort).
-  void _openTilePicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: MivaltaColors.surface2,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
-      ),
-      builder: (_) => TodayTilePicker(
-        visibleTiles: _visibleTiles,
-        onChanged: (next) {
-          setState(() => _visibleTiles = next);
-          _tilesPrefs.save(next);
-        },
-      ),
-    );
+    // NOTE: tile prefs loading deferred to edit-mode follow-up PR.
   }
 
   /// Items 11+18: fetch local weather through the OS frame (WeatherKit via
@@ -929,14 +901,12 @@ class _ReadinessScreenState extends State<ReadinessScreen>
           : Stack(
               fit: StackFit.expand,
               children: [
-                ThreeZoneHome(
+                // Design-UI visual layer (replaces ThreeZoneHome)
+                TodayBody(
                   data: _data,
-                  onTapRing: _openReadinessDetail,
+                  onTapGlow: _openReadinessDetail,
                   onTapAdvisor: _openAdvisor,
                   onTapLatestWorkout: _openWorkoutDetail,
-                  // Item 12: user-chosen tiles + the picker entry point.
-                  visibleTiles: _visibleTiles,
-                  onEditTiles: _openTilePicker,
                 ),
                 // Item 24: tap the condition → the GLASSY week floats over
                 // the home (the home stays visible beneath, §15.5 glass).

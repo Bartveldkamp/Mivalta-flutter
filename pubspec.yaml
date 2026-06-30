@@ -71,6 +71,10 @@ dependencies:
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
 
+  # Design tokens: Zen Dots (brand hero) and Inter (display/body) from Google
+  # Fonts. Loaded dynamically; no bundled font files needed.
+  google_fonts: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
