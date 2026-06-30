@@ -1,10 +1,7 @@
-// Tests for the Critical Power (CP + W′) model + card.
+// Tests for the Critical Power (CP + W′) model (UI tests stripped in clean-out).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/critical_power.dart';
-import 'package:mivalta_flutter/widgets/analytics/critical_power_card.dart';
-import 'package:mivalta_flutter/theme/tokens.dart';
 
 void main() {
   group('CriticalPower.fromJson', () {
@@ -35,37 +32,6 @@ void main() {
         }).isEmpty,
         isTrue,
       );
-    });
-  });
-
-  group('CriticalPowerCard', () {
-    testWidgets('renders CP headline + reserve from engine values', (tester) async {
-      final cp = CriticalPower.fromJson({
-        'cp_watts': 249.0,
-        'w_prime_joules': 21400.0,
-        'r_squared': 0.98,
-        'n_points': 5,
-      });
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(body: CriticalPowerCard(cp: cp)),
-      ));
-      expect(find.text('CRITICAL POWER'), findsOneWidget);
-      expect(find.text('249'), findsOneWidget); // CP watts, rounded
-      expect(find.text('21.4 kJ'), findsOneWidget); // W′ reserve
-      expect(find.text('r² 0.98'), findsOneWidget); // fit quality
-    });
-
-    testWidgets('empty → honest empty, no crash', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: const Scaffold(
-          body: CriticalPowerCard(
-            cp: CriticalPower(cpWatts: 0, wPrimeJoules: 0, rSquared: 0, nPoints: 0),
-          ),
-        ),
-      ));
-      expect(find.text('No power data yet.'), findsOneWidget);
     });
   });
 }

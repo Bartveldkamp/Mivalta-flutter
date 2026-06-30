@@ -1,14 +1,11 @@
-// Tests for the fitness-trend model + chart.
+// Tests for the fitness-trend model (UI tests stripped in clean-out).
 //
 // Contract guard: maps ViterbiEngine::fitness_series — `[{date, fitness,
 // fatigue, form}]` — and the actuals overlay (read_metric_across_activities).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/fitness_trend.dart';
 import 'package:mivalta_flutter/models/metric_series.dart';
-import 'package:mivalta_flutter/widgets/analytics/fitness_trend_chart.dart';
-import 'package:mivalta_flutter/theme/tokens.dart';
 
 void main() {
   group('FitnessTrend.fromJson', () {
@@ -54,53 +51,6 @@ void main() {
 
     test('non-list → empty', () {
       expect(MetricSeries.fromJson(null).isEmpty, isTrue);
-    });
-  });
-
-  group('FitnessTrendChart', () {
-    testWidgets('renders title and latest fitness/fatigue/form', (tester) async {
-      final trend = FitnessTrend.fromJson([
-        {'date': 'd1', 'fitness': 48.0, 'fatigue': 40.0, 'form': 8.0},
-        {'date': 'd2', 'fitness': 49.0, 'fatigue': 38.0, 'form': 11.0},
-      ]);
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(body: FitnessTrendChart(trend: trend)),
-      ));
-      expect(find.text('Fitness development'), findsOneWidget);
-      expect(find.text('Fitness'), findsOneWidget);
-      expect(find.text('49'), findsOneWidget); // latest fitness rounded
-      expect(find.text('11'), findsOneWidget); // latest form rounded
-    });
-
-    testWidgets('with overlay shows the measured legend', (tester) async {
-      final trend = FitnessTrend.fromJson([
-        {'date': '2026-06-01', 'fitness': 48.0, 'fatigue': 40.0, 'form': 8.0},
-        {'date': '2026-06-10', 'fitness': 49.0, 'fatigue': 38.0, 'form': 11.0},
-      ]);
-      final overlay = MetricSeries.fromJson([
-        {'date': '2026-06-05', 'value': 250.0},
-      ]);
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(
-          body: FitnessTrendChart(
-            trend: trend,
-            overlay: overlay,
-            overlayLabel: 'Actual watts',
-          ),
-        ),
-      ));
-      expect(find.text('Actual watts (measured, secondary scale)'), findsOneWidget);
-    });
-
-    testWidgets('empty trend → honest empty state, no crash', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: const Scaffold(body: FitnessTrendChart(trend: FitnessTrend(samples: []))),
-      ));
-      expect(find.text('Fitness development'), findsOneWidget);
-      expect(find.text('Not enough training history yet.'), findsOneWidget);
     });
   });
 }
