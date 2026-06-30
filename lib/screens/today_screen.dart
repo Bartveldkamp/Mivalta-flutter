@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/home_data.dart';
-import '../models/realized_line.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
@@ -133,15 +132,6 @@ class _TodayScreenState extends State<TodayScreen> {
       final fatigueMap = jsonDecode(fatigueJson) as Map<String, dynamic>;
       data.fatigueState = fatigueMap['fatigue_state'] as String?;
 
-      // Realized line (firewall-validated Josi line)
-      try {
-        final today = DateTime.now().toIso8601String().substring(0, 10);
-        final lineJson = await binding.realizeAdvisorLine(handle, date: today);
-        data.realizedLine = RealizedLine.parse(lineJson);
-      } catch (_) {
-        // Honest absence — no firewall-validated line available
-      }
-
       // Zone 2 — Today load (for module card)
       try {
         final loadsJson = await binding.readDailyLoads(handle, days: 1);
@@ -245,40 +235,44 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
-              // Josi card — from state_recommendation or realized line
+              // Josi card — from state_recommendation (I1 fix: engine state, not realizer)
               JosiCard(
-                line: _data.realizedLine?.text ?? _data.stateRecommendation,
+                line: _data.stateRecommendation,
               ),
 
               const SizedBox(height: MivaltaSpace.x3),
 
-              // Module cards (balanced density)
-              if (_data.todayLoad != null)
-                ModuleCard(
-                  title: 'Load today',
-                  icon: Icons.trending_up,
-                  child: Column(
-                    children: [
-                      MetricRow(
+              // Module cards (I2 fix: honest-absence pattern, never blank)
+              ModuleCard(
+                title: 'Load today',
+                icon: Icons.trending_up,
+                child: _data.todayLoad != null
+                    ? MetricRow(
                         label: 'Training load',
                         value: _data.todayLoad!.round().toString(),
                         unit: ' UL',
+                      )
+                    : const _HonestAbsence(
+                        label: 'No activity recorded',
+                        unlock: 'Log a workout to see your load',
                       ),
-                    ],
-                  ),
-                ),
+              ),
 
-              if (_data.lastNightSleepHours != null) ...[
-                const SizedBox(height: MivaltaSpace.x3),
-                ModuleCard(
-                  title: 'Sleep',
-                  icon: Icons.bedtime,
-                  child: MetricRow(
-                    label: 'Last night',
-                    value: _formatSleep(_data.lastNightSleepHours!),
-                  ),
-                ),
-              ],
+              const SizedBox(height: MivaltaSpace.x3),
+
+              ModuleCard(
+                title: 'Sleep',
+                icon: Icons.bedtime,
+                child: _data.lastNightSleepHours != null
+                    ? MetricRow(
+                        label: 'Last night',
+                        value: _formatSleep(_data.lastNightSleepHours!),
+                      )
+                    : const _HonestAbsence(
+                        label: 'No sleep data',
+                        unlock: 'Connect a health source',
+                      ),
+              ),
 
               const SizedBox(height: MivaltaSpace.x6),
             ]),
@@ -293,5 +287,41 @@ class _TodayScreenState extends State<TodayScreen> {
     final m = ((hours - h) * 60).round();
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
+  }
+}
+
+/// Honest-absence pattern for module cards (I2): named state + actionable unlock.
+class _HonestAbsence extends StatelessWidget {
+  const _HonestAbsence({required this.label, required this.unlock});
+
+  final String label;
+  final String unlock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: MivaltaColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          unlock,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: MivaltaColors.textSecondary.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
   }
 }
