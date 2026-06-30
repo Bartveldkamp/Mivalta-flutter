@@ -124,6 +124,48 @@
       "zone_cap": "R"
     }
   ],
+  "anaerobic_execution_policy:phase_execution": [
+    {
+      "demand_class": "capacity_home",
+      "execution": "neuromuscular",
+      "phase": "base"
+    },
+    {
+      "demand_class": "non_glycolytic",
+      "execution": "neuromuscular",
+      "phase": "base"
+    },
+    {
+      "demand_class": "capacity_home",
+      "execution": "capacity",
+      "phase": "build"
+    },
+    {
+      "demand_class": "non_glycolytic",
+      "execution": "neuromuscular",
+      "phase": "build"
+    },
+    {
+      "demand_class": "capacity_home",
+      "execution": "neuromuscular",
+      "phase": "peak"
+    },
+    {
+      "demand_class": "non_glycolytic",
+      "execution": "neuromuscular",
+      "phase": "peak"
+    },
+    {
+      "demand_class": "capacity_home",
+      "execution": "neuromuscular",
+      "phase": "taper"
+    },
+    {
+      "demand_class": "non_glycolytic",
+      "execution": "neuromuscular",
+      "phase": "taper"
+    }
+  ],
   "biometric_trends_interpretation:confidence_language": [
     {
       "data_quality": "Good/Full/Enhanced + convergent trends",
@@ -4368,7 +4410,7 @@
       "blocked_action": "work_sec > 30",
       "condition": "zone=Z7",
       "guardrail_id": "z7_work_ceiling",
-      "reason": "Exceeds neuromuscular capacity",
+      "reason": "Exceeds maximal anaerobic capacity",
       "severity": "critical"
     },
     {
@@ -5182,6 +5224,108 @@
     {
       "load_class": "L",
       "pattern": "continuous"
+    }
+  ],
+  "josi_advisor_lines:headline_lines": [
+    {
+      "headline_key": "readiness",
+      "template": "You're {state} today, and readiness is sitting comfortably at {readiness_score}.",
+      "urgency_band": "low",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Good place to be — {state}, with readiness at {readiness_score}.",
+      "urgency_band": "low",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "You're {state} — readiness is at {readiness_score}, so there's room to work but keep an eye on it.",
+      "urgency_band": "moderate",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Readiness reads {readiness_score} and you're {state}; a measured day suits this.",
+      "urgency_band": "moderate",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Readiness has dropped to {readiness_score} and you're {state} — ease back today.",
+      "urgency_band": "high",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "You're {state} with readiness down at {readiness_score}; treat today as a lighter one.",
+      "urgency_band": "high",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Your body is asking for recovery — you're {state}, readiness at {readiness_score}.",
+      "urgency_band": "critical",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Recovery first today: {state}, readiness down at {readiness_score}.",
+      "urgency_band": "critical",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "physio_zscore",
+      "template": "Recovery is paying off — your readiness is up at {readiness_score}.",
+      "urgency_band": "low",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "physio_zscore",
+      "template": "Your recovery markers look strong today; readiness sits at {readiness_score}.",
+      "urgency_band": "low",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "physio_zscore",
+      "template": "Your recovery signals are holding, with readiness at {readiness_score}.",
+      "urgency_band": "moderate",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "banister",
+      "template": "Your fitness is carrying you well — readiness at {readiness_score}, {state}.",
+      "urgency_band": "low",
+      "variant_id": "a"
+    }
+  ],
+  "josi_advisor_lines:no_data_line": [
+    {
+      "template": "We need more data to predict recovery.",
+      "variant_id": "a"
+    },
+    {
+      "template": "A few more days of data and Josi can start reading your recovery.",
+      "variant_id": "b"
+    }
+  ],
+  "josi_advisor_lines:supporting_clauses": [
+    {
+      "clause_template": "readiness at {readiness_score}",
+      "finding_key": "readiness"
+    },
+    {
+      "clause_template": "your recovery markers look strong",
+      "finding_key": "physio_zscore"
+    },
+    {
+      "clause_template": "your fitness is holding",
+      "finding_key": "banister"
+    },
+    {
+      "clause_template": "and you're in a good frame of mind",
+      "finding_key": "psychological"
     }
   ],
   "josi_explanations:density_rules": [
@@ -6290,7 +6434,7 @@
     {
       "load_max_pct": 100,
       "load_min_pct": 90,
-      "max_intensity": "Z6",
+      "max_intensity": "Z8",
       "meso_days": 28,
       "phase": "peak",
       "slice_index": 2
@@ -6298,7 +6442,7 @@
     {
       "load_max_pct": 105,
       "load_min_pct": 95,
-      "max_intensity": "Z6",
+      "max_intensity": "Z8",
       "meso_days": 28,
       "phase": "peak",
       "slice_index": 3
@@ -6322,7 +6466,7 @@
     {
       "load_max_pct": 105,
       "load_min_pct": 95,
-      "max_intensity": "Z6",
+      "max_intensity": "Z8",
       "meso_days": 21,
       "phase": "peak",
       "slice_index": 2
@@ -6352,7 +6496,7 @@
     {
       "deload_max": "Z5",
       "early_max": "Z5",
-      "overload_max": "Z6",
+      "overload_max": "Z8",
       "phase": "peak"
     },
     {
@@ -6364,7 +6508,7 @@
     {
       "deload_max": "Z3",
       "early_max": "Z4",
-      "overload_max": "Z5",
+      "overload_max": "Z8",
       "phase": "taper"
     }
   ],
@@ -10775,7 +10919,7 @@
     {
       "power_pct_max_cp": 250,
       "power_pct_min_cp": 150,
-      "purpose": "sprint / anaerobic power",
+      "purpose": "maximal anaerobic power",
       "zone": "Z7"
     },
     {
@@ -10822,8 +10966,8 @@
       "zone": "Z6"
     },
     {
-      "primary_system": "neuromuscular",
-      "training_intent": "sprint power, neural drive",
+      "primary_system": "anaerobic_glycolytic",
+      "training_intent": "maximal anaerobic power",
       "zone": "Z7"
     },
     {
@@ -14946,7 +15090,7 @@
     },
     {
       "md_cap": 1.3,
-      "rationale": "Neuromuscular, CNS fatigue",
+      "rationale": "Maximal anaerobic, CNS fatigue",
       "threshold_min": 20,
       "zone": "Z7"
     },
