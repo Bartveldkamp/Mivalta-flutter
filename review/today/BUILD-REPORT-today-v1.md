@@ -63,6 +63,18 @@ Shows:
 - Glow hero with radial gradient (productive teal fallback) ✓
 - No fabricated score — honest absence ✓
 
+### Real data (seeded demo athlete)
+
+![screenshot-real-data.png](screenshot-real-data.png)
+
+Shows:
+- Readiness score: **78** — engine-computed from 30-day demo season
+- Glow: teal (#00C6A7) — Productive state
+- Sleep module: **8h** — real seeded biometric data
+- "Today" left-aligned ✓
+
+Seeded via kDebugMode boot-time trigger (`_seedDemoIfNeeded()` in main.dart).
+
 ## Test status
 
 - `flutter analyze`: No issues found
