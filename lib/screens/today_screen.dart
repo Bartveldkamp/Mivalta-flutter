@@ -127,10 +127,11 @@ class _TodayScreenState extends State<TodayScreen> {
       data.stateRecommendation = stateMap['state_recommendation'] as String?;
       data.confidenceAdvisory = stateMap['confidence_advisory'] as String?;
 
-      // Fatigue state (for glow color)
+      // Fatigue state (for glow color + state word)
+      // Engine returns {"state":"Recovered",...} — key is "state", not "fatigue_state"
       final fatigueJson = await binding.viterbiFatigueState(handle);
       final fatigueMap = jsonDecode(fatigueJson) as Map<String, dynamic>;
-      data.fatigueState = fatigueMap['fatigue_state'] as String?;
+      data.fatigueState = fatigueMap['state'] as String?;
 
       // Zone 2 — Today load (for module card)
       try {
