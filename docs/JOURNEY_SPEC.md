@@ -62,6 +62,27 @@ ingestion fills the vault. Journey ships honest-empty first.
   neither FFI-exposed nor stored. Expose + optionally persist.
 - **Historical time-in-zone**: computed on-demand (`computeTimeInZone`), not
   stored; depends on raw-sample/FIT retention for past sessions.
+  - **TIZ-from-vault (Option A — the activity-capture follow-up).** Verified
+    2026-06-30: TIZ paints ONLY from a live device HR stream. The display reads
+    it via `latestWorkoutTimeInZone()` → `_health.getHealthDataFromTypes(...)`
+    (the live health plugin) → `computeTimeInZone`
+    (`lib/services/health_ingest.dart:1162`,
+    `lib/screens/readiness_detail_screen.dart:228`). `compute_time_in_zone` is
+    **stateless** (`gatc-ffi/src/lib.rs:4194` — bins the series passed at call
+    time, persists nothing) and the vault stores **no HR series**
+    (`buildWorkoutActivityJson` writes scalars only; `get_workout_detail` returns
+    `zone_compliance_pct`, not the per-zone dwell). **Consequence:** a vault-only
+    workout (e.g. the DEBUG demo seed, PR #120) **cannot** paint TIZ — feeding
+    `computeTimeInZone` at ingest would be dead compute nothing reads. **The fix
+    (compute-once → store → display-reads-vault):** capture + persist the
+    intra-workout HR series (or the computed TIZ distribution) at ingest, add a
+    vault-backed accessor (fold TIZ into `get_workout_detail` or a new getter),
+    and point the detail screen at the vault (keeping the live-plugin path as the
+    on-device-real source). Cross-repo: rust-engine vault schema + FFI, then the
+    Flutter display. This is the **P0/P2 activity-capture** work (P0 captures +
+    persists the series; TIZ reads the vault) — TIZ-from-seed arrives for real
+    with it. Until then, TIZ is witnessed via a real/injected workout, NOT the
+    seed (Option B, founder 2026-06-30).
 
 ## TIER 3 — real engine architecture (the moat; NOT possible today)
 - **"What the engine learned" markers** ("your fatigue clears a day faster
