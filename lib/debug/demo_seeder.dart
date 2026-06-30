@@ -93,12 +93,18 @@ class DemoSeeder {
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
 
-    final wire = <String, dynamic>{
-      'date': dateStr,
-      'resting_heart_rate': row['resting_heart_rate'],
-      'hrv_sdnn': row['hrv_sdnn'],
-      'oxygen_saturation': row['oxygen_saturation'],
-    };
+    // Omit absent biometrics rather than send `null` — honest absence (Charter
+    // PRIME DIRECTIVE). A fixture day may legitimately lack a metric (e.g. a
+    // night with no HRV reading); the normalizer then sees the field as absent,
+    // not as a fabricated/null value, so the no-HRV path renders honestly.
+    final wire = <String, dynamic>{'date': dateStr};
+    if (row['resting_heart_rate'] != null) {
+      wire['resting_heart_rate'] = row['resting_heart_rate'];
+    }
+    if (row['hrv_sdnn'] != null) wire['hrv_sdnn'] = row['hrv_sdnn'];
+    if (row['oxygen_saturation'] != null) {
+      wire['oxygen_saturation'] = row['oxygen_saturation'];
+    }
 
     // One consolidated AsleepUnspecified (code 1) sample spanning the night,
     // waking at 07:00 on `date`. The normalizer aggregates asleep stages into

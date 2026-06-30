@@ -253,5 +253,35 @@ void main() {
       // AsleepUnspecified (code 1) — the normalizer counts it as sleep.
       expect((sleep.single as Map)['value'], 1);
     });
+
+    test('null-HRV day → wire OMITS hrv_sdnn (honest absence), keeps RHR + sleep',
+        () async {
+      final binding = _RecordingBinding();
+      final seeder = DemoSeeder(
+        binding: binding,
+        handle: _FakeHandle(),
+        // A day with no hrv_sdnn — a night with no HRV reading (mirrors the
+        // null-HRV day now in demo_season.json for the witness pass §8.0).
+        seasonLoader: () async => [
+          {
+            'offset': 0,
+            'resting_heart_rate': {'value': 53.0, 'unit': 'count/min'},
+            'oxygen_saturation': {'value': 0.98, 'unit': '%'},
+            'sleep_hours': 7.5,
+          },
+        ],
+      );
+
+      await seeder.seedSeason(days: 1);
+
+      final wire =
+          jsonDecode(binding.normalized.single.json) as Map<String, dynamic>;
+      // Absent HRV is OMITTED, never sent as null (honest absence, Charter).
+      expect(wire.containsKey('hrv_sdnn'), isFalse,
+          reason: 'absent HRV must be omitted, not sent as null');
+      // The rest of the day still couriers through.
+      expect(wire['resting_heart_rate'], isNotNull);
+      expect(wire['sleep_samples'], isNotNull);
+    });
   });
 }
