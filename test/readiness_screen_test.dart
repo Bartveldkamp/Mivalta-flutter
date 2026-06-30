@@ -25,7 +25,7 @@ import 'package:mivalta_flutter/widgets/today_facts.dart';
 
 void main() {
   testWidgets(
-    'ReadinessScreen shows MiValta app-bar title; engine-dependent '
+    'ReadinessScreen shows Today app-bar title; engine-dependent '
     'sections surface the host bootstrap error inline',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: ReadinessScreen()));
@@ -35,8 +35,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // App-bar title (now 'MiValta' per PR-B three-zone home).
-      expect(find.text('MiValta'), findsWidgets);
+      // App-bar title (DR-001 L1: 'Today' left-aligned).
+      expect(find.text('Today'), findsWidgets);
 
       // The host harness can't load the .so, so the bootstrap throws
       // UnsupportedError. The error scaffold renders.

@@ -37,17 +37,18 @@ class DecisionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color chipColor;
+    // DR-001 T3: icon teal only, label near-white.
+    final Color iconColor;
     final IconData icon;
 
     if (noData) {
-      chipColor = MivaltaColors.textMuted;
+      iconColor = MivaltaColors.textMuted;
       icon = Icons.help_outline;
     } else if (isRest) {
-      chipColor = MivaltaColors.stateRecovered;
+      iconColor = MivaltaColors.stateRecovered;
       icon = Icons.self_improvement;
     } else {
-      chipColor = MivaltaColors.stateProductive;
+      iconColor = MivaltaColors.tertiaryTealSolid; // Teal icon per T3
       icon = Icons.check_circle_outline;
     }
 
@@ -59,19 +60,19 @@ class DecisionChip extends StatelessWidget {
           vertical: MivaltaSpace.x3,
         ),
         decoration: BoxDecoration(
-          color: chipColor.withValues(alpha: 0.1),
-          border: Border.all(color: chipColor.withValues(alpha: 0.3)),
+          color: iconColor.withValues(alpha: 0.1),
+          border: Border.all(color: iconColor.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(MivaltaRadii.md),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: chipColor),
+            Icon(icon, size: 18, color: iconColor),
             const SizedBox(width: MivaltaSpace.x2),
             Text(
               text,
               style: MivaltaTextStyles.body(
-                color: chipColor,
+                color: MivaltaColors.textPrimary, // Near-white label per T3
                 weight: FontWeight.w600,
               ),
             ),

@@ -112,12 +112,18 @@ class TodayBody extends StatelessWidget {
           const SizedBox(height: MivaltaSpace.x5),
 
           // ============ JOSI LINE ============
-          JosiLine(
-            realizedLine: data.realizedLine,
-            fallbackText: data.stateRecommendation,
-            showWhyButton: !data.insufficientData,
-          ),
-          const SizedBox(height: MivaltaSpace.x4),
+          // DR-001 S1: source from state_recommendation (the state read),
+          // not realize_advisor_line. Honest absence if genuinely no line.
+          // DR-001 L3: close empty gap when no line.
+          if (data.stateRecommendation != null &&
+              data.stateRecommendation!.isNotEmpty) ...[
+            JosiLine(
+              realizedLine: null, // realize_advisor_line deferred
+              fallbackText: data.stateRecommendation,
+              showWhyButton: !data.insufficientData,
+            ),
+            const SizedBox(height: MivaltaSpace.x4),
+          ],
 
           // ============ DECISION CHIP ============
           Center(
@@ -137,6 +143,15 @@ class TodayBody extends StatelessWidget {
               style: MivaltaTextStyles.eyebrow(),
             ),
             const SizedBox(height: MivaltaSpace.x3),
+
+            // ============ DAILY ACTIVITY CARD (L2: first, collapsed) ============
+            if (data.latestActivity != null)
+              _DailyActivityCard(
+                activity: data.latestActivity!,
+                onTap: () => onTapLatestWorkout(data.latestActivity!.date),
+              ),
+            if (data.latestActivity != null)
+              const SizedBox(height: MivaltaSpace.x3),
 
             // ============ LOAD & SLEEP CARD ============
             ModuleCard(
@@ -237,14 +252,6 @@ class TodayBody extends StatelessWidget {
                   ],
                 ),
               ),
-            const SizedBox(height: MivaltaSpace.x3),
-
-            // ============ LATEST WORKOUT ============
-            if (data.latestActivity != null)
-              _LatestWorkoutCard(
-                activity: data.latestActivity!,
-                onTap: () => onTapLatestWorkout(data.latestActivity!.date),
-              ),
           ],
 
           // ============ LEARNING STATE ============
@@ -295,9 +302,10 @@ class _LearningCard extends StatelessWidget {
   }
 }
 
-/// Card showing the latest completed workout.
-class _LatestWorkoutCard extends StatelessWidget {
-  const _LatestWorkoutCard({
+/// Daily activity card (DR-001 L2: first, collapsed by default).
+/// Shows the latest completed workout in a collapsible ModuleCard.
+class _DailyActivityCard extends StatelessWidget {
+  const _DailyActivityCard({
     required this.activity,
     required this.onTap,
   });
@@ -314,20 +322,12 @@ class _LatestWorkoutCard extends StatelessWidget {
     final durationMin = activity.durationMin as int?;
     final loadUls = activity.loadUls as double?;
 
-    final meta = <String>[
-      if (durationMin != null) '$durationMin min',
-      if (loadUls != null) 'load ${loadUls.round()}',
-    ];
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(MivaltaSpace.x4),
-        decoration: BoxDecoration(
-          color: MivaltaColors.cardBackground,
-          border: Border.all(color: MivaltaColors.cardBorder),
-          borderRadius: BorderRadius.circular(MivaltaRadii.card),
-        ),
+    return ModuleCard(
+      icon: Icons.directions_run,
+      title: 'Daily Activity',
+      initiallyExpanded: false, // L2: collapsed by default
+      child: GestureDetector(
+        onTap: onTap,
         child: Row(
           children: [
             Expanded(
@@ -335,16 +335,16 @@ class _LatestWorkoutCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'LATEST WORKOUT',
-                    style: MivaltaTextStyles.cardHeader(),
+                    sport.isEmpty ? 'Workout' : _titleCase(sport),
+                    style: MivaltaTextStyles.body(weight: FontWeight.w600),
                   ),
                   const SizedBox(height: MivaltaSpace.x1),
                   Text(
                     [
-                      sport.isEmpty ? 'Workout' : _titleCase(sport),
-                      ...meta,
+                      if (durationMin != null) '$durationMin min',
+                      if (loadUls != null) 'load ${loadUls.round()}',
                     ].join('  ·  '),
-                    style: MivaltaTextStyles.body(weight: FontWeight.w500),
+                    style: MivaltaTextStyles.small(),
                   ),
                 ],
               ),

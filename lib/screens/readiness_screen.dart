@@ -829,9 +829,12 @@ class _ReadinessScreenState extends State<ReadinessScreen>
       appBar: AppBar(
         backgroundColor: MivaltaColors.surfaceBackground,
         foregroundColor: MivaltaColors.textPrimary,
-        // Round 3 item 10 (founder): title stays CENTERED — liked.
-        centerTitle: true,
-        title: const Text('MiValta'),
+        // DR-001 L1: "Today" left-aligned, remove "MiValta" wordmark.
+        centerTitle: false,
+        title: Text(
+          'Today',
+          style: MivaltaTextStyles.appBarTitle(),
+        ),
         // Round 3 item 10: Start workout as a compact control in the
         // top-LEFT corner beside the centered title. Round 3-FINAL item 20
         // (founder): subtle/refined, NOT a solid green disc — hairline
@@ -893,6 +896,18 @@ class _ReadinessScreenState extends State<ReadinessScreen>
                 icon: Icon(weatherGlyph(_weather!.symbol), size: 18),
                 label: Text('${_weather!.temperatureC.round()}°'),
               ),
+            ),
+          // DR-001 L1: Edit/tune affordance (opens tile picker when wired).
+          if (!_loading)
+            IconButton(
+              icon: const Icon(Icons.tune, size: 20),
+              tooltip: 'Customize',
+              onPressed: () {
+                // Tile picker deferred to edit-mode follow-up PR.
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Customize coming soon')),
+                );
+              },
             ),
         ],
       ),

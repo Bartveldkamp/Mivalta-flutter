@@ -135,12 +135,18 @@ abstract final class MivaltaMotion {
 /// These are the canonical way to create styled text in the design system.
 abstract final class MivaltaTextStyles {
   /// Hero number style (Zen Dots, 88px). The readiness score.
-  static TextStyle heroNumber({Color? color}) => GoogleFonts.zenDots(
+  /// Hero readiness number: Inter 500, -0.03em, tabular figures.
+  /// Zen Dots is wordmark-only; the number uses Inter (DR-001 T1).
+  static TextStyle heroNumber({Color? color}) => GoogleFonts.inter(
     fontSize: MivaltaTypography.sizeHero,
     fontWeight: MivaltaTypography.weightMedium,
     height: MivaltaTypography.leadingTight,
-    letterSpacing: MivaltaTypography.sizeHero * MivaltaTypography.trackingTight,
+    letterSpacing: MivaltaTypography.sizeHero * -0.03, // -0.03em per DR-001
     color: color ?? MivaltaColors.textPrimary,
+    fontFeatures: const [
+      FontFeature.tabularFigures(),
+      FontFeature.liningFigures(),
+    ],
   );
 
   /// State word style (Inter, display size). "Productive", "Recovered", etc.

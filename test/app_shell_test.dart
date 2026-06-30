@@ -81,7 +81,7 @@ void main() {
       );
 
       // Default tab is Today — the home app bar title renders.
-      expect(find.text('MiValta'), findsWidgets);
+      expect(find.text('Today'), findsWidgets);
     });
 
     testWidgets('tabs switch: Journey shows honest loading (engine not '
@@ -113,7 +113,7 @@ void main() {
         matching: find.text('Today'),
       ));
       await tester.pumpAndSettle();
-      expect(find.text('MiValta'), findsWidgets);
+      expect(find.text('Today'), findsWidgets);
     });
 
     testWidgets('Today app bar is slim: no settings/explore/debug actions '
@@ -149,7 +149,7 @@ void main() {
       final controlCenter = tester.getCenter(control);
       final titleCenter = tester.getCenter(
         find
-            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .descendant(of: find.byType(AppBar), matching: find.text('Today'))
             .first,
       );
       expect(controlCenter.dx, lessThan(titleCenter.dx));
@@ -185,17 +185,18 @@ void main() {
       );
     });
 
-    testWidgets('MiValta title stays CENTERED beside the start control '
-        '(round 3 item 10, founder: liked)', (tester) async {
+    testWidgets('Today title is LEFT-ALIGNED beside the start control '
+        '(DR-001 L1)', (tester) async {
       await pumpShell(tester);
 
       final appBarRect = tester.getRect(find.byType(AppBar));
       final titleCenter = tester.getCenter(
         find
-            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .descendant(of: find.byType(AppBar), matching: find.text('Today'))
             .first,
       );
-      expect(titleCenter.dx, closeTo(appBarRect.center.dx, 1.0));
+      // Title should be in the left half, not centered.
+      expect(titleCenter.dx, lessThan(appBarRect.center.dx));
     });
 
     testWidgets('tapping the start control opens the sensor-check screen '
@@ -279,7 +280,7 @@ void main() {
       final controlCenter = tester.getCenter(control);
       final titleCenter = tester.getCenter(
         find
-            .descendant(of: find.byType(AppBar), matching: find.text('MiValta'))
+            .descendant(of: find.byType(AppBar), matching: find.text('Today'))
             .first,
       );
       expect(controlCenter.dx, greaterThan(titleCenter.dx),

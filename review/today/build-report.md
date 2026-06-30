@@ -12,7 +12,8 @@
 
 | Screenshot | Description |
 |------------|-------------|
-| [today-main-2026-06-30.png](today-main-2026-06-30.png) | Today screen with real engine data |
+| [today-main-2026-06-30.png](today-main-2026-06-30.png) | Today screen — initial build |
+| [today_dr001_fixed.png](today_dr001_fixed.png) | Today screen — after DR-001 fixes |
 
 ---
 
@@ -22,7 +23,7 @@
 |---------|----------------|---------------|
 | **GlowHero score** | 78 | `readiness_indicator()` → `indicator['score']` (4-axis blend) |
 | **GlowHero state word** | Recovered | `viterbiFatigueState()` → `state` field |
-| **Glow color** | #00C6A7 (stateProductive) | Mapped from fatigue state via `_stateColor()` |
+| **Glow color** | #7FE3B0 (stateRecovered) | Mapped from fatigue state via `fatigueStateColor()` |
 | **DecisionChip** | "Train as planned" | Engine has workout suggestion (not rest day, not insufficient data) |
 | **Workout title** | Endurance Ride | `recommendWorkoutWithHistory()` → `workout_title` |
 | **Workout duration** | 90 min | `recommendWorkoutWithHistory()` → `duration_min` |
@@ -45,6 +46,37 @@
 ## Layout Fixes Applied
 
 - GlowHero container height: increased from `size + 24` to `size + 28` to accommodate state word line height (fixed 1px overflow)
+
+---
+
+## DR-001 Fixes Applied (2026-06-30)
+
+| ID | Fix | Status |
+|----|-----|--------|
+| **T1** | Hero number → Inter 500, -0.03em, tabular figures (removed Zen Dots) | ✅ Fixed |
+| **T2** | State→colour map verified: Recovered = #7FE3B0, Productive = #00C6A7 | ✅ Correct |
+| **L1** | App bar → "Today" left-aligned, removed centered "MiValta" wordmark | ✅ Fixed |
+| **S1** | Josi line source from `state_recommendation` (not `realize_advisor_line`) | ✅ Fixed |
+| **T3** | Chip label near-white (`textPrimary`), icon teal (`tertiaryTealSolid`) | ✅ Fixed |
+| **L2** | Daily-activity card first, collapsed by default (honest absence if no data) | ✅ Fixed |
+| **L3** | Close empty Josi gap when no recommendation present | ✅ Fixed |
+| **G1/G2** | Zone badge gap (engine-side §8.2) | ⏭️ Skipped |
+
+### App Bar Changes (L1)
+- Title: "MiValta" → "Today"
+- Alignment: `centerTitle: true` → `centerTitle: false`
+- Added tune/customize affordance icon (right side)
+- Start workout control remains in leading position (left side)
+
+### Typography Changes (T1)
+- Hero number font: `GoogleFonts.zenDots` → `GoogleFonts.inter`
+- Weight: 500 (medium)
+- Letter spacing: -0.03em
+- Features: `tabularFigures()`, `liningFigures()`
+
+### Decision Chip Changes (T3)
+- Icon color: state-based → teal (`tertiaryTealSolid`) for train states
+- Label color: state-based → near-white (`textPrimary`) always
 
 ---
 
@@ -77,11 +109,18 @@ pubspec.yaml              # Added google_fonts: ^6.2.1
 
 ## Review Checklist (for Claude Design)
 
+### Round 1 (Initial Review)
 - [ ] GlowHero: radial gradient matches design (two-layer glow, blur radius)
-- [ ] GlowHero: score typography (Zen Dots, sizing, weight)
-- [ ] GlowHero: state word position and color
-- [ ] DecisionChip: border, icon, text styling
+- [x] GlowHero: score typography — **DR-001 T1: Inter 500, -0.03em, tabular**
+- [x] GlowHero: state word position and color — **DR-001 T2: verified correct**
+- [x] DecisionChip: border, icon, text styling — **DR-001 T3: teal icon, white label**
 - [ ] ModuleCard: header typography, collapse animation
-- [ ] Spacing: vertical rhythm between elements
-- [ ] Colors: exact hex values match design tokens
+- [x] Spacing: vertical rhythm between elements — **DR-001 L3: no empty Josi gap**
+- [x] Colors: exact hex values match design tokens — **DR-001 T2: verified**
 - [ ] Font weights: match Inter weight scale
+
+### Round 2 (DR-001 Fixes)
+- [x] App bar: "Today" left-aligned, not centered "MiValta" — **DR-001 L1**
+- [x] Josi line: source from state_recommendation — **DR-001 S1**
+- [x] Daily activity card: first position, collapsed default — **DR-001 L2**
+- [ ] G1/G2: Zone badge gap — **engine-side, skipped**
