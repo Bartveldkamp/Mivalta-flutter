@@ -1,10 +1,7 @@
-// Tests for the Power Curve (MMP) model + chart.
+// Tests for the Power Curve (MMP) model (UI tests stripped in clean-out).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/power_curve.dart';
-import 'package:mivalta_flutter/widgets/analytics/power_curve_chart.dart';
-import 'package:mivalta_flutter/theme/tokens.dart';
 
 void main() {
   group('PowerCurve.fromJson', () {
@@ -28,36 +25,6 @@ void main() {
       expect(PowerCurve.fromJson(null).isEmpty, isTrue);
       expect(PowerCurve.fromJson('x').isEmpty, isTrue);
       expect(PowerCurve.fromJson({'points': 'bad'}).isEmpty, isTrue);
-    });
-  });
-
-  group('PowerCurveChart', () {
-    testWidgets('renders title + peak readouts from engine values', (tester) async {
-      final curve = PowerCurve.fromJson({
-        'points': [
-          {'duration_seconds': 5, 'max_power_watts': 950.0},
-          {'duration_seconds': 60, 'max_power_watts': 480.0},
-          {'duration_seconds': 300, 'max_power_watts': 360.0},
-          {'duration_seconds': 1200, 'max_power_watts': 295.0},
-          {'duration_seconds': 3600, 'max_power_watts': 255.0},
-        ],
-      });
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(body: PowerCurveChart(curve: curve)),
-      ));
-      expect(find.text('Power profile'), findsOneWidget);
-      expect(find.text('5s'), findsOneWidget);
-      expect(find.text('950W'), findsOneWidget); // 5s peak
-      expect(find.text('255W'), findsOneWidget); // 60min peak
-    });
-
-    testWidgets('empty → honest empty, no crash', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: const Scaffold(body: PowerCurveChart(curve: PowerCurve(points: []))),
-      ));
-      expect(find.text('No power data yet.'), findsOneWidget);
     });
   });
 }

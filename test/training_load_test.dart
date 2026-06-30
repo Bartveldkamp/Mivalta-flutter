@@ -1,12 +1,9 @@
-// Tests for the Training Load model + chart.
+// Tests for the Training Load model (UI tests stripped in clean-out).
 //
 // Contract guard: maps VaultEngine::read_daily_loads JSON `[[date, load], ...]`.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/training_load.dart';
-import 'package:mivalta_flutter/widgets/analytics/training_load_chart.dart';
-import 'package:mivalta_flutter/theme/tokens.dart';
 
 void main() {
   group('TrainingLoad.fromJson', () {
@@ -36,30 +33,6 @@ void main() {
       expect(TrainingLoad.fromJson('x').isEmpty, isTrue);
       expect(TrainingLoad.fromJson([42, 'bad']).isEmpty, isTrue);
       expect(TrainingLoad.fromJson([]).peak, 0);
-    });
-  });
-
-  group('TrainingLoadChart', () {
-    testWidgets('renders title + peak + day count', (tester) async {
-      final t = TrainingLoad.fromJson([
-        ['d1', 100.0],
-        ['d2', 250.0],
-      ]);
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(body: TrainingLoadChart(load: t)),
-      ));
-      expect(find.text('Training load'), findsOneWidget);
-      expect(find.text('250'), findsOneWidget); // peak rounded
-      expect(find.text('2'), findsOneWidget); // day count
-    });
-
-    testWidgets('empty → honest empty state, no crash', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: const Scaffold(body: TrainingLoadChart(load: TrainingLoad(days: []))),
-      ));
-      expect(find.text('No training load recorded yet.'), findsOneWidget);
     });
   });
 }

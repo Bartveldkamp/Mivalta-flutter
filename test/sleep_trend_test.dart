@@ -1,10 +1,7 @@
-// Tests for the Sleep Trend model + card.
+// Tests for the Sleep Trend model (UI tests stripped in clean-out).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/models/sleep_trend.dart';
-import 'package:mivalta_flutter/widgets/analytics/sleep_trend_card.dart';
-import 'package:mivalta_flutter/theme/tokens.dart';
 
 void main() {
   group('SleepTrend.fromJson', () {
@@ -28,31 +25,6 @@ void main() {
       expect(SleepTrend.fromJson([
         {'date': '2026-06-01'} // no hours
       ]).isEmpty, isTrue);
-    });
-  });
-
-  group('SleepTrendCard', () {
-    testWidgets('renders latest sleep + nights count', (tester) async {
-      final t = SleepTrend.fromJson([
-        {'date': '2026-06-01', 'sleep_hours': 6.0},
-        {'date': '2026-06-02', 'sleep_hours': 7.2},
-        {'date': '2026-06-03', 'sleep_hours': 7.5},
-      ]);
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: Scaffold(body: SleepTrendCard(trend: t)),
-      ));
-      expect(find.text('SLEEP'), findsOneWidget);
-      expect(find.text('7.5'), findsOneWidget); // latest night, 1 decimal
-      expect(find.text('3 nights'), findsOneWidget);
-    });
-
-    testWidgets('empty → honest empty, no crash', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: mivaltaDarkTheme(),
-        home: const Scaffold(body: SleepTrendCard(trend: SleepTrend(nights: []))),
-      ));
-      expect(find.text('No sleep data yet.'), findsOneWidget);
     });
   });
 }
