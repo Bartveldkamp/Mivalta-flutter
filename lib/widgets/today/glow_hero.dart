@@ -44,8 +44,10 @@ class GlowHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _stateColor(fatigueState);
     // BS-001 Step 4: two-layer field 172/104px, 12px/2px blur
+    // Outer: radial-gradient(circle, rgba(color,.26), transparent 62%), blur 12px
+    // Mid: radial-gradient(circle, rgba(color,.6), rgba(color,.14) 56%, transparent 72%), blur 2px
     const outerSize = 172.0;
-    const innerSize = 104.0;
+    const midSize = 104.0;
 
     // Display: score number when data, state word only when insufficient.
     final showScore = !insufficientData && score != null;
@@ -60,7 +62,8 @@ class GlowHero extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer glow layer (172px, 12px blur)
+              // Outer glow layer (172px, blur 12px)
+              // BS-001: radial-gradient(circle, rgba(color,.26), transparent 62%)
               ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                 child: Container(
@@ -70,35 +73,36 @@ class GlowHero extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        color.withValues(alpha: 0.25),
-                        color.withValues(alpha: 0.08),
+                        color.withValues(alpha: 0.26),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.5, 1.0],
+                      stops: const [0.0, 0.62],
                     ),
                   ),
                 ),
               ),
-              // Inner glow layer (104px, 2px blur)
+              // Mid glow layer (104px, blur 2px)
+              // BS-001: radial-gradient(circle, rgba(color,.6), rgba(color,.14) 56%, transparent 72%)
               ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
                 child: Container(
-                  width: innerSize,
-                  height: innerSize,
+                  width: midSize,
+                  height: midSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        color.withValues(alpha: 0.40),
-                        color.withValues(alpha: 0.12),
+                        color.withValues(alpha: 0.60),
+                        color.withValues(alpha: 0.14),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.6, 1.0],
+                      stops: const [0.0, 0.56, 0.72],
                     ),
                   ),
                 ),
               ),
               // Number + state word (unblurred, on top)
+              // BS-001 Step 5: score w500, -0.03em; state word w600, 15px, 6px gap
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -129,14 +133,14 @@ class GlowHero extends StatelessWidget {
                     ),
                   if (showScore && stateWord.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 6),
+                      padding: const EdgeInsets.only(top: 6), // BS-001: 6px gap
                       child: Text(
                         stateWord,
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0, // BS-001: normal tracking for state word
                           color: color,
                         ),
                       ),

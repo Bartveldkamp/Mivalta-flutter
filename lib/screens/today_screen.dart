@@ -418,6 +418,7 @@ class _TodayScreenState extends State<TodayScreen> {
 }
 
 /// Honest-absence pattern for module cards (I2): named state + actionable unlock.
+/// BS-001 Step 9: primary 15px w500 rgba(244,245,244,.7); guidance 12px rgba(244,245,244,.45)
 class _HonestAbsence extends StatelessWidget {
   const _HonestAbsence({required this.label, required this.unlock});
 
@@ -433,19 +434,19 @@ class _HonestAbsence extends StatelessWidget {
           label,
           style: const TextStyle(
             fontFamily: 'Inter',
-            fontSize: 14,
+            fontSize: 15, // BS-001: 15px
             fontWeight: FontWeight.w500,
-            color: MivaltaColors.textSecondary,
+            color: Color(0xB3F4F5F4), // rgba(244,245,244,.7)
           ),
         ),
         const SizedBox(height: 4),
         Text(
           unlock,
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: 12,
             fontWeight: FontWeight.w400,
-            color: MivaltaColors.textSecondary.withValues(alpha: 0.7),
+            color: Color(0x73F4F5F4), // rgba(244,245,244,.45)
           ),
         ),
       ],

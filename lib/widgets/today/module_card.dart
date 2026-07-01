@@ -27,29 +27,30 @@ class ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // BS-001 Step 9: card container styling
+    // bg rgba(255,255,255,.03), border 1px rgba(255,255,255,.08), radius 14px, padding 13px 14px
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: MivaltaColors.surface1.withValues(alpha:0.03),
+        color: const Color(0x08FFFFFF), // rgba(255,255,255,.03) ≈ 0x08
         border: Border.all(
-          color: MivaltaColors.textPrimary.withValues(alpha:0.08),
+          color: const Color(0x14FFFFFF), // rgba(255,255,255,.08) ≈ 0x14
         ),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Eyebrow with icon tile
+          // BS-001 Step 2: icon tile 30×30, radius 9px, mint @12% bg
           Row(
             children: [
-              // Icon tile: 30×30 rounded, rgba(0,198,167,.12) bg, #00C6A7 17px icon
               Container(
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
                   color: const Color(0x1F00C6A7), // rgba(0,198,167,.12)
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(
                   icon,
@@ -58,14 +59,15 @@ class ModuleCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+              // BS-001 Step 1: Title Case, Inter 13px w600, textPrimary (near-white)
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.0,
-                  color: MivaltaColors.textPrimary.withValues(alpha: 0.7),
+                  color: MivaltaColors.textPrimary,
                 ),
               ),
             ],
