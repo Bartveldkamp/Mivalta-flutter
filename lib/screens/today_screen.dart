@@ -277,22 +277,47 @@ class _TodayScreenState extends State<TodayScreen> {
                 insufficientData: _data.insufficientData,
               ),
 
-              const SizedBox(height: MivaltaSpace.x3),
-
               // Josi card — from state_recommendation (I1 fix: engine state, not realizer)
-              JosiCard(
-                line: _data.stateRecommendation,
+              // BS-001 Step 6: collapse hero void when absent
+              if (_data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty) ...[
+                const SizedBox(height: MivaltaSpace.x3),
+                JosiCard(line: _data.stateRecommendation),
+              ],
+
+              // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
+              // Not wired: zoneCap and sessionZone are null, so chip collapses
+              if ((_data.zoneCap != null && _data.zoneCap!.isNotEmpty) ||
+                  (_data.sessionZone != null && _data.sessionZone!.isNotEmpty)) ...[
+                const SizedBox(height: MivaltaSpace.x3),
+                _DecisionChip(
+                  zoneCap: _data.zoneCap,
+                  sessionZone: _data.sessionZone,
+                ),
+              ],
+
+              // Spacing before cards: reduced when Josi + chip both absent
+              SizedBox(
+                height: (_data.stateRecommendation == null || _data.stateRecommendation!.isEmpty) &&
+                        (_data.zoneCap == null || _data.zoneCap!.isEmpty) &&
+                        (_data.sessionZone == null || _data.sessionZone!.isEmpty)
+                    ? MivaltaSpace.x2 // ~8px collapsed
+                    : MivaltaSpace.x4,
               ),
 
-              const SizedBox(height: MivaltaSpace.x3),
-
-              // Decision chip — shows zone cap or primary action
-              _DecisionChip(
-                zoneCap: _data.zoneCap,
-                sessionZone: _data.sessionZone,
+              // "Your day" section eyebrow
+              Padding(
+                padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
+                child: Text(
+                  'YOUR DAY',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    letterSpacing: 1.1,
+                    color: const Color(0xFFF4F5F4).withValues(alpha: 0.45),
+                  ),
+                ),
               ),
-
-              const SizedBox(height: MivaltaSpace.x4),
 
               // Module cards (I2 fix: honest-absence pattern, never blank)
               ModuleCard(

@@ -40,15 +40,24 @@ class ModuleCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Eyebrow
+          // Eyebrow with icon tile
           Row(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: MivaltaColors.stateProductive,
+              // Icon tile: 30×30 rounded, rgba(0,198,167,.12) bg, #00C6A7 17px icon
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0x1F00C6A7), // rgba(0,198,167,.12)
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: MivaltaColors.stateProductive, // #00C6A7
+                ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
               Text(
                 title,
                 style: TextStyle(

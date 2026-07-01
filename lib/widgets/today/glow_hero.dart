@@ -4,6 +4,8 @@
 // (NOT Zen Dots — that's brand/wordmark only), state word below.
 // The engine DECIDES the state; this only renders it.
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/tokens.dart';
@@ -41,9 +43,9 @@ class GlowHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _stateColor(fatigueState);
-    const heroSize = 180.0; // Larger for softer field
-    const middleSize = heroSize * 0.72; // ~130px
-    const innerSize = heroSize * 0.50; // ~90px
+    // BS-001 Step 4: two-layer field 172/104px, 12px/2px blur
+    const outerSize = 172.0;
+    const innerSize = 104.0;
 
     // Display: score number when data, state word only when insufficient.
     final showScore = !insufficientData && score != null;
@@ -53,60 +55,50 @@ class GlowHero extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
       child: Center(
         child: SizedBox(
-          width: heroSize,
-          height: heroSize,
+          width: outerSize,
+          height: outerSize,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer halo (soft field layer 1)
-              Container(
-                width: heroSize,
-                height: heroSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      color.withValues(alpha: 0.12),
-                      color.withValues(alpha: 0.04),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
+              // Outer glow layer (172px, 12px blur)
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  width: outerSize,
+                  height: outerSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withValues(alpha: 0.25),
+                        color.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
                   ),
                 ),
               ),
-              // Middle glow (soft field layer 2)
-              Container(
-                width: middleSize,
-                height: middleSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      color.withValues(alpha: 0.22),
-                      color.withValues(alpha: 0.08),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
+              // Inner glow layer (104px, 2px blur)
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: Container(
+                  width: innerSize,
+                  height: innerSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withValues(alpha: 0.40),
+                        color.withValues(alpha: 0.12),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
                   ),
                 ),
               ),
-              // Inner core glow
-              Container(
-                width: innerSize,
-                height: innerSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      color.withValues(alpha: 0.45),
-                      color.withValues(alpha: 0.15),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.6, 1.0],
-                  ),
-                ),
-              ),
-              // Number + state word
+              // Number + state word (unblurred, on top)
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -137,7 +129,7 @@ class GlowHero extends StatelessWidget {
                     ),
                   if (showScore && stateWord.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.only(top: 6),
                       child: Text(
                         stateWord,
                         style: TextStyle(
