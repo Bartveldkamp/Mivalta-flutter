@@ -16,7 +16,7 @@ class ModuleCard extends StatelessWidget {
     required this.child,
   });
 
-  /// ALL-CAPS eyebrow title (e.g. "LOAD TODAY").
+  /// Title Case eyebrow title (e.g. "Load today").
   final String title;
 
   /// Leading icon.
@@ -50,12 +50,13 @@ class ModuleCard extends StatelessWidget {
               ),
               const SizedBox(width: 9),
               Text(
-                title.toUpperCase(),
+                title,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.7,
-                  color: MivaltaColors.textPrimary.withValues(alpha:0.5),
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.0,
+                  color: MivaltaColors.textPrimary.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -89,12 +90,13 @@ class MetricRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              label.toUpperCase(),
+              label,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-                color: MivaltaColors.textPrimary.withValues(alpha:0.5),
+                fontFamily: 'Inter',
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.0,
+                color: MivaltaColors.textSecondary,
               ),
             ),
           ),

@@ -137,7 +137,7 @@ class GlowHero extends StatelessWidget {
                     ),
                   if (showScore && stateWord.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 6),
+                      padding: const EdgeInsets.only(top: 12),
                       child: Text(
                         stateWord,
                         style: TextStyle(
