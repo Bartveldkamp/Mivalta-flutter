@@ -2,13 +2,13 @@ STATUS: ACTIVE
 
 # Today Screen — Build Report v7
 
-**Live build as of SHA `833361d`.**
+**Live build as of SHA `1e133d8`.**
 
 **Branch:** `feature/today-fresh-build`
 **Date:** 2026-07-01
-**Spec:** BS-001 + DR-004–DR-009 (prior passes) + **BS-002-today.md** (masthead)
+**Spec:** BS-001 + DR-004–DR-009 (prior passes) + BS-002-today.md (masthead) + **DR-012-today.md** (chip false-positive fix)
 
-**Status:** Pending merge gate. BS-002 masthead complete, DR-011 pixel confirmation provided.
+**Status:** DR-012 complete. Z8 ceiling no longer renders as decision chip.
 
 ---
 
@@ -16,10 +16,9 @@ STATUS: ACTIVE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
-| Normal | `today_833361d_normal.png` | BS-002 masthead, Score 84/Productive, glow, decision chip, cards |
-| Honest-absent | `today_833361d_honest-absent.png` | BS-002 masthead, "Learning" glow, absence cards |
+| Normal | `today_1e133d8_normal.png` | BS-002 masthead, Score 84/Productive, glow, **no chip** (Z8 suppressed), cards |
 
-Both screenshots: no system dialogs, full UI visible.
+DR-012: chip is now absent for Z8 ceiling. No system dialogs, full UI visible.
 
 ---
 
@@ -44,6 +43,22 @@ Both screenshots: no system dialogs, full UI visible.
 
 ---
 
+## DR-012 — Decision Chip False-Positive Fix (NEW)
+
+**Spec:** DR-012-today.md
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Problem | "Max power · Z8" renders as a decision — false positive | ✓ Fixed |
+| Root cause | Z8 is the ceiling (no restriction), not a cap | ✓ Identified |
+| Fix | `_isRestrictiveCap` helper: only Z1–Z7 + REST are restrictive | ✓ Implemented |
+| Render gate | `showChip = !insufficientData && (restrictiveCap \|\| hasSession)` | ✓ Updated |
+| Spacer logic | Uses same `showChip` condition for void-collapse | ✓ Fixed |
+
+**Result:** Decision chip no longer renders when zoneCap is Z8 (ceiling).
+
+---
+
 ## Prior Work (BS-001 + DR-004–DR-009)
 
 All items from v6 remain complete:
@@ -60,7 +75,7 @@ All items from v6 remain complete:
 
 | File | Changes |
 |------|---------|
-| `lib/screens/today_screen.dart` | BS-002 `_buildMasthead()` replaces `_buildTopBar()`; removed `_LogoWordmark`, `_WorkoutButton`, `_WeatherChip`; added `_buildWeatherSlot()`, `_iconForWeatherSymbol()`, `_conditionForSymbol()` |
+| `lib/screens/today_screen.dart` | BS-002 `_buildMasthead()` replaces `_buildTopBar()`; removed `_LogoWordmark`, `_WorkoutButton`, `_WeatherChip`; added `_buildWeatherSlot()`, `_iconForWeatherSymbol()`, `_conditionForSymbol()`. **DR-012:** added `_isRestrictiveCap()` helper; rewrote chip render gate + spacer to suppress Z8 ceiling. |
 
 ---
 
@@ -73,7 +88,7 @@ All items from v6 remain complete:
 | Glow hero | ✓ Real | 3-layer MivaltaGlow (340px field), centered on number |
 | Score "84" | ✓ Real | MivaltaType.hero (Inter 400/56px) |
 | State word "Productive" | ✓ Real | MivaltaType.titleM, teal #00C6A7 |
-| Decision chip | ✓ Real | "Max power · Z8" — check_circle, radius 12 |
+| Decision chip | ✓ Absent | DR-012: Z8 is ceiling, not restriction — chip suppressed |
 | "YOUR DAY" eyebrow | ✓ Real | Inter 700, 10px, uppercase |
 | Load today card | ✓ Real | "Training load 59 UL" |
 | Daily activity card | Honest-absent | Title Case, icon tile |
@@ -87,7 +102,8 @@ All items from v6 remain complete:
 
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `833361d` | `today_833361d_normal.png` | **BS-002 masthead — DR-011 pixel confirmation** | 2026-07-01 |
+| `1e133d8` | `today_1e133d8_normal.png` | **DR-012 — Z8 chip suppressed** | 2026-07-01 |
+| `833361d` | `today_833361d_normal.png` | BS-002 masthead — DR-011 pixel confirmation | 2026-07-01 |
 | `833361d` | `today_833361d_honest-absent.png` | BS-002 honest-absent | 2026-07-01 |
 | `f9b7eff` | `today_f9b7eff_*.png` | DR-009 — glow centered (D1/D2/D3) | 2026-07-01 |
 | `66addc5` | `today_66addc5_*.png` | DR-008 — hero 56, glow 340 | 2026-07-01 |
@@ -99,7 +115,7 @@ Historical screenshots in `archive/`.
 
 ## Next
 
-**Awaiting:** DR-011 re-verification from Claude Design (both confirmations now provided).
+**Completed:** DR-012 — Z8 ceiling no longer renders as decision chip.
 
 **Remaining gaps (engine domain, not UI):**
 - Josi line: engine doesn't return stateRecommendation for this athlete state
