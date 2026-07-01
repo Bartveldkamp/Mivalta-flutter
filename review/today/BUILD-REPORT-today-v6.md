@@ -2,7 +2,7 @@ STATUS: ACTIVE
 
 # Today Screen — Build Report v6
 
-**Live build as of SHA `375d07e`.**
+**Live build as of SHA `3376e69`.**
 
 **Branch:** `feature/today-fresh-build`
 **Date:** 2026-07-01
@@ -88,14 +88,14 @@ Historical screenshots are in `archive/`.
 |-----|----------|------|------|
 | `0f04b85` | `today_0f04b85_normal.png` | BS-001 complete (pre-token-pass) | 2026-07-01 |
 | `0f04b85` | `today_0f04b85_honest-absent.png` | BS-001 honest-absent | 2026-07-01 |
-| PENDING | `today_375d07e_normal.png` | DR-004 token pass | 2026-07-01 |
-| PENDING | `today_375d07e_honest-absent.png` | DR-004 honest-absent | 2026-07-01 |
-| PENDING | `today_375d07e_populated.png` | DR-004 fully-populated | 2026-07-01 |
+| PENDING | `today_3376e69_normal.png` | DR-004 token pass | 2026-07-01 |
+| PENDING | `today_3376e69_honest-absent.png` | DR-004 honest-absent | 2026-07-01 |
+| PENDING | `today_3376e69_populated.png` | DR-004 fully-populated | 2026-07-01 |
 
 ---
 
 ## Next
 
-**For Mac session:** Capture three SHA-stamped screenshots (`today_375d07e_*.png`) on simulator, place in `review/today/`.
+**For Mac session:** Capture three SHA-stamped screenshots (`today_3376e69_*.png`) on simulator, place in `review/today/`.
 
 **For Claude Design:** Review as DR-005 against updated spec.
