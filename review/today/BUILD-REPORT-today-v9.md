@@ -16,9 +16,13 @@ STATUS: ACTIVE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
-| Normal | `today_b6001e6_normal.png` | Load card: "59 / 58" + teal bar + scale + "Training load · Partial data" |
+| Normal | `today_b6001e6_normal.png` | Load card: "59 / 58" + teal bar + "Training load · Partial data" |
+| Scrolled | `today_29d4b5c_scrolled.png` | **All 4 cards visible:** Load MetricBar, Daily activity (absence), Sleep MetricBar "8h" + "100% of target", Suggested workout (absence) |
 
 **Note:** Honest-absent screenshot deferred — requires engine state without Load/Sleep data.
+
+### DR-013 witness gap closed
+- **Sleep card visible:** "8h" bold + muted unit, recovered-green bar at 100%, scale "0h" to "need · 8h", caption "100% of your target · Partial data"
 
 ---
 
@@ -101,7 +105,8 @@ Located at `lib/widgets/today/metric_bar.dart`
 
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `b6001e6` | `today_b6001e6_normal.png` | **BS-005 — MetricBar** | 2026-07-01 |
+| `29d4b5c` | `today_29d4b5c_scrolled.png` | **DR-013 — Sleep card witness** | 2026-07-01 |
+| `b6001e6` | `today_b6001e6_normal.png` | BS-005 — MetricBar | 2026-07-01 |
 | `c9f4b4b` | `today_c9f4b4b_normal.png` | BS-004 — type scale bump | 2026-07-01 |
 | `1e133d8` | `today_1e133d8_normal.png` | DR-012 — Z8 chip suppressed | 2026-07-01 |
 
