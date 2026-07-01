@@ -1,3 +1,5 @@
+STATUS: SUPERSEDED by BS-001-today.md
+
 # DR-003 — Today Screen Design Review
 
 **SHA:** `e8e44f2`

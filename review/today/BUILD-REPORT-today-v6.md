@@ -1,9 +1,19 @@
-# Today Screen — Build Report v6 (BS-001 executed)
+STATUS: ACTIVE
+
+# Today Screen — Build Report v6
+
+**Live build as of SHA `ee709d7`, executed BS-001.**
 
 **Branch:** `feature/today-fresh-build`
 **Commit:** `ee709d7`
 **Date:** 2026-07-01
-**Status:** BS-001 Steps 1-10 complete
+**Spec:** BS-001-today.md
+
+---
+
+## Screenshot
+
+**PENDING** — Mac session to capture `today_ee709d7_live.png` on simulator.
 
 ---
 
@@ -59,19 +69,16 @@
 
 ## Screenshot Log
 
+Historical screenshots are in `archive/`.
+
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `eb42c02` | `today_eb42c02_live.png` | Initial reconciliation | 2026-06-30 |
-| `a7c312a` | `today_a7c312a_live.png` | DR-002 fixes | 2026-06-30 |
-| `5e46e4e` | `today_5e46e4e_live.png` | State word wiring fix | 2026-06-30 |
-| `2b2edc9` | `today_2b2edc9_live.png` | Baseline for DR-003 | 2026-07-01 |
-| `57afe91` | `today_57afe91_live.png` | DR-003 fixes | 2026-07-01 |
-| `ee709d7` | `today_ee709d7_live.png` | **BS-001 complete** | 2026-07-01 |
+| `ee709d7` | `today_ee709d7_live.png` | **BS-001 complete** | 2026-07-01 | **PENDING** |
 
 ---
 
 ## Next
 
-**For Mac session:** Capture SHA-stamped screenshot `today_ee709d7_live.png` on simulator.
+**For Mac session:** Capture SHA-stamped screenshot `today_ee709d7_live.png` on simulator, place in `review/today/`.
 
 **For Claude Design:** Review as DR-004 against BS-001 spec.
