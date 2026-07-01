@@ -34,9 +34,14 @@ abstract final class MivaltaColors {
 
   // Okapion brand anchors (UI_UX §5.1).
   static const primaryGreen = Color(0xFF1DBF60);
+  static const brandGreen = Color(0xFF1DBF60); // alias for brand contexts
   static const tertiaryTeal = Color(0x6120B7BA); // rgba(32,183,186,0.38)
+  static const tertiaryTealSolid = Color(0xFF00C6A7); // #00C6A7 (= stateProductive)
   static const cautionYellow = Color(0xFFFFCE2E);
   static const glassFocusTeal = Color(0xFF007166);
+
+  // App surface (exact match for splash → Today seamless hand-off).
+  static const appSurface = Color(0xFF0B0B0D); // = surfaceBackground
 }
 
 /// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).
@@ -171,6 +176,28 @@ abstract final class MivaltaGlow {
   // Breathe animation: 7 seconds with standard ease.
   static const breatheDuration = Duration(seconds: 7);
   static const breatheCurve = Curves.ease;
+
+  // ─── Splash glow (BS-001-splash) ───
+  // Smaller field for splash (240 vs 340 for Today hero).
+  static const splashFieldSize = 240.0;
+
+  // Outer halo: 240×240, alpha .30, blur 14, stop 62%.
+  static const splashOuterSize = 240.0;
+  static const splashOuterAlpha = 0.30;
+  static const splashOuterBlur = 14.0;
+  static const splashOuterStop = 0.62;
+
+  // Mid halo: 172×172, alpha .42, blur 7, stop 60%.
+  static const splashMidSize = 172.0;
+  static const splashMidAlpha = 0.42;
+  static const splashMidBlur = 7.0;
+  static const splashMidStop = 0.60;
+
+  // Resting opacity for both halos.
+  static const splashRestingAlpha = 0.9;
+
+  // Breathe animation: 6 seconds, counter-phased.
+  static const splashBreatheDuration = Duration(seconds: 6);
 }
 
 /// Spacing scale tokens.
@@ -200,6 +227,10 @@ abstract final class MivaltaGlass {
 abstract final class MivaltaMotion {
   static const fast = Duration(milliseconds: 150);
   static const standard = Duration(milliseconds: 280);
+
+  // Eases from design tokens.
+  static const decelerate = Curves.easeOutCubic; // --ease-decelerate
+  static const standardEase = Curves.ease;       // --ease-standard
 }
 
 /// Map an engine readiness level string → the token colour. The engine DECIDES
