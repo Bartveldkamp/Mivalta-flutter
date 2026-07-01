@@ -59,14 +59,10 @@ class ModuleCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              // BS-001 Step 1: Title Case, Inter 13px w600, textPrimary (near-white)
+              // BS-001 Step 1: Title Case, cardTitle token (BS-004: 18px)
               Text(
                 title,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.0,
+                style: MivaltaType.cardTitle.copyWith(
                   color: MivaltaColors.textPrimary,
                 ),
               ),
@@ -102,11 +98,7 @@ class MetricRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.0,
+              style: MivaltaType.small.copyWith(
                 color: MivaltaColors.textSecondary,
               ),
             ),
@@ -116,20 +108,15 @@ class MetricRow extends StatelessWidget {
               children: [
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 19,
+                  style: MivaltaType.metric.copyWith(
                     color: MivaltaColors.textPrimary,
-                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
                 if (unit != null)
                   TextSpan(
                     text: unit,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: MivaltaColors.textPrimary.withValues(alpha:0.5),
+                    style: MivaltaType.small.copyWith(
+                      color: MivaltaColors.textPrimary.withValues(alpha: 0.5),
                     ),
                   ),
               ],

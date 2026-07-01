@@ -1,4 +1,4 @@
-STATUS: ACTIVE
+STATUS: ARCHIVED (superseded by v8)
 
 # Today Screen — Build Report v7
 

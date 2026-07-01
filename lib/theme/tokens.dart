@@ -42,6 +42,13 @@ abstract final class MivaltaColors {
 
   // App surface (exact match for splash → Today seamless hand-off).
   static const appSurface = Color(0xFF0B0B0D); // = surfaceBackground
+
+  // Sleep stage ring colors (BS-006).
+  // Draw order: Deep → REM → Light → Awake (clockwise from top).
+  static const sleepDeep = Color(0xFF2C6C8F);
+  static const sleepRem = Color(0xFF00C6A7);
+  static const sleepLight = Color(0xFF7FE3B0);
+  static const sleepAwake = Color(0xFF3A4048);
 }
 
 /// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).
@@ -80,17 +87,35 @@ abstract final class MivaltaType {
         fontFeatures: _tabularLining,
       );
 
-  /// Medium title / state word — 20px Inter w600. Colour applied by caller.
+  /// Medium title / state word — 22px Inter w600 (BS-004: 20→22).
   static TextStyle get titleM => GoogleFonts.inter(
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: FontWeight.w600,
         height: 1.20,
         letterSpacing: 0,
         fontFeatures: _tabularLining,
       );
 
-  /// Large body — 17px Inter w400.
+  /// Metric value — card numbers (UL, hours, etc.) — 32px Inter w600 (BS-004: 29→32).
+  static TextStyle get metric => GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.w600,
+        height: 1.10,
+        letterSpacing: -0.5,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Large body — 19px Inter w400 (BS-004: 17→19).
   static TextStyle get bodyL => GoogleFonts.inter(
+        fontSize: 19,
+        fontWeight: FontWeight.w400,
+        height: 1.50,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Default prose / Josi voice — 17px Inter w400 (BS-004: 15→17, iOS-native).
+  static TextStyle get body => GoogleFonts.inter(
         fontSize: 17,
         fontWeight: FontWeight.w400,
         height: 1.50,
@@ -98,36 +123,28 @@ abstract final class MivaltaType {
         fontFeatures: _tabularLining,
       );
 
-  /// Default prose / Josi voice — 15px Inter w400.
-  static TextStyle get body => GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
-        height: 1.50,
-        letterSpacing: 0,
-        fontFeatures: _tabularLining,
-      );
-
-  /// Card titles (Today module cards) — 13px Inter w600.
+  /// Card titles (Today module cards) — 18px Inter w600 (BS-004: 16→18).
+  /// Note: was 13px in Dart, Design spec had 16; bumped to 18 per spec target.
   static TextStyle get cardTitle => GoogleFonts.inter(
-        fontSize: 13,
+        fontSize: 18,
         fontWeight: FontWeight.w600,
         height: 1.30,
         letterSpacing: 0,
         fontFeatures: _tabularLining,
       );
 
-  /// Captions / metric labels — 13px Inter w500.
+  /// Captions / metric labels — 14px Inter w500 (BS-004: 13→14).
   static TextStyle get small => GoogleFonts.inter(
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
         height: 1.40,
         letterSpacing: 0,
         fontFeatures: _tabularLining,
       );
 
-  /// Section eyebrows — 11px Inter w700, uppercase applied at call site.
+  /// Section eyebrows — 12px Inter w700 (BS-004: 11→12), uppercase at call site.
   static TextStyle get label => GoogleFonts.inter(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         height: 1.20,
         letterSpacing: 1.2,
