@@ -27,13 +27,13 @@ STATUS: ACTIVE
 
 ---
 
-## Screenshots — PENDING
+## Screenshots — DONE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
 | Scrolled | `today_f2ac5ed_scrolled.png` | Load MetricBar + Sleep honest-absent ring + build stamp |
 
-**Captured:** 2026-07-02 — Load + Sleep ring + `build f2ac5ed` stamp visible.
+**Captured:** 2026-07-02 — Load + Sleep ring + `build f2ac5ed` stamp verified in frame.
 
 ---
 
@@ -104,8 +104,9 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 | D1 | Legend order Light/REM/Deep/Awake | Done @ `b4e6d45` |
 | D2 | Ring proportion (verify in render) | Not blocking |
 | D3 | BUILD-REPORT with accessor + placeholder ⚠ | This file |
-| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `b4e6d45` |
+| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `f2ac5ed` |
 | D6 | kDebugMode build stamp on Today | Done @ `b4e6d45` |
+| D7 | Re-capture screenshot (stale image fix) | Done — ring + stamp verified |
 
 ---
 
@@ -122,11 +123,11 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 ## Next
 
-**Completed:** BS-006 + DR-014 D1/D3/D4.
+**Completed:** BS-006 + DR-014 D1/D3/D4/D6/D7.
 
 **Awaiting:**
-1. Scrolled screenshot `today_b4e6d45_scrolled.png` (Load MetricBar + Sleep honest-absent ring)
-2. DR-014 close
+1. DR-014 close
+2. Merge `feature/dr014-d6-stamp` → `main`
 
 **Merge intent:** After DR-014 closes, merge `feature/bs004-typescale` → `main`.
 
