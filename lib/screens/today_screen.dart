@@ -23,6 +23,7 @@ import '../services/weather_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
+import '../widgets/today/metric_bar.dart';
 import '../widgets/today/module_card.dart';
 
 class TodayScreen extends StatefulWidget {
@@ -154,6 +155,29 @@ class _TodayScreenState extends State<TodayScreen> {
           if (todayLoad is List && todayLoad.length >= 2) {
             data.todayLoad = (todayLoad[1] as num?)?.toDouble();
           }
+        }
+      } catch (_) {
+        // Honest absence
+      }
+
+      // BS-005: ACWR for Load ceiling + band line
+      try {
+        final acwrJson = await binding.getAcwr(handle);
+        final acwr = jsonDecode(acwrJson) as Map<String, dynamic>;
+        data.acwrValue = (acwr['acwr'] as num?)?.toDouble();
+        data.loadCeiling = (acwr['chronic_load'] as num?)?.toDouble();
+        data.loadBandLine = acwr['recommendation'] as String?;
+        data.acwrZone = acwr['zone'] as String?;
+      } catch (_) {
+        // Honest absence — no ACWR yet
+      }
+
+      // BS-005: Source tier for caption
+      try {
+        final tierJson = await binding.lastObservationSourceTier(handle);
+        final tier = jsonDecode(tierJson);
+        if (tier != null && tier is String) {
+          data.sourceTierLabel = _formatSourceTier(tier);
         }
       } catch (_) {
         // Honest absence
@@ -498,14 +522,19 @@ class _TodayScreenState extends State<TodayScreen> {
               ),
 
               // Module cards (I2 fix: honest-absence pattern, never blank)
+              // BS-005: Load card with MetricBar (sharp bar + bold number)
               ModuleCard(
                 title: 'Load today',
                 icon: Icons.trending_up,
                 child: _data.todayLoad != null
-                    ? MetricRow(
-                        label: 'Training load',
-                        value: _data.todayLoad!.round().toString(),
-                        unit: ' UL',
+                    ? MetricBar(
+                        value: _data.todayLoad,
+                        max: _data.loadCeiling ?? 600, // fallback ceiling if no ACWR yet
+                        ceiling: _data.loadCeiling,
+                        color: MivaltaColors.stateProductive,
+                        scaleStart: '0',
+                        scaleEnd: _data.loadCeiling?.round().toString() ?? '600',
+                        caption: _buildLoadCaption(),
                       )
                     : const _HonestAbsence(
                         label: 'No activity recorded',
@@ -527,14 +556,12 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
+              // BS-005: Sleep card with MetricBar (sharp bar + rich duration)
               ModuleCard(
                 title: 'Sleep',
                 icon: Icons.bedtime,
                 child: _data.lastNightSleepHours != null
-                    ? MetricRow(
-                        label: 'Last night',
-                        value: _formatSleep(_data.lastNightSleepHours!),
-                      )
+                    ? _buildSleepMetricBar()
                     : const _HonestAbsence(
                         label: 'No sleep data',
                         unlock: 'Connect a health source',
@@ -587,11 +614,68 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  String _formatSleep(double hours) {
+  /// BS-005: Format source tier for MetricBar caption.
+  String _formatSourceTier(String tier) {
+    return switch (tier.toLowerCase()) {
+      'medical' => 'Medical-sourced',
+      'device' => 'Device-sourced',
+      'partial' => 'Partial data',
+      'manual' => 'Manual entry',
+      _ => tier,
+    };
+  }
+
+  /// BS-005: Build Load caption with band line + source tier.
+  String _buildLoadCaption() {
+    final parts = <String>[];
+    if (_data.loadBandLine != null && _data.loadBandLine!.isNotEmpty) {
+      parts.add(_data.loadBandLine!);
+    } else {
+      parts.add('Training load');
+    }
+    if (_data.sourceTierLabel != null) {
+      parts.add(_data.sourceTierLabel!);
+    }
+    return parts.join(' · ');
+  }
+
+  /// BS-005: Build Sleep caption with percentage + source tier.
+  String _buildSleepCaption(double sleepHours, double? needHours) {
+    final parts = <String>[];
+    if (needHours != null && needHours > 0) {
+      final pct = ((sleepHours / needHours) * 100).round();
+      parts.add('$pct% of your target');
+    } else {
+      parts.add('Last night');
+    }
+    if (_data.sourceTierLabel != null) {
+      parts.add(_data.sourceTierLabel!);
+    }
+    return parts.join(' · ');
+  }
+
+  /// BS-005: Build Sleep MetricBar with rich duration widget.
+  Widget _buildSleepMetricBar() {
+    final hours = _data.lastNightSleepHours!;
     final h = hours.floor();
     final m = ((hours - h) * 60).round();
-    if (m == 0) return '${h}h';
-    return '${h}h ${m}m';
+
+    // Sleep need defaults to 8 hours if not set
+    // Per BS-005: phone-only shows duration only — never invent a target-fill
+    // For now, we use a reasonable default; real need comes from profile
+    final needHours = _data.sleepNeedHours ?? 8.0;
+    final needMinutes = (needHours * 60).round();
+    final sleptMinutes = (hours * 60).round();
+
+    return MetricBar(
+      value: sleptMinutes.toDouble(),
+      max: needMinutes.toDouble(),
+      valueWidget: SleepDuration(hours: h, minutes: m),
+      color: MivaltaColors.stateRecovered,
+      scaleStart: '0h',
+      scaleEnd: 'need · ${needHours.floor()}h${needHours % 1 > 0 ? ' ${((needHours % 1) * 60).round()}m' : ''}',
+      caption: _buildSleepCaption(hours, needHours),
+    );
   }
 
   /// DR-012: A zone CAP is a decision only when it holds the athlete back.
