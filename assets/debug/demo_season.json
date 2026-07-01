@@ -494,7 +494,13 @@
         "value": 0.98,
         "unit": "%"
       },
-      "sleep_hours": 8.0
+      "sleep_hours": 8.0,
+      "workout": {
+        "activity_type": "ride",
+        "duration_min": 55,
+        "avg_hr": 128,
+        "max_hr": 142
+      }
     }
   ]
 }

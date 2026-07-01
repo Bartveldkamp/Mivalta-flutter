@@ -21,17 +21,26 @@ import '../rust_engine.dart';
 /// Build the raw-observation JSON envelope persisted by `writeRawObservation`
 /// BEFORE normalization (audit + replay). The shared ingest core owns this;
 /// `HealthIngestService.buildRawObservationJson` delegates here.
+///
+/// Engine schema (VaultRawObservation):
+///   date, timestamp, source, vendor, data_type, vendor_json
+/// `timestamp` is anchored to the date (noon UTC), matching the manual-entry
+/// anchoring logic in api.rs (FL-9). `vendor` = `source` (normalizer dispatch).
 String buildRawObservationJson({
   required String date,
   required String source,
   required String dataType,
   required String payload,
 }) {
+  // Anchor timestamp to noon UTC on the given date (FL-9 alignment)
+  final parsed = DateTime.parse('${date}T12:00:00Z');
   return jsonEncode({
     'date': date,
+    'timestamp': parsed.toUtc().toIso8601String(),
     'source': source,
+    'vendor': source, // same as source — the normalizer dispatch key
     'data_type': dataType,
-    'payload': payload,
+    'vendor_json': payload, // the raw vendor payload
   });
 }
 

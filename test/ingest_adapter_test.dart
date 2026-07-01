@@ -90,19 +90,20 @@ class _RecordingBinding implements RustEngineBinding {
 
 void main() {
   group('buildRawObservationJson', () {
-    test('encodes the audit envelope verbatim', () {
+    test('encodes the audit envelope with timestamp+vendor anchored to date noon UTC', () {
       final out = buildRawObservationJson(
         date: '2026-06-23',
         source: 'polar',
         dataType: 'biometric',
         payload: '{"hrv":55}',
       );
-      expect(jsonDecode(out), {
-        'date': '2026-06-23',
-        'source': 'polar',
-        'data_type': 'biometric',
-        'payload': '{"hrv":55}',
-      });
+      final decoded = jsonDecode(out) as Map<String, dynamic>;
+      expect(decoded['date'], '2026-06-23');
+      expect(decoded['timestamp'], '2026-06-23T12:00:00.000Z');
+      expect(decoded['source'], 'polar');
+      expect(decoded['vendor'], 'polar'); // same as source
+      expect(decoded['data_type'], 'biometric');
+      expect(decoded['vendor_json'], '{"hrv":55}'); // raw vendor payload
     });
   });
 
@@ -122,7 +123,7 @@ void main() {
       expect(binding.calls, ['raw', 'normalize', 'biometric', 'process', 'mark']);
 
       // Raw envelope carries the vendor payload + source.
-      expect(jsonDecode(binding.rawJson!)['payload'], '{"hrv":55}');
+      expect(jsonDecode(binding.rawJson!)['vendor_json'], '{"hrv":55}');
       expect(jsonDecode(binding.rawJson!)['source'], 'polar');
 
       // Normalize gets the RAW vendor json + the vendor id (engine dispatch).

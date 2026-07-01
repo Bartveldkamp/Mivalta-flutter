@@ -62,3 +62,4 @@ app.*.map.json
 **/key.properties
 *.jks
 *.keystore
+rust/build/

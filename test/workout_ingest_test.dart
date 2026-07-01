@@ -483,7 +483,7 @@ void main() {
       expect(decoded['date'], '2026-06-13');
       expect(decoded['source'], 'apple');
       expect(decoded['data_type'], 'biometric');
-      expect(decoded['payload'], '{"rhr":60}');
+      expect(decoded['vendor_json'], '{"rhr":60}');
     });
 
     test('handles health_connect source', () {
@@ -497,7 +497,7 @@ void main() {
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       expect(decoded['source'], 'health_connect');
-      expect(decoded['payload'], '{"hrv_rmssd":42.5}');
+      expect(decoded['vendor_json'], '{"hrv_rmssd":42.5}');
     });
 
     test('preserves complex payload as string', () {
@@ -513,11 +513,11 @@ void main() {
       final decoded = jsonDecode(json) as Map<String, dynamic>;
 
       // Payload is stored as a string, not parsed
-      expect(decoded['payload'], isA<String>());
-      expect(decoded['payload'], complexPayload);
+      expect(decoded['vendor_json'], isA<String>());
+      expect(decoded['vendor_json'], complexPayload);
 
       // The nested structure can be re-parsed
-      final payloadDecoded = jsonDecode(decoded['payload'] as String);
+      final payloadDecoded = jsonDecode(decoded['vendor_json'] as String);
       expect(payloadDecoded['rhr'], 58);
       expect(payloadDecoded['sleep']['deep_mins'], 90);
     });
@@ -546,7 +546,7 @@ void main() {
 
       // Should not throw — jsonEncode handles escaping
       final decoded = jsonDecode(json) as Map<String, dynamic>;
-      expect(decoded['payload'], payloadWithSpecialChars);
+      expect(decoded['vendor_json'], payloadWithSpecialChars);
     });
   });
 
