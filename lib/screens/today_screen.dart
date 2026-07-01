@@ -159,6 +159,31 @@ class _TodayScreenState extends State<TodayScreen> {
         // Honest absence
       }
 
+      // Zone cap (for decision chip)
+      try {
+        final zoneCapJson = await binding.zoneCapWithAdvisories(handle);
+        final zoneCapMap = jsonDecode(zoneCapJson) as Map<String, dynamic>;
+        data.zoneCap = zoneCapMap['zone'] as String?;
+      } catch (_) {
+        // Honest absence
+      }
+
+      // Workout suggestion (for module card)
+      try {
+        final workoutJson = await binding.recommendWorkout(handle);
+        final workoutMap = jsonDecode(workoutJson) as Map<String, dynamic>;
+        // Engine returns suggestions[] array; take first option (A)
+        final suggestions = workoutMap['suggestions'] as List?;
+        if (suggestions != null && suggestions.isNotEmpty) {
+          final first = suggestions.first as Map<String, dynamic>;
+          data.workoutTitle = first['title'] as String?;
+          data.durationMin = (first['duration_min'] as num?)?.toInt();
+          data.sessionZone = first['zone'] as String?;
+        }
+      } catch (_) {
+        // Honest absence
+      }
+
       setState(() {
         _data = data;
         _loading = false;
@@ -247,9 +272,13 @@ class _TodayScreenState extends State<TodayScreen> {
     return CustomScrollView(
       slivers: [
         // App bar — "Today" left-aligned (DR-001)
+        // V1: elevation 0 + scrolledUnderElevation 0 to prevent shadow artifacts
         SliverAppBar(
           backgroundColor: MivaltaColors.surfaceBackground,
           pinned: true,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           title: const Text(
             'Today',
             style: TextStyle(
@@ -497,6 +526,7 @@ class _NavItem extends StatelessWidget {
 }
 
 /// Decision chip — shows the zone cap or primary action for today.
+/// V2 (DR-004): check_circle icon (teal), radius md (12), label white.
 class _DecisionChip extends StatelessWidget {
   const _DecisionChip({
     required this.zoneCap,
@@ -516,21 +546,23 @@ class _DecisionChip extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // BS-001 Step 7 present-treatment: check_circle teal, radius md (12),
+    // bg rgba(0,198,167,.10), border rgba(0,198,167,.28), label white
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: MivaltaColors.stateProductive.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
+          color: MivaltaColors.stateProductive.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(MivaltaRadii.md), // 12
           border: Border.all(
-            color: MivaltaColors.stateProductive.withValues(alpha: 0.25),
+            color: MivaltaColors.stateProductive.withValues(alpha: 0.28),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bolt,
+            const Icon(
+              Icons.check_circle,
               color: MivaltaColors.stateProductive,
               size: 18,
             ),
@@ -541,7 +573,7 @@ class _DecisionChip extends StatelessWidget {
                 fontFamily: 'Inter',
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: MivaltaColors.stateProductive,
+                color: MivaltaColors.textPrimary, // white, not teal
               ),
             ),
           ],

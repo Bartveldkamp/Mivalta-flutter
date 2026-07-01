@@ -43,11 +43,15 @@ class GlowHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _stateColor(fatigueState);
-    // BS-001 Step 4: two-layer field 172/104px, 12px/2px blur
-    // Outer: radial-gradient(circle, rgba(color,.26), transparent 62%), blur 12px
-    // Mid: radial-gradient(circle, rgba(color,.6), rgba(color,.14) 56%, transparent 72%), blur 2px
-    const outerSize = 172.0;
-    const midSize = 104.0;
+
+    // DR-004 token pass: use MivaltaGlow for 3-layer glow with 240px field.
+    // Outer: scale 1.30, alpha 0.26, blur 14, stop 66%
+    // Mid: scale 0.92, alpha 0.40, blur 8, stop 66%
+    // Inner: scale 0.50, alpha 0.64, blur 3, stop 72%
+    const fieldSize = MivaltaGlow.fieldSize; // 240
+    final outerSize = fieldSize * MivaltaGlow.outerScale; // ~312
+    final midSize = fieldSize * MivaltaGlow.midScale; // ~221
+    final innerSize = fieldSize * MivaltaGlow.innerScale; // ~120
 
     // Display: score number when data, state word only when insufficient.
     final showScore = !insufficientData && score != null;
@@ -57,15 +61,17 @@ class GlowHero extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x4),
       child: Center(
         child: SizedBox(
-          width: outerSize,
-          height: outerSize,
+          width: fieldSize,
+          height: fieldSize,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer glow layer (172px, blur 12px)
-              // BS-001: radial-gradient(circle, rgba(color,.26), transparent 62%)
+              // Outer glow layer (scale 1.30 = ~312px, blur 14)
               ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                imageFilter: ImageFilter.blur(
+                  sigmaX: MivaltaGlow.outerBlur,
+                  sigmaY: MivaltaGlow.outerBlur,
+                ),
                 child: Container(
                   width: outerSize,
                   height: outerSize,
@@ -73,18 +79,20 @@ class GlowHero extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        color.withValues(alpha: 0.26),
+                        color.withValues(alpha: MivaltaGlow.outerAlpha),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.62],
+                      stops: [0.0, MivaltaGlow.outerStop],
                     ),
                   ),
                 ),
               ),
-              // Mid glow layer (104px, blur 2px)
-              // BS-001: radial-gradient(circle, rgba(color,.6), rgba(color,.14) 56%, transparent 72%)
+              // Mid glow layer (scale 0.92 = ~221px, blur 8)
               ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                imageFilter: ImageFilter.blur(
+                  sigmaX: MivaltaGlow.midBlur,
+                  sigmaY: MivaltaGlow.midBlur,
+                ),
                 child: Container(
                   width: midSize,
                   height: midSize,
@@ -92,55 +100,61 @@ class GlowHero extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        color.withValues(alpha: 0.60),
-                        color.withValues(alpha: 0.14),
+                        color.withValues(alpha: MivaltaGlow.midAlpha),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.56, 0.72],
+                      stops: [0.0, MivaltaGlow.midStop],
+                    ),
+                  ),
+                ),
+              ),
+              // Inner glow layer (scale 0.50 = ~120px, blur 3)
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: MivaltaGlow.innerBlur,
+                  sigmaY: MivaltaGlow.innerBlur,
+                ),
+                child: Container(
+                  width: innerSize,
+                  height: innerSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withValues(alpha: MivaltaGlow.innerAlpha),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, MivaltaGlow.innerStop],
                     ),
                   ),
                 ),
               ),
               // Number + state word (unblurred, on top)
-              // BS-001 Step 5: score w500, -0.03em; state word w600, 15px, 6px gap
+              // DR-004: hero w400 (MivaltaType.hero), state word titleM (20px w600)
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (showScore)
                     Text(
                       '$score',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 42,
-                        letterSpacing: -0.03 * 42, // tracking tight
-                        height: 1.05,
+                      style: MivaltaType.hero.copyWith(
                         color: MivaltaColors.textPrimary,
-                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     )
                   else
                     // No score — show state word as hero
                     Text(
                       stateWord,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 26,
-                        letterSpacing: -0.02 * 26,
+                      style: MivaltaType.titleM.copyWith(
                         color: color,
                       ),
                     ),
                   if (showScore && stateWord.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 6), // BS-001: 6px gap
+                      padding: const EdgeInsets.only(top: MivaltaGlow.wordGap),
                       child: Text(
                         stateWord,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          letterSpacing: 0, // BS-001: normal tracking for state word
+                        style: MivaltaType.titleM.copyWith(
                           color: color,
                         ),
                       ),
