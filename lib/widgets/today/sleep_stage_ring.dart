@@ -143,15 +143,16 @@ class SleepStageRing extends StatelessWidget {
     );
   }
 
+  // Legend order per DR-014: Light / REM / Deep / Awake (draw order unchanged).
   Widget _buildLegend() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         _LegendRow(
-          color: MivaltaColors.sleepDeep,
-          label: 'Deep',
-          minutes: stages!.deepMinutes,
+          color: MivaltaColors.sleepLight,
+          label: 'Light',
+          minutes: stages!.lightMinutes,
         ),
         const SizedBox(height: 6),
         _LegendRow(
@@ -161,9 +162,9 @@ class SleepStageRing extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         _LegendRow(
-          color: MivaltaColors.sleepLight,
-          label: 'Light',
-          minutes: stages!.lightMinutes,
+          color: MivaltaColors.sleepDeep,
+          label: 'Deep',
+          minutes: stages!.deepMinutes,
         ),
         const SizedBox(height: 6),
         _LegendRow(
