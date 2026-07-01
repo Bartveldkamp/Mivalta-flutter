@@ -31,9 +31,9 @@ STATUS: ACTIVE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
-| Scrolled | `today_b4e6d45_scrolled.png` | Load MetricBar + Sleep honest-absent ring |
+| Scrolled | `today_f2ac5ed_scrolled.png` | Load MetricBar + Sleep honest-absent ring + build stamp |
 
-**Note:** Screenshot required after hot-reload on simulator.
+**Captured:** 2026-07-02 — Load + Sleep ring + `build f2ac5ed` stamp visible.
 
 ---
 
@@ -113,7 +113,7 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `b4e6d45` | _pending_ | BS-006 + DR-014 D1/D3/D4 | 2026-07-01 |
+| `f2ac5ed` | `today_f2ac5ed_scrolled.png` | BS-006 + DR-014 D1–D6 | 2026-07-02 |
 | `29d4b5c` | `today_29d4b5c_scrolled.png` | DR-013 — Sleep card witness | 2026-07-01 |
 | `b6001e6` | `today_b6001e6_normal.png` | BS-005 — MetricBar | 2026-07-01 |
 | `c9f4b4b` | `today_c9f4b4b_normal.png` | BS-004 — type scale bump | 2026-07-01 |
