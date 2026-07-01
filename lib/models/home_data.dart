@@ -55,6 +55,13 @@ class HomeData {
   String? dataStatus;            // contextWidget['data_status']
   double? lastNightSleepHours;   // readBiometricHistory sleep_hours, last night
 
+  // BS-005: MetricBar bindings for Load/Sleep cards
+  double? loadCeiling;           // getAcwr().chronic_load (the 28-day baseline for bar)
+  double? acwrValue;             // getAcwr().acwr — the ratio, not the bar fill
+  String? loadBandLine;          // getAcwr().recommendation — "Within today's target band"
+  double? sleepNeedHours;        // profile sleep_need (target) — may be null (phone-only)
+  String? sourceTierLabel;       // lastObservationSourceTier() → "device-sourced"
+
   // Zone 3 — Context (from ContextWidget)
   String? lastWorkout;           // contextWidget['last_workout']
   List<String> reactiveAlerts = const [];    // contextWidget['reactive_alerts']
