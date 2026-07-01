@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/home_data.dart';
 import '../rust_engine.dart';
@@ -224,34 +225,142 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  /// Top bar — logo + wordmark | workout button | weather.
-  /// DR-010: replaces the old "Today" SliverAppBar.
-  Widget _buildTopBar() {
+  /// Two-tier masthead — BS-002 (Bart-approved variant 1b).
+  /// Row 1: Brand wordmark centered. Row 2: Start workout left, weather right.
+  Widget _buildMasthead() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MivaltaSpace.x4,
-        vertical: MivaltaSpace.x3,
-      ),
-      child: Row(
+      // horizontal = x4 (16) to align with module-card edges; top = 8
+      padding: const EdgeInsets.fromLTRB(MivaltaSpace.x4, 8, MivaltaSpace.x4, 0),
+      child: Column(
         children: [
-          // Logo (22×22 placeholder) + wordmark "MiValta"
-          _LogoWordmark(),
+          // ── Row 1 · brand masthead, centered ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SvgPicture.asset('assets/mivalta-logo.svg', width: 22, height: 22),
+              const SizedBox(width: 9),
+              Text(
+                'MiValta',
+                style: GoogleFonts.zenDots(
+                  fontSize: 19,
+                  letterSpacing: 0.19, // ~0.01em × 19
+                  color: MivaltaColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
 
-          const Spacer(),
+          const SizedBox(height: MivaltaSpace.x3), // 12px
 
-          // Start-workout button (36×36, bordered, green play_arrow)
-          _WorkoutButton(onTap: _onStartWorkout),
+          // ── Row 2 · action micro-row ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // left · Start workout (labeled text-button, brand green)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _startWorkout,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
+                    SizedBox(width: 6),
+                    Text(
+                      'Start workout',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: MivaltaColors.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-          const SizedBox(width: MivaltaSpace.x3),
-
-          // Weather (icon + temp, or honest-absent)
-          _WeatherChip(weather: _weather),
+              // right · weather (glanceable, text-secondary)
+              _buildWeatherSlot(),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  void _onStartWorkout() {
+  /// Weather slot — uses real data if available, placeholder otherwise.
+  /// BS-002: weather placeholder is acceptable (not engine data).
+  Widget _buildWeatherSlot() {
+    if (_weather != null) {
+      final tempC = _weather!.temperatureC.round();
+      final icon = _iconForWeatherSymbol(_weather!.symbol);
+      final condition = _conditionForSymbol(_weather!.symbol);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: MivaltaColors.textSecondary),
+          const SizedBox(width: 5),
+          Text(
+            '$condition $tempC°',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 15,
+              color: MivaltaColors.textSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+    // Placeholder weather (BS-002: acceptable for static glanceable slot)
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wb_sunny_outlined, size: 18, color: MivaltaColors.textSecondary),
+        SizedBox(width: 5),
+        Text(
+          'Sunny 18°',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 15,
+            color: MivaltaColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Map weather symbol to Material icon.
+  IconData _iconForWeatherSymbol(String symbol) {
+    return switch (symbol.toLowerCase()) {
+      'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
+      'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
+      'cloud' || 'cloud.fill' => Icons.cloud,
+      'cloud.rain' || 'cloud.rain.fill' => Icons.grain,
+      'cloud.heavyrain' || 'cloud.heavyrain.fill' => Icons.water_drop,
+      'cloud.snow' || 'cloud.snow.fill' => Icons.ac_unit,
+      'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
+      'moon' || 'moon.fill' => Icons.nightlight,
+      'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
+      _ => Icons.wb_sunny_outlined,
+    };
+  }
+
+  /// Map weather symbol to condition text.
+  String _conditionForSymbol(String symbol) {
+    return switch (symbol.toLowerCase()) {
+      'sun.max' || 'sun.max.fill' => 'Sunny',
+      'cloud.sun' || 'cloud.sun.fill' => 'Partly cloudy',
+      'cloud' || 'cloud.fill' => 'Cloudy',
+      'cloud.rain' || 'cloud.rain.fill' => 'Rain',
+      'cloud.heavyrain' || 'cloud.heavyrain.fill' => 'Heavy rain',
+      'cloud.snow' || 'cloud.snow.fill' => 'Snow',
+      'cloud.bolt' || 'cloud.bolt.fill' => 'Thunderstorm',
+      'moon' || 'moon.fill' => 'Clear',
+      'cloud.moon' || 'cloud.moon.fill' => 'Partly cloudy',
+      _ => 'Sunny',
+    };
+  }
+
+  void _startWorkout() {
     // TODO: Navigate to workout screen or show workout picker
     // For now, just a placeholder tap handler
   }
@@ -314,9 +423,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
     return CustomScrollView(
       slivers: [
-        // Top bar — DR-010: logo + wordmark | workout button | weather
+        // Masthead — BS-002: two-tier brand header (wordmark + action row)
         SliverToBoxAdapter(
-          child: _buildTopBar(),
+          child: _buildMasthead(),
         ),
 
         // Content
@@ -324,7 +433,8 @@ class _TodayScreenState extends State<TodayScreen> {
           padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              const SizedBox(height: MivaltaSpace.x2),
+              // BS-002 Step 3: 24px from masthead micro-row to glow hero
+              const SizedBox(height: MivaltaSpace.x5), // 24px
 
               // Glow hero
               GlowHero(
@@ -632,116 +742,3 @@ class _DecisionChip extends StatelessWidget {
   }
 }
 
-/// Logo (22×22) + wordmark "MiValta" in Zen Dots.
-/// DR-010: appears in the top bar, left-aligned.
-class _LogoWordmark extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Logo — 22×22 SVG, no tint (renders its own teal)
-        SvgPicture.asset(
-          'assets/mivalta-logo.svg',
-          width: 22,
-          height: 22,
-        ),
-        const SizedBox(width: 8),
-        // Wordmark — Zen Dots (brand font)
-        Text(
-          'MiValta',
-          style: MivaltaType.brandWordmark(fontSize: 18),
-        ),
-      ],
-    );
-  }
-}
-
-/// Start-workout button — 36×36, bordered, green play_arrow.
-/// DR-010: appears in top bar.
-class _WorkoutButton extends StatelessWidget {
-  const _WorkoutButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(MivaltaRadii.sm), // 8
-          border: Border.all(
-            color: MivaltaColors.stateProductive.withValues(alpha: 0.4),
-          ),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.play_arrow,
-            color: MivaltaColors.stateProductive,
-            size: 20,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Weather chip — icon + temp, or nothing (honest-absent) if no data.
-/// DR-010: appears in top bar, right side.
-class _WeatherChip extends StatelessWidget {
-  const _WeatherChip({required this.weather});
-
-  final WeatherReport? weather;
-
-  /// Map Apple SF Symbol names to Material icons.
-  IconData _iconForSymbol(String symbol) {
-    // Basic mapping — covers common conditions
-    return switch (symbol.toLowerCase()) {
-      'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
-      'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
-      'cloud' || 'cloud.fill' => Icons.cloud,
-      'cloud.rain' || 'cloud.rain.fill' => Icons.grain,
-      'cloud.heavyrain' || 'cloud.heavyrain.fill' => Icons.water_drop,
-      'cloud.snow' || 'cloud.snow.fill' => Icons.ac_unit,
-      'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
-      'moon' || 'moon.fill' => Icons.nightlight,
-      'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
-      _ => Icons.wb_sunny, // fallback
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Honest-absent: show nothing if no weather data
-    if (weather == null) {
-      return const SizedBox(width: 36); // placeholder width for layout
-    }
-
-    final tempC = weather!.temperatureC.round();
-    final icon = _iconForSymbol(weather!.symbol);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: MivaltaColors.textSecondary,
-          size: 18,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$tempC°',
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: MivaltaColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
