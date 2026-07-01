@@ -19,9 +19,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
-  if (kDebugMode) {
-    await _seedDemoIfNeeded();
-  }
+  // TEMPORARILY DISABLED for honest-absent screenshot
+  // if (kDebugMode) {
+  //   await _seedDemoIfNeeded();
+  // }
 
   runApp(const MivaltaApp());
 }
