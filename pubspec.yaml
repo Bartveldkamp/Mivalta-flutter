@@ -71,6 +71,9 @@ dependencies:
   # BS-001: Typography tokens — Inter (main) + Zen Dots (brand wordmark).
   google_fonts: ^6.2.1
 
+  # DR-010: SVG rendering for brand logo in top bar.
+  flutter_svg: ^2.0.10
+
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
 
@@ -157,6 +160,8 @@ flutter:
     # DEBUG-ONLY simulated-athlete season (replayed through the real ingest
     # path by lib/debug/demo_seeder.dart; only ever invoked under kDebugMode).
     - assets/debug/demo_season.json
+    # DR-010: Brand logo for top bar.
+    - assets/mivalta-logo.svg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

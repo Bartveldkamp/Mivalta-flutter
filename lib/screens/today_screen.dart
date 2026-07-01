@@ -13,10 +13,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/home_data.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
+import '../services/weather_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
@@ -32,11 +35,20 @@ class TodayScreen extends StatefulWidget {
 class _TodayScreenState extends State<TodayScreen> {
   HomeData _data = HomeData();
   bool _loading = true;
+  WeatherReport? _weather;
 
   @override
   void initState() {
     super.initState();
     _initEngine();
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    final report = await WeatherService.fetch();
+    if (mounted) {
+      setState(() => _weather = report);
+    }
   }
 
   Future<void> _initEngine() async {
@@ -213,6 +225,146 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  /// Two-tier masthead — BS-002 (Bart-approved variant 1b).
+  /// Row 1: Brand wordmark centered. Row 2: Start workout left, weather right.
+  Widget _buildMasthead() {
+    return Padding(
+      // horizontal = x4 (16) to align with module-card edges; top = 8
+      padding: const EdgeInsets.fromLTRB(MivaltaSpace.x4, 8, MivaltaSpace.x4, 0),
+      child: Column(
+        children: [
+          // ── Row 1 · brand masthead, centered ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SvgPicture.asset('assets/mivalta-logo.svg', width: 22, height: 22),
+              const SizedBox(width: 9),
+              Text(
+                'MiValta',
+                style: GoogleFonts.zenDots(
+                  fontSize: 19,
+                  letterSpacing: 0.19, // ~0.01em × 19
+                  color: MivaltaColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: MivaltaSpace.x3), // 12px
+
+          // ── Row 2 · action micro-row ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // left · Start workout (labeled text-button, brand green)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _startWorkout,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
+                    SizedBox(width: 6),
+                    Text(
+                      'Start workout',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: MivaltaColors.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // right · weather (glanceable, text-secondary)
+              _buildWeatherSlot(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Weather slot — uses real data if available, placeholder otherwise.
+  /// BS-002: weather placeholder is acceptable (not engine data).
+  Widget _buildWeatherSlot() {
+    if (_weather != null) {
+      final tempC = _weather!.temperatureC.round();
+      final icon = _iconForWeatherSymbol(_weather!.symbol);
+      final condition = _conditionForSymbol(_weather!.symbol);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: MivaltaColors.textSecondary),
+          const SizedBox(width: 5),
+          Text(
+            '$condition $tempC°',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 15,
+              color: MivaltaColors.textSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+    // Placeholder weather (BS-002: acceptable for static glanceable slot)
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wb_sunny_outlined, size: 18, color: MivaltaColors.textSecondary),
+        SizedBox(width: 5),
+        Text(
+          'Sunny 18°',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 15,
+            color: MivaltaColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Map weather symbol to Material icon.
+  IconData _iconForWeatherSymbol(String symbol) {
+    return switch (symbol.toLowerCase()) {
+      'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
+      'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
+      'cloud' || 'cloud.fill' => Icons.cloud,
+      'cloud.rain' || 'cloud.rain.fill' => Icons.grain,
+      'cloud.heavyrain' || 'cloud.heavyrain.fill' => Icons.water_drop,
+      'cloud.snow' || 'cloud.snow.fill' => Icons.ac_unit,
+      'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
+      'moon' || 'moon.fill' => Icons.nightlight,
+      'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
+      _ => Icons.wb_sunny_outlined,
+    };
+  }
+
+  /// Map weather symbol to condition text.
+  String _conditionForSymbol(String symbol) {
+    return switch (symbol.toLowerCase()) {
+      'sun.max' || 'sun.max.fill' => 'Sunny',
+      'cloud.sun' || 'cloud.sun.fill' => 'Partly cloudy',
+      'cloud' || 'cloud.fill' => 'Cloudy',
+      'cloud.rain' || 'cloud.rain.fill' => 'Rain',
+      'cloud.heavyrain' || 'cloud.heavyrain.fill' => 'Heavy rain',
+      'cloud.snow' || 'cloud.snow.fill' => 'Snow',
+      'cloud.bolt' || 'cloud.bolt.fill' => 'Thunderstorm',
+      'moon' || 'moon.fill' => 'Clear',
+      'cloud.moon' || 'cloud.moon.fill' => 'Partly cloudy',
+      _ => 'Sunny',
+    };
+  }
+
+  void _startWorkout() {
+    // TODO: Navigate to workout screen or show workout picker
+    // For now, just a placeholder tap handler
+  }
+
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -271,25 +423,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
     return CustomScrollView(
       slivers: [
-        // App bar — "Today" left-aligned (DR-001)
-        // V1: elevation 0 + scrolledUnderElevation 0 to prevent shadow artifacts
-        SliverAppBar(
-          backgroundColor: MivaltaColors.surfaceBackground,
-          pinned: true,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-          title: const Text(
-            'Today',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w700,
-              fontSize: 24,
-              letterSpacing: -0.02 * 24,
-              color: MivaltaColors.textPrimary,
-            ),
-          ),
-          centerTitle: false, // DR-001: left-aligned
+        // Masthead — BS-002: two-tier brand header (wordmark + action row)
+        SliverToBoxAdapter(
+          child: _buildMasthead(),
         ),
 
         // Content
@@ -297,7 +433,8 @@ class _TodayScreenState extends State<TodayScreen> {
           padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              const SizedBox(height: MivaltaSpace.x2),
+              // BS-002 Step 3: 24px from masthead micro-row to glow hero
+              const SizedBox(height: MivaltaSpace.x5), // 24px
 
               // Glow hero
               GlowHero(
@@ -314,24 +451,36 @@ class _TodayScreenState extends State<TodayScreen> {
               ],
 
               // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
-              // Not wired: zoneCap and sessionZone are null, so chip collapses
-              if ((_data.zoneCap != null && _data.zoneCap!.isNotEmpty) ||
-                  (_data.sessionZone != null && _data.sessionZone!.isNotEmpty)) ...[
-                const SizedBox(height: MivaltaSpace.x3),
-                _DecisionChip(
-                  zoneCap: _data.zoneCap,
-                  sessionZone: _data.sessionZone,
-                ),
-              ],
+              // DR-012: Z8 is the ceiling (no restriction) — must NOT render.
+              // Only restrictive caps (Z1–Z7, REST) or a session zone warrant the chip.
+              () {
+                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
+                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                return showChip
+                    ? Column(
+                        children: [
+                          const SizedBox(height: MivaltaSpace.x3),
+                          _DecisionChip(
+                            zoneCap: restrictiveCap ? _data.zoneCap : null,
+                            sessionZone: _data.sessionZone,
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink();
+              }(),
 
               // Spacing before cards: reduced when Josi + chip both absent
-              SizedBox(
-                height: (_data.stateRecommendation == null || _data.stateRecommendation!.isEmpty) &&
-                        (_data.zoneCap == null || _data.zoneCap!.isEmpty) &&
-                        (_data.sessionZone == null || _data.sessionZone!.isEmpty)
-                    ? MivaltaSpace.x2 // ~8px collapsed
-                    : MivaltaSpace.x4,
-              ),
+              // DR-012: use same restrictive-cap logic for spacer
+              () {
+                final hasJosi = _data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty;
+                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
+                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                return SizedBox(
+                  height: (!hasJosi && !showChip) ? MivaltaSpace.x2 : MivaltaSpace.x4,
+                );
+              }(),
 
               // "Your day" section eyebrow
               Padding(
@@ -443,6 +592,16 @@ class _TodayScreenState extends State<TodayScreen> {
     final m = ((hours - h) * 60).round();
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
+  }
+
+  /// DR-012: A zone CAP is a decision only when it holds the athlete back.
+  /// Z8 is the ceiling (no restriction) — it must NOT render as a decision chip.
+  bool _isRestrictiveCap(String? zone) {
+    if (zone == null || zone.isEmpty) return false;
+    return switch (zone.toUpperCase()) {
+      'Z1' || 'Z2' || 'Z3' || 'Z4' || 'Z5' || 'Z6' || 'Z7' || 'REST' => true,
+      _ => false, // Z8 (ceiling) + unknown → collapse
+    };
   }
 }
 
@@ -604,3 +763,4 @@ class _DecisionChip extends StatelessWidget {
     );
   }
 }
+
