@@ -151,15 +151,17 @@ abstract final class MivaltaGlow {
   static const outerBlur = 14.0;
   static const outerStop = 0.66;
 
-  // Mid halo: scale 0.92, alpha 0.40, blur sigma 8, gradient stop 66%.
-  static const midScale = 0.92;
-  static const midAlpha = 0.40;
+  // Mid halo: scale 1.0, alpha 0.48, blur sigma 8, gradient stop 66%.
+  // DR-009: raised from 0.92/0.40 to hold the number tighter.
+  static const midScale = 1.0;
+  static const midAlpha = 0.48;
   static const midBlur = 8.0;
   static const midStop = 0.66;
 
-  // Inner halo: scale 0.50, alpha 0.64, blur sigma 3, gradient stop 72%.
-  static const innerScale = 0.50;
-  static const innerAlpha = 0.64;
+  // Inner halo: scale 0.60, alpha 0.70, blur sigma 3, gradient stop 72%.
+  // DR-009: raised from 0.50/0.64 to hold the number tighter.
+  static const innerScale = 0.60;
+  static const innerAlpha = 0.70;
   static const innerBlur = 3.0;
   static const innerStop = 0.72;
 
