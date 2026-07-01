@@ -614,13 +614,14 @@ class _TodayScreenState extends State<TodayScreen> {
               const SizedBox(height: MivaltaSpace.x6),
 
               // D6: kDebugMode-only build stamp for screenshot SHA verification.
+              // Pass SHA at build time: --dart-define=BUILD_SHA=$(git rev-parse --short HEAD)
               // Compiled out of release builds.
               if (kDebugMode)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
                     child: Text(
-                      'build 805a851',
+                      'build ${const String.fromEnvironment('BUILD_SHA', defaultValue: 'dev')}',
                       style: MivaltaType.small.copyWith(
                         fontSize: 10,
                         color: MivaltaColors.textMuted,
