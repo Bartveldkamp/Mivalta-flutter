@@ -1,16 +1,12 @@
-// MiValta Design Tokens — PLACEHOLDER values, swap for Okapion's final tokens
-// in this ONE file during the design pass; screens never change.
-//
-// Names are semantic (by meaning, not value) so call sites stay stable.
-// See docs/THEME_TOKENS_CONTRACT.md for the full contract.
-//
-// LOCKED tokens (SourceTier colours, F1 copy) stay in their canonical files:
-// - lib/theme/source_tier.dart
-// - lib/copy/f1.dart
+// MiValta Design Tokens — SOURCE OF TRUTH for the app's visual system.
+// Screens/widgets read these by name; they never hard-code colours/type/space.
+// Okapion's Figma is a DONOR (values were lifted from it), not a live authority.
+// LOCKED tokens stay in their canonical files: lib/theme/source_tier.dart, lib/copy/f1.dart.
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Central color tokens. PLACEHOLDER values — swap for Okapion's final tokens.
+/// Central color tokens.
 abstract final class MivaltaColors {
   // Surfaces — dark-first, four luminance levels (UI_UX §5.3).
   static const surfaceBackground = Color(0xFF0B0B0D);
@@ -41,6 +37,138 @@ abstract final class MivaltaColors {
   static const tertiaryTeal = Color(0x6120B7BA); // rgba(32,183,186,0.38)
   static const cautionYellow = Color(0xFFFFCE2E);
   static const glassFocusTeal = Color(0xFF007166);
+}
+
+/// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).
+/// All numeric displays use tabular + lining figures for alignment.
+abstract final class MivaltaType {
+  // Font feature tags for numeric alignment.
+  static const _tabularLining = [
+    FontFeature.tabularFigures(),
+    FontFeature.liningFigures(),
+  ];
+
+  /// Hero readiness number — 88px Inter w400.
+  static TextStyle get hero => GoogleFonts.inter(
+        fontSize: 88,
+        fontWeight: FontWeight.w400,
+        height: 1.05,
+        letterSpacing: -1.76,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Display headlines — 40px Inter w600.
+  static TextStyle get display => GoogleFonts.inter(
+        fontSize: 40,
+        fontWeight: FontWeight.w600,
+        height: 1.05,
+        letterSpacing: -0.80,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Large title — 24px Inter w700.
+  static TextStyle get titleL => GoogleFonts.inter(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        height: 1.20,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Medium title / state word — 20px Inter w600. Colour applied by caller.
+  static TextStyle get titleM => GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.20,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Large body — 17px Inter w400.
+  static TextStyle get bodyL => GoogleFonts.inter(
+        fontSize: 17,
+        fontWeight: FontWeight.w400,
+        height: 1.50,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Default prose / Josi voice — 15px Inter w400.
+  static TextStyle get body => GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w400,
+        height: 1.50,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Card titles (Today module cards) — 13px Inter w600.
+  static TextStyle get cardTitle => GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        height: 1.30,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Captions / metric labels — 13px Inter w500.
+  static TextStyle get small => GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        height: 1.40,
+        letterSpacing: 0,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Section eyebrows — 11px Inter w700, uppercase applied at call site.
+  static TextStyle get label => GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        height: 1.20,
+        letterSpacing: 1.2,
+        fontFeatures: _tabularLining,
+      );
+
+  /// Brand wordmark — Zen Dots. Use sparingly (hero brand only).
+  static TextStyle brandWordmark({double fontSize = 24}) => GoogleFonts.zenDots(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w400,
+      );
+}
+
+/// StateField glow composition constants — lifted from design component.
+/// The field colour comes from fatigueStateColor(state).
+// composition constants defined; exact Flutter blur/gradient render is
+// DR-verified, not guaranteed pixel-equal to CSS.
+abstract final class MivaltaGlow {
+  // Field geometry.
+  static const fieldSize = 240.0;
+  static const calibratingScale = 0.62;
+
+  // Outer halo: scale 1.30, alpha 0.26, blur sigma 14, gradient stop 66%.
+  static const outerScale = 1.30;
+  static const outerAlpha = 0.26;
+  static const outerBlur = 14.0;
+  static const outerStop = 0.66;
+
+  // Mid halo: scale 0.92, alpha 0.40, blur sigma 8, gradient stop 66%.
+  static const midScale = 0.92;
+  static const midAlpha = 0.40;
+  static const midBlur = 8.0;
+  static const midStop = 0.66;
+
+  // Inner halo: scale 0.50, alpha 0.64, blur sigma 3, gradient stop 72%.
+  static const innerScale = 0.50;
+  static const innerAlpha = 0.64;
+  static const innerBlur = 3.0;
+  static const innerStop = 0.72;
+
+  // Typography gap between number and state word.
+  static const wordGap = 8.0;
+
+  // Breathe animation: 7 seconds with standard ease.
+  static const breatheDuration = Duration(seconds: 7);
+  static const breatheCurve = Curves.ease;
 }
 
 /// Spacing scale tokens.
@@ -124,11 +252,16 @@ ThemeData mivaltaDarkTheme() {
   final base = ThemeData.from(colorScheme: scheme, useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: MivaltaColors.surfaceBackground,
-    // TextTheme roles (display = the readiness number/state; body = prose).
-    // Placeholder: refine faces/sizes in the design pass (§5.4).
-    textTheme: base.textTheme.apply(
-      bodyColor: MivaltaColors.textPrimary,
-      displayColor: MivaltaColors.textPrimary,
+    textTheme: base.textTheme.copyWith(
+      displayLarge: MivaltaType.hero,
+      displayMedium: MivaltaType.display,
+      headlineLarge: MivaltaType.titleL,
+      headlineMedium: MivaltaType.titleM,
+      bodyLarge: MivaltaType.bodyL,
+      bodyMedium: MivaltaType.body,
+      labelLarge: MivaltaType.cardTitle,
+      labelMedium: MivaltaType.small,
+      labelSmall: MivaltaType.label,
     ),
   );
 }

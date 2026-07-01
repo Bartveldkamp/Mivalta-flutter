@@ -68,6 +68,9 @@ dependencies:
   # unit-tested headless with a fake. Live pairing is device-lab verified.
   flutter_blue_plus: ^1.32.12
 
+  # BS-001: Typography tokens — Inter (main) + Zen Dots (brand wordmark).
+  google_fonts: ^6.2.1
+
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
 
