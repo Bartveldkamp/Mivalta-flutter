@@ -451,24 +451,36 @@ class _TodayScreenState extends State<TodayScreen> {
               ],
 
               // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
-              // Not wired: zoneCap and sessionZone are null, so chip collapses
-              if ((_data.zoneCap != null && _data.zoneCap!.isNotEmpty) ||
-                  (_data.sessionZone != null && _data.sessionZone!.isNotEmpty)) ...[
-                const SizedBox(height: MivaltaSpace.x3),
-                _DecisionChip(
-                  zoneCap: _data.zoneCap,
-                  sessionZone: _data.sessionZone,
-                ),
-              ],
+              // DR-012: Z8 is the ceiling (no restriction) — must NOT render.
+              // Only restrictive caps (Z1–Z7, REST) or a session zone warrant the chip.
+              () {
+                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
+                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                return showChip
+                    ? Column(
+                        children: [
+                          const SizedBox(height: MivaltaSpace.x3),
+                          _DecisionChip(
+                            zoneCap: restrictiveCap ? _data.zoneCap : null,
+                            sessionZone: _data.sessionZone,
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink();
+              }(),
 
               // Spacing before cards: reduced when Josi + chip both absent
-              SizedBox(
-                height: (_data.stateRecommendation == null || _data.stateRecommendation!.isEmpty) &&
-                        (_data.zoneCap == null || _data.zoneCap!.isEmpty) &&
-                        (_data.sessionZone == null || _data.sessionZone!.isEmpty)
-                    ? MivaltaSpace.x2 // ~8px collapsed
-                    : MivaltaSpace.x4,
-              ),
+              // DR-012: use same restrictive-cap logic for spacer
+              () {
+                final hasJosi = _data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty;
+                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
+                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                return SizedBox(
+                  height: (!hasJosi && !showChip) ? MivaltaSpace.x2 : MivaltaSpace.x4,
+                );
+              }(),
 
               // "Your day" section eyebrow
               Padding(
@@ -580,6 +592,16 @@ class _TodayScreenState extends State<TodayScreen> {
     final m = ((hours - h) * 60).round();
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
+  }
+
+  /// DR-012: A zone CAP is a decision only when it holds the athlete back.
+  /// Z8 is the ceiling (no restriction) — it must NOT render as a decision chip.
+  bool _isRestrictiveCap(String? zone) {
+    if (zone == null || zone.isEmpty) return false;
+    return switch (zone.toUpperCase()) {
+      'Z1' || 'Z2' || 'Z3' || 'Z4' || 'Z5' || 'Z6' || 'Z7' || 'REST' => true,
+      _ => false, // Z8 (ceiling) + unknown → collapse
+    };
   }
 }
 
