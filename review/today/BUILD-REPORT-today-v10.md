@@ -1,11 +1,11 @@
 STATUS: ACTIVE
-**Spec:** BS-006-sleep-ring.md · **SHA:** `c942d60` · **placeholder ⚠**
+**Spec:** BS-006-sleep-ring.md · **SHA:** `27f2b54` · **placeholder ⚠**
 
 # Today Screen — Build Report v10
 
-**Live build as of SHA `c942d60`.**
+**Live build as of SHA `27f2b54`.**
 
-**Branch:** `feature/bs004-typescale` (contains BS-004, BS-005, BS-006)
+**Branch:** `main` (merged BS-004, BS-005, BS-006)
 **Date:** 2026-07-01
 **Spec:** BS-006-sleep-ring.md — SleepStageRing for Sleep card
 
@@ -29,7 +29,7 @@ STATUS: ACTIVE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
-| Scrolled | `today_c942d60_scrolled.png` | Load MetricBar + Sleep honest-absent ring |
+| Scrolled | `today_27f2b54_scrolled.png` | Load MetricBar + Sleep honest-absent ring |
 
 **Note:** Screenshot required after hot-reload on simulator.
 
@@ -99,10 +99,11 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 | ID | Fix | Status |
 |----|-----|--------|
-| D1 | Legend order Light/REM/Deep/Awake | Done @ `c942d60` |
+| D1 | Legend order Light/REM/Deep/Awake | Done @ `27f2b54` |
 | D2 | Ring proportion (verify in render) | Not blocking |
 | D3 | BUILD-REPORT with accessor + placeholder ⚠ | This file |
-| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `c942d60` |
+| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `27f2b54` |
+| D6 | kDebugMode build stamp on Today | Done @ `27f2b54` |
 
 ---
 
@@ -110,7 +111,7 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `c942d60` | _pending_ | BS-006 + DR-014 D1/D3/D4 | 2026-07-01 |
+| `27f2b54` | _pending_ | BS-006 + DR-014 D1/D3/D4 | 2026-07-01 |
 | `29d4b5c` | `today_29d4b5c_scrolled.png` | DR-013 — Sleep card witness | 2026-07-01 |
 | `b6001e6` | `today_b6001e6_normal.png` | BS-005 — MetricBar | 2026-07-01 |
 | `c9f4b4b` | `today_c9f4b4b_normal.png` | BS-004 — type scale bump | 2026-07-01 |
@@ -122,7 +123,7 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 **Completed:** BS-006 + DR-014 D1/D3/D4.
 
 **Awaiting:**
-1. Scrolled screenshot `today_c942d60_scrolled.png` (Load MetricBar + Sleep honest-absent ring)
+1. Scrolled screenshot `today_27f2b54_scrolled.png` (Load MetricBar + Sleep honest-absent ring)
 2. DR-014 close
 
 **Merge intent:** After DR-014 closes, merge `feature/bs004-typescale` → `main`.
