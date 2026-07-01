@@ -17,6 +17,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../models/home_data.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
+import '../services/weather_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
@@ -32,11 +33,20 @@ class TodayScreen extends StatefulWidget {
 class _TodayScreenState extends State<TodayScreen> {
   HomeData _data = HomeData();
   bool _loading = true;
+  WeatherReport? _weather;
 
   @override
   void initState() {
     super.initState();
     _initEngine();
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    final report = await WeatherService.fetch();
+    if (mounted) {
+      setState(() => _weather = report);
+    }
   }
 
   Future<void> _initEngine() async {
@@ -213,6 +223,38 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
+  /// Top bar — logo + wordmark | workout button | weather.
+  /// DR-010: replaces the old "Today" SliverAppBar.
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: MivaltaSpace.x4,
+        vertical: MivaltaSpace.x3,
+      ),
+      child: Row(
+        children: [
+          // Logo (22×22 placeholder) + wordmark "MiValta"
+          _LogoWordmark(),
+
+          const Spacer(),
+
+          // Start-workout button (36×36, bordered, green play_arrow)
+          _WorkoutButton(onTap: _onStartWorkout),
+
+          const SizedBox(width: MivaltaSpace.x3),
+
+          // Weather (icon + temp, or honest-absent)
+          _WeatherChip(weather: _weather),
+        ],
+      ),
+    );
+  }
+
+  void _onStartWorkout() {
+    // TODO: Navigate to workout screen or show workout picker
+    // For now, just a placeholder tap handler
+  }
+
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -271,25 +313,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
     return CustomScrollView(
       slivers: [
-        // App bar — "Today" left-aligned (DR-001)
-        // V1: elevation 0 + scrolledUnderElevation 0 to prevent shadow artifacts
-        SliverAppBar(
-          backgroundColor: MivaltaColors.surfaceBackground,
-          pinned: true,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-          title: const Text(
-            'Today',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.w700,
-              fontSize: 24,
-              letterSpacing: -0.02 * 24,
-              color: MivaltaColors.textPrimary,
-            ),
-          ),
-          centerTitle: false, // DR-001: left-aligned
+        // Top bar — DR-010: logo + wordmark | workout button | weather
+        SliverToBoxAdapter(
+          child: _buildTopBar(),
         ),
 
         // Content
@@ -601,6 +627,134 @@ class _DecisionChip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Logo (22×22) + wordmark "MiValta" in Zen Dots.
+/// DR-010: appears in the top bar, left-aligned.
+class _LogoWordmark extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Logo placeholder — 22×22 green circle until brand asset lands
+        Container(
+          width: 22,
+          height: 22,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: MivaltaColors.stateProductive,
+          ),
+          child: const Center(
+            child: Text(
+              'M',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: MivaltaColors.surfaceBackground,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Wordmark — Zen Dots (brand font)
+        Text(
+          'MiValta',
+          style: MivaltaType.brandWordmark(fontSize: 18),
+        ),
+      ],
+    );
+  }
+}
+
+/// Start-workout button — 36×36, bordered, green play_arrow.
+/// DR-010: appears in top bar.
+class _WorkoutButton extends StatelessWidget {
+  const _WorkoutButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(MivaltaRadii.sm), // 8
+          border: Border.all(
+            color: MivaltaColors.stateProductive.withValues(alpha: 0.4),
+          ),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.play_arrow,
+            color: MivaltaColors.stateProductive,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Weather chip — icon + temp, or nothing (honest-absent) if no data.
+/// DR-010: appears in top bar, right side.
+class _WeatherChip extends StatelessWidget {
+  const _WeatherChip({required this.weather});
+
+  final WeatherReport? weather;
+
+  /// Map Apple SF Symbol names to Material icons.
+  IconData _iconForSymbol(String symbol) {
+    // Basic mapping — covers common conditions
+    return switch (symbol.toLowerCase()) {
+      'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
+      'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
+      'cloud' || 'cloud.fill' => Icons.cloud,
+      'cloud.rain' || 'cloud.rain.fill' => Icons.grain,
+      'cloud.heavyrain' || 'cloud.heavyrain.fill' => Icons.water_drop,
+      'cloud.snow' || 'cloud.snow.fill' => Icons.ac_unit,
+      'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
+      'moon' || 'moon.fill' => Icons.nightlight,
+      'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
+      _ => Icons.wb_sunny, // fallback
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Honest-absent: show nothing if no weather data
+    if (weather == null) {
+      return const SizedBox(width: 36); // placeholder width for layout
+    }
+
+    final tempC = weather!.temperatureC.round();
+    final icon = _iconForSymbol(weather!.symbol);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          color: MivaltaColors.textSecondary,
+          size: 18,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$tempC°',
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: MivaltaColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }
