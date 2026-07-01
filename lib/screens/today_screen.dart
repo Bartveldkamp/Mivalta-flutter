@@ -527,6 +527,8 @@ class _NavItem extends StatelessWidget {
 
 /// Decision chip — shows the zone cap or primary action for today.
 /// V2 (DR-004): check_circle icon (teal), radius md (12), label white.
+/// DR-005: Zone codes must be paired with level names, never bare.
+/// Until engine provides level names (HANDOFF §8.2), we map to readable phrases.
 class _DecisionChip extends StatelessWidget {
   const _DecisionChip({
     required this.zoneCap,
@@ -536,15 +538,35 @@ class _DecisionChip extends StatelessWidget {
   final String? zoneCap;
   final String? sessionZone;
 
+  /// Map zone codes to human-readable decision phrases.
+  /// DR-005: bare "Z8" breaks zone-never-bare rule; show descriptive text.
+  String _formatZoneDecision(String zone) {
+    // Zone-to-level mapping per training zones model
+    return switch (zone.toUpperCase()) {
+      'Z8' => 'Max power · Z8',
+      'Z7' => 'Anaerobic · Z7',
+      'Z6' => 'VO₂max · Z6',
+      'Z5' => 'Threshold · Z5',
+      'Z4' => 'Tempo · Z4',
+      'Z3' => 'Endurance · Z3',
+      'Z2' => 'Easy · Z2',
+      'Z1' => 'Recovery · Z1',
+      'REST' => 'Rest day',
+      _ => zone, // Fallback for unknown zones
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     // Show zone cap if available, otherwise session zone, otherwise honest absence
-    final chipText = zoneCap ?? sessionZone;
+    final rawZone = zoneCap ?? sessionZone;
 
-    if (chipText == null || chipText.isEmpty) {
+    if (rawZone == null || rawZone.isEmpty) {
       // No chip to show — honest absence
       return const SizedBox.shrink();
     }
+
+    final chipText = _formatZoneDecision(rawZone);
 
     // BS-001 Step 7 present-treatment: check_circle teal, radius md (12),
     // bg rgba(0,198,167,.10), border rgba(0,198,167,.28), label white

@@ -141,8 +141,8 @@ abstract final class MivaltaType {
 // composition constants defined; exact Flutter blur/gradient render is
 // DR-verified, not guaranteed pixel-equal to CSS.
 abstract final class MivaltaGlow {
-  // Field geometry.
-  static const fieldSize = 240.0;
+  // Field geometry — DR-005: increased from 240 to 280 for fuller breathing field.
+  static const fieldSize = 280.0;
   static const calibratingScale = 0.62;
 
   // Outer halo: scale 1.30, alpha 0.26, blur sigma 14, gradient stop 66%.

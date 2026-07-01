@@ -3,6 +3,9 @@
 // Per Today-Modular.html: radial gradient glow, state number in Inter
 // (NOT Zen Dots — that's brand/wordmark only), state word below.
 // The engine DECIDES the state; this only renders it.
+//
+// DR-005: Responsive sizing — scales down for smaller screens (SE) and
+// landscape orientation. Base fieldSize is 280; see MivaltaGlow tokens.
 
 import 'dart:ui';
 
@@ -43,15 +46,24 @@ class GlowHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _stateColor(fatigueState);
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
 
-    // DR-004 token pass: use MivaltaGlow for 3-layer glow with 240px field.
-    // Outer: scale 1.30, alpha 0.26, blur 14, stop 66%
-    // Mid: scale 0.92, alpha 0.40, blur 8, stop 66%
-    // Inner: scale 0.50, alpha 0.64, blur 3, stop 72%
-    const fieldSize = MivaltaGlow.fieldSize; // 240
-    final outerSize = fieldSize * MivaltaGlow.outerScale; // ~312
-    final midSize = fieldSize * MivaltaGlow.midScale; // ~221
-    final innerSize = fieldSize * MivaltaGlow.innerScale; // ~120
+    // DR-005: Responsive glow sizing
+    // - Base fieldSize is 280 (DR-005 bump from 240)
+    // - Scale down for smaller screens (SE ~375px) to avoid overflow
+    // - Landscape: use smaller field to fit in available height
+    final baseFieldSize = MivaltaGlow.fieldSize; // 280
+    final fieldSize = isLandscape
+        ? baseFieldSize * 0.7 // Landscape: 70% of base
+        : screenWidth < 390
+            ? baseFieldSize * 0.85 // Small screens (SE): 85% = ~238
+            : baseFieldSize; // Pro/Pro Max: full 280
+
+    final outerSize = fieldSize * MivaltaGlow.outerScale;
+    final midSize = fieldSize * MivaltaGlow.midScale;
+    final innerSize = fieldSize * MivaltaGlow.innerScale;
 
     // Display: score number when data, state word only when insufficient.
     final showScore = !insufficientData && score != null;
