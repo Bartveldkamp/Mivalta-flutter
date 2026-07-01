@@ -17,6 +17,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/home_data.dart';
+import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
@@ -205,17 +206,21 @@ class _TodayScreenState extends State<TodayScreen> {
         // Honest absence
       }
 
-      // Workout suggestion (for module card)
+      // Workout suggestion (for module card).
+      // The engine (AdvisorEngine::recommend_workout) serializes a BARE JSON
+      // ARRAY of WorkoutOptionData — NOT an object with a `suggestions` wrapper
+      // (the previous code cast the array to a Map, which threw and left the card
+      // permanently on "No suggestion yet"). Parse option A (first) through the
+      // shared, tested WorkoutOption model — duration lives in
+      // `structure.total_minutes`, there is no top-level `duration_min`.
       try {
         final workoutJson = await binding.recommendWorkout(handle);
-        final workoutMap = jsonDecode(workoutJson) as Map<String, dynamic>;
-        // Engine returns suggestions[] array; take first option (A)
-        final suggestions = workoutMap['suggestions'] as List?;
-        if (suggestions != null && suggestions.isNotEmpty) {
-          final first = suggestions.first as Map<String, dynamic>;
-          data.workoutTitle = first['title'] as String?;
-          data.durationMin = (first['duration_min'] as num?)?.toInt();
-          data.sessionZone = first['zone'] as String?;
+        final decoded = jsonDecode(workoutJson);
+        if (decoded is List && decoded.isNotEmpty) {
+          final option = WorkoutOption.fromJson(decoded.first);
+          data.workoutTitle = option.title;
+          data.sessionZone = option.zone;
+          data.durationMin = option.durationMin;
         }
       } catch (_) {
         // Honest absence
