@@ -2,7 +2,7 @@ STATUS: ACTIVE
 
 # Today Screen — Build Report v6
 
-**Live build as of SHA `d73aee1`.**
+**Live build as of SHA `0433243`.**
 
 **Branch:** `feature/today-fresh-build`
 **Date:** 2026-07-01
@@ -120,8 +120,8 @@ Historical screenshots are in `archive/`.
 | `3376e69` | `today_3376e69_normal.png` | DR-004 token pass — populated | 2026-07-01 |
 | `3376e69` | `today_3376e69_honest-absent.png` | DR-004 honest-absent | 2026-07-01 |
 | `3376e69` | `today_3376e69_populated.png` | DR-004 populated (same as normal) | 2026-07-01 |
-| `d73aee1` | `today_dr005_normal.png` | DR-005 handoff — glow 280, chip level-name | 2026-07-01 |
-| `d73aee1` | `today_dr005_honest-absent.png` | DR-005 honest-absent | 2026-07-01 |
+| `0433243` | `today_dr005_normal.png` | DR-005 handoff — glow 280, chip level-name | 2026-07-01 |
+| `0433243` | `today_dr005_honest-absent.png` | DR-005 honest-absent | 2026-07-01 |
 
 ---
 
