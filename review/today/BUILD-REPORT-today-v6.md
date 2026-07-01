@@ -10,12 +10,28 @@ STATUS: ACTIVE
 
 ---
 
-## Screenshot
+## Screenshots — CAPTURED
 
-**PENDING** — Mac session to capture three states:
-- `today_<SHA>_normal.png` (seeded, real data)
-- `today_<SHA>_honest-absent.png` (no profile/data)
-- `today_<SHA>_populated.png` (fully-populated: Load + Josi + suggestion)
+Three states captured at SHA `3376e69`:
+
+| State | Filename | What renders |
+|-------|----------|--------------|
+| Normal | `today_3376e69_normal.png` | Score 84/Productive, Z8 chip, Load 59 UL, Sleep 8h |
+| Honest-absent | `today_3376e69_honest-absent.png` | Glow only (no score), all cards show absence treatments |
+| Populated | `today_3376e69_populated.png` | Same as normal — score + chip + Load + Sleep |
+
+### Key finding: Fuller seed works for chip + Load
+
+**Before DR-004:** normal ≈ honest-absent (both showed only score + sleep)
+**After DR-004:** normal shows:
+- Score 84 / Productive (populated ✓)
+- Decision chip "Z8" with check_circle icon (populated ✓)
+- Load today: 59 UL (populated ✓)
+- Sleep: 8h (populated ✓)
+
+**Still absent (engine returns null for this state):**
+- Josi line (stateRecommendation empty)
+- Suggested workout (recommendWorkout returns null/empty suggestions)
 
 ---
 
@@ -43,6 +59,7 @@ STATUS: ACTIVE
 | V2 | Decision chip present treatment (check_circle, radius md, white label) | ✓ Done |
 | Token pass | MivaltaGlow 3-layer + MivaltaType.hero in glow_hero.dart | ✓ Done |
 | Fuller seed | Workout at offset 0, zone cap + workout suggestion wiring | ✓ Done |
+| Screenshots | Three states captured | ✓ Done |
 
 ### Trailing Flags (deferred)
 - Combined Load & Sleep card — not this pass
@@ -67,15 +84,15 @@ STATUS: ACTIVE
 |---------|--------|--------|
 | "Today" title | ✓ Real | Left-aligned, Inter 700, elevation 0 |
 | Glow hero | ✓ Real | 3-layer MivaltaGlow (240px field, blur 14/8/3) |
-| Score "78" | ✓ Real | MivaltaType.hero (Inter 400/72) |
-| State word "Recovered" | ✓ Real | MivaltaType.titleM (20px w600), mint #7FE3B0, 8px below score |
+| Score "84" | ✓ Real | MivaltaType.hero (Inter 400/72) |
+| State word "Productive" | ✓ Real | MivaltaType.titleM (20px w600), teal #00C6A7, 8px below score |
 | "YOUR DAY" eyebrow | ✓ Real | Inter 700, 10px, 1.1px tracking, uppercase |
-| Josi line | Pending | Wired to state_recommendation; collapses when absent |
-| Decision chip | Pending | Wired to zoneCap; present treatment: check_circle, radius 12, white label |
-| Load today card | Pending | Wired to readDailyLoads; workout at offset 0 in seed |
+| Josi line | Honest-absent | Wired to state_recommendation; engine returns null |
+| Decision chip | ✓ Real | "Z8" — check_circle, radius 12, white label |
+| Load today card | ✓ Real | "Training load 59 UL" |
 | Daily activity card | Honest-absent | Title Case, icon tile |
 | Sleep card | ✓ Real | "8h", Title Case, icon tile |
-| Suggested workout card | Pending | Wired to recommendWorkout; A option title + duration |
+| Suggested workout card | Honest-absent | Wired but engine returns null |
 | Bottom nav | ✓ Real | Today (active) / Journey / You |
 
 ---
@@ -88,14 +105,16 @@ Historical screenshots are in `archive/`.
 |-----|----------|------|------|
 | `0f04b85` | `today_0f04b85_normal.png` | BS-001 complete (pre-token-pass) | 2026-07-01 |
 | `0f04b85` | `today_0f04b85_honest-absent.png` | BS-001 honest-absent | 2026-07-01 |
-| PENDING | `today_3376e69_normal.png` | DR-004 token pass | 2026-07-01 |
-| PENDING | `today_3376e69_honest-absent.png` | DR-004 honest-absent | 2026-07-01 |
-| PENDING | `today_3376e69_populated.png` | DR-004 fully-populated | 2026-07-01 |
+| `3376e69` | `today_3376e69_normal.png` | DR-004 token pass — populated | 2026-07-01 |
+| `3376e69` | `today_3376e69_honest-absent.png` | DR-004 honest-absent | 2026-07-01 |
+| `3376e69` | `today_3376e69_populated.png` | DR-004 populated (same as normal) | 2026-07-01 |
 
 ---
 
 ## Next
 
-**For Mac session:** Capture three SHA-stamped screenshots (`today_3376e69_*.png`) on simulator, place in `review/today/`.
+**For Claude Design:** Review as DR-005 against this build.
 
-**For Claude Design:** Review as DR-005 against updated spec.
+**Remaining gaps (engine domain, not UI):**
+- Josi line: engine doesn't return stateRecommendation for this athlete state
+- Suggested workout: engine doesn't return suggestions for this athlete state
