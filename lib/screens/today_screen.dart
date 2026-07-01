@@ -688,7 +688,7 @@ class _TodayScreenState extends State<TodayScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
                     child: Text(
-                      'build 27f2b54',
+                      'build c8367df',
                       style: MivaltaType.small.copyWith(
                         fontSize: 10,
                         color: MivaltaColors.textMuted,
