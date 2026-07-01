@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/home_data.dart';
 import '../rust_engine.dart';
@@ -639,25 +640,11 @@ class _LogoWordmark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Logo placeholder — 22×22 green circle until brand asset lands
-        Container(
+        // Logo — 22×22 SVG, no tint (renders its own teal)
+        SvgPicture.asset(
+          'assets/mivalta-logo.svg',
           width: 22,
           height: 22,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: MivaltaColors.stateProductive,
-          ),
-          child: const Center(
-            child: Text(
-              'M',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: MivaltaColors.surfaceBackground,
-              ),
-            ),
-          ),
         ),
         const SizedBox(width: 8),
         // Wordmark — Zen Dots (brand font)
