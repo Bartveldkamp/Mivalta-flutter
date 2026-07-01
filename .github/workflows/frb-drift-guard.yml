@@ -44,7 +44,15 @@ jobs:
           KEY: ${{ secrets.RUST_ENGINE_DEPLOY_KEY }}
         run: |
           if [ -z "$KEY" ]; then
-            echo "::notice::RUST_ENGINE_DEPLOY_KEY not set — skipping drift-guard (need the SSH deploy key to resolve the private gatc-ffi dep for codegen)."
+            # M5: fail-closed on the protected branch. A missing key on push:main
+            # means the guard cannot run — it must NOT report green having checked
+            # nothing (the silent skip-green hole). On pull_request (incl. forks
+            # without the secret) keep the documented skip-with-notice.
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "::error::RUST_ENGINE_DEPLOY_KEY not set on a push to a protected branch — the drift-guard cannot run and must not pass silently. Set the SSH deploy key in repo secrets."
+              exit 1
+            fi
+            echo "::notice::RUST_ENGINE_DEPLOY_KEY not set — skipping drift-guard on this event (need the SSH deploy key to resolve the private gatc-ffi dep for codegen)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
