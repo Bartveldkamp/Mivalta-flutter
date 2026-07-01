@@ -4,8 +4,8 @@
 // (NOT Zen Dots — that's brand/wordmark only), state word below.
 // The engine DECIDES the state; this only renders it.
 //
-// DR-005: Responsive sizing — scales down for smaller screens (SE) and
-// landscape orientation. Base fieldSize is 280; see MivaltaGlow tokens.
+// DR-008: Responsive sizing — scales down for smaller screens (SE).
+// Beta is portrait-only; landscape deferred post-beta. Base fieldSize is 340.
 
 import 'dart:ui';
 
