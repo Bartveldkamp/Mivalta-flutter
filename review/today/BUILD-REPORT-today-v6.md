@@ -2,11 +2,13 @@ STATUS: ACTIVE
 
 # Today Screen — Build Report v6
 
-**Live build as of SHA `0433243`.**
+**Live build as of SHA `f9b7eff`.**
 
 **Branch:** `feature/today-fresh-build`
 **Date:** 2026-07-01
-**Spec:** BS-001-today.md + DR-004 token pass + DR-005 handoff
+**Spec:** BS-001-today.md + DR-004 token pass + DR-005 handoff + DR-008/DR-009 glow fixes
+
+**Status:** Design-matched for beta (portrait). All DR-008 deltas closed.
 
 ---
 
@@ -72,6 +74,18 @@ Two states captured for DR-005/DR-006:
 | Chip level-name | Zone codes → human text (Z8 → "Max power · Z8") | ✓ Done |
 | Screenshots | Two states captured | ✓ Done |
 
+### DR-008 / DR-009 Final Pass
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Portrait-only | Lock iOS + Android to portrait (beta); landscape deferred | ✓ Done (66addc5) |
+| Hero-56 | Hero font 60px → 56px | ✓ Done |
+| Glow-340 | fieldSize 300 → 340 | ✓ Done |
+| D1 | Center glow core on number (offset -16px when state word present) | ✓ Done (f9b7eff) |
+| D2 | Raise inner/mid halo scale/alpha (inner 0.60/0.70, mid 1.0/0.48) | ✓ Done |
+| D3 | Honest "Learning" label for absent-hero | ✓ Done |
+| Screenshots | Three states captured at f9b7eff | ✓ Done |
+
 ### Trailing Flags (deferred)
 - Combined Load & Sleep card — not this pass
 - Collapsible cards — not this pass
@@ -122,12 +136,20 @@ Historical screenshots are in `archive/`.
 | `3376e69` | `today_3376e69_populated.png` | DR-004 populated (same as normal) | 2026-07-01 |
 | `0433243` | `today_dr005_normal.png` | DR-005 handoff — glow 280, chip level-name | 2026-07-01 |
 | `0433243` | `today_dr005_honest-absent.png` | DR-005 honest-absent | 2026-07-01 |
+| `66addc5` | `today_66addc5_normal.png` | DR-008 — hero 56, glow 340, portrait-only | 2026-07-01 |
+| `66addc5` | `today_66addc5_populated.png` | DR-008 populated | 2026-07-01 |
+| `66addc5` | `today_66addc5_honest-absent.png` | DR-008 honest-absent | 2026-07-01 |
+| `f9b7eff` | `today_f9b7eff_normal.png` | DR-009 — glow centered on number (D1/D2/D3) | 2026-07-01 |
+| `f9b7eff` | `today_f9b7eff_populated.png` | DR-009 populated | 2026-07-01 |
+| `f9b7eff` | `today_f9b7eff_honest-absent.png` | DR-009 — "Learning" label (D3) | 2026-07-01 |
 
 ---
 
 ## Next
 
-**For Claude Design:** Review as DR-006 against this build.
+**Today is design-matched for beta (portrait).** DR-008/DR-009 deltas closed.
+
+**Hold for:** Bart's merge gate, then start Advisor (BS-002).
 
 **Remaining gaps (engine domain, not UI):**
 - Josi line: engine doesn't return stateRecommendation for this athlete state
