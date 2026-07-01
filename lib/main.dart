@@ -11,7 +11,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'canonical_seed.dart';
 import 'debug/demo_seeder.dart';
 import 'rust_engine.dart';
-import 'screens/today_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/profile_service.dart';
 import 'theme/tokens.dart';
 
@@ -62,7 +62,7 @@ class MivaltaApp extends StatelessWidget {
       title: 'MiValta',
       theme: mivaltaDarkTheme(),
       debugShowCheckedModeBanner: false,
-      home: const TodayScreen(),
+      home: const SplashScreen(),
     );
   }
 }
