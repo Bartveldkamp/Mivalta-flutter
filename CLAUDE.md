@@ -116,12 +116,21 @@ Play Asset Delivery with a clean-slate architecture.
 
 **MVP-1** — see `docs/MVP1_BUILD_BRIEF.md` for the full scope.
 
+> **UI-rebuild status (2026-07, post #123 strip):** the UI layer was stripped to
+> a blank shell (#123) and is being rebuilt fresh (#124–#126…). **Current wired
+> screens: `splash_screen` → `today_screen` only.** The fuller screen set and the
+> `debug_swatch_exerciser` helper described below are the pre-strip / target
+> state, not what's on `main` today; several `rust_engine.dart` facade methods and
+> `models/` files are intentionally retained for the rebuild and are transiently
+> without a call site until their screen returns. The kDebugMode-only helper that
+> DOES exist is `lib/debug/demo_seeder.dart` (not a screen).
+
 - Engine DECIDES, Flutter DISPLAYS. No thresholds/math/fallback in Dart.
-- Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
+- Default home: **`TodayScreen`** (reached via `SplashScreen`; the pre-strip
+  `ReadinessScreen` was removed in #123).
 - Headline: `readiness_indicator()` — the 4-axis readiness blend.
 - Continuity: persisted ViterbiEngine state survives app restarts.
-- LLM layer: fully deferred (V10.1 spike purged in PR-J). The only
-  kDebugMode-only screen is `debug_swatch_exerciser.dart`.
+- LLM layer: fully deferred (V10.1 spike purged in PR-J).
 - No cloud round-trips; on-device only.
 
 ### Engine pin
@@ -160,17 +169,17 @@ jumped the pin straight to `b7264cb`/v2.29, and #117 consumed the voice surface.
 ```
 Mivalta-flutter/
 ├── lib/                # Dart source
-│   ├── main.dart       # Entry point — first-launch detection → OnboardingScreen or ReadinessScreen
-│   ├── rust_engine.dart # Dart facade over FRB bindings
-│   ├── screens/        # 13 UI screens: app_shell (Today/Plan/You nav shell) +
-│   │                   # journey_screen + you_screen, readiness_screen,
-│   │                   # readiness_detail_screen, advisor_screen, explore_screen,
-│   │                   # manual_entry_screen, onboarding_screen, sensor_check_screen,
-│   │                   # settings_screen, workout_detail_page, and
-│   │                   # debug_swatch_exerciser (kDebugMode-only)
+│   ├── main.dart       # Entry point → SplashScreen → TodayScreen
+│   ├── rust_engine.dart # Dart facade over FRB bindings (full engine surface;
+│   │                   #   some methods await their rebuilt screen — see UI-rebuild note)
+│   ├── screens/        # CURRENT (post-#123 strip): splash_screen, today_screen.
+│   │                   #   Target set (journey/you/readiness_detail/advisor/explore/
+│   │                   #   manual_entry/onboarding/sensor_check/settings/workout_detail)
+│   │                   #   is being rebuilt fresh.
 │   ├── models/         # Display-side parse models (activity, power curve, trends, …)
-│   ├── widgets/        # readiness_ring + analytics/ chart cards
-│   ├── services/       # health_ingest, profile_service
+│   ├── widgets/        # widgets/today/ (glow_hero, josi_card, module_card)
+│   ├── debug/          # demo_seeder.dart (kDebugMode-only seed helper)
+│   ├── services/       # health_ingest, ingest_adapter, profile_service, weather, …
 │   ├── copy/           # Locked copy strings (F1)
 │   ├── theme/          # LOCKED design tokens (SourceTier swatches)
 │   └── src/rust/       # Auto-generated FRB bindings (do not edit)
@@ -248,11 +257,11 @@ flutter run                                              # Launch on attached de
 
 ## Key Entry Points
 
-- `lib/main.dart` — production entry point → ReadinessScreen.
-- `lib/screens/readiness_screen.dart` — three-zone PULL home, driven by engine.
+- `lib/main.dart` — production entry point → `SplashScreen` → `TodayScreen`.
+- `lib/screens/today_screen.dart` — the current home, driven by engine.
 - `lib/rust_engine.dart` — Dart facade over FRB bindings.
 - `rust/src/api.rs` — shim bindings (one gatc_ffi::* call per fn).
-- `lib/screens/debug_swatch_exerciser.dart` — kDebugMode-only SourceTier tester.
+- `lib/debug/demo_seeder.dart` — kDebugMode-only synthetic-season seed helper.
 
 ## Commit Convention
 
