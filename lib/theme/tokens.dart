@@ -42,6 +42,13 @@ abstract final class MivaltaColors {
 
   // App surface (exact match for splash → Today seamless hand-off).
   static const appSurface = Color(0xFF0B0B0D); // = surfaceBackground
+
+  // Sleep stage ring colors (BS-006).
+  // Draw order: Deep → REM → Light → Awake (clockwise from top).
+  static const sleepDeep = Color(0xFF2C6C8F);
+  static const sleepRem = Color(0xFF00C6A7);
+  static const sleepLight = Color(0xFF7FE3B0);
+  static const sleepAwake = Color(0xFF3A4048);
 }
 
 /// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).

@@ -25,6 +25,7 @@ import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
 import '../widgets/today/metric_bar.dart';
 import '../widgets/today/module_card.dart';
+import '../widgets/today/sleep_stage_ring.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -556,16 +557,19 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
-              // BS-005: Sleep card with MetricBar (sharp bar + rich duration)
+              // BS-006: Sleep stage ring (full 360° donut sliced into stages).
+              // Engine doesn't provide per-stage minutes yet — placeholder ⚠
+              // Shows honest-absent variant until stage data is available.
               ModuleCard(
                 title: 'Sleep',
                 icon: Icons.bedtime,
-                child: _data.lastNightSleepHours != null
-                    ? _buildSleepMetricBar()
-                    : const _HonestAbsence(
-                        label: 'No sleep data',
-                        unlock: 'Connect a health source',
-                      ),
+                child: SleepStageRing(
+                  stages: null, // Engine lacks stage data — honest-absent
+                  needMinutes: _data.sleepNeedHours != null
+                      ? (_data.sleepNeedHours! * 60).round()
+                      : null,
+                  sourceTier: _data.sourceTierLabel,
+                ),
               ),
 
               const SizedBox(height: MivaltaSpace.x3),
@@ -637,45 +641,6 @@ class _TodayScreenState extends State<TodayScreen> {
       parts.add(_data.sourceTierLabel!);
     }
     return parts.join(' · ');
-  }
-
-  /// BS-005: Build Sleep caption with percentage + source tier.
-  String _buildSleepCaption(double sleepHours, double? needHours) {
-    final parts = <String>[];
-    if (needHours != null && needHours > 0) {
-      final pct = ((sleepHours / needHours) * 100).round();
-      parts.add('$pct% of your target');
-    } else {
-      parts.add('Last night');
-    }
-    if (_data.sourceTierLabel != null) {
-      parts.add(_data.sourceTierLabel!);
-    }
-    return parts.join(' · ');
-  }
-
-  /// BS-005: Build Sleep MetricBar with rich duration widget.
-  Widget _buildSleepMetricBar() {
-    final hours = _data.lastNightSleepHours!;
-    final h = hours.floor();
-    final m = ((hours - h) * 60).round();
-
-    // Sleep need defaults to 8 hours if not set
-    // Per BS-005: phone-only shows duration only — never invent a target-fill
-    // For now, we use a reasonable default; real need comes from profile
-    final needHours = _data.sleepNeedHours ?? 8.0;
-    final needMinutes = (needHours * 60).round();
-    final sleptMinutes = (hours * 60).round();
-
-    return MetricBar(
-      value: sleptMinutes.toDouble(),
-      max: needMinutes.toDouble(),
-      valueWidget: SleepDuration(hours: h, minutes: m),
-      color: MivaltaColors.stateRecovered,
-      scaleStart: '0h',
-      scaleEnd: 'need · ${needHours.floor()}h${needHours % 1 > 0 ? ' ${((needHours % 1) * 60).round()}m' : ''}',
-      caption: _buildSleepCaption(hours, needHours),
-    );
   }
 
   /// DR-012: A zone CAP is a decision only when it holds the athlete back.
