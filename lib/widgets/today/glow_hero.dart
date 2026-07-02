@@ -121,6 +121,8 @@ class _GlowHeroState extends State<GlowHero> with SingleTickerProviderStateMixin
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
+    // B1: Respect reduced motion — instant colour swap, no animation
+    final reducedMotion = mediaQuery.disableAnimations;
 
     // DR-005: Responsive glow sizing
     // - Base fieldSize is 280 (DR-005 bump from 240)
@@ -158,10 +160,13 @@ class _GlowHeroState extends State<GlowHero> with SingleTickerProviderStateMixin
           width: fieldSize,
           height: fieldSize,
           // BS-007 M1: Animate glow colour with AnimatedBuilder
+          // B1: When reducedMotion, use target colour instantly (no animation)
           child: AnimatedBuilder(
             animation: _colorAnimation,
             builder: (context, child) {
-              final color = _colorAnimation.value ?? _targetColor;
+              final color = reducedMotion
+                  ? _targetColor
+                  : (_colorAnimation.value ?? _targetColor);
               return Stack(
                 alignment: Alignment.center,
                 children: [

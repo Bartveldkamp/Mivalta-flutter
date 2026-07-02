@@ -47,12 +47,22 @@ that grounds Josi's recommendation in transparent, traceable facts.
   - On `fatigueState` change: crossfades glow from old → new colour
   - State word colour animates with the glow
   - Supports mid-animation state changes (restarts from current value)
+  - **B1 fix:** respects `disableAnimations` — instant colour swap when reduced motion
 
 ### Step 4: Motion tokens
 
 - **`tokens.dart`** — added to `MivaltaMotion`:
   - `stateShift = Duration(milliseconds: 800)` — glow crossfade duration
   - `beatStagger = Duration(milliseconds: 270)` — stagger base (÷3 = 90ms per row)
+
+---
+
+## DR-016 fixes (v2)
+
+| Bug | Fix |
+|-----|-----|
+| **B1** | GlowHero now checks `MediaQuery.disableAnimations`; when true, uses `_targetColor` directly (instant swap, no 800ms tween) |
+| **B2** | Why? unfold label: unknown key → `'—'` (was `label ?? (key ?? '—')`, now `label ?? '—'` — never exposes raw engine key) |
 
 ---
 
@@ -63,9 +73,9 @@ that grounds Josi's recommendation in transparent, traceable facts.
 | `lib/theme/tokens.dart` | +7 lines — `stateShift`, `beatStagger` tokens |
 | `lib/screens/today_screen.dart` | +42 lines — realizeAdvisorLine call, WhyUnfold wiring |
 | `lib/widgets/today/josi_card.dart` | Rewritten — RealizedLine + fallback + safety lines |
-| `lib/widgets/today/glow_hero.dart` | +162 lines — StatefulWidget + M1 crossfade |
+| `lib/widgets/today/glow_hero.dart` | +165 lines — StatefulWidget + M1 crossfade + B1 fix |
 | `lib/copy/today_facts_labels.dart` | +23 lines — contributionLabel() + absent copy |
-| `lib/widgets/today/why_unfold.dart` | NEW (336 lines) — Why? unfold widget |
+| `lib/widgets/today/why_unfold.dart` | NEW (337 lines) — Why? unfold widget + B2 fix |
 
 ---
 
@@ -95,12 +105,12 @@ flutter test:    233 tests passed
 
 ---
 
-## Next steps
+## Next steps (Mac-side)
 
-- Mac-side: `flutter run` on simulator, trigger state change (demo seeder or
-  manual engine state), verify glow crossfade motion.
-- Screenshot capture for DR-015 witness if design-review gate applies.
+- `flutter run` on simulator with demo seeder data
+- Capture 3 SHA-stamped shots: verdict / why-open / verdict-absent
+- Verify glow crossfade motion (with and without reduced motion)
 
 ---
 
-**SHA:** `623cc14`
+**SHA:** *(to be updated after commit)*
