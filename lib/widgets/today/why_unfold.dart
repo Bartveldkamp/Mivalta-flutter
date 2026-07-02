@@ -272,9 +272,10 @@ class _ContributionRowState extends State<_ContributionRow>
         child: Row(
           children: [
             // Label (left)
+            // B2: Unknown key → '—', never the raw engine key
             Expanded(
               child: Text(
-                label ?? (key ?? '—'),
+                label ?? '—',
                 style: MivaltaType.small.copyWith(
                   color: isAbsent ? MivaltaColors.textMuted : MivaltaColors.textSecondary,
                 ),
