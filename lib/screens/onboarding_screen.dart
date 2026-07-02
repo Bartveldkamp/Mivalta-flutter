@@ -62,9 +62,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _isSubmitting = false;
   String? _error;
 
+  // C6: Persisted athlete_id (generated once, never changes).
+  // Initialized eagerly, then overwritten from prefs if one exists.
+  String _athleteId = const Uuid().v4();
+
   @override
   void initState() {
     super.initState();
+    _loadPersistedAthleteId();
     _entranceController = AnimationController(
       vsync: this,
       duration: MivaltaMotion.standard, // 280ms
@@ -76,6 +81,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       CurvedAnimation(parent: _entranceController, curve: MivaltaMotion.decelerate),
     );
     _entranceController.forward();
+  }
+
+  /// C6: Load persisted athlete_id or keep the generated one.
+  Future<void> _loadPersistedAthleteId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('athlete_id');
+    if (stored != null) {
+      _athleteId = stored;
+    }
+    // If no stored ID, we use the one generated at field init and persist it at submit.
   }
 
   @override
@@ -190,10 +205,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Map aim → goal_type (engine vocabulary).
   /// Per v2: aim→goal_type via knowledge-card vocab.
+  /// C5 fix: engine only accepts 'performance' | 'general_fitness' (no 'balanced').
   String _aimToGoalType(String? aim) => switch (aim) {
         'perform' => 'performance', // competitive goals
         'healthy' => 'general_fitness', // health/wellness
-        'both' => 'balanced', // mixed
+        'both' => 'general_fitness', // C5: engine has no 'balanced', use general_fitness
         _ => 'general_fitness', // fallback
       };
 
@@ -202,7 +218,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Optional: threshold_hr, ftp_watts, threshold_pace_sec_km.
   Map<String, dynamic> _buildInputsJson() {
     final inputs = <String, dynamic>{
-      'athlete_id': const Uuid().v4(),
+      'athlete_id': _athleteId, // C6: persisted UUID
       'age': _ageBandToInt(_ageBand),
       'sex': _sex, // 'male' | 'female' (non-nullable)
       'level': _level,
@@ -225,9 +241,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return inputs;
   }
 
-  /// Save app-side prefs (detail, gear) locally.
+  /// Save app-side prefs (detail, gear, athlete_id) locally.
   Future<void> _saveLocalPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    // C6: Persist athlete_id (in case it wasn't stored from a previous session)
+    await prefs.setString('athlete_id', _athleteId);
     if (_detail != null) {
       await prefs.setString('onboarding_detail', _detail!);
     }

@@ -8,7 +8,17 @@ STATUS: ACTIVE
 **Date:** 2026-07-02
 **Spec:** BS-002-onboarding.md v2
 
-**Status:** v2 implementation complete — engine contract aligned.
+**Status:** v2 implementation complete — engine contract aligned + C5/C6 fixes.
+
+---
+
+## DR-017 Fixes Applied
+
+| Fix | Issue | Resolution |
+|-----|-------|------------|
+| **C4** | Engine contract mismatch | v2 rewrite (single sport, level/hours/years, no null sex) |
+| **C5** | `balanced` not in engine enum | `aim: "both"` → `goal_type: "general_fitness"` |
+| **C6** | athlete_id regenerated each time | Persisted via SharedPreferences (generated once) |
 
 ---
 
@@ -61,12 +71,12 @@ STATUS: ACTIVE
 **v2 contract fields:**
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `athlete_id` | string | ✓ | UUID v4, generated fresh |
+| `athlete_id` | string | ✓ | UUID v4, persisted (C6: generated once, never changes) |
 | `age` | int | ✓ | Band → representative int (25/35/45/55/65) |
 | `sex` | string | ✓ | `"male"` \| `"female"` (non-nullable) |
 | `level` | string | ✓ | `beginner` \| `novice` \| `intermediate` \| `advanced` |
 | `sport` | string | ✓ | SINGULAR: `"cycling"` \| `"running"` |
-| `goal_type` | string | ✓ | `performance` \| `general_fitness` \| `balanced` |
+| `goal_type` | string | ✓ | `performance` \| `general_fitness` (C5: no 'balanced') |
 | `weekly_hours` | double | ✓ | Hours/week (3.0/5.0/8.5/12.0) |
 | `training_years` | int | ✓ | Years of experience (0/2/6/12) |
 | `ftp_watts` | int? | cycling | null = "I don't know" |
@@ -75,7 +85,7 @@ STATUS: ACTIVE
 **Key mappings:**
 - `aim: "perform"` → `goal_type: "performance"`
 - `aim: "healthy"` → `goal_type: "general_fitness"`
-- `aim: "both"` → `goal_type: "balanced"`
+- `aim: "both"` → `goal_type: "general_fitness"` (C5: engine has no 'balanced')
 - `experience: "<1"` → `training_years: 0`
 - `experience: "1-3"` → `training_years: 2`
 - `experience: "3-10"` → `training_years: 6`
