@@ -18,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
+import 'onboarding_screen.dart';
 import 'today_screen.dart';
 
 /// The splash screen — vault open + model warm, then hand-off.
@@ -277,11 +278,8 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _handOff() async {
     // Routing logic (Step 7):
     // - No auth session → Auth (stub — Auth screen not yet built)
-    // - Authed, no profile → Onboarding (stub — Onboarding screen not yet built)
+    // - Authed, no profile → Onboarding
     // - Authed + profile → Today
-    //
-    // STUB: Auth + Onboarding screens don't exist yet. For now, always route
-    // to Today regardless of profile state. Flag in build report.
 
     final hasProfile = await ProfileService.hasPersistedProfile();
 
@@ -291,10 +289,11 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) {
-          // STUB: Always Today until Auth/Onboarding exist
-          // When built: !hasAuth → AuthScreen, hasAuth && !hasProfile → OnboardingScreen
-          // ignore: unused_local_variable — hasProfile will be used when Auth/Onboarding land
-          debugPrint('Splash hand-off: hasProfile=$hasProfile (routing stub)');
+          debugPrint('Splash hand-off: hasProfile=$hasProfile');
+          // TODO: Auth check stub — !hasAuth → AuthScreen when built
+          if (!hasProfile) {
+            return const OnboardingScreen();
+          }
           return const TodayScreen();
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
