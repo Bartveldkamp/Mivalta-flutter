@@ -135,11 +135,11 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a57958a`**
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a579584`**
 (rust-engine `main` after the audit-fix train #377–#380; engine_registry
 **v2.29** / **14 engines** per `engine_registry.json` at that rev). The
-`rev = "a57958a"` line in `rust/Cargo.toml` is **authoritative**, and the comment
-block above it narrates the full re-pin history (`…b7264cb → a57958a`); this
+`rev = "a579584"` line in `rust/Cargo.toml` is **authoritative**, and the comment
+block above it narrates the full re-pin history (`…b7264cb → a579584`); this
 section only summarizes. The `…b7264cb` bump added the F-ING-A engine half
 (engine computes workout avg/max HR from a raw `hr_samples` stream), which this
 repo's ingest now feeds; no shim/FFI signature change, so no FRB-regen (only a
@@ -164,7 +164,7 @@ The build executor still owes the **iOS xcframework rebuild** at this rev (Andro
 is proven by the `smoke` CI cross-compile; iOS is Mac-only) — see
 `docs/mac/MAC_BRIEF_REALIZE_SEAM.md`.
 
-**Pin currency (as of 2026-07):** `a57958a` **is** rust-engine `main` — the
+**Pin currency (as of 2026-07):** `a579584` **is** rust-engine `main` — the
 audit-fix train (#377 audit fixes + dead chat-history removal, #378
 Viterbi-terminology purge + guard, #379 duration-only honest-absence +
 determinism guard, #380 F-ING-A engine half) is all in this pin. No shim/FFI
