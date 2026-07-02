@@ -49,6 +49,10 @@ abstract final class MivaltaColors {
   static const sleepRem = Color(0xFF00C6A7);
   static const sleepLight = Color(0xFF7FE3B0);
   static const sleepAwake = Color(0xFF3A4048);
+
+  // Auth screen (BS-001-auth).
+  static const codeCellBorder = Color(0x1AFFFFFF); // white 10%
+  static const codeCellBackground = Color(0x0AFFFFFF); // white 4%
 }
 
 /// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).
@@ -215,6 +219,31 @@ abstract final class MivaltaGlow {
 
   // Breathe animation: 6 seconds, counter-phased.
   static const splashBreatheDuration = Duration(seconds: 6);
+
+  // ─── Auth glow (BS-001-auth) ───
+  // Smaller field for auth (200 vs 240 for splash).
+  static const authFieldSize = 200.0;
+
+  // Outer halo: 200×200, alpha .22, blur 14, stop 62%.
+  static const authOuterSize = 200.0;
+  static const authOuterAlpha = 0.22;
+  static const authOuterBlur = 14.0;
+  static const authOuterStop = 0.62;
+
+  // Mid halo: 132×132, alpha .34, blur 7, stop 60%.
+  static const authMidSize = 132.0;
+  static const authMidAlpha = 0.34;
+  static const authMidBlur = 7.0;
+  static const authMidStop = 0.60;
+
+  // Resting opacity for auth halos.
+  static const authRestingAlpha = 0.85;
+
+  // Logo mark size in auth.
+  static const authLogoSize = 62.0;
+
+  // Breathe animation: 6 seconds, counter-phased (same as splash).
+  static const authBreatheDuration = Duration(seconds: 6);
 }
 
 /// Spacing scale tokens.

@@ -18,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
+import 'auth_screen.dart';
 import 'today_screen.dart';
 
 /// The splash screen — vault open + model warm, then hand-off.
@@ -275,26 +276,57 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _handOff() async {
-    // Routing logic (Step 7):
-    // - No auth session → Auth (stub — Auth screen not yet built)
+    // Routing logic (Step 7 / BS-001-auth Step 8):
+    // - No auth session → Auth
     // - Authed, no profile → Onboarding (stub — Onboarding screen not yet built)
     // - Authed + profile → Today
-    //
-    // STUB: Auth + Onboarding screens don't exist yet. For now, always route
-    // to Today regardless of profile state. Flag in build report.
 
+    final hasSession = await _checkAuthSession();
     final hasProfile = await ProfileService.hasPersistedProfile();
 
     if (!mounted) return;
 
-    // Cross-fade to next screen
+    if (!hasSession) {
+      // No session → Auth
+      _navigateToAuth();
+    } else if (!hasProfile) {
+      // Session but no profile → Onboarding
+      // STUB: Onboarding screen not yet built, route to Today
+      debugPrint('Splash hand-off: hasSession=true, hasProfile=false (Onboarding stub → Today)');
+      _navigateToToday();
+    } else {
+      // Session + profile → Today
+      debugPrint('Splash hand-off: hasSession=true, hasProfile=true → Today');
+      _navigateToToday();
+    }
+  }
+
+  Future<bool> _checkAuthSession() async {
+    // STUB: No real auth session storage yet.
+    // When auth is implemented: check SharedPreferences/SecureStorage for session token.
+    // For now, return false to always show Auth screen on first launch.
+    // Return true if you want to skip Auth and go directly to Today.
+    return ProfileService.hasPersistedProfile();
+  }
+
+  void _navigateToAuth() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) {
-          // STUB: Always Today until Auth/Onboarding exist
-          // When built: !hasAuth → AuthScreen, hasAuth && !hasProfile → OnboardingScreen
-          // ignore: unused_local_variable — hasProfile will be used when Auth/Onboarding land
-          debugPrint('Splash hand-off: hasProfile=$hasProfile (routing stub)');
+          return const AuthScreen();
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  void _navigateToToday() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
           return const TodayScreen();
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
