@@ -573,12 +573,17 @@ class HealthIngestService {
         !p.dateTo.isAfter(workout.dateTo));
     int? avgHr;
     int? maxHr;
+    List<double>? hrSamples;
     if (hrPoints.isNotEmpty) {
       final hrValues = hrPoints
           .map((p) => _extractNumericValue(p))
           .whereType<double>()
           .toList();
       if (hrValues.isNotEmpty) {
+        // Courier the RAW samples to the engine (Charter Law 2 — the engine
+        // computes the mean for the load path). avgHr/maxHr remain a Dart
+        // summary ONLY for the display activity row, never the load-path input.
+        hrSamples = hrValues;
         avgHr = (hrValues.reduce((a, b) => a + b) / hrValues.length).round();
         maxHr = hrValues.reduce((a, b) => a > b ? a : b).round();
       }
@@ -618,6 +623,7 @@ class HealthIngestService {
       distanceKm: distanceKm,
       avgHr: avgHr,
       maxHr: maxHr,
+      hrSamples: hrSamples,
       calories: caloriesRounded,
     );
 

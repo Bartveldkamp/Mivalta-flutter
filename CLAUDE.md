@@ -135,12 +135,16 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`b7264cb`**
-(rust-engine `main` after #367; engine_registry **v2.29** / **14 engines** per
-`engine_registry.json` at that rev). The `rev = "b7264cb"` line in
-`rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
-the full re-pin history (`…8b3b95a → b7264cb`); this section only summarizes. This
-rev carries (superset of the prior `8b3b95a`/v2.27 pin):
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a57958a`**
+(rust-engine `main` after the audit-fix train #377–#380; engine_registry
+**v2.29** / **14 engines** per `engine_registry.json` at that rev). The
+`rev = "a57958a"` line in `rust/Cargo.toml` is **authoritative**, and the comment
+block above it narrates the full re-pin history (`…b7264cb → a57958a`); this
+section only summarizes. The `…b7264cb` bump added the F-ING-A engine half
+(engine computes workout avg/max HR from a raw `hr_samples` stream), which this
+repo's ingest now feeds; no shim/FFI signature change, so no FRB-regen (only a
+`cargo update` + xcframework rebuild). This rev carries (superset of the prior
+`8b3b95a`/v2.27 pin):
 - **`gatc-vault` SQLCipher with vendored OpenSSL** (`bundled-sqlcipher-vendored-openssl`),
   so the Android cross-compile resolves with no system OpenSSL — the Flutter `smoke`
   CI job is green end-to-end on this pin. (See `mivalta-rust-engine/docs/PRODUCT_READINESS.md`
@@ -160,16 +164,16 @@ The build executor still owes the **iOS xcframework rebuild** at this rev (Andro
 is proven by the `smoke` CI cross-compile; iOS is Mac-only) — see
 `docs/mac/MAC_BRIEF_REALIZE_SEAM.md`.
 
-**Pin skew (as of 2026-07):** `b7264cb` is **behind** rust-engine `main` — the
-audit-fix train merged since this pin (rust-engine #377 audit fixes + dead
-chat-history removal, #378 Viterbi-terminology purge + guard, #379 duration-only
-honest-absence + determinism guard). The delta is **safe to re-pin**: the only
-FFI-surface change the Flutter shim touches is the *removal* of
-`cleanup_expired_conversation_turns` — which `rust/src/api.rs` does **not** call
-— plus the additive free fn `post_process_policy`; `engine_registry` stays v2.29.
-Re-pin to current `main` when the fixes are wanted (a `rust/Cargo.toml` rev bump +
-Mac xcframework rebuild). Verify against `engine_registry.json` at the new rev
-before bumping (Rule 4 — zero guessing).
+**Pin currency (as of 2026-07):** `a57958a` **is** rust-engine `main` — the
+audit-fix train (#377 audit fixes + dead chat-history removal, #378
+Viterbi-terminology purge + guard, #379 duration-only honest-absence +
+determinism guard, #380 F-ING-A engine half) is all in this pin. No shim/FFI
+signature change across the bump (the removed `cleanup_expired_conversation_turns`
+was never called by `rust/src/api.rs`; the added `hr_samples` handling is inside
+the existing `normalize_observation` path), so **no FRB-regen** — the build
+executor owes only a `cargo update` + xcframework rebuild. `engine_registry`
+stays v2.29 / 14 engines. Re-verify against `engine_registry.json` at the pinned
+rev before any future bump (Rule 4 — zero guessing).
 
 ## Repository Structure
 

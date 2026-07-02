@@ -119,10 +119,20 @@ flutter_rust_bridge = "=2.12.0"
 # in the shim handle, so the build executor MUST `cargo update`, FRB-regen
 # lib/src/rust/, and rebuild the xcframework; drift-guard surfaces any
 # reconciliation the trend layer / intervening FFI changes require.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7264cb" }
+# Re-pinned b7264cb → a57958a (main after the audit-fix train: #377 audit fixes +
+# dead chat-history removal, #378 Viterbi-terminology purge + guard, #379
+# duration-only honest-absence + determinism guard, #380 engine computes workout
+# avg/max HR from a raw `hr_samples` stream — the F-ING-A engine half this Flutter
+# change consumes). NO new gatc-ffi pub fn and NO shim change (the removed
+# `cleanup_expired_conversation_turns` was never called by rust/src/api.rs; the
+# added `hr_samples` handling is inside the existing `normalize_observation`
+# path). engine_registry stays v2.29 / 14 engines. Build executor: `cargo update`
+# + rebuild the xcframework (Android proven by the `smoke` CI cross-compile; iOS
+# is Mac-only). No FRB-regen needed (no shim signature change).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a57958a" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "b7264cb" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a57958a" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
