@@ -836,6 +836,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             }).toList(),
           ),
 
+          const SizedBox(height: MivaltaSpace.x5),
+
+          // v3: Footer on every data screen
+          Center(
+            child: Text(
+              'On this phone. Never on a server.',
+              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
           const SizedBox(height: MivaltaSpace.x6),
         ],
       ),
@@ -917,6 +928,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               style: MivaltaType.body.copyWith(color: MivaltaColors.stateProductive),
             ),
           ],
+
+          const SizedBox(height: MivaltaSpace.x5),
+
+          // v3: Footer on every data screen
+          Center(
+            child: Text(
+              'On this phone. Never on a server.',
+              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x6),
         ],
       ),
     );
@@ -995,11 +1019,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x6),
 
-          // v3: Footer
-          Text(
-            'On this phone. Never on a server.',
-            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
-            textAlign: TextAlign.center,
+          // v3: Footer on every data screen
+          Center(
+            child: Text(
+              'On this phone. Never on a server.',
+              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
           ),
 
           const SizedBox(height: MivaltaSpace.x4),
