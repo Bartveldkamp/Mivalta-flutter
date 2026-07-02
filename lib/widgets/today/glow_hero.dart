@@ -11,6 +11,9 @@
 // - D1: Glow core centered on the number, not the number+state column
 // - D2: Raised inner/mid halo scale/alpha (see tokens.dart)
 // - D3: Honest "Learning" label when absent-hero has no content
+//
+// BS-007 Step 3: State crossfade (M1) — when fatigueState changes, the glow
+// colour transitions from old → new over 800ms (MivaltaMotion.stateShift).
 
 import 'dart:ui';
 
@@ -31,7 +34,8 @@ Color _stateColor(String? fatigueState) =>
     };
 
 /// The glow hero — radial gradient centrepiece with readiness number and state word.
-class GlowHero extends StatelessWidget {
+/// BS-007: Animates glow colour transitions when fatigueState changes (M1).
+class GlowHero extends StatefulWidget {
   const GlowHero({
     super.key,
     required this.score,
@@ -49,8 +53,71 @@ class GlowHero extends StatelessWidget {
   final bool insufficientData;
 
   @override
+  State<GlowHero> createState() => _GlowHeroState();
+}
+
+class _GlowHeroState extends State<GlowHero> with SingleTickerProviderStateMixin {
+  late AnimationController _colorController;
+  late Animation<Color?> _colorAnimation;
+  Color _currentColor = MivaltaColors.stateProductive;
+  Color _targetColor = MivaltaColors.stateProductive;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentColor = _stateColor(widget.fatigueState);
+    _targetColor = _currentColor;
+
+    _colorController = AnimationController(
+      vsync: this,
+      duration: MivaltaMotion.stateShift, // 800ms
+    );
+
+    _colorAnimation = ColorTween(
+      begin: _currentColor,
+      end: _targetColor,
+    ).animate(CurvedAnimation(
+      parent: _colorController,
+      curve: MivaltaMotion.standardEase,
+    ));
+  }
+
+  @override
+  void didUpdateWidget(covariant GlowHero oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // BS-007 M1: Check if fatigueState changed
+    if (widget.fatigueState != oldWidget.fatigueState) {
+      final newColor = _stateColor(widget.fatigueState);
+
+      // Only animate if the colour actually changed
+      if (newColor != _targetColor) {
+        // Start from the current animated value (supports mid-animation changes)
+        _currentColor = _colorAnimation.value ?? _targetColor;
+        _targetColor = newColor;
+
+        // Update the tween and restart
+        _colorAnimation = ColorTween(
+          begin: _currentColor,
+          end: _targetColor,
+        ).animate(CurvedAnimation(
+          parent: _colorController,
+          curve: MivaltaMotion.standardEase,
+        ));
+
+        _colorController.forward(from: 0.0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _colorController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final color = _stateColor(fatigueState);
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
@@ -71,11 +138,11 @@ class GlowHero extends StatelessWidget {
     final innerSize = fieldSize * MivaltaGlow.innerScale;
 
     // Display: score number when data, state word only when insufficient.
-    final showScore = !insufficientData && score != null;
-    final stateWord = _formatState(fatigueState);
+    final showScore = !widget.insufficientData && widget.score != null;
+    final stateWord = _formatState(widget.fatigueState);
 
     // D3: Honest label for absent-hero when no score AND no state word.
-    final absentLabel = (insufficientData || score == null) && stateWord.isEmpty
+    final absentLabel = (widget.insufficientData || widget.score == null) && stateWord.isEmpty
         ? 'Learning'
         : null;
 
@@ -90,125 +157,133 @@ class GlowHero extends StatelessWidget {
         child: SizedBox(
           width: fieldSize,
           height: fieldSize,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer glow layer (scale 1.30, blur 14)
-              // D1: offset to center on number
-              Transform.translate(
-                offset: Offset(0, glowOffset),
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: MivaltaGlow.outerBlur,
-                    sigmaY: MivaltaGlow.outerBlur,
-                  ),
-                  child: Container(
-                    width: outerSize,
-                    height: outerSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          color.withValues(alpha: MivaltaGlow.outerAlpha),
-                          Colors.transparent,
-                        ],
-                        stops: [0.0, MivaltaGlow.outerStop],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Mid glow layer (scale 1.0, blur 8)
-              // D1: offset to center on number
-              Transform.translate(
-                offset: Offset(0, glowOffset),
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: MivaltaGlow.midBlur,
-                    sigmaY: MivaltaGlow.midBlur,
-                  ),
-                  child: Container(
-                    width: midSize,
-                    height: midSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          color.withValues(alpha: MivaltaGlow.midAlpha),
-                          Colors.transparent,
-                        ],
-                        stops: [0.0, MivaltaGlow.midStop],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Inner glow layer (scale 0.60, blur 3)
-              // D1: offset to center on number
-              Transform.translate(
-                offset: Offset(0, glowOffset),
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: MivaltaGlow.innerBlur,
-                    sigmaY: MivaltaGlow.innerBlur,
-                  ),
-                  child: Container(
-                    width: innerSize,
-                    height: innerSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          color.withValues(alpha: MivaltaGlow.innerAlpha),
-                          Colors.transparent,
-                        ],
-                        stops: [0.0, MivaltaGlow.innerStop],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Number + state word (unblurred, on top)
-              // DR-004: hero w400 (MivaltaType.hero), state word titleM (20px w600)
-              Column(
-                mainAxisSize: MainAxisSize.min,
+          // BS-007 M1: Animate glow colour with AnimatedBuilder
+          child: AnimatedBuilder(
+            animation: _colorAnimation,
+            builder: (context, child) {
+              final color = _colorAnimation.value ?? _targetColor;
+              return Stack(
+                alignment: Alignment.center,
                 children: [
-                  if (showScore)
-                    Text(
-                      '$score',
-                      style: MivaltaType.hero.copyWith(
-                        color: MivaltaColors.textPrimary,
+                  // Outer glow layer (scale 1.30, blur 14)
+                  // D1: offset to center on number
+                  Transform.translate(
+                    offset: Offset(0, glowOffset),
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                        sigmaX: MivaltaGlow.outerBlur,
+                        sigmaY: MivaltaGlow.outerBlur,
                       ),
-                    )
-                  else if (absentLabel != null)
-                    // D3: honest label when no score and no state word
-                    Text(
-                      absentLabel,
-                      style: MivaltaType.titleM.copyWith(
-                        color: color,
-                      ),
-                    )
-                  else
-                    // No score — show state word as hero
-                    Text(
-                      stateWord,
-                      style: MivaltaType.titleM.copyWith(
-                        color: color,
-                      ),
-                    ),
-                  if (showScore && stateWord.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: MivaltaGlow.wordGap),
-                      child: Text(
-                        stateWord,
-                        style: MivaltaType.titleM.copyWith(
-                          color: color,
+                      child: Container(
+                        width: outerSize,
+                        height: outerSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              color.withValues(alpha: MivaltaGlow.outerAlpha),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, MivaltaGlow.outerStop],
+                          ),
                         ),
                       ),
                     ),
+                  ),
+                  // Mid glow layer (scale 1.0, blur 8)
+                  // D1: offset to center on number
+                  Transform.translate(
+                    offset: Offset(0, glowOffset),
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                        sigmaX: MivaltaGlow.midBlur,
+                        sigmaY: MivaltaGlow.midBlur,
+                      ),
+                      child: Container(
+                        width: midSize,
+                        height: midSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              color.withValues(alpha: MivaltaGlow.midAlpha),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, MivaltaGlow.midStop],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Inner glow layer (scale 0.60, blur 3)
+                  // D1: offset to center on number
+                  Transform.translate(
+                    offset: Offset(0, glowOffset),
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                        sigmaX: MivaltaGlow.innerBlur,
+                        sigmaY: MivaltaGlow.innerBlur,
+                      ),
+                      child: Container(
+                        width: innerSize,
+                        height: innerSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              color.withValues(alpha: MivaltaGlow.innerAlpha),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, MivaltaGlow.innerStop],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Number + state word (unblurred, on top)
+                  // DR-004: hero w400 (MivaltaType.hero), state word titleM (20px w600)
+                  // BS-007: state word colour also animates with glow
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showScore)
+                        Text(
+                          '${widget.score}',
+                          style: MivaltaType.hero.copyWith(
+                            color: MivaltaColors.textPrimary,
+                          ),
+                        )
+                      else if (absentLabel != null)
+                        // D3: honest label when no score and no state word
+                        Text(
+                          absentLabel,
+                          style: MivaltaType.titleM.copyWith(
+                            color: color,
+                          ),
+                        )
+                      else
+                        // No score — show state word as hero
+                        Text(
+                          stateWord,
+                          style: MivaltaType.titleM.copyWith(
+                            color: color,
+                          ),
+                        ),
+                      if (showScore && stateWord.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: MivaltaGlow.wordGap),
+                          child: Text(
+                            stateWord,
+                            style: MivaltaType.titleM.copyWith(
+                              color: color,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

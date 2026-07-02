@@ -17,6 +17,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/home_data.dart';
+import '../models/realized_line.dart';
 import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
@@ -27,6 +28,7 @@ import '../widgets/today/josi_card.dart';
 import '../widgets/today/metric_bar.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
+import '../widgets/today/why_unfold.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -136,11 +138,24 @@ class _TodayScreenState extends State<TodayScreen> {
       // Check insufficient data gate
       data.insufficientData = insufficientDataFromConfidence(data.confidence);
 
-      // State advisory (for Josi)
+      // State advisory (for Josi fallback)
       final stateJson = await binding.stateAdvisory(handle);
       final stateMap = jsonDecode(stateJson) as Map<String, dynamic>;
       data.stateRecommendation = stateMap['state_recommendation'] as String?;
       data.confidenceAdvisory = stateMap['confidence_advisory'] as String?;
+
+      // BS-007: Realized advisor line (primary Josi line)
+      // Date in YYYY-MM-DD format for the engine
+      final today = DateTime.now();
+      final dateStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      try {
+        final realizedJson = await binding.realizeAdvisorLine(handle, date: dateStr);
+        data.realizedLine = RealizedLine.parse(realizedJson);
+      } catch (e) {
+        // Honest absence — fall back to stateRecommendation
+        debugPrint('realizeAdvisorLine failed: $e');
+      }
 
       // Fatigue state (for glow color + state word)
       // Engine returns {"state":"Recovered",...} — key is "state", not "fatigue_state"
@@ -473,11 +488,20 @@ class _TodayScreenState extends State<TodayScreen> {
                 insufficientData: _data.insufficientData,
               ),
 
-              // Josi card — from state_recommendation (I1 fix: engine state, not realizer)
+              // BS-007: Josi card — primary from realizedLine, fallback to stateRecommendation
               // BS-001 Step 6: collapse hero void when absent
-              if (_data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty) ...[
+              if (_hasJosiLine()) ...[
                 const SizedBox(height: MivaltaSpace.x3),
-                JosiCard(line: _data.stateRecommendation),
+                JosiCard(
+                  realizedLine: _data.realizedLine,
+                  fallbackLine: _data.stateRecommendation,
+                ),
+                // BS-007 Step 2: Why? unfold — evidence layer under Josi.
+                // Collapses when contributions[] is empty (honest absence).
+                WhyUnfold(
+                  contributions: _data.contributions,
+                  confidenceText: _data.confidenceAdvisory,
+                ),
               ],
 
               // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
@@ -503,7 +527,7 @@ class _TodayScreenState extends State<TodayScreen> {
               // Spacing before cards: reduced when Josi + chip both absent
               // DR-012: use same restrictive-cap logic for spacer
               () {
-                final hasJosi = _data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty;
+                final hasJosi = _hasJosiLine();
                 final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
                 final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
                 final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
@@ -646,6 +670,14 @@ class _TodayScreenState extends State<TodayScreen> {
       parts.add(_data.sourceTierLabel!);
     }
     return parts.join(' · ');
+  }
+
+  /// BS-007: Check if there's a Josi line to display (realized or fallback).
+  bool _hasJosiLine() {
+    if (_data.realizedLine != null && _data.realizedLine!.text.isNotEmpty) {
+      return true;
+    }
+    return _data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty;
   }
 
   /// DR-012: A zone CAP is a decision only when it holds the athlete back.
