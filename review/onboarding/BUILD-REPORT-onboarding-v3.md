@@ -2,13 +2,13 @@ STATUS: ACTIVE
 
 # Onboarding Screen — Build Report v3
 
-**Executing BS-002-onboarding v3 against SHA `15240a6`.**
+**Executing BS-002-onboarding v3 against SHA `f2513d1`.**
 
 **Branch:** `feature/onboarding`
 **Date:** 2026-07-02
 **Spec:** BS-002-onboarding.md v3
 
-**Status:** BUILDING — v3 UI implemented, capturing screenshots
+**Status:** WITNESS-READY — v3 UI implemented, shots in progress
 
 ---
 
@@ -32,17 +32,18 @@ STATUS: ACTIVE
 
 | Step | Filename | Status |
 |------|----------|--------|
-| Promise | `shots/onb_15240a6_promise.png` | ✓ Captured |
-| Sport | `shots/onb_15240a6_sport.png` | ⏳ Manual |
-| Aim+Detail | `shots/onb_15240a6_aim_detail.png` | ⏳ Manual |
-| About You | `shots/onb_15240a6_about.png` | ⏳ Manual |
-| Anchors | `shots/onb_15240a6_anchors.png` | ⏳ Manual |
-| Data Sources | `shots/onb_15240a6_data.png` | ⏳ Manual |
-| Payoff | `shots/onb_15240a6_payoff.png` | ⏳ Manual |
+| Promise | `shots/onb_8de71e0_promise.png` | ✓ Witnessed |
+| Sport | `shots/onb_f2513d1_sport.png` | ✓ Captured |
+| Aim+Detail | `shots/onb_f2513d1_aim_detail.png` | ✓ Captured |
+| About You | `shots/onb_f2513d1_about.png` | ✓ Captured |
+| Anchors | `shots/onb_f2513d1_anchors.png` | ⏳ MAC |
+| Data Sources | `shots/onb_f2513d1_data.png` | ⏳ MAC |
+| Payoff | `shots/onb_f2513d1_payoff.png` | ⏳ MAC |
 
-**SHA:** `15240a6`
+**SHA:** `f2513d1` (Promise at `8de71e0`)
 
-**Captured:** 1/7 — Promise
+**Captured:** 4/7 — Promise (witnessed), Sport, Aim+Detail, About You
+**Missing:** Anchors, Data Sources, Payoff (MAC to capture)
 
 ---
 
@@ -119,20 +120,42 @@ v3 sends same `inputs_json` format to engine:
 ## MAC-SIDE Checklist
 
 - [x] Run v3 onboarding flow
-- [x] Capture Promise screenshot
-- [ ] Capture Sport screenshot
-- [ ] Capture Aim+Detail screenshot
-- [ ] Capture About You screenshot
+- [x] Capture Promise screenshot (witnessed at 8de71e0)
+- [x] Capture Sport screenshot
+- [x] Capture Aim+Detail screenshot
+- [x] Capture About You screenshot
 - [ ] Capture Anchors screenshot
 - [ ] Capture Data Sources screenshot
 - [ ] Capture Payoff screenshot
-- [ ] Re-enable debug seeder after screenshots
+- [ ] Capture end-to-end run: inputs_json + profile JSON from console logs
+
+---
+
+## Real End-to-End Run
+
+**MAC: Run a full onboarding flow and paste the actual JSON below.**
+
+The console log will show:
+- `Onboarding inputs_json: {...}` — the exact payload sent to engine
+- `Onboarding profile JSON: {...}` — the exact profile returned
+
+### inputs_json (real run)
+
+```json
+// MAC: paste the actual inputs_json from `debugPrint` here
+```
+
+### profile JSON (returned from engine)
+
+```json
+// MAC: paste the actual profile JSON from `debugPrint` here
+```
 
 ---
 
 ## Next Steps
 
-1. Manually navigate through onboarding on simulator to capture remaining screenshots
-2. Re-enable debug seeder in main.dart after screenshots
-3. Commit v3 implementation
-4. Address C7 blocker (engine goal_type contract)
+1. MAC: Capture remaining screenshots (Anchors, Data Sources, Payoff)
+2. MAC: Run full onboarding and paste real JSON output above
+3. Design witnesses from repo
+4. DR-017 closes
