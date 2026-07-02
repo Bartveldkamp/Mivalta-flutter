@@ -62,6 +62,9 @@ dependencies:
   # PR-G: Share exported files via platform share sheet.
   share_plus: ^10.0.0
 
+  # BS-002 v2: Local preferences storage (detail/gear, NOT engine payload).
+  shared_preferences: ^2.2.3
+
   # Task A (input layer): BLE HR-strap pairing over the public Heart Rate
   # Service (0x180D / 0x2A37). Used ONLY by FlutterBlueTransport — all BLE
   # logic depends on the BleTransport interface, so session/decode/packaging is

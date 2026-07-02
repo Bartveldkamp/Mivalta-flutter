@@ -1,4 +1,6 @@
-STATUS: ACTIVE
+STATUS: SUPERSEDED BY v2
+
+<!-- v2 rewrites: single sport, level/hours/years, no null sex, engine contract aligned -->
 
 # Onboarding Screen — Build Report v1
 
