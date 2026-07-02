@@ -70,20 +70,26 @@ String buildWorkoutObservationJson({
   required double durationMinutes,
   DateTime? start,
   int? avgHr,
+  List<double>? hrSamples,
   int? calories,
 }) {
   final startIso = start?.toUtc().toIso8601String();
+  // Charter Law 2: courier the RAW HR samples so the ENGINE computes the mean.
+  // `avgHr` stays only as a device-summary fallback (older engine pins, or a
+  // source that exposes no per-sample stream); the engine prefers the samples.
+  final samples = (hrSamples != null && hrSamples.isNotEmpty) ? hrSamples : null;
   if (source == 'apple') {
+    final heartRate = <String, dynamic>{
+      if (samples != null) 'samples': samples,
+      if (avgHr != null) 'average': avgHr,
+    };
     return jsonEncode({
       'date': date,
       'workout': <String, dynamic>{
         if (startIso != null) 'start': startIso,
         'duration': durationMinutes * 60.0, // minutes → seconds (unit conv)
         if (calories != null) 'totalEnergyBurned': calories,
-        if (avgHr != null)
-          'associatedSamples': {
-            'heartRate': {'average': avgHr},
-          },
+        if (heartRate.isNotEmpty) 'associatedSamples': {'heartRate': heartRate},
       },
     });
   }
@@ -94,6 +100,7 @@ String buildWorkoutObservationJson({
       if (startIso != null) 'start': startIso,
       'duration_min': durationMinutes,
       if (calories != null) 'calories': calories,
+      if (samples != null) 'hr_samples': samples,
       if (avgHr != null) 'avg_hr': avgHr,
     },
   });
@@ -254,8 +261,11 @@ class IngestAdapter {
   /// PROPAGATES so the caller counts the skip (fail loud — Law 6).
   ///
   /// COURIER ONLY (Law 2): every value is the platform's input or the engine's
-  /// output. No load math in Dart, not even a mean — the caller supplies the
-  /// scalar avg/max HR its platform already summarized.
+  /// output. The RAW workout HR stream (`hrSamples`) is couriered untransformed;
+  /// the ENGINE computes avg/max from it for the load path — no load math in
+  /// Dart, not even a mean. (`avgHr`/`maxHr` are a device-summary fallback and
+  /// the display activity-row values, never the load-path input when samples are
+  /// present.)
   Future<WorkoutIngestResult> ingestWorkout({
     required String activityId,
     required String date,
@@ -266,6 +276,7 @@ class IngestAdapter {
     double? distanceKm,
     int? avgHr,
     int? maxHr,
+    List<double>? hrSamples,
     int? calories,
   }) async {
     final workoutObsJson = buildWorkoutObservationJson(
@@ -274,6 +285,7 @@ class IngestAdapter {
       durationMinutes: durationMinutes,
       start: start,
       avgHr: avgHr,
+      hrSamples: hrSamples,
       calories: calories,
     );
 
