@@ -2,7 +2,7 @@ STATUS: PENDING-DR · Spec: `review/auth/BS-001-auth.md` · Branch: `feature/aut
 
 # BUILD-REPORT-auth-v1 — Auth screen (identity boundary)
 
-**Build SHA:** `PENDING` (commit this report with the code)
+**Build SHA:** `5eeba52`
 
 ## What shipped
 
