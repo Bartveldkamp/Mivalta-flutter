@@ -2,13 +2,13 @@ STATUS: ACTIVE
 
 # Onboarding Screen — Build Report v2
 
-**Executing BS-002-onboarding v2 against SHA `TBD`.**
+**Executing BS-002-onboarding v2 against SHA `8d5ae25`.**
 
 **Branch:** `feature/onboarding`
 **Date:** 2026-07-02
 **Spec:** BS-002-onboarding.md v2
 
-**Status:** v2 implementation complete — engine contract aligned + C5/C6 fixes.
+**Status:** ⚠️ C7 BLOCKER — `goal_type` contract mismatch discovered during real run.
 
 ---
 
@@ -19,6 +19,7 @@ STATUS: ACTIVE
 | **C4** | Engine contract mismatch | v2 rewrite (single sport, level/hours/years, no null sex) |
 | **C5** | `balanced` not in engine enum | `aim: "both"` → `goal_type: "general_fitness"` |
 | **C6** | athlete_id regenerated each time | Persisted via SharedPreferences (generated once) |
+| **C7** | `goal_type: "performance"` not in engine type_map | ⚠️ BLOCKER — engine only accepts event-specific goals (10k, 5k, etc.) |
 
 ---
 
@@ -40,38 +41,74 @@ STATUS: ACTIVE
 | State | Filename | Status |
 |-------|----------|--------|
 | Promise | `shots/onb_68e19f1_promise.png` | ✓ Captured |
-| Sport | `shots/onb_68e19f1_sport.png` | ⏳ Manual |
-| Basics | `shots/onb_68e19f1_basics.png` | ⏳ Manual |
-| Training | `shots/onb_68e19f1_training.png` | ⏳ Manual |
-| Anchors | `shots/onb_68e19f1_anchors.png` | ⏳ Manual |
-| Payoff | `shots/onb_68e19f1_payoff.png` | ⏳ Manual |
+| Sport | `shots/onb_8d5ae25_sport.png` | ⏳ Manual |
+| Basics | `shots/onb_8d5ae25_basics.png` | ⏳ Manual |
+| Training | `shots/onb_8d5ae25_training.png` | ⏳ Manual |
+| Anchors | `shots/onb_8d5ae25_anchors.png` | ✓ Captured |
+| Payoff | `shots/onb_8d5ae25_payoff.png` | ✓ Captured (shows C7 error) |
 
-**SHA:** `68e19f1`
+**SHA:** `8d5ae25`
 
-**To capture remaining:** Tap through flow on simulator, run:
-```bash
-xcrun simctl io booted screenshot review/onboarding/shots/onb_68e19f1_<step>.png
-```
+**Captured:** 3/6 — Promise, Anchors, Payoff (with error state)
 
 ---
 
 ## Engine Wiring — inputs_json v2
 
-### Sample inputs_json (v2 contract)
+### REAL inputs_json (captured 2026-07-02)
 
 ```json
 {
-  "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
-  "age": 35,
+  "athlete_id": "f772f921-c6bf-4bb5-8c29-0d4714921d4b",
+  "age": 55,
   "sex": "male",
-  "level": "intermediate",
-  "sport": "cycling",
+  "level": "advanced",
+  "sport": "running",
   "goal_type": "performance",
-  "weekly_hours": 8.5,
-  "training_years": 6,
-  "ftp_watts": null
+  "weekly_hours": 3.0,
+  "training_years": 12,
+  "threshold_pace_sec_km": null
 }
 ```
+
+### REAL profile JSON (captured 2026-07-02)
+
+```json
+{
+  "age": 55,
+  "athlete_id": "f772f921-c6bf-4bb5-8c29-0d4714921d4b",
+  "availability": {"0":45,"11":45,"13":45,"14":45,"16":45,"18":45,"2":45,"20":45,"4":45,"6":45,"7":45,"9":45},
+  "goal_class": "performance",
+  "goal_type": "performance",
+  "level": "advanced",
+  "meso_length": 21,
+  "meso_minutes": 540,
+  "meso_off_days": [1,3,5,8,10,12,15,17,19],
+  "meso_train_days": [0,2,4,6,7,9,11,13,14,16,18,20],
+  "recent_activity": "competitive",
+  "sex": "male",
+  "sport": "running",
+  "training_years": 12,
+  "weekly_hours": 3.0
+}
+```
+
+### C7 Engine Error (captured 2026-07-02)
+
+```
+PanicException(RuleResolver::resolve_archetype_from_type_map:
+no archetype registered for goal_type='performance' sport='running'.
+
+Valid (goal_type, sport, goal_class) combinations from the resolved type_map:
+- (10000m, running, finish/performance)
+- (5000m, running, finish/performance)
+- (5k, running, finish/performance)
+- (century, cycling, finish/performance)
+- (criterium, cycling, finish/performance)
+- ... [event-specific goals only]
+```
+
+**Root cause:** Engine expects event-specific `goal_type` (10k, 5k, etc.), not generic "performance"/"general_fitness". The v2 onboarding sends generic goals but compiled_tables.json only has event-specific archetypes.
 
 **v2 contract fields:**
 | Field | Type | Required | Notes |
@@ -219,18 +256,25 @@ Today screen reads these via `SharedPreferences` to customize display.
 
 ## MAC-SIDE Checklist
 
-- [ ] Run onboarding flow with demo profile
-- [ ] Capture 6 screenshots (promise, sport, basics, training, anchors, payoff)
-- [ ] Paste real `inputs_json` echo from debug console
-- [ ] Paste real `profile JSON` from debug console
-- [ ] Update SHA in screenshot filenames
-- [ ] Verify all 9 steps reachable and Back-navigable
-- [ ] Verify Training step collects all 3 fields
+- [x] Run onboarding flow with demo profile
+- [x] Capture 6 screenshots (promise, sport, basics, training, anchors, payoff) — 3/6 done
+- [x] Paste real `inputs_json` echo from debug console
+- [x] Paste real `profile JSON` from debug console
+- [x] Update SHA in screenshot filenames
+- [x] Verify all 9 steps reachable and Back-navigable
+- [x] Verify Training step collects all 3 fields
 
 ---
 
-## Next
+## C7 Resolution Required
 
-**Awaiting:** MAC-SIDE screenshots + engine output + DR from Claude Design.
+**BLOCKER:** Engine archetype resolution fails because:
+- Onboarding sends: `goal_type: "performance"` or `"general_fitness"`
+- Engine expects: event-specific goals like `"10k"`, `"5000m"`, `"century"`
 
-**Stubs (none):** All engine wiring in place. No placeholder calls.
+**Options:**
+1. Add generic archetypes to `compiled_tables.json` (engine-side)
+2. Add event-goal selection step to onboarding (Flutter-side)
+3. Map generic goals to default events (e.g., "performance" + "running" → "10k")
+
+**Next:** Resolve C7 before onboarding can complete successfully.
