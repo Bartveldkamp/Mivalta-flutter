@@ -1,4 +1,4 @@
-STATUS: ACTIVE
+STATUS: SUPERSEDED by v3 (see BUILD-REPORT-onboarding-v3.md)
 
 # Onboarding Screen — Build Report v2
 

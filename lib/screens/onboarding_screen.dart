@@ -1,20 +1,20 @@
-// Onboarding Screen — 8-step intake flow (BS-002-onboarding v2).
+// Onboarding Screen — 6-step intake flow (BS-002-onboarding v3).
 //
 // Sits between Auth and Today. Collects RAW answers, marshals to inputs_json,
 // calls build_onboarding_profile → write_profile_to_vault → construct_engines_fresh.
 // Engine DECIDES (goal_class, meso, anchor gating); Dart is pure transport.
 //
-// v2 (C4 fix): Engine contract requires specific fields — sport is SINGULAR,
-// level/hours/years are required, sex is non-nullable (Female/Male only).
+// v3 (Bart's device review): Condensed from 9 to 6 screens, explain-why everywhere,
+// actionable data sources step (Apple Health connect), no gear quiz.
 //
-// Flow: Promise → Sport → Aim → Detail → Basics (age+sex) → Training (level+exp+hours)
-//       → Anchors (conditional) → Gear → Payoff.
+// Flow: Promise → Sport → Aim+Detail → About You → Anchors → Data Sources → Payoff.
 
 import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -23,7 +23,7 @@ import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import 'today_screen.dart';
 
-/// The 8-step onboarding intake flow (v2 — engine contract aligned).
+/// The 6-step onboarding intake flow (v3 — condensed, explain-why).
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -33,7 +33,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
-  // Current step (0-indexed, 0-8 for 9 steps with training split)
+  // Current step (0-indexed, 0-6 for 7 steps including payoff)
   int _currentStep = 0;
 
   // Entrance animation
@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // ─── Engine payload fields (v2 contract) ───
+  // ─── Engine payload fields (v2/v3 contract) ───
   String? _sport; // SINGULAR: 'cycling' | 'running' only (FL-17)
   String? _aim; // 'perform' | 'healthy' | 'both' → maps to goal_type
   String? _ageBand; // UI label → age int
@@ -56,14 +56,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   // ─── App-side prefs (NOT sent to engine) ───
   String? _detail; // 'simple' | 'numbers' — stored locally
-  final Set<String> _gear = {}; // stored locally
+
+  // ─── Data sources state (v3) ───
+  bool _healthConnected = false;
+  bool _healthDenied = false;
 
   // Loading state for final step
   bool _isSubmitting = false;
   String? _error;
 
   // C6: Persisted athlete_id (generated once, never changes).
-  // Initialized eagerly, then overwritten from prefs if one exists.
   String _athleteId = const Uuid().v4();
 
   @override
@@ -90,7 +92,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (stored != null) {
       _athleteId = stored;
     }
-    // If no stored ID, we use the one generated at field init and persist it at submit.
   }
 
   @override
@@ -109,9 +110,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  /// Total steps: Promise(0) → Sport(1) → Aim(2) → Detail(3) → Basics(4) →
-  /// Training(5) → Anchors(6, conditional) → Gear(7) → Payoff(8)
-  int get _totalSteps => 9;
+  /// v3: 7 steps total: Promise(0) → Sport(1) → Aim+Detail(2) → AboutYou(3) →
+  /// Anchors(4, conditional) → DataSources(5) → Payoff(6)
+  int get _totalSteps => 7;
 
   /// Anchors step shows only if sport is cycling or running.
   bool get _showAnchors => _sport == 'cycling' || _sport == 'running';
@@ -123,19 +124,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return true;
       case 1: // Sport — required (single choice)
         return _sport != null;
-      case 2: // Aim — required
-        return _aim != null;
-      case 3: // Detail — required
-        return _detail != null;
-      case 4: // Basics (age + sex) — both required
-        return _ageBand != null && _sex != null;
-      case 5: // Training (level + experience + hours) — all required
-        return _level != null && _experience != null && _weeklyHours != null;
-      case 6: // Anchors — optional (always enabled)
+      case 2: // Aim + Detail — both required
+        return _aim != null && _detail != null;
+      case 3: // About You (age + sex + level + experience + hours) — all required
+        return _ageBand != null &&
+            _sex != null &&
+            _level != null &&
+            _experience != null &&
+            _weeklyHours != null;
+      case 4: // Anchors — optional (always enabled)
         return true;
-      case 7: // Gear — optional
+      case 5: // Data Sources — optional (always enabled)
         return true;
-      case 8: // Payoff — always enabled
+      case 6: // Payoff — always enabled
         return true;
       default:
         return false;
@@ -146,9 +147,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _nextStep() {
     if (_currentStep < _totalSteps - 1) {
       int nextStep = _currentStep + 1;
-      // Skip Anchors (step 6) if sport doesn't need it
-      if (nextStep == 6 && !_showAnchors) {
-        nextStep = 7;
+      // Skip Anchors (step 4) if sport doesn't need it
+      if (nextStep == 4 && !_showAnchors) {
+        nextStep = 5;
       }
       setState(() => _currentStep = nextStep);
       _animateEntrance();
@@ -162,9 +163,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _prevStep() {
     if (_currentStep > 0) {
       int prevStep = _currentStep - 1;
-      // Skip Anchors (step 6) if sport doesn't need it
-      if (prevStep == 6 && !_showAnchors) {
-        prevStep = 5;
+      // Skip Anchors (step 4) if sport doesn't need it
+      if (prevStep == 4 && !_showAnchors) {
+        prevStep = 3;
       }
       setState(() => _currentStep = prevStep);
       _animateEntrance();
@@ -172,7 +173,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ENGINE PAYLOAD MAPPING (v2 contract)
+  // ENGINE PAYLOAD MAPPING (v2/v3 contract)
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Map age band label → representative int.
@@ -182,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         '40–49' => 45,
         '50–59' => 55,
         '60+' => 65,
-        _ => 35, // fallback (shouldn't happen)
+        _ => 35,
       };
 
   /// Map experience label → training_years int.
@@ -191,7 +192,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         '1-3' => 2,
         '3-10' => 6,
         '10+' => 12,
-        _ => 2, // fallback
+        _ => 2,
       };
 
   /// Map weekly hours label → weekly_hours double.
@@ -200,29 +201,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         '4-6' => 5.0,
         '7-10' => 8.5,
         '10+' => 12.0,
-        _ => 5.0, // fallback
+        _ => 5.0,
       };
 
   /// Map aim → goal_type (engine vocabulary).
-  /// Per v2: aim→goal_type via knowledge-card vocab.
   /// C5 fix: engine only accepts 'performance' | 'general_fitness' (no 'balanced').
   String _aimToGoalType(String? aim) => switch (aim) {
-        'perform' => 'performance', // competitive goals
-        'healthy' => 'general_fitness', // health/wellness
-        'both' => 'general_fitness', // C5: engine has no 'balanced', use general_fitness
-        _ => 'general_fitness', // fallback
+        'perform' => 'performance',
+        'healthy' => 'general_fitness',
+        'both' => 'general_fitness', // C5: engine has no 'balanced'
+        _ => 'general_fitness',
       };
 
-  /// Build inputs_json for engine (v2 contract).
-  /// Required: athlete_id, age, sex, level, sport, goal_type, weekly_hours, training_years.
-  /// Optional: threshold_hr, ftp_watts, threshold_pace_sec_km.
+  /// Build inputs_json for engine (v2/v3 contract).
   Map<String, dynamic> _buildInputsJson() {
     final inputs = <String, dynamic>{
-      'athlete_id': _athleteId, // C6: persisted UUID
+      'athlete_id': _athleteId,
       'age': _ageBandToInt(_ageBand),
-      'sex': _sex, // 'male' | 'female' (non-nullable)
+      'sex': _sex,
       'level': _level,
-      'sport': _sport, // SINGULAR
+      'sport': _sport,
       'goal_type': _aimToGoalType(_aim),
       'weekly_hours': _hoursLabelToDouble(_weeklyHours),
       'training_years': _experienceToYears(_experience),
@@ -233,7 +231,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       inputs['ftp_watts'] = _ftpUnknown ? null : _ftp?.toInt();
     }
     if (_sport == 'running') {
-      // threshold_pace in min/km → sec/km
       final paceMinKm = _paceUnknown ? null : _thresholdPace;
       inputs['threshold_pace_sec_km'] = paceMinKm != null ? (paceMinKm * 60).toInt() : null;
     }
@@ -241,17 +238,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return inputs;
   }
 
-  /// Save app-side prefs (detail, gear, athlete_id) locally.
+  /// Save app-side prefs (detail, athlete_id) locally.
   Future<void> _saveLocalPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    // C6: Persist athlete_id (in case it wasn't stored from a previous session)
     await prefs.setString('athlete_id', _athleteId);
     if (_detail != null) {
       await prefs.setString('onboarding_detail', _detail!);
     }
-    if (_gear.isNotEmpty) {
-      await prefs.setStringList('onboarding_gear', _gear.toList());
-    }
+    // v3: health_connected status
+    await prefs.setBool('health_connected', _healthConnected);
   }
 
   /// Submit onboarding — call engine, write profile, route to Today.
@@ -262,7 +257,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     });
 
     try {
-      // Save local prefs (detail, gear) — not sent to engine
       await _saveLocalPrefs();
 
       final inputsJson = jsonEncode(_buildInputsJson());
@@ -280,10 +274,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         vaultPath: vaultPath,
       );
 
-      // 3. Save profile locally (for ProfileService.loadProfile)
+      // 3. Save profile locally
       await ProfileService.saveProfile(profileJson);
 
-      // 4. Construct engines fresh with new profile
+      // 4. Construct engines fresh
       final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
       await binding.constructEnginesFresh(
         athleteProfileJson: profileJson,
@@ -303,6 +297,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _error = e.toString();
       });
       debugPrint('Onboarding error: $e');
+    }
+  }
+
+  /// v3: Request Apple Health permission.
+  Future<void> _connectAppleHealth() async {
+    try {
+      final health = Health();
+      await health.configure();
+
+      final types = [
+        HealthDataType.HEART_RATE,
+        HealthDataType.RESTING_HEART_RATE,
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_AWAKE,
+        HealthDataType.SLEEP_IN_BED,
+        HealthDataType.WORKOUT,
+      ];
+
+      final permissions = types.map((t) => HealthDataAccess.READ).toList();
+      final granted = await health.requestAuthorization(types, permissions: permissions);
+
+      setState(() {
+        _healthConnected = granted;
+        _healthDenied = !granted;
+      });
+    } catch (e) {
+      debugPrint('Health connect error: $e');
+      setState(() {
+        _healthDenied = true;
+      });
     }
   }
 
@@ -373,7 +398,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_totalSteps, (index) {
           // Skip Anchors dot if not applicable
-          final isAnchorsStep = index == 6;
+          final isAnchorsStep = index == 4;
           if (isAnchorsStep && !_showAnchors) {
             return const SizedBox.shrink();
           }
@@ -403,19 +428,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildStepContent() {
     return switch (_currentStep) {
       0 => _buildPromiseStep(),
-      1 => _buildSportStep(), // v2: single sport
-      2 => _buildAimStep(),
-      3 => _buildDetailStep(),
-      4 => _buildBasicsStep(), // age + sex
-      5 => _buildTrainingStep(), // v2: level + experience + hours
-      6 => _buildAnchorsStep(),
-      7 => _buildGearStep(),
-      8 => _buildPayoffStep(),
+      1 => _buildSportStep(),
+      2 => _buildAimDetailStep(), // v3: combined
+      3 => _buildAboutYouStep(), // v3: all basics on one screen
+      4 => _buildAnchorsStep(), // v3: with explanation
+      5 => _buildDataSourcesStep(), // v3: replaces gear
+      6 => _buildPayoffStep(),
       _ => const SizedBox.shrink(),
     };
   }
 
-  /// Bottom buttons — Continue + Back (from step 2).
+  /// Bottom buttons.
   Widget _buildBottomButtons() {
     final showBack = _currentStep > 0 && _currentStep < _totalSteps - 1;
     final isLastStep = _currentStep == _totalSteps - 1;
@@ -429,7 +452,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
       child: Column(
         children: [
-          // Back button (ghost)
           if (showBack)
             GestureDetector(
               onTap: _prevStep,
@@ -438,16 +460,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 alignment: Alignment.center,
                 child: Text(
                   'Back',
-                  style: MivaltaType.body.copyWith(
-                    color: MivaltaColors.textSecondary,
-                  ),
+                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
                 ),
               ),
             ),
 
           if (showBack) const SizedBox(height: MivaltaSpace.x2),
 
-          // Continue button
           GestureDetector(
             onTap: _canContinue && !_isSubmitting ? _nextStep : null,
             child: Container(
@@ -483,10 +502,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // STEP BUILDERS
+  // STEP BUILDERS (v3)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Step 0: Promise (center layout).
+  /// Step 0: Promise (v3: + privacy line).
   Widget _buildPromiseStep() {
     return Center(
       child: Padding(
@@ -527,13 +546,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
+
+            const SizedBox(height: MivaltaSpace.x4),
+
+            // v3: Added privacy line (bolded)
+            Text(
+              'Nothing you enter here — or ever — leaves your phone. No server, no cloud. MiValta cannot read it.',
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// Step 1: Sport (v2: SINGLE choice, Running/Cycling only).
+  /// Step 1: Sport (unchanged from v2).
   Widget _buildSportStep() {
     const sports = [
       ('running', Icons.directions_run, 'Running'),
@@ -548,7 +579,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const SizedBox(height: MivaltaSpace.x6),
 
           Text(
-            'Your main sport',
+            'Your sport',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
@@ -561,7 +592,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // Single-select option rows (not chips)
           ...sports.map((s) {
             final (id, icon, label) = s;
             final isSelected = _sport == id;
@@ -577,46 +607,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 2: Aim (single-option rows).
-  Widget _buildAimStep() {
+  /// Step 2: Aim + Detail (v3: combined on one screen).
+  Widget _buildAimDetailStep() {
     const aims = [
       ('perform', 'Perform', 'Train to compete and hit personal bests'),
       ('healthy', 'Stay fit & healthy', 'Move regularly without overtraining'),
       ('both', 'A bit of both', 'Balance performance with sustainable fitness'),
     ];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: MivaltaSpace.x6),
-
-          Text(
-            "What's your aim?",
-            style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x5),
-
-          ...aims.map((a) {
-            final (id, title, desc) = a;
-            final isSelected = _aim == id;
-            return _buildOptionRow(
-              title: title,
-              description: desc,
-              isSelected: isSelected,
-              onTap: () => setState(() => _aim = id),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  /// Step 3: Detail (coaching density — app-side pref).
-  Widget _buildDetailStep() {
-    const options = [
+    const details = [
       ('simple', 'Just tell me what to do', 'Clear guidance without the numbers'),
       ('numbers', 'Show me the numbers too', 'See the data behind the decisions'),
     ];
@@ -629,119 +628,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const SizedBox(height: MivaltaSpace.x6),
 
           Text(
-            'How much detail?',
+            'Your aim',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
-          const SizedBox(height: MivaltaSpace.x5),
+          const SizedBox(height: MivaltaSpace.x4),
 
-          ...options.map((o) {
-            final (id, title, desc) = o;
-            final isSelected = _detail == id;
+          ...aims.map((a) {
+            final (id, title, desc) = a;
+            final isSelected = _aim == id;
             return _buildOptionRow(
+              title: title,
+              description: desc,
+              isSelected: isSelected,
+              onTap: () => setState(() => _aim = id),
+            );
+          }),
+
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // v3: Slim divider
+          Container(
+            height: 1,
+            color: MivaltaColors.textMuted.withValues(alpha: 0.2),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // v3: Detail on same screen
+          Text(
+            'How should MiValta talk to you?',
+            style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x3),
+
+          ...details.map((d) {
+            final (id, title, desc) = d;
+            final isSelected = _detail == id;
+            return _buildCompactOptionRow(
               title: title,
               description: desc,
               isSelected: isSelected,
               onTap: () => setState(() => _detail = id),
             );
           }),
+
+          const SizedBox(height: MivaltaSpace.x4),
         ],
       ),
     );
   }
 
-  /// Step 4: Basics (age band + sex — v2: Female/Male only).
-  Widget _buildBasicsStep() {
+  /// Step 3: About You (v3: all basics on one scrollable screen).
+  Widget _buildAboutYouStep() {
     const ageBands = ['18–29', '30–39', '40–49', '50–59', '60+'];
-    // v2 (G9): Female/Male only — "Prefer not to say" not supported by engine
     const sexOptions = ['Female', 'Male'];
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: MivaltaSpace.x6),
-
-          Text(
-            'The engine needs two basics to read you correctly.',
-            style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x5),
-
-          // Age band
-          Text(
-            'Age',
-            style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x3),
-
-          Wrap(
-            spacing: MivaltaSpace.x2,
-            runSpacing: MivaltaSpace.x2,
-            children: ageBands.map((band) {
-              final isSelected = _ageBand == band;
-              return _buildSmallChip(
-                label: band,
-                isSelected: isSelected,
-                onTap: () => setState(() => _ageBand = band),
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x5),
-
-          // Sex (v2: Female/Male only)
-          Text(
-            'Sex',
-            style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x2),
-
-          // v2 softening copy per spec
-          Text(
-            'Used only on-device, for heart-rate zones',
-            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
-          ),
-
-          const SizedBox(height: MivaltaSpace.x3),
-
-          Wrap(
-            spacing: MivaltaSpace.x2,
-            runSpacing: MivaltaSpace.x2,
-            children: sexOptions.map((option) {
-              final isSelected = _sex == option.toLowerCase();
-              return _buildSmallChip(
-                label: option,
-                isSelected: isSelected,
-                onTap: () => setState(() => _sex = option.toLowerCase()),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Step 5: Training (v2: level + experience + weekly hours).
-  Widget _buildTrainingStep() {
     const levels = [
-      ('beginner', 'Beginner', 'Just getting started'),
-      ('novice', 'Getting back', 'Returning after a break'),
-      ('intermediate', 'Trained', 'Regular training for 1+ years'),
-      ('advanced', 'Advanced', 'Structured training, racing'),
+      ('beginner', 'Beginner'),
+      ('novice', 'Getting back'),
+      ('intermediate', 'Trained'),
+      ('advanced', 'Advanced'),
     ];
-
     const experience = [
       ('<1', 'Less than a year'),
       ('1-3', '1–3 years'),
       ('3-10', '3–10 years'),
       ('10+', '10+ years'),
     ];
-
     const hours = [
       ('2-3', '2–3 hours'),
       ('4-6', '4–6 hours'),
@@ -757,8 +711,63 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const SizedBox(height: MivaltaSpace.x6),
 
           Text(
-            'Your training background',
+            'About you',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x2),
+
+          // v3: Intro explaining why
+          Text(
+            "Five quick facts — they set your starting zones and how hard MiValta lets a day be. All of it stays on this phone.",
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x5),
+
+          // Age band
+          Text(
+            'Age',
+            style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
+          ),
+          const SizedBox(height: MivaltaSpace.x3),
+          Wrap(
+            spacing: MivaltaSpace.x2,
+            runSpacing: MivaltaSpace.x2,
+            children: ageBands.map((band) {
+              final isSelected = _ageBand == band;
+              return _buildSmallChip(
+                label: band,
+                isSelected: isSelected,
+                onTap: () => setState(() => _ageBand = band),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x5),
+
+          // Sex
+          Text(
+            'Sex',
+            style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
+          ),
+          const SizedBox(height: MivaltaSpace.x2),
+          Text(
+            'Used only on-device, to set heart-rate zones.',
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+          ),
+          const SizedBox(height: MivaltaSpace.x3),
+          Wrap(
+            spacing: MivaltaSpace.x2,
+            runSpacing: MivaltaSpace.x2,
+            children: sexOptions.map((option) {
+              final isSelected = _sex == option.toLowerCase();
+              return _buildSmallChip(
+                label: option,
+                isSelected: isSelected,
+                onTap: () => setState(() => _sex = option.toLowerCase()),
+              );
+            }).toList(),
           ),
 
           const SizedBox(height: MivaltaSpace.x5),
@@ -768,19 +777,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Current level',
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
-
           const SizedBox(height: MivaltaSpace.x3),
-
-          ...levels.map((l) {
-            final (id, title, desc) = l;
-            final isSelected = _level == id;
-            return _buildCompactOptionRow(
-              title: title,
-              description: desc,
-              isSelected: isSelected,
-              onTap: () => setState(() => _level = id),
-            );
-          }),
+          Wrap(
+            spacing: MivaltaSpace.x2,
+            runSpacing: MivaltaSpace.x2,
+            children: levels.map((l) {
+              final (id, label) = l;
+              final isSelected = _level == id;
+              return _buildSmallChip(
+                label: label,
+                isSelected: isSelected,
+                onTap: () => setState(() => _level = id),
+              );
+            }).toList(),
+          ),
 
           const SizedBox(height: MivaltaSpace.x5),
 
@@ -789,9 +799,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'How long have you trained?',
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
-
           const SizedBox(height: MivaltaSpace.x3),
-
           Wrap(
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
@@ -813,9 +821,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             'Time you can give it, most weeks',
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
-
           const SizedBox(height: MivaltaSpace.x3),
-
           Wrap(
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
@@ -830,16 +836,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             }).toList(),
           ),
 
-          const SizedBox(height: MivaltaSpace.x4),
+          const SizedBox(height: MivaltaSpace.x6),
         ],
       ),
     );
   }
 
-  /// Step 6: Anchors (conditional — FTP/threshold pace).
+  /// Step 4: Anchors (v3: with explanation).
   Widget _buildAnchorsStep() {
-    final showFtp = _sport == 'cycling';
-    final showPace = _sport == 'running';
+    final isRunning = _sport == 'running';
+    final isCycling = _sport == 'cycling';
+
+    // v3: Sport-specific title and intro
+    final title = isRunning ? 'Your running threshold' : 'Your FTP';
+    final intro = isRunning
+        ? "If you know your threshold pace — the fastest pace you could hold for about an hour — MiValta sets your training zones from day one. From a recent race or test is perfect."
+        : "If you know your FTP from a test or a head unit, MiValta sets your power zones from day one.";
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
@@ -849,21 +861,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const SizedBox(height: MivaltaSpace.x6),
 
           Text(
-            'If you know it',
+            title,
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
           const SizedBox(height: MivaltaSpace.x2),
 
+          // v3: Explain why
           Text(
-            "No idea? Perfect — most people don't. MiValta learns it from your sessions.",
+            intro,
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
           const SizedBox(height: MivaltaSpace.x5),
 
           // FTP (cycling)
-          if (showFtp) ...[
+          if (isCycling) ...[
             _buildAnchorInput(
               label: 'FTP (watts)',
               value: _ftp,
@@ -877,11 +890,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 if (_ftpUnknown) _ftp = null;
               }),
             ),
-            const SizedBox(height: MivaltaSpace.x4),
           ],
 
           // Threshold pace (running)
-          if (showPace) ...[
+          if (isRunning) ...[
             _buildAnchorInput(
               label: 'Threshold pace (min/km)',
               value: _thresholdPace,
@@ -896,20 +908,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               }),
             ),
           ],
+
+          // v3: Reassurance line when "I don't know" is selected
+          if (_ftpUnknown || _paceUnknown) ...[
+            const SizedBox(height: MivaltaSpace.x4),
+            Text(
+              'MiValta will find it from your first sessions.',
+              style: MivaltaType.body.copyWith(color: MivaltaColors.stateProductive),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  /// Step 7: Gear (multi-chip, optional — app-side pref).
-  Widget _buildGearStep() {
-    const gearOptions = [
-      ('watch', Icons.watch, 'Watch'),
-      ('ring', Icons.circle_outlined, 'Ring'),
-      ('strap', Icons.monitor_heart, 'HR strap'),
-      ('none', Icons.not_interested, 'None yet'),
-    ];
-
+  /// Step 5: Data Sources (v3: replaces gear, actionable).
+  Widget _buildDataSourcesStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
       child: Column(
@@ -918,65 +932,111 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           const SizedBox(height: MivaltaSpace.x6),
 
           Text(
-            'What do you wear?',
+            'Where your data comes from',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
           const SizedBox(height: MivaltaSpace.x2),
 
           Text(
-            'This helps us understand your data sources.',
+            "Connect a source and MiValta reads sleep, heart rate and workouts automatically — on the phone, never through our servers.",
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          Wrap(
-            spacing: MivaltaSpace.x3,
-            runSpacing: MivaltaSpace.x3,
-            children: gearOptions.map((g) {
-              final (id, icon, label) = g;
-              final isSelected = _gear.contains(id);
-              return _buildChip(
-                icon: icon,
-                label: label,
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() {
-                    if (id == 'none') {
-                      // "None yet" exclusive-toggles others
-                      if (isSelected) {
-                        _gear.remove('none');
-                      } else {
-                        _gear.clear();
-                        _gear.add('none');
-                      }
-                    } else {
-                      _gear.remove('none'); // Clear "none" if selecting gear
-                      if (isSelected) {
-                        _gear.remove(id);
-                      } else {
-                        _gear.add(id);
-                      }
-                    }
-                  });
-                },
-              );
-            }).toList(),
+          // Apple Health row (actionable)
+          _buildDataSourceRow(
+            icon: Icons.favorite,
+            iconColor: Colors.red,
+            title: 'Apple Health',
+            status: _healthConnected
+                ? 'Connected ✓'
+                : _healthDenied
+                    ? 'Not now'
+                    : null,
+            buttonText: _healthConnected || _healthDenied ? null : 'Connect',
+            onTap: _healthConnected || _healthDenied ? null : _connectAppleHealth,
+          ),
+
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // Platform rows (coming soon)
+          _buildDataSourceRow(
+            icon: Icons.directions_bike,
+            iconColor: MivaltaColors.levelOrange,
+            title: 'Strava',
+            status: 'coming soon',
+            isMuted: true,
+            onTapInfo: () => _showPlatformInfo(context),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x3),
+
+          _buildDataSourceRow(
+            icon: Icons.watch,
+            iconColor: MivaltaColors.textSecondary,
+            title: 'Garmin',
+            status: 'coming soon',
+            isMuted: true,
+            onTapInfo: () => _showPlatformInfo(context),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x3),
+
+          _buildDataSourceRow(
+            icon: Icons.monitor_heart,
+            iconColor: MivaltaColors.levelRed,
+            title: 'Polar',
+            status: 'coming soon',
+            isMuted: true,
+            onTapInfo: () => _showPlatformInfo(context),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x6),
+
+          // v3: Footer
+          Text(
+            'On this phone. Never on a server.',
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: MivaltaSpace.x4),
+        ],
+      ),
+    );
+  }
+
+  /// Show platform sync info.
+  void _showPlatformInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: MivaltaColors.surface1,
+        title: Text(
+          'Platform sync',
+          style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textPrimary),
+        ),
+        content: Text(
+          "Platform sync is on the roadmap — your watch's data already arrives via Apple Health.",
+          style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Got it',
+              style: MivaltaType.body.copyWith(color: MivaltaColors.stateProductive),
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Step 8: Payoff (confirmation).
-  /// C2 (DR-017): day-zero (fresh engine, zero observations) has no readiness
-  /// number — always show words variant with "Learning you" line.
+  /// Step 6: Payoff (unchanged).
   Widget _buildPayoffStep() {
-    // C2: At onboarding, always words — no number yet
-    const showNumbers = false;
-
-    // Aim-based line
     final aimLine = switch (_aim) {
       'perform' => 'Ready to push your limits.',
       'healthy' => 'Built for sustainable fitness.',
@@ -990,12 +1050,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Mini glow — always words at day-zero
-            _buildPayoffGlow(showNumbers: showNumbers),
+            _buildPayoffGlow(),
 
             const SizedBox(height: MivaltaSpace.x5),
 
-            // Aim line
             Text(
               aimLine,
               style: MivaltaType.titleM.copyWith(color: MivaltaColors.textPrimary),
@@ -1004,7 +1062,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
-            // C2: "Learning you" sub-line (day-zero honest absence)
             Text(
               'Learning you — your first few days of data shape a picture just for you.',
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
@@ -1016,8 +1073,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Payoff mini glow (150px, teal) with "Good to go".
-  Widget _buildPayoffGlow({required bool showNumbers}) {
+  /// Payoff mini glow.
+  Widget _buildPayoffGlow() {
     const glowSize = MivaltaGlow.onbPayoffGlowSize;
     const color = MivaltaColors.stateProductive;
 
@@ -1027,7 +1084,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Outer halo
           ImageFiltered(
             imageFilter: ImageFilter.blur(
               sigmaX: MivaltaGlow.onbPayoffOuterBlur,
@@ -1048,7 +1104,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             ),
           ),
-          // Mid halo
           ImageFiltered(
             imageFilter: ImageFilter.blur(
               sigmaX: MivaltaGlow.onbPayoffMidBlur,
@@ -1069,7 +1124,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             ),
           ),
-          // Content — always words at day-zero
           Text(
             'Good to go',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
@@ -1083,7 +1137,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // SHARED WIDGETS
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Sport row (single-select with icon).
+  /// Sport row.
   Widget _buildSportRow({
     required IconData icon,
     required String label,
@@ -1146,63 +1200,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Chip with icon (gear).
-  Widget _buildChip({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Semantics(
-      toggled: isSelected,
-      button: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(
-            horizontal: MivaltaSpace.x4,
-            vertical: MivaltaSpace.x3,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? MivaltaColors.stateProductive.withValues(alpha: 0.15)
-                : MivaltaColors.surface1,
-            borderRadius: BorderRadius.circular(MivaltaRadii.md),
-            border: Border.all(
-              color: isSelected
-                  ? MivaltaColors.stateProductive
-                  : MivaltaColors.textMuted.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected
-                    ? MivaltaColors.stateProductive
-                    : MivaltaColors.textSecondary,
-              ),
-              const SizedBox(width: MivaltaSpace.x2),
-              Text(
-                label,
-                style: MivaltaType.body.copyWith(
-                  color: isSelected
-                      ? MivaltaColors.stateProductive
-                      : MivaltaColors.textPrimary,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Small chip (age, sex, experience, hours).
+  /// Small chip.
   Widget _buildSmallChip({
     required String label,
     required bool isSelected,
@@ -1244,7 +1242,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Option row (aim, detail).
+  /// Option row.
   Widget _buildOptionRow({
     required String title,
     required String description,
@@ -1308,7 +1306,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Compact option row (level — smaller for more items).
+  /// Compact option row.
   Widget _buildCompactOptionRow({
     required String title,
     required String description,
@@ -1341,7 +1339,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           child: Row(
             children: [
               Expanded(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
@@ -1352,9 +1351,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                       ),
                     ),
-                    const SizedBox(width: MivaltaSpace.x2),
                     Text(
-                      '· $description',
+                      description,
                       style: MivaltaType.small.copyWith(
                         color: MivaltaColors.textMuted,
                       ),
@@ -1375,7 +1373,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Anchor input (FTP, threshold pace) with "I don't know" chip.
+  /// Anchor input with "I don't know" chip.
   Widget _buildAnchorInput({
     required String label,
     required double? value,
@@ -1395,7 +1393,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         Row(
           children: [
-            // Numeric input
             Expanded(
               child: Container(
                 height: 52,
@@ -1428,7 +1425,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(width: MivaltaSpace.x3),
 
-            // "I don't know" chip
             _buildSmallChip(
               label: "I don't know",
               isSelected: isUnknown,
@@ -1437,6 +1433,93 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ],
         ),
       ],
+    );
+  }
+
+  /// Data source row (v3).
+  Widget _buildDataSourceRow({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? status,
+    String? buttonText,
+    bool isMuted = false,
+    VoidCallback? onTap,
+    VoidCallback? onTapInfo,
+  }) {
+    return GestureDetector(
+      onTap: onTap ?? onTapInfo,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(
+          horizontal: MivaltaSpace.x4,
+          vertical: MivaltaSpace.x3,
+        ),
+        decoration: BoxDecoration(
+          color: MivaltaColors.surface1,
+          borderRadius: BorderRadius.circular(MivaltaRadii.md),
+          border: Border.all(
+            color: MivaltaColors.textMuted.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isMuted ? MivaltaColors.textMuted : iconColor,
+            ),
+            const SizedBox(width: MivaltaSpace.x4),
+            Expanded(
+              child: Text(
+                title,
+                style: MivaltaType.cardTitle.copyWith(
+                  color: isMuted ? MivaltaColors.textMuted : MivaltaColors.textPrimary,
+                ),
+              ),
+            ),
+            if (status != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MivaltaSpace.x3,
+                  vertical: MivaltaSpace.x1,
+                ),
+                decoration: BoxDecoration(
+                  color: status == 'Connected ✓'
+                      ? MivaltaColors.stateProductive.withValues(alpha: 0.15)
+                      : MivaltaColors.textMuted.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+                ),
+                child: Text(
+                  status,
+                  style: MivaltaType.small.copyWith(
+                    color: status == 'Connected ✓'
+                        ? MivaltaColors.stateProductive
+                        : MivaltaColors.textMuted,
+                  ),
+                ),
+              ),
+            if (buttonText != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MivaltaSpace.x4,
+                  vertical: MivaltaSpace.x2,
+                ),
+                decoration: BoxDecoration(
+                  color: MivaltaColors.stateProductive,
+                  borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+                ),
+                child: Text(
+                  buttonText,
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.surfaceBackground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
