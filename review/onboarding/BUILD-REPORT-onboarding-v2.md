@@ -35,18 +35,23 @@ STATUS: ACTIVE
 
 ---
 
-## Screenshots — MAC-SIDE PENDING
+## Screenshots
 
-| State | Filename | What renders |
-|-------|----------|--------------|
-| Promise | `onb_<SHA>_promise.png` | Lock tile + "Your body.\nYour data." + sub |
-| Sport | `onb_<SHA>_sport.png` | Single-choice: Running \| Cycling |
-| Basics | `onb_<SHA>_basics.png` | Age band (5) + Sex (Female/Male) |
-| Training | `onb_<SHA>_training.png` | Level + Experience + Weekly hours |
-| Anchors | `onb_<SHA>_anchors.png` | FTP/pace input + "I don't know" chip |
-| Payoff | `onb_<SHA>_payoff.png` | "Good to go" + "Learning you" |
+| State | Filename | Status |
+|-------|----------|--------|
+| Promise | `shots/onb_68e19f1_promise.png` | ✓ Captured |
+| Sport | `shots/onb_68e19f1_sport.png` | ⏳ Manual |
+| Basics | `shots/onb_68e19f1_basics.png` | ⏳ Manual |
+| Training | `shots/onb_68e19f1_training.png` | ⏳ Manual |
+| Anchors | `shots/onb_68e19f1_anchors.png` | ⏳ Manual |
+| Payoff | `shots/onb_68e19f1_payoff.png` | ⏳ Manual |
 
-**MAC-SIDE:** Capture shots with `--dart-define=BUILD_SHA=$(git rev-parse --short HEAD)`.
+**SHA:** `68e19f1`
+
+**To capture remaining:** Tap through flow on simulator, run:
+```bash
+xcrun simctl io booted screenshot review/onboarding/shots/onb_68e19f1_<step>.png
+```
 
 ---
 
