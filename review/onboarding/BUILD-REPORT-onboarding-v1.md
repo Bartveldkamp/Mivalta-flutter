@@ -2,13 +2,22 @@ STATUS: ACTIVE
 
 # Onboarding Screen — Build Report v1
 
-**Executing BS-002-onboarding against SHA `f4d248a`.**
+**Executing BS-002-onboarding against SHA `2006dde` → C1/C2 fix SHA `<pending>`.**
 
 **Branch:** `feature/onboarding`
 **Date:** 2026-07-02
 **Spec:** BS-002-onboarding.md
 
-**Status:** Implementation complete. Engine wiring in place. Splash routing updated.
+**Status:** Implementation complete + DR-017 C1/C2 fixes applied.
+
+---
+
+## DR-017 Fixes Applied
+
+| Fix | Issue | Resolution |
+|-----|-------|------------|
+| **C1** | inputs_json vocabulary mismatch | `age`: band label → representative int; `sex`: lowercase; `ftp_watts`/`threshold_pace_sec_km`: engine schema |
+| **C2** | Payoff "—" placeholder at day-zero | Day-zero always shows words ("Good to go") + "Learning you" sub-line |
 
 ---
 
@@ -19,29 +28,37 @@ STATUS: ACTIVE
 | Promise | `onb_<SHA>_promise.png` | Lock tile + "Your body.\nYour data." + sub |
 | Sports | `onb_<SHA>_sports.png` | Multi-chip sports selection |
 | Anchors (IDK) | `onb_<SHA>_anchors-idk.png` | "I don't know" selected for FTP/pace |
-| Payoff (numbers) | `onb_<SHA>_payoff-numbers.png` | detail=="numbers" → readiness number |
-| Payoff (words) | `onb_<SHA>_payoff-words.png` | detail=="simple" → "Good to go" |
+| Payoff (words) | `onb_<SHA>_payoff.png` | "Good to go" + "Learning you" (C2: day-zero always words) |
 
-**MAC-SIDE:** Capture 5 shots with `--dart-define=BUILD_SHA=$(git rev-parse --short HEAD)`.
+**C2 note:** Only 4 shots needed — payoff-numbers variant removed (day-zero has no readiness number).
+
+**MAC-SIDE:** Capture shots with `--dart-define=BUILD_SHA=$(git rev-parse --short HEAD)`.
 
 ---
 
 ## Engine Wiring — inputs_json + Profile JSON
 
-### Sample inputs_json (MAC-SIDE: verify with real engine)
+### Sample inputs_json (C1 corrected vocabulary)
 
 ```json
 {
   "sports": ["running", "cycling"],
   "aim": "perform",
   "detail": "numbers",
-  "age_band": "30–39",
-  "sex": "Male",
+  "age": 35,
+  "sex": "male",
   "gear": ["watch", "strap"],
-  "ftp": null,
-  "threshold_pace": null
+  "ftp_watts": null,
+  "threshold_pace_sec_km": null
 }
 ```
+
+**C1 mapping:**
+- `age_band: "30–39"` → `age: 35` (representative int)
+- `sex: "Male"` → `sex: "male"` (lowercase)
+- `sex: "Prefer not to say"` → `sex: null` (engine handles)
+- `ftp` → `ftp_watts` (int)
+- `threshold_pace` (min/km) → `threshold_pace_sec_km` (sec/km, int)
 
 **Key point:** "I don't know" → `null` for anchors, NEVER 0. The engine handles null anchors cleanly (zero-fabrication tests).
 
@@ -86,21 +103,23 @@ The engine derives:
 | Disabled state | 40% alpha when `need()` not satisfied | ✓ Done |
 | Entrance animation | Content fade/rise 300ms standardEase, respects `disableAnimations` | ✓ Done |
 
-### Step 5 Anchors — Null-Honest
+### Step 5 Anchors — Null-Honest (C1 vocabulary fix)
 
 | Condition | Behavior | Status |
 |-----------|----------|--------|
 | No Running/Cycling | Step skipped entirely | ✓ Done |
-| FTP "I don't know" | `ftp: null` in inputs_json | ✓ Done |
-| Pace "I don't know" | `threshold_pace: null` in inputs_json | ✓ Done |
-| Numeric entry | Value stored as double | ✓ Done |
+| FTP "I don't know" | `ftp_watts: null` in inputs_json | ✓ C1 fixed |
+| Pace "I don't know" | `threshold_pace_sec_km: null` in inputs_json | ✓ C1 fixed |
+| Numeric entry | Value stored as int (FTP watts, pace sec/km) | ✓ C1 fixed |
 
-### Step 7 Payoff — Variants
+### Step 7 Payoff — Day-Zero Handling (C2 fix)
 
-| Detail choice | Glow content | Status |
-|---------------|--------------|--------|
-| "numbers" | Seeded readiness number (placeholder "—" until engine) | ✓ Done |
-| "simple" | "Good to go" 24px | ✓ Done |
+| State | Glow content | Sub-line | Status |
+|-------|--------------|----------|--------|
+| Day-zero (onboarding) | "Good to go" (always) | "Learning you — your first few days..." | ✓ C2 fixed |
+| With data (Today) | Readiness number | — | n/a (Today handles) |
+
+**C2 rationale:** Fresh engine (zero observations) has no readiness number. Showing "—" in a celebratory glow looks broken. The user's `detail` preference is stored and honored on Today once observations exist.
 
 ---
 

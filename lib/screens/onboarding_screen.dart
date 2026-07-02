@@ -143,23 +143,46 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
+  /// Map age band label → representative int (engine expects int, not string).
+  int? _ageBandToInt(String? band) => switch (band) {
+        '18–29' => 24,
+        '30–39' => 35,
+        '40–49' => 45,
+        '50–59' => 55,
+        '60+' => 65,
+        _ => null,
+      };
+
+  /// Map sex label → engine lowercase value.
+  /// "Prefer not to say" → null (engine handles absent sex).
+  String? _sexToEngine(String? sex) => switch (sex) {
+        'Female' => 'female',
+        'Male' => 'male',
+        'Prefer not to say' => null,
+        _ => null,
+      };
+
   /// Build inputs_json from collected answers.
+  /// C1 (DR-017): engine expects `age: int` and `sex: "male"|"female"` (lowercase).
   Map<String, dynamic> _buildInputsJson() {
     final inputs = <String, dynamic>{
       'sports': _sports.toList(),
       'aim': _aim,
       'detail': _detail,
-      'age_band': _ageBand,
-      'sex': _sex,
+      'age': _ageBandToInt(_ageBand), // C1: int, not age_band string
+      'sex': _sexToEngine(_sex), // C1: lowercase, null if "Prefer not to say"
       'gear': _gear.toList(),
     };
 
     // Anchors: null means "I don't know" — NEVER 0, NEVER default
     if (_sports.contains('cycling')) {
-      inputs['ftp'] = _ftpUnknown ? null : _ftp;
+      // ftp_watts: int (engine schema)
+      inputs['ftp_watts'] = _ftpUnknown ? null : _ftp?.toInt();
     }
     if (_sports.contains('running')) {
-      inputs['threshold_pace'] = _paceUnknown ? null : _thresholdPace;
+      // threshold_pace_sec_km: int (engine schema, convert from min/km to sec/km)
+      final paceMinKm = _paceUnknown ? null : _thresholdPace;
+      inputs['threshold_pace_sec_km'] = paceMinKm != null ? (paceMinKm * 60).toInt() : null;
     }
 
     return inputs;
@@ -773,8 +796,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Step 8: Payoff (confirmation).
+  /// C2 (DR-017): day-zero (fresh engine, zero observations) has no readiness
+  /// number — always show words variant with "Learning you" line. Once the
+  /// engine has data, Today will show the real number.
   Widget _buildPayoffStep() {
-    final showNumbers = _detail == 'numbers';
+    // C2: At onboarding, always words — no number yet. The user's `detail`
+    // preference is stored and honored on Today once observations exist.
+    const showNumbers = false; // Day-zero: no readiness yet
 
     // Aim-based line
     final aimLine = switch (_aim) {
@@ -790,7 +818,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Mini glow with number or text
+            // Mini glow — always words at day-zero
             _buildPayoffGlow(showNumbers: showNumbers),
 
             const SizedBox(height: MivaltaSpace.x5),
@@ -804,9 +832,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
-            // Sub
+            // C2: "Learning you" sub-line (day-zero honest absence)
             Text(
-              'This is your Today — tuned to your answers. Adjust it any time in You → Coaching style.',
+              'Learning you — your first few days of data shape a picture just for you.',
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
