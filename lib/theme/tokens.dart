@@ -267,6 +267,13 @@ abstract final class MivaltaMotion {
   static const fast = Duration(milliseconds: 150);
   static const standard = Duration(milliseconds: 280);
 
+  // BS-007: State crossfade (M1) — glow colour old→new on fatigue state change.
+  static const stateShift = Duration(milliseconds: 800);
+
+  // BS-007: Staggered reveal timing (used ÷3 = 90ms for Why? rows; whole for
+  // future reveal animations).
+  static const beatStagger = Duration(milliseconds: 270);
+
   // Eases from design tokens.
   static const decelerate = Curves.easeOutCubic; // --ease-decelerate
   static const standardEase = Curves.ease;       // --ease-standard
