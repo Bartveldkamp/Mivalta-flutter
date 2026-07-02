@@ -133,23 +133,53 @@ v3 sends same `inputs_json` format to engine:
 
 ## Real End-to-End Run
 
-**MAC: Run a full onboarding flow and paste the actual JSON below.**
+**From v2 run (same contract) — MAC: verify with fresh v3 run.**
 
-The console log will show:
-- `Onboarding inputs_json: {...}` — the exact payload sent to engine
-- `Onboarding profile JSON: {...}` — the exact profile returned
+Console logs show:
+- `Onboarding inputs_json: {...}` — exact payload sent to engine
+- `Onboarding profile JSON: {...}` — exact profile returned
 
-### inputs_json (real run)
-
-```json
-// MAC: paste the actual inputs_json from `debugPrint` here
-```
-
-### profile JSON (returned from engine)
+### inputs_json (real run @ v2, 2026-07-02)
 
 ```json
-// MAC: paste the actual profile JSON from `debugPrint` here
+{
+  "athlete_id": "f772f921-c6bf-4bb5-8c29-0d4714921d4b",
+  "age": 55,
+  "sex": "male",
+  "level": "advanced",
+  "sport": "running",
+  "goal_type": "performance",
+  "weekly_hours": 3.0,
+  "training_years": 12,
+  "threshold_pace_sec_km": null
+}
 ```
+
+### profile JSON (returned from engine @ v2, 2026-07-02)
+
+```json
+{
+  "age": 55,
+  "athlete_id": "f772f921-c6bf-4bb5-8c29-0d4714921d4b",
+  "availability": {"0":45,"11":45,"13":45,"14":45,"16":45,"18":45,"2":45,"20":45,"4":45,"6":45,"7":45,"9":45},
+  "goal_class": "performance",
+  "goal_type": "performance",
+  "level": "advanced",
+  "meso_length": 21,
+  "meso_minutes": 540,
+  "meso_off_days": [1,3,5,8,10,12,15,17,19],
+  "meso_train_days": [0,2,4,6,7,9,11,13,14,16,18,20],
+  "recent_activity": "competitive",
+  "sex": "male",
+  "sport": "running",
+  "training_years": 12,
+  "weekly_hours": 3.0
+}
+```
+
+### C7 Blocker (discovered in v2 run)
+
+Engine panics on generic `goal_type` ("performance" / "general_fitness") — it expects event-specific goals (10k, 5k, century). See BUILD-REPORT-onboarding-v2.md for full error trace. This blocks the final step.
 
 ---
 
