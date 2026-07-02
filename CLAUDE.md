@@ -160,9 +160,16 @@ The build executor still owes the **iOS xcframework rebuild** at this rev (Andro
 is proven by the `smoke` CI cross-compile; iOS is Mac-only) — see
 `docs/mac/MAC_BRIEF_REALIZE_SEAM.md`.
 
-**At engine HEAD:** `b7264cb` is rust-engine `main` HEAD as of the #116 re-pin —
-**no skew**. (The earlier "3 commits behind `8b3b95a`/v2.27" note is retired: #116
-jumped the pin straight to `b7264cb`/v2.29, and #117 consumed the voice surface.)
+**Pin skew (as of 2026-07):** `b7264cb` is **behind** rust-engine `main` — the
+audit-fix train merged since this pin (rust-engine #377 audit fixes + dead
+chat-history removal, #378 Viterbi-terminology purge + guard, #379 duration-only
+honest-absence + determinism guard). The delta is **safe to re-pin**: the only
+FFI-surface change the Flutter shim touches is the *removal* of
+`cleanup_expired_conversation_turns` — which `rust/src/api.rs` does **not** call
+— plus the additive free fn `post_process_policy`; `engine_registry` stays v2.29.
+Re-pin to current `main` when the fixes are wanted (a `rust/Cargo.toml` rev bump +
+Mac xcframework rebuild). Verify against `engine_registry.json` at the new rev
+before bumping (Rule 4 — zero guessing).
 
 ## Repository Structure
 
