@@ -972,7 +972,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           // Apple Health row (actionable)
           _buildDataSourceRow(
             icon: Icons.favorite,
-            iconColor: Colors.red,
+            iconColor: MivaltaColors.levelRed,
             title: 'Apple Health',
             status: _healthConnected
                 ? 'Connected ✓'
