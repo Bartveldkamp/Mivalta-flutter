@@ -79,6 +79,31 @@ that grounds Josi's recommendation in transparent, traceable facts.
 
 ---
 
+## Engine output (demo_seeder, Mac-side)
+
+> **Mac session:** Run `flutter run` after seeding via `DemoSeeder.seed(days: 14)`.
+> Capture the real JSON from debug console and paste below.
+
+### RealizedLine JSON (from `realizeAdvisorLine`)
+
+```json
+⚠ PLACEHOLDER — paste real engine output here
+```
+
+### contributions[] sample (from `readinessIndicator`)
+
+```json
+⚠ PLACEHOLDER — paste one real contribution entry here, e.g.:
+{
+  "key": "hrv",
+  "value": 42.5,
+  "weight": 0.35,
+  "direction": "up"
+}
+```
+
+---
+
 ## Test results
 
 ```
@@ -105,11 +130,29 @@ flutter test:    233 tests passed
 
 ---
 
-## Next steps (Mac-side)
+## Screenshots needed (Mac-side)
 
-- `flutter run` on simulator with demo seeder data
-- Capture 3 SHA-stamped shots: verdict / why-open / verdict-absent
-- Verify glow crossfade motion (with and without reduced motion)
+| Shot | Description |
+|------|-------------|
+| `bs007_<SHA>_verdict.png` | Today screen with Josi line visible (demo_seeder populated) |
+| `bs007_<SHA>_why-open.png` | Why? unfold expanded showing contribution rows |
+| `bs007_<SHA>_verdict-absent.png` | Today screen with honest-absent state (no data / fresh profile) |
+
+**Seed via:** `DemoSeeder.seed(days: 14)` in debug console, then hot-restart.
+
+---
+
+## Mac-side checklist
+
+1. [ ] Checkout `feature/bs007-verdict`, `flutter run`
+2. [ ] Seed: `DemoSeeder.seed(days: 14)`, hot-restart
+3. [ ] Capture real `RealizedLine` JSON from debug console → paste above
+4. [ ] Capture real `contributions[]` entry from debug console → paste above
+5. [ ] Screenshot: verdict (Josi visible)
+6. [ ] Screenshot: why-open (tap Why?, capture expanded rows)
+7. [ ] Screenshot: verdict-absent (fresh profile, no seeded data)
+8. [ ] Update SHA in filenames + report footer
+9. [ ] Commit & push
 
 ---
 
