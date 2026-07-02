@@ -2,7 +2,7 @@ STATUS: ACTIVE
 
 # Onboarding Screen — Build Report v1
 
-**Executing BS-002-onboarding against SHA `2006dde` → C1/C2 fix SHA `<pending>`.**
+**Executing BS-002-onboarding against SHA `2006dde` → C1/C2 fix SHA `418f8e0`.**
 
 **Branch:** `feature/onboarding`
 **Date:** 2026-07-02
