@@ -22,6 +22,7 @@ import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
 import '../theme/tokens.dart';
+import '../theme/zone_names.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
 import '../widgets/today/metric_bar.dart';
@@ -778,21 +779,8 @@ class _ZoneChip extends StatelessWidget {
     );
   }
 
-  /// Map zone code to (energy name, colour). Based on standard 8-zone model.
-  (String, Color) _zoneNameAndColor(String zone) {
-    return switch (zone.toUpperCase()) {
-      'Z1' => ('Recovery', MivaltaColors.stateRecovered),
-      'Z2' => ('Endurance', MivaltaColors.stateProductive),
-      'Z3' => ('Tempo', MivaltaColors.stateProductive),
-      'Z4' => ('Threshold', MivaltaColors.stateAccumulated),
-      'Z5' => ('VO2max', MivaltaColors.stateAccumulated),
-      'Z6' => ('Anaerobic', MivaltaColors.levelOrange),
-      'Z7' => ('Neuromuscular', MivaltaColors.levelRed),
-      'Z8' => ('Max', MivaltaColors.levelRed),
-      'REST' => ('Rest', MivaltaColors.textSecondary),
-      _ => (zone, MivaltaColors.textSecondary), // fallback: show code as-is
-    };
-  }
+  // DR-018 A3: use shared zone naming (engine truth)
+  (String, Color) _zoneNameAndColor(String zone) => zoneDisplayNameAndColor(zone);
 }
 
 /// Bottom nav item for Today/Journey/You.
@@ -853,19 +841,8 @@ class _DecisionChip extends StatelessWidget {
   /// Map zone codes to human-readable decision phrases.
   /// DR-005: bare "Z8" breaks zone-never-bare rule; show descriptive text.
   String _formatZoneDecision(String zone) {
-    // Zone-to-level mapping per training zones model
-    return switch (zone.toUpperCase()) {
-      'Z8' => 'Max power · Z8',
-      'Z7' => 'Anaerobic · Z7',
-      'Z6' => 'VO₂max · Z6',
-      'Z5' => 'Threshold · Z5',
-      'Z4' => 'Tempo · Z4',
-      'Z3' => 'Endurance · Z3',
-      'Z2' => 'Easy · Z2',
-      'Z1' => 'Recovery · Z1',
-      'REST' => 'Rest day',
-      _ => zone, // Fallback for unknown zones
-    };
+    // DR-018 A3: use shared zone naming (engine truth)
+    return zoneDisplayLabel(zone);
   }
 
   @override

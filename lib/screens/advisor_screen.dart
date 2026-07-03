@@ -15,7 +15,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/workout_option.dart';
 import '../rust_engine.dart';
+import '../services/profile_service.dart';
 import '../theme/tokens.dart';
+import '../theme/zone_names.dart';
 
 /// Advisor screen showing workout options A/B/C with quick-adjust chips.
 class AdvisorScreen extends StatefulWidget {
@@ -57,6 +59,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   // Selected option for detail view (null = list view)
   WorkoutOption? _selectedOption;
 
+  // Profile sport for equipment value mapping
+  String? _sport;
+
   // Today's date key for persisted choice
   String get _todayKey =>
       'chosen_option_${DateTime.now().toIso8601String().substring(0, 10)}';
@@ -64,11 +69,42 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   // Previously chosen option ID for today
   String? _chosenOptionId;
 
+  /// Equipment display values — UI labels shown to user.
+  List<String> get _equipmentValues => const ['outdoor', 'indoor'];
+
+  /// Map UI equipment selection to engine-legal value.
+  /// Engine matches: contains("outdoor"), contains("trainer"), contains("treadmill").
+  /// "indoor" silently no-ops, so we send sport-specific values.
+  String? get _equipmentValueForEngine {
+    if (_selectedEquipment == null) return null;
+    if (_selectedEquipment == 'outdoor') return 'outdoor';
+    // "indoor" → trainer (cycling) or treadmill (running)
+    if (_selectedEquipment == 'indoor') {
+      return _sport == 'running' ? 'treadmill' : 'trainer';
+    }
+    return _selectedEquipment;
+  }
+
   @override
   void initState() {
     super.initState();
     _options = widget.options;
     _loadChosenOption();
+    _loadSport();
+  }
+
+  Future<void> _loadSport() async {
+    final profileJson = await ProfileService.loadProfile();
+    if (profileJson != null && mounted) {
+      try {
+        final decoded = jsonDecode(profileJson);
+        if (decoded is Map && decoded['sport'] != null) {
+          setState(() => _sport = decoded['sport'].toString());
+        }
+      } catch (_) {
+        // Profile parse error — default to cycling
+      }
+    }
   }
 
   Future<void> _loadChosenOption() async {
@@ -88,10 +124,11 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
 
     try {
       // Use the passed binding and handle for re-resolve
+      // Note: equipment uses mapped value (indoor → trainer/treadmill per sport)
       final workoutJson = await widget.binding.recommendWorkout(
         widget.handle,
         mood: _selectedMood,
-        equipment: _selectedEquipment,
+        equipment: _equipmentValueForEngine,
         terrain: _selectedTerrain,
       );
       final decoded = jsonDecode(workoutJson);
@@ -222,10 +259,11 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            // Mood chips
+            // Mood chips — engine legal values: fun/easy/hard/mix
+            // (NOT fresh/normal/tired — those panic the engine)
             _ChipGroup(
-              label: 'Feeling',
-              values: const ['fresh', 'normal', 'tired'],
+              label: 'In the mood for',
+              values: const ['fun', 'easy', 'hard', 'mix'],
               selected: _selectedMood,
               onSelected: (v) {
                 setState(() => _selectedMood = v);
@@ -233,10 +271,12 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
               },
             ),
             const SizedBox(width: MivaltaSpace.x3),
-            // Equipment chips
+            // Equipment chips — display label vs. sent value differ
+            // Engine matches: contains("outdoor"), contains("trainer"),
+            // contains("treadmill"). "indoor" silently no-ops.
             _ChipGroup(
               label: 'Equipment',
-              values: const ['indoor', 'outdoor'],
+              values: _equipmentValues,
               selected: _selectedEquipment,
               onSelected: (v) {
                 setState(() => _selectedEquipment = v);
@@ -244,10 +284,10 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
               },
             ),
             const SizedBox(width: MivaltaSpace.x3),
-            // Terrain chips
+            // Terrain chips — flat/hilly/trail are all engine-real
             _ChipGroup(
               label: 'Terrain',
-              values: const ['flat', 'hilly'],
+              values: const ['flat', 'hilly', 'trail'],
               selected: _selectedTerrain,
               onSelected: (v) {
                 setState(() => _selectedTerrain = v);
@@ -439,16 +479,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
           // Specs row
           _buildSpecsRow(option),
           const SizedBox(height: MivaltaSpace.x4),
-          // Zone purpose (expandable)
+          // Zone purpose (expandable — 2 lines collapsed, tappable "more")
           if (option.zonePurpose != null) ...[
-            Text(
-              option.zonePurpose!,
-              style: MivaltaType.small.copyWith(
-                color: MivaltaColors.textSecondary,
-              ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
+            _ExpandableZonePurpose(text: option.zonePurpose!),
             const SizedBox(height: MivaltaSpace.x4),
           ],
           // Structure preview (TODO: full structure renderer)
@@ -811,20 +844,8 @@ class _ZoneChip extends StatelessWidget {
     );
   }
 
-  (String, Color) _zoneNameAndColor(String zone) {
-    return switch (zone.toUpperCase()) {
-      'Z1' => ('Recovery', MivaltaColors.stateRecovered),
-      'Z2' => ('Endurance', MivaltaColors.stateProductive),
-      'Z3' => ('Tempo', MivaltaColors.stateProductive),
-      'Z4' => ('Threshold', MivaltaColors.stateAccumulated),
-      'Z5' => ('VO2max', MivaltaColors.stateAccumulated),
-      'Z6' => ('Anaerobic', MivaltaColors.levelOrange),
-      'Z7' => ('Neuromuscular', MivaltaColors.levelRed),
-      'Z8' => ('Max', MivaltaColors.levelRed),
-      'REST' => ('Rest', MivaltaColors.textSecondary),
-      _ => (zone, MivaltaColors.textSecondary),
-    };
-  }
+  // DR-018 A3: use shared zone naming (engine truth)
+  (String, Color) _zoneNameAndColor(String zone) => zoneDisplayNameAndColor(zone);
 }
 
 /// Spec item chip for duration/watts/pace/tags.
@@ -847,6 +868,48 @@ class _SpecItem extends StatelessWidget {
         style: MivaltaType.small.copyWith(
           color: MivaltaColors.textSecondary.withValues(alpha: muted ? 0.6 : 1.0),
         ),
+      ),
+    );
+  }
+}
+
+/// Expandable zone purpose text — 2 lines collapsed with "more" tap.
+class _ExpandableZonePurpose extends StatefulWidget {
+  const _ExpandableZonePurpose({required this.text});
+
+  final String text;
+
+  @override
+  State<_ExpandableZonePurpose> createState() => _ExpandableZonePurposeState();
+}
+
+class _ExpandableZonePurposeState extends State<_ExpandableZonePurpose> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.text,
+            style: MivaltaType.small.copyWith(
+              color: MivaltaColors.textSecondary,
+            ),
+            maxLines: _expanded ? null : 2,
+            overflow: _expanded ? null : TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _expanded ? 'less' : 'more',
+            style: MivaltaType.small.copyWith(
+              color: MivaltaColors.stateProductive,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
