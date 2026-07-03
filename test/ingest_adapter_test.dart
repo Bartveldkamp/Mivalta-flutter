@@ -207,6 +207,44 @@ void main() {
       expect(result.activityId, 'hk_1');
     });
 
+    test(
+        'couriers raw hr_samples to the engine (Law 2 — engine computes the mean)',
+        () async {
+      final binding = _RecordingBinding()
+        ..assessmentReturn = '{"recorded_load":50.0}';
+
+      // apple: raw samples land under associatedSamples.heartRate.samples.
+      await IngestAdapter(binding: binding, handle: _FakeHandle()).ingestWorkout(
+        activityId: 'hk_2',
+        date: '2026-06-30',
+        activityType: 'ride',
+        durationMinutes: 60.0,
+        source: 'apple',
+        avgHr: 145,
+        maxHr: 172,
+        hrSamples: const [150.0, 160.0, 170.0],
+      );
+      final apple = jsonDecode(binding.normalizeArgs!.json) as Map<String, dynamic>;
+      final hr = (apple['workout']['associatedSamples']['heartRate'])
+          as Map<String, dynamic>;
+      expect(hr['samples'], const [150.0, 160.0, 170.0],
+          reason: 'raw samples couriered untransformed — the engine averages');
+
+      // health_connect: raw samples land under exercise.hr_samples.
+      await IngestAdapter(binding: binding, handle: _FakeHandle()).ingestWorkout(
+        activityId: 'hc_2',
+        date: '2026-06-30',
+        activityType: 'ride',
+        durationMinutes: 60.0,
+        source: 'health_connect',
+        avgHr: 145,
+        hrSamples: const [150.0, 160.0, 170.0],
+      );
+      final hc = jsonDecode(binding.normalizeArgs!.json) as Map<String, dynamic>;
+      expect((hc['exercise'] as Map<String, dynamic>)['hr_samples'],
+          const [150.0, 160.0, 170.0]);
+    });
+
     test('engine recorded no load → load_uls omitted (honest absence)', () async {
       final binding = _RecordingBinding()..assessmentReturn = '{}';
 
