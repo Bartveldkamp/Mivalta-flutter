@@ -20,9 +20,10 @@ void main() async {
 
   // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
   // Enabled for BS-001 design verification with real engine-computed data
-  if (kDebugMode) {
-    await _seedDemoIfNeeded();
-  }
+  // DISABLED for DR-017 final witness — fresh onboarding E2E
+  // if (kDebugMode) {
+  //   await _seedDemoIfNeeded();
+  // }
 
   runApp(const MivaltaApp());
 }

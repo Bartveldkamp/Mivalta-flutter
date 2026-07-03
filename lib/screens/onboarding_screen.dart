@@ -284,11 +284,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
       // 4. Construct engines fresh
       final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
-      await binding.constructEnginesFresh(
+      final handle = await binding.constructEnginesFresh(
         athleteProfileJson: profileJson,
         tablesJson: tablesJson,
         vaultPath: vaultPath,
       );
+      debugPrint('Onboarding: Engines constructed, handle=$handle');
 
       // 5. Route to Today
       if (mounted) {
