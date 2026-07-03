@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String? _sport; // SINGULAR: 'cycling' | 'running' only (FL-17)
   String? _aim; // 'perform' | 'healthy' | 'both' → maps to goal_type
   String? _ageBand; // UI label → age int
-  String? _sex; // 'female' | 'male' (non-nullable in engine)
+  String? _sex; // 'female' | 'male' | 'prefer_not_say' (omitted from inputs_json if prefer_not_say)
   String? _level; // 'beginner' | 'novice' | 'intermediate' | 'advanced'
   String? _experience; // '<1' | '1-3' | '3-10' | '10+' → training_years int
   String? _weeklyHours; // '2-3' | '4-6' | '7-10' | '10+' → weekly_hours double
@@ -219,13 +219,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final inputs = <String, dynamic>{
       'athlete_id': _athleteId,
       'age': _ageBandToInt(_ageBand),
-      'sex': _sex,
       'level': _level,
       'sport': _sport,
       'goal_type': _aimToGoalType(_aim),
       'weekly_hours': _hoursLabelToDouble(_weeklyHours),
       'training_years': _experienceToYears(_experience),
     };
+
+    // §0b: sex is optional — omit if "I'd rather not say"
+    if (_sex != null && _sex != 'prefer_not_say') {
+      inputs['sex'] = _sex;
+    }
 
     // Optional anchors — null means "I don't know"
     if (_sport == 'cycling') {
@@ -686,7 +690,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Step 3: About You (v3: all basics on one scrollable screen).
   Widget _buildAboutYouStep() {
     const ageBands = ['18–29', '30–39', '40–49', '50–59', '60+'];
-    const sexOptions = ['Female', 'Male'];
+    const sexOptions = ['Female', 'Male', "I'd rather not say"];
     const levels = [
       ('beginner', 'Beginner'),
       ('novice', 'Getting back'),
@@ -764,11 +768,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
             children: sexOptions.map((option) {
-              final isSelected = _sex == option.toLowerCase();
+              final value = option == "I'd rather not say"
+                  ? 'prefer_not_say'
+                  : option.toLowerCase();
+              final isSelected = _sex == value;
               return _buildSmallChip(
                 label: option,
                 isSelected: isSelected,
-                onTap: () => setState(() => _sex = option.toLowerCase()),
+                onTap: () => setState(() => _sex = value),
               );
             }).toList(),
           ),

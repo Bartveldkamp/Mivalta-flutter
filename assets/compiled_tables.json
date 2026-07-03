@@ -4025,6 +4025,18 @@
     {
       "archetype": "general",
       "goal_class": "finish",
+      "goal_type": "performance",
+      "sport": "any"
+    },
+    {
+      "archetype": "general",
+      "goal_class": "performance",
+      "goal_type": "performance",
+      "sport": "any"
+    },
+    {
+      "archetype": "general",
+      "goal_class": "finish",
       "goal_type": "weight_loss",
       "sport": "any"
     },
