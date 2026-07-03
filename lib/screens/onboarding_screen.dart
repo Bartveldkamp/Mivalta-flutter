@@ -691,7 +691,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Step 3: About You (v3: all basics on one scrollable screen).
   Widget _buildAboutYouStep() {
     const ageBands = ['18–29', '30–39', '40–49', '50–59', '60+'];
-    const sexOptions = ['Female', 'Male', "I'd rather not say"];
+    // E6 flag-hide: "I'd rather not say" hidden until engine G9 (sex as Option) is live.
+    // The engine requires a real sex value at current pin (a579584).
+    const sexOptions = ['Female', 'Male'];
     const levels = [
       ('beginner', 'Beginner'),
       ('novice', 'Getting back'),
@@ -769,9 +771,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
             children: sexOptions.map((option) {
-              final value = option == "I'd rather not say"
-                  ? 'prefer_not_say'
-                  : option.toLowerCase();
+              // E6: simplified - no prefer_not_say case until G9 is live
+              final value = option.toLowerCase();
               final isSelected = _sex == value;
               return _buildSmallChip(
                 label: option,
