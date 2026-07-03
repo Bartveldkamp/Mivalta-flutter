@@ -1,7 +1,7 @@
 # BS-003-advisor Build Report
 
 **Branch:** `feature/bs003-advisor`
-**Last commit:** `46496b5` (chip→param tests)
+**Last commit:** `3cb85d1` (safety advisories support)
 **Date:** 2026-07-03
 
 ## Completed (coding session)
@@ -38,6 +38,11 @@
 - Chip values match engine contract (10 tests, all pass)
 - Documents Feeling→mood, Equipment→equipment, Terrain→terrain mapping
 - Null-selection semantics documented
+
+### 7. Safety advisories support
+- Optional `safetyAdvisories` parameter on AdvisorScreen
+- Renders above options in `stateAccumulated` color (steady, not alarm)
+- Forward-compatible: ready for when TodayScreen wires `realize_advisor_line`
 
 ## Blocked on Mac session
 
