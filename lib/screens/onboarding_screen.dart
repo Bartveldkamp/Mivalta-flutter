@@ -14,6 +14,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -513,7 +514,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Lock tile
+            // Logo tile
             Container(
               width: MivaltaGlow.onbLockTileSize,
               height: MivaltaGlow.onbLockTileSize,
@@ -522,10 +523,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     .withValues(alpha: MivaltaGlow.onbLockTileAlpha),
                 borderRadius: BorderRadius.circular(MivaltaGlow.onbLockTileRadius),
               ),
-              child: const Icon(
-                Icons.lock_outline,
-                size: 32,
-                color: MivaltaColors.stateProductive,
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/mivalta-logo.svg',
+                  width: 48,
+                  height: 48,
+                ),
               ),
             ),
 
