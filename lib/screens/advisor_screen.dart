@@ -24,6 +24,7 @@ class AdvisorScreen extends StatefulWidget {
     required this.options,
     required this.binding,
     required this.handle,
+    this.safetyAdvisories = const [],
   });
 
   /// Initial options from Today's recommend_workout call.
@@ -34,6 +35,10 @@ class AdvisorScreen extends StatefulWidget {
 
   /// Engine handle for recommend_workout calls.
   final EnginesHandle handle;
+
+  /// Safety advisories from realized line (degraded state). Rendered above
+  /// options in stateAccumulated when non-empty.
+  final List<String> safetyAdvisories;
 
   @override
   State<AdvisorScreen> createState() => _AdvisorScreenState();
@@ -148,6 +153,12 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
         // Quick-adjust chip row
         _buildChipRow(),
         const SizedBox(height: MivaltaSpace.x4),
+        // Safety advisories (degraded state)
+        if (widget.safetyAdvisories.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+            child: _buildSafetyAdvisories(),
+          ),
         // Options list
         Expanded(
           child: _options.isEmpty
@@ -155,6 +166,48 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
               : _buildOptionsList(),
         ),
       ],
+    );
+  }
+
+  /// Safety advisories from realized line — steady, not alarm.
+  Widget _buildSafetyAdvisories() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: MivaltaSpace.x3),
+      padding: const EdgeInsets.all(MivaltaSpace.x3),
+      decoration: BoxDecoration(
+        color: MivaltaColors.stateAccumulated.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: MivaltaColors.stateAccumulated.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: widget.safetyAdvisories
+            .map((advisory) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: MivaltaColors.stateAccumulated,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          advisory,
+                          style: MivaltaType.small.copyWith(
+                            color: MivaltaColors.stateAccumulated,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ))
+            .toList(),
+      ),
     );
   }
 
