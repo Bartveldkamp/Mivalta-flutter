@@ -5,6 +5,7 @@
 
 import 'activity_summary.dart';
 import 'realized_line.dart';
+import 'workout_option.dart';
 import '../theme/source_tier.dart';
 
 /// The insufficient-data gate. Maps the engine's own no-data verdict to the
@@ -47,6 +48,9 @@ class HomeData {
   String? focusCue;              // sessionWidget['focus_cue']
   String? rationaleProse;        // sessionWidget['rationale_prose']
   String? zoneCap;               // zoneCapWithAdvisories().zone
+
+  // BS-003: Full workout options list for Advisor screen (A/B/C max 3)
+  List<WorkoutOption> workoutOptions = const [];
 
   // Today-facts tiles — labelled via the fixed dictionaries in
   // lib/copy/today_facts_labels.dart, never shown raw.
