@@ -14,6 +14,8 @@ class ModuleCard extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.child,
+    this.onTap,
+    this.trailing,
   });
 
   /// Title Case eyebrow title (e.g. "Load today").
@@ -25,11 +27,17 @@ class ModuleCard extends StatelessWidget {
   /// Card content.
   final Widget child;
 
+  /// Optional tap callback (makes card tappable with 44px min target).
+  final VoidCallback? onTap;
+
+  /// Optional trailing widget (e.g. chevron for navigation affordance).
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     // BS-001 Step 9: card container styling
     // bg rgba(255,255,255,.03), border 1px rgba(255,255,255,.08), radius 14px, padding 13px 14px
-    return Container(
+    final cardContent = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
         color: const Color(0x08FFFFFF), // rgba(255,255,255,.03) ≈ 0x08
@@ -60,12 +68,15 @@ class ModuleCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               // BS-001 Step 1: Title Case, cardTitle token (BS-004: 18px)
-              Text(
-                title,
-                style: MivaltaType.cardTitle.copyWith(
-                  color: MivaltaColors.textPrimary,
+              Expanded(
+                child: Text(
+                  title,
+                  style: MivaltaType.cardTitle.copyWith(
+                    color: MivaltaColors.textPrimary,
+                  ),
                 ),
               ),
+              if (trailing != null) trailing!,
             ],
           ),
           const SizedBox(height: 9),
@@ -73,6 +84,19 @@ class ModuleCard extends StatelessWidget {
         ],
       ),
     );
+
+    // BS-003: tappable when onTap is provided, 44px min target
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: cardContent,
+        ),
+      );
+    }
+    return cardContent;
   }
 }
 

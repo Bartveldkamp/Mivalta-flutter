@@ -22,11 +22,13 @@ import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
 import '../theme/tokens.dart';
+import '../theme/zone_names.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
 import '../widgets/today/metric_bar.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
+import 'advisor_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -39,6 +41,9 @@ class _TodayScreenState extends State<TodayScreen> {
   HomeData _data = HomeData();
   bool _loading = true;
   WeatherReport? _weather;
+  // BS-003: Store binding and handle for Advisor navigation
+  RustEngineBinding? _binding;
+  EnginesHandle? _handle;
 
   @override
   void initState() {
@@ -107,6 +112,10 @@ class _TodayScreenState extends State<TodayScreen> {
           vaultPath: vaultPath,
         );
       }
+
+      // BS-003: Store binding and handle for Advisor navigation
+      _binding = binding;
+      _handle = handle;
 
       // Load home data
       await _loadHomeData(binding, handle);
@@ -210,17 +219,22 @@ class _TodayScreenState extends State<TodayScreen> {
       // The engine (AdvisorEngine::recommend_workout) serializes a BARE JSON
       // ARRAY of WorkoutOptionData — NOT an object with a `suggestions` wrapper
       // (the previous code cast the array to a Map, which threw and left the card
-      // permanently on "No suggestion yet"). Parse option A (first) through the
+      // permanently on "No suggestion yet"). Parse all options through the
       // shared, tested WorkoutOption model — duration lives in
       // `structure.total_minutes`, there is no top-level `duration_min`.
+      // BS-003: Store full options list for Advisor screen.
       try {
         final workoutJson = await binding.recommendWorkout(handle);
         final decoded = jsonDecode(workoutJson);
         if (decoded is List && decoded.isNotEmpty) {
-          final option = WorkoutOption.fromJson(decoded.first);
+          final options = decoded.map((e) => WorkoutOption.fromJson(e)).toList();
+          data.workoutOptions = options;
+          // Primary display (option A) for Today card
+          final option = options.first;
           data.workoutTitle = option.title;
           data.sessionZone = option.zone;
           data.durationMin = option.durationMin;
+          data.focusCue = option.focusCue;
         }
       } catch (_) {
         // Honest absence
@@ -579,14 +593,38 @@ class _TodayScreenState extends State<TodayScreen> {
 
               const SizedBox(height: MivaltaSpace.x3),
 
-              // Suggested workout card
+              // Suggested workout card — BS-003: tappable → Advisor screen
               ModuleCard(
                 title: 'Suggested workout',
                 icon: Icons.fitness_center,
+                onTap: _data.workoutOptions.isNotEmpty
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => AdvisorScreen(
+                              options: _data.workoutOptions,
+                              binding: _binding!,
+                              handle: _handle!,
+                            ),
+                          ),
+                        )
+                    : null,
+                trailing: _data.workoutOptions.isNotEmpty
+                    ? const Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: MivaltaColors.textSecondary,
+                      )
+                    : null,
                 child: _data.workoutTitle != null
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // BS-003: Zone chip (energy name first — LOCKED voice rule)
+                          if (_data.sessionZone != null) ...[
+                            _ZoneChip(zone: _data.sessionZone!),
+                            const SizedBox(height: 6),
+                          ],
                           Text(
                             _data.workoutTitle!,
                             style: const TextStyle(
@@ -596,22 +634,26 @@ class _TodayScreenState extends State<TodayScreen> {
                               color: MivaltaColors.textPrimary,
                             ),
                           ),
-                          if (_data.durationMin != null) ...[
+                          // BS-003: Duration + focusCue preview
+                          if (_data.durationMin != null || _data.focusCue != null) ...[
                             const SizedBox(height: 4),
                             Text(
-                              '${_data.durationMin} min',
+                              _buildWorkoutSubtitle(),
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14,
                                 color: MivaltaColors.textSecondary,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ],
                       )
                     : const _HonestAbsence(
                         label: 'No suggestion yet',
-                        unlock: 'Complete more workouts to unlock AI suggestions',
+                        // BS-003: Updated copy (no gamification)
+                        unlock: 'MiValta suggests sessions once it\'s read a few of your days.',
                       ),
               ),
 
@@ -657,6 +699,18 @@ class _TodayScreenState extends State<TodayScreen> {
       _ => false, // Z8 (ceiling) + unknown → collapse
     };
   }
+
+  /// BS-003: Build workout subtitle (duration + focusCue).
+  String _buildWorkoutSubtitle() {
+    final parts = <String>[];
+    if (_data.durationMin != null) {
+      parts.add('${_data.durationMin} min');
+    }
+    if (_data.focusCue != null && _data.focusCue!.isNotEmpty) {
+      parts.add(_data.focusCue!);
+    }
+    return parts.join(' · ');
+  }
 }
 
 /// Honest-absence pattern for module cards (I2): named state + actionable unlock.
@@ -694,6 +748,39 @@ class _HonestAbsence extends StatelessWidget {
       ],
     );
   }
+}
+
+/// BS-003: Zone chip for workout card. ENERGY NAME FIRST (SR1-07 ruling).
+/// Maps zone code (Z1-Z8) to energy name + colour.
+class _ZoneChip extends StatelessWidget {
+  const _ZoneChip({required this.zone});
+
+  final String zone;
+
+  @override
+  Widget build(BuildContext context) {
+    final (name, color) = _zoneNameAndColor(zone);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        '$name · $zone', // ENERGY NAME FIRST
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  // DR-018 A3: use shared zone naming (engine truth)
+  (String, Color) _zoneNameAndColor(String zone) => zoneDisplayNameAndColor(zone);
 }
 
 /// Bottom nav item for Today/Journey/You.
@@ -754,19 +841,8 @@ class _DecisionChip extends StatelessWidget {
   /// Map zone codes to human-readable decision phrases.
   /// DR-005: bare "Z8" breaks zone-never-bare rule; show descriptive text.
   String _formatZoneDecision(String zone) {
-    // Zone-to-level mapping per training zones model
-    return switch (zone.toUpperCase()) {
-      'Z8' => 'Max power · Z8',
-      'Z7' => 'Anaerobic · Z7',
-      'Z6' => 'VO₂max · Z6',
-      'Z5' => 'Threshold · Z5',
-      'Z4' => 'Tempo · Z4',
-      'Z3' => 'Endurance · Z3',
-      'Z2' => 'Easy · Z2',
-      'Z1' => 'Recovery · Z1',
-      'REST' => 'Rest day',
-      _ => zone, // Fallback for unknown zones
-    };
+    // DR-018 A3: use shared zone naming (engine truth)
+    return zoneDisplayLabel(zone);
   }
 
   @override
