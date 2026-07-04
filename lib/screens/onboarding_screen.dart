@@ -459,47 +459,56 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Column(
         children: [
           if (showBack)
-            GestureDetector(
-              onTap: _prevStep,
-              child: Container(
-                height: 44,
-                alignment: Alignment.center,
-                child: Text(
-                  'Back',
-                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+            Semantics(
+              button: true,
+              label: 'Back',
+              child: GestureDetector(
+                onTap: _prevStep,
+                child: Container(
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Back',
+                    style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                  ),
                 ),
               ),
             ),
 
           if (showBack) const SizedBox(height: MivaltaSpace.x2),
 
-          GestureDetector(
-            onTap: _canContinue && !_isSubmitting ? _nextStep : null,
-            child: Container(
-              height: 52,
-              decoration: BoxDecoration(
-                color: _canContinue
-                    ? MivaltaColors.stateProductive
-                    : MivaltaColors.stateProductive.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(14),
+          Semantics(
+            button: true,
+            enabled: _canContinue && !_isSubmitting,
+            label: buttonText,
+            child: GestureDetector(
+              onTap: _canContinue && !_isSubmitting ? _nextStep : null,
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _canContinue
+                      ? MivaltaColors.stateProductive
+                      : MivaltaColors.stateProductive.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: MivaltaColors.surfaceBackground,
+                        ),
+                      )
+                    : Text(
+                        buttonText,
+                        style: MivaltaType.body.copyWith(
+                          color: MivaltaColors.surfaceBackground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
-              alignment: Alignment.center,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: MivaltaColors.surfaceBackground,
-                      ),
-                    )
-                  : Text(
-                      buttonText,
-                      style: MivaltaType.body.copyWith(
-                        color: MivaltaColors.surfaceBackground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
           ),
         ],
