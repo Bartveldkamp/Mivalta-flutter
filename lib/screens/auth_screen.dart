@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/tokens.dart';
 import 'onboarding_screen.dart';
@@ -271,13 +272,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     _completeAuth(isNewAccount: true);
   }
 
-  void _completeAuth({required bool isNewAccount}) {
+  Future<void> _completeAuth({required bool isNewAccount}) async {
+    // Store session marker (W1: real-state routing)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_auth_session', true);
+
     // Route based on whether this is a new account
     // - New account (no profile) → Onboarding
     // - Returning account → Today
     final destination = isNewAccount ? 'Onboarding' : 'Today';
     debugPrint('Auth complete: isNewAccount=$isNewAccount → $destination');
 
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) {
