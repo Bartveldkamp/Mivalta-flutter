@@ -33,6 +33,7 @@ import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
 import '../widgets/today/why_unfold.dart';
 import 'advisor_screen.dart';
+import 'journey_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -558,12 +559,9 @@ class _TodayScreenState extends State<TodayScreen> {
                 activeIcon: Icons.route,
                 label: 'Journey',
                 isActive: false,
-                onTap: () => _showInterimState(
+                onTap: () => Navigator.pushReplacement(
                   context,
-                  icon: Icons.route_outlined,
-                  title: 'Journey',
-                  message: 'Your journey builds as your days accumulate. '
-                      'The arc arrives soon.',
+                  MaterialPageRoute<void>(builder: (_) => const JourneyScreen()),
                 ),
               ),
               _NavItem(
