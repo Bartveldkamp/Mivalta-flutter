@@ -1,7 +1,7 @@
 # REVIEW-LOG — MiValta Flutter Design Review Ledger
 
 **Owner:** Claude Code
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-04
 
 ---
 
@@ -51,6 +51,7 @@ ACTIVE spec wins over any older DR fix-list. Never merge an old DR change into a
 | Surface | Active Spec | Latest Build | SHA |
 |---------|-------------|--------------|-----|
 | today | BS-001-today.md | BUILD-REPORT-today-v6.md | `ee709d7` |
+| journey | BS-015-journey.md | BUILD-REPORT-journey-v1.md | `bb2464a` |
 
 ---
 
@@ -58,4 +59,5 @@ ACTIVE spec wins over any older DR fix-list. Never merge an old DR change into a
 
 | Date | Action |
 |------|--------|
+| 2026-07-04 | Added Journey surface (BS-015), build-report-v1 @ bb2464a |
 | 2026-07-01 | Established review/ structure, reconciled today/ |
