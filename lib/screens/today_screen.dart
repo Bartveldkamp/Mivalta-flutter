@@ -867,13 +867,6 @@ class _DecisionChip extends StatelessWidget {
   final String? zoneCap;
   final String? sessionZone;
 
-  /// Map zone codes to human-readable decision phrases.
-  /// DR-005: bare "Z8" breaks zone-never-bare rule; show descriptive text.
-  String _formatZoneDecision(String zone) {
-    // DR-018 A3: use shared zone naming (engine truth)
-    return zoneDisplayLabel(zone);
-  }
-
   @override
   Widget build(BuildContext context) {
     // Show zone cap if available, otherwise session zone, otherwise honest absence
@@ -884,7 +877,7 @@ class _DecisionChip extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final chipText = _formatZoneDecision(rawZone);
+    final chipText = zoneDisplayLabel(rawZone);
 
     // BS-001 Step 7 present-treatment: check_circle teal, radius md (12),
     // bg rgba(0,198,167,.10), border rgba(0,198,167,.28), label white
