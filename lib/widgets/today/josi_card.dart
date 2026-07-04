@@ -15,6 +15,8 @@ class JosiCard extends StatelessWidget {
     super.key,
     this.realizedLine,
     this.fallbackLine,
+    this.confidenceAdvisory,
+    this.showNumbers = false,
   });
 
   /// BS-007: The realized advisor line from the engine — primary source.
@@ -24,6 +26,13 @@ class JosiCard extends StatelessWidget {
   /// Fallback: the state_recommendation line (pre-BS-007 behaviour).
   /// Used when realizedLine is absent or empty.
   final String? fallbackLine;
+
+  /// BS-008 P-4: Confidence advisory sub-line from engine.
+  /// Only rendered when showNumbers is true.
+  final String? confidenceAdvisory;
+
+  /// BS-008 P-4: Whether to show the confidence advisory (onboarding_detail = 'numbers').
+  final bool showNumbers;
 
   /// Resolve the display line: realized → fallback → null.
   String? get _displayLine {
@@ -85,6 +94,17 @@ class JosiCard extends StatelessWidget {
           if (_safetyLines.isNotEmpty) ...[
             const SizedBox(height: 8),
             ..._safetyLines.map(_buildSafetyLine),
+          ],
+
+          // BS-008 P-4: Confidence advisory (only when showNumbers = true)
+          if (showNumbers && confidenceAdvisory != null && confidenceAdvisory!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              confidenceAdvisory!,
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textMuted,
+              ),
+            ),
           ],
         ],
       ),

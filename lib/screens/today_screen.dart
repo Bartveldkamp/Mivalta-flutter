@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/home_data.dart';
 import '../models/realized_line.dart';
@@ -47,12 +48,24 @@ class _TodayScreenState extends State<TodayScreen> {
   // BS-003: Store binding and handle for Advisor navigation
   RustEngineBinding? _binding;
   EnginesHandle? _handle;
+  // BS-008 P-4: Detail preference from onboarding
+  bool _showNumbers = false;
 
   @override
   void initState() {
     super.initState();
     _initEngine();
     _fetchWeather();
+    _loadDetailPreference();
+  }
+
+  /// BS-008 P-4: Load onboarding_detail preference.
+  Future<void> _loadDetailPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final detail = prefs.getString('onboarding_detail') ?? 'simple';
+    if (mounted) {
+      setState(() => _showNumbers = detail == 'numbers');
+    }
   }
 
   Future<void> _fetchWeather() async {
@@ -147,6 +160,16 @@ class _TodayScreenState extends State<TodayScreen> {
 
       // Check insufficient data gate
       data.insufficientData = insufficientDataFromConfidence(data.confidence);
+
+      // BS-008 P-1: Personalization diagnostics (calibrated-to-you line)
+      try {
+        final diagJson = await binding.personalizationDiagnostics(handle);
+        final diag = jsonDecode(diagJson) as Map<String, dynamic>;
+        data.calibrationObservations = (diag['observation_count'] as num?)?.toInt();
+        data.calibrationConfidence = diag['confidence'] as String?;
+      } catch (_) {
+        // Honest absence — diagnostics not yet available
+      }
 
       // State advisory (for Josi fallback)
       final stateJson = await binding.stateAdvisory(handle);
@@ -599,6 +622,22 @@ class _TodayScreenState extends State<TodayScreen> {
                 insufficientData: _data.insufficientData,
               ),
 
+              // BS-008 P-1: Calibrated-to-you line under hero
+              // Engine decides confidence bucket; Dart only renders.
+              if (_data.calibrationObservations != null) ...[
+                const SizedBox(height: MivaltaSpace.x2),
+                Center(
+                  child: Text(
+                    _data.isCalibrated
+                        ? 'From ${_data.calibrationObservations} days of your data'
+                        : 'Learning you · day ${_data.calibrationObservations}',
+                    style: MivaltaType.small.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+
               // BS-007: Josi card — primary from realizedLine, fallback to stateRecommendation
               // BS-001 Step 6: collapse hero void when absent
               if (_hasJosiLine()) ...[
@@ -606,6 +645,8 @@ class _TodayScreenState extends State<TodayScreen> {
                 JosiCard(
                   realizedLine: _data.realizedLine,
                   fallbackLine: _data.stateRecommendation,
+                  confidenceAdvisory: _data.confidenceAdvisory,
+                  showNumbers: _showNumbers,
                 ),
                 // BS-007 Step 2: Why? unfold — evidence layer under Josi.
                 // Collapses when contributions[] is empty (honest absence).
