@@ -1,34 +1,55 @@
 // Josi Card — the state-grounded Josi line.
 //
-// Per Today-Modular.html: "JOSI" eyebrow + the state_recommendation line
-// with bolded key phrase. Josi is a PRESENTER (locked, founder 2026-06-12) —
-// she renders as text, no chat, no TTS.
+// BS-007: Primary source is realize_advisor_line → RealizedLine {text, safety[], degraded}.
+// Falls back to state_recommendation when the realizer is absent or empty.
+// Josi is a PRESENTER (locked, founder 2026-06-12) — she renders as text, no chat, no TTS.
 
 import 'package:flutter/material.dart';
 
+import '../../models/realized_line.dart';
 import '../../theme/tokens.dart';
 
 /// The Josi card — state recommendation rendered as text.
 class JosiCard extends StatelessWidget {
   const JosiCard({
     super.key,
-    required this.line,
+    this.realizedLine,
+    this.fallbackLine,
   });
 
-  /// The state_recommendation line from the engine. May contain **bold**
-  /// markdown fragments for the key phrase.
-  final String? line;
+  /// BS-007: The realized advisor line from the engine — primary source.
+  /// Contains text, safety[], and degraded flag.
+  final RealizedLine? realizedLine;
+
+  /// Fallback: the state_recommendation line (pre-BS-007 behaviour).
+  /// Used when realizedLine is absent or empty.
+  final String? fallbackLine;
+
+  /// Resolve the display line: realized → fallback → null.
+  String? get _displayLine {
+    if (realizedLine != null && realizedLine!.text.isNotEmpty) {
+      return realizedLine!.text;
+    }
+    return fallbackLine;
+  }
+
+  /// Whether to show " · limited read" suffix (degraded flag).
+  bool get _isDegraded => realizedLine?.degraded ?? false;
+
+  /// Safety lines to render (from realized line).
+  List<String> get _safetyLines => realizedLine?.safety ?? const [];
 
   @override
   Widget build(BuildContext context) {
-    if (line == null || line!.isEmpty) return const SizedBox.shrink();
+    final line = _displayLine;
+    if (line == null || line.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MivaltaColors.surface1.withValues(alpha:0.03),
+        color: MivaltaColors.surface1.withValues(alpha: 0.03),
         border: Border.all(
-          color: MivaltaColors.textPrimary.withValues(alpha:0.08),
+          color: MivaltaColors.textPrimary.withValues(alpha: 0.08),
         ),
         borderRadius: BorderRadius.circular(15),
       ),
@@ -50,43 +71,59 @@ class JosiCard extends StatelessWidget {
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
-                  color: MivaltaColors.textPrimary.withValues(alpha:0.5),
+                  color: MivaltaColors.textPrimary.withValues(alpha: 0.5),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 9),
-          // Line with bolded key phrase
-          _buildRichLine(line!),
+
+          // Main line with optional " · limited read" suffix
+          _buildMainLine(line),
+
+          // Safety lines (if any)
+          if (_safetyLines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ..._safetyLines.map(_buildSafetyLine),
+          ],
         ],
       ),
     );
   }
 
-  /// Parse simple **bold** markdown and render as rich text.
-  Widget _buildRichLine(String text) {
-    final spans = <TextSpan>[];
+  /// Main line with bolded key phrase and optional degraded suffix.
+  Widget _buildMainLine(String text) {
+    // Parse **bold** markdown and render as rich text
+    final spans = <InlineSpan>[];
     final regex = RegExp(r'\*\*(.+?)\*\*');
     var lastEnd = 0;
 
     for (final match in regex.allMatches(text)) {
-      // Text before the match
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
-      // The bolded text
       spans.add(TextSpan(
         text: match.group(1),
         style: const TextStyle(
           fontWeight: FontWeight.w600,
-          color: MivaltaColors.stateRecovered, // #7FE3B0 per design
+          color: MivaltaColors.stateRecovered,
         ),
       ));
       lastEnd = match.end;
     }
-    // Remaining text
     if (lastEnd < text.length) {
       spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    // Add degraded suffix if needed
+    if (_isDegraded) {
+      spans.add(TextSpan(
+        text: ' · limited read',
+        style: TextStyle(
+          fontWeight: FontWeight.w400,
+          color: MivaltaColors.textMuted,
+        ),
+      ));
     }
 
     return RichText(
@@ -98,6 +135,19 @@ class JosiCard extends StatelessWidget {
           color: MivaltaColors.textPrimary,
         ),
         children: spans.isEmpty ? [TextSpan(text: text)] : spans,
+      ),
+    );
+  }
+
+  /// Safety line — rendered in accumulated (steady caution) color.
+  Widget _buildSafetyLine(String safety) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        safety,
+        style: MivaltaType.small.copyWith(
+          color: MivaltaColors.stateAccumulated,
+        ),
       ),
     );
   }
