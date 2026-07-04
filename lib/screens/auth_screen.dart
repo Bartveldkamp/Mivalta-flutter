@@ -17,8 +17,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/tokens.dart';
+import 'onboarding_screen.dart';
 import 'today_screen.dart';
 
 /// Auth sub-states.
@@ -270,20 +272,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     _completeAuth(isNewAccount: true);
   }
 
-  void _completeAuth({required bool isNewAccount}) {
+  Future<void> _completeAuth({required bool isNewAccount}) async {
+    // Store session marker (W1: real-state routing)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_auth_session', true);
+
     // Route based on whether this is a new account
     // - New account (no profile) → Onboarding
     // - Returning account → Today
-    //
-    // STUB: Onboarding not yet built. Route to Today for both cases.
-    // When Onboarding exists: if (isNewAccount) → OnboardingScreen
-    debugPrint('Auth complete: isNewAccount=$isNewAccount (routing to Today)');
+    final destination = isNewAccount ? 'Onboarding' : 'Today';
+    debugPrint('Auth complete: isNewAccount=$isNewAccount → $destination');
 
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) {
-          // STUB: Always Today until Onboarding exists
-          // if (isNewAccount) return const OnboardingScreen();
+          if (isNewAccount) return const OnboardingScreen();
           return const TodayScreen();
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {

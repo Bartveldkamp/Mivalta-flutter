@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
@@ -302,11 +303,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<bool> _checkAuthSession() async {
-    // STUB: No real auth session storage yet.
-    // When auth is implemented: check SharedPreferences/SecureStorage for session token.
-    // For now, return false to always show Auth screen on first launch.
-    // Return true if you want to skip Auth and go directly to Today.
-    return ProfileService.hasPersistedProfile();
+    // W1: Real-state routing — check for actual session marker stored by Auth.
+    // Auth stores 'has_auth_session' = true when user completes authentication.
+    // This separates session state from profile state for proper 3-way routing:
+    // - No session → Auth
+    // - Session, no profile → Onboarding
+    // - Session + profile → Today
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('has_auth_session') ?? false;
   }
 
   void _navigateToAuth() {

@@ -459,47 +459,56 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Column(
         children: [
           if (showBack)
-            GestureDetector(
-              onTap: _prevStep,
-              child: Container(
-                height: 44,
-                alignment: Alignment.center,
-                child: Text(
-                  'Back',
-                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+            Semantics(
+              button: true,
+              label: 'Back',
+              child: GestureDetector(
+                onTap: _prevStep,
+                child: Container(
+                  height: 44,
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Back',
+                    style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                  ),
                 ),
               ),
             ),
 
           if (showBack) const SizedBox(height: MivaltaSpace.x2),
 
-          GestureDetector(
-            onTap: _canContinue && !_isSubmitting ? _nextStep : null,
-            child: Container(
-              height: 52,
-              decoration: BoxDecoration(
-                color: _canContinue
-                    ? MivaltaColors.stateProductive
-                    : MivaltaColors.stateProductive.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(14),
+          Semantics(
+            button: true,
+            enabled: _canContinue && !_isSubmitting,
+            label: buttonText,
+            child: GestureDetector(
+              onTap: _canContinue && !_isSubmitting ? _nextStep : null,
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _canContinue
+                      ? MivaltaColors.stateProductive
+                      : MivaltaColors.stateProductive.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: MivaltaColors.surfaceBackground,
+                        ),
+                      )
+                    : Text(
+                        buttonText,
+                        style: MivaltaType.body.copyWith(
+                          color: MivaltaColors.surfaceBackground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
-              alignment: Alignment.center,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: MivaltaColors.surfaceBackground,
-                      ),
-                    )
-                  : Text(
-                      buttonText,
-                      style: MivaltaType.body.copyWith(
-                        color: MivaltaColors.surfaceBackground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
           ),
         ],
@@ -511,7 +520,81 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // STEP BUILDERS (v3)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Step 0: Promise (v3: + privacy line).
+  /// Auth-style glow behind the Promise logo (BS-002 v3.2).
+  /// Same structure as auth_screen's glow, scaled for 76px logo.
+  Widget _buildPromiseGlow() {
+    // Scaled from auth (62px logo → 76px): field 245, outer 245, mid 162
+    const fieldSize = 245.0;
+    const outerSize = 245.0;
+    const midSize = 162.0;
+    const logoSize = 76.0;
+
+    return SizedBox(
+      width: fieldSize,
+      height: fieldSize,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Outer halo
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: MivaltaGlow.authOuterBlur,
+              sigmaY: MivaltaGlow.authOuterBlur,
+            ),
+            child: Container(
+              width: outerSize,
+              height: outerSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    MivaltaColors.tertiaryTealSolid.withValues(
+                      alpha: MivaltaGlow.authOuterAlpha,
+                    ),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, MivaltaGlow.authOuterStop],
+                ),
+              ),
+            ),
+          ),
+
+          // Mid halo
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: MivaltaGlow.authMidBlur,
+              sigmaY: MivaltaGlow.authMidBlur,
+            ),
+            child: Container(
+              width: midSize,
+              height: midSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    MivaltaColors.tertiaryTealSolid.withValues(
+                      alpha: MivaltaGlow.authMidAlpha,
+                    ),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, MivaltaGlow.authMidStop],
+                ),
+              ),
+            ),
+          ),
+
+          // Logo (76px)
+          SvgPicture.asset(
+            'assets/mivalta-logo.svg',
+            width: logoSize,
+            height: logoSize,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Step 0: Promise (v3.2: auth-style glow, 76px logo, no tile).
   Widget _buildPromiseStep() {
     return Center(
       child: Padding(
@@ -519,23 +602,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo tile
-            Container(
-              width: MivaltaGlow.onbLockTileSize,
-              height: MivaltaGlow.onbLockTileSize,
-              decoration: BoxDecoration(
-                color: MivaltaColors.stateProductive
-                    .withValues(alpha: MivaltaGlow.onbLockTileAlpha),
-                borderRadius: BorderRadius.circular(MivaltaGlow.onbLockTileRadius),
-              ),
-              child: Center(
-                child: SvgPicture.asset(
-                  'assets/mivalta-logo.svg',
-                  width: 48,
-                  height: 48,
-                ),
-              ),
-            ),
+            // Auth-style glow with 76px logo (BS-002 v3.2)
+            _buildPromiseGlow(),
 
             const SizedBox(height: MivaltaSpace.x5),
 
