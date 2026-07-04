@@ -87,4 +87,15 @@ class HomeData {
   // FL-3: set when a corrupt/incompatible persisted blob forced a fresh
   // start. Surfaced once (non-silent), never swallowed.
   bool historyReset = false;
+
+  // BS-008 P-1: "Calibrated to you" line under hero
+  // From personalization_diagnostics: observation_count + confidence bucket.
+  // null = diagnostics unavailable (no observations yet) → render nothing.
+  int? calibrationObservations; // observation_count from diagnostics
+  String? calibrationConfidence; // "low" | "medium" | "high" — engine bucket
+
+  /// Whether the model is calibrated (confidence != "low").
+  /// Engine decides the bucket; Dart only renders.
+  bool get isCalibrated =>
+      calibrationConfidence != null && calibrationConfidence != 'low';
 }

@@ -53,6 +53,17 @@ abstract final class MivaltaColors {
   // Auth screen (BS-001-auth).
   static const codeCellBorder = Color(0x1AFFFFFF); // white 10%
   static const codeCellBackground = Color(0x0AFFFFFF); // white 4%
+  static const authAppleButtonForeground = Color(0xFF08211D); // dark teal
+
+  // ─── Soft text variants (BS-008 D-2 token sweep) ───
+  // #F4F5F4 is the off-white text base; these are alpha-blended versions.
+  static const textSoft70 = Color(0xB3F4F5F4); // rgba(244,245,244,.70)
+  static const textSoft45 = Color(0x73F4F5F4); // rgba(244,245,244,.45)
+
+  // Module card surfaces (BS-008 D-2).
+  static const cardSurface = Color(0x08FFFFFF); // white 3%
+  static const cardBorder = Color(0x14FFFFFF);  // white 8%
+  static const cardAccent = Color(0x1F00C6A7); // stateProductive 12%
 }
 
 /// Typography tokens. Faces: Inter (main), Zen Dots (brand wordmark only).

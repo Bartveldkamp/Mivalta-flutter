@@ -40,9 +40,9 @@ class ModuleCard extends StatelessWidget {
     final cardContent = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF), // rgba(255,255,255,.03) ≈ 0x08
+        color: MivaltaColors.cardSurface,
         border: Border.all(
-          color: const Color(0x14FFFFFF), // rgba(255,255,255,.08) ≈ 0x14
+          color: MivaltaColors.cardBorder,
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -57,7 +57,7 @@ class ModuleCard extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: const Color(0x1F00C6A7), // rgba(0,198,167,.12)
+                  color: MivaltaColors.cardAccent,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(
