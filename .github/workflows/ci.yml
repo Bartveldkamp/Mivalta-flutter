@@ -27,3 +27,36 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      # Fabrication lint — catches Charter Rule 3 violations (hardcoded
+      # placeholders masquerading as real data). The real bug that triggered
+      # this: `?? 600` as a fake loadCeiling, `'Sunny 18°'` as fake weather.
+      - name: Fabrication lint
+        run: |
+          set +e
+          VIOLATIONS=0
+
+          # Pattern 1: `?? <non-zero>` — arbitrary fallback values (the 600 bug)
+          # `?? 0` in models/ is legitimate JSON parsing; non-zero is suspicious
+          if grep -rn --include='*.dart' -E '\?\? [1-9][0-9]*' lib/; then
+            echo "::error::Found '?? <non-zero>' pattern — likely fabrication (Charter Rule 3)"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+
+          # Pattern 2: Hardcoded weather strings (the 'Sunny 18°' bug)
+          if grep -rn --include='*.dart' -E "'(Sunny|Cloudy|Rainy|Windy|Snowy|Clear)[^']*[0-9]+°'" lib/; then
+            echo "::error::Found hardcoded weather string — use real data or honest absence"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+
+          # Pattern 3: `?? 0` outside models/ is suspicious (screens/widgets
+          # should use honest null, not zero-as-default)
+          if grep -rn --include='*.dart' -E '\?\? 0[^.]' lib/screens/ lib/widgets/ 2>/dev/null; then
+            echo "::warning::Found '?? 0' in UI code — prefer honest null over zero-fallback"
+          fi
+
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::error::$VIOLATIONS fabrication pattern(s) detected — fix before merge"
+            exit 1
+          fi
+          echo "Fabrication lint: OK"
