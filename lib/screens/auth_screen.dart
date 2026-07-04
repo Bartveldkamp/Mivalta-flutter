@@ -782,11 +782,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               onPressed: _emailValid ? _onSendCode : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: MivaltaColors.tertiaryTealSolid,
-                foregroundColor: const Color(0xFF08211D),
+                foregroundColor: MivaltaColors.authAppleButtonForeground,
                 disabledBackgroundColor:
                     MivaltaColors.tertiaryTealSolid.withValues(alpha: 0.30),
                 disabledForegroundColor:
-                    const Color(0xFF08211D).withValues(alpha: 0.50),
+                    MivaltaColors.authAppleButtonForeground.withValues(alpha: 0.50),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

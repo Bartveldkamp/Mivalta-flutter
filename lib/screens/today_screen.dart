@@ -409,8 +409,101 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   void _startWorkout() {
-    // TODO: Navigate to workout screen or show workout picker
-    // For now, just a placeholder tap handler
+    // BS-008 E-1: Honest interim bottom sheet — recording arrives with next update.
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: MivaltaColors.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(MivaltaSpace.x5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recording arrives with the next update',
+              style: MivaltaType.cardTitle.copyWith(
+                color: MivaltaColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+            Text(
+              "Your watch's sessions already count — they arrive through Apple Health.",
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x5),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Got it',
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.stateProductive,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// BS-008 E-1: Shows an inline honest interim state for stub tabs (Journey/You).
+  void _showInterimState(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => Scaffold(
+          backgroundColor: MivaltaColors.surfaceBackground,
+          appBar: AppBar(
+            backgroundColor: MivaltaColors.surfaceBackground,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: MivaltaColors.textPrimary),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              title,
+              style: MivaltaType.titleM.copyWith(color: MivaltaColors.textPrimary),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(MivaltaSpace.x6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 48,
+                    color: MivaltaColors.textMuted,
+                  ),
+                  const SizedBox(height: MivaltaSpace.x4),
+                  Text(
+                    message,
+                    style: MivaltaType.body.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomNav() {
@@ -435,18 +528,33 @@ class _TodayScreenState extends State<TodayScreen> {
                 activeIcon: Icons.wb_sunny,
                 label: 'Today',
                 isActive: true,
+                // Today is active — no navigation
               ),
               _NavItem(
                 icon: Icons.route_outlined,
                 activeIcon: Icons.route,
                 label: 'Journey',
                 isActive: false,
+                onTap: () => _showInterimState(
+                  context,
+                  icon: Icons.route_outlined,
+                  title: 'Journey',
+                  message: 'Your journey builds as your days accumulate. '
+                      'The arc arrives soon.',
+                ),
               ),
               _NavItem(
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
                 label: 'You',
                 isActive: false,
+                onTap: () => _showInterimState(
+                  context,
+                  icon: Icons.person_outline,
+                  title: 'You',
+                  message: 'Your profile, sources and privacy controls '
+                      'land here soon.',
+                ),
               ),
             ],
           ),
@@ -549,7 +657,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     fontWeight: FontWeight.w700,
                     fontSize: 10,
                     letterSpacing: 1.1,
-                    color: const Color(0xFFF4F5F4).withValues(alpha: 0.45),
+                    color: MivaltaColors.textSoft45,
                   ),
                 ),
               ),
@@ -779,7 +887,7 @@ class _HonestAbsence extends StatelessWidget {
             fontFamily: 'Inter',
             fontSize: 15, // BS-001: 15px
             fontWeight: FontWeight.w500,
-            color: Color(0xB3F4F5F4), // rgba(244,245,244,.7)
+            color: MivaltaColors.textSoft70,
           ),
         ),
         const SizedBox(height: 4),
@@ -789,7 +897,7 @@ class _HonestAbsence extends StatelessWidget {
             fontFamily: 'Inter',
             fontSize: 12,
             fontWeight: FontWeight.w400,
-            color: Color(0x73F4F5F4), // rgba(244,245,244,.45)
+            color: MivaltaColors.textSoft45,
           ),
         ),
       ],
@@ -837,37 +945,46 @@ class _NavItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
+    this.onTap,
   });
 
   final IconData icon;
   final IconData activeIcon;
   final String label;
   final bool isActive;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = isActive
         ? MivaltaColors.stateProductive
         : MivaltaColors.textSecondary;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          isActive ? activeIcon : icon,
-          color: color,
-          size: 24,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              color: color,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-            color: color,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
