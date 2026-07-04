@@ -11,6 +11,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
@@ -679,6 +680,23 @@ class _TodayScreenState extends State<TodayScreen> {
               ),
 
               const SizedBox(height: MivaltaSpace.x6),
+
+              // D6: kDebugMode-only build stamp for screenshot SHA verification.
+              // Pass SHA at build time: --dart-define=BUILD_SHA=$(git rev-parse --short HEAD)
+              // Compiled out of release builds.
+              if (kDebugMode)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
+                    child: Text(
+                      'build ${const String.fromEnvironment('BUILD_SHA', defaultValue: 'dev')}',
+                      style: MivaltaType.small.copyWith(
+                        fontSize: 10,
+                        color: MivaltaColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ),
             ]),
           ),
         ),

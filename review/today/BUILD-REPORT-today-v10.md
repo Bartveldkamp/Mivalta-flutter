@@ -1,15 +1,17 @@
 STATUS: ACTIVE
-**Spec:** BS-006-sleep-ring.md · **SHA:** `c942d60` · **placeholder ⚠**
+**Spec:** BS-006-sleep-ring.md · **SHA:** `b4e6d45` · **placeholder ⚠**
 
 # Today Screen — Build Report v10
 
-**Live build as of SHA `c942d60`.**
+**Live build as of SHA `b4e6d45`.**
 
-**Branch:** `feature/bs004-typescale` (contains BS-004, BS-005, BS-006)
-**Date:** 2026-07-01
+**Branch:** `feature/dr014-d6-stamp` (D6 dart-define stamp fix)
+**Date:** 2026-07-02
 **Spec:** BS-006-sleep-ring.md — SleepStageRing for Sleep card
 
 **Status:** BS-006 widget complete. Shows honest-absent variant. `placeholder ⚠`
+
+**D6 build stamp:** Uses `--dart-define=BUILD_SHA=$(git rev-parse --short HEAD)` at runtime.
 
 ---
 
@@ -25,13 +27,13 @@ STATUS: ACTIVE
 
 ---
 
-## Screenshots — PENDING
+## Screenshots — DONE
 
 | State | Filename | What renders |
 |-------|----------|--------------|
-| Scrolled | `today_c942d60_scrolled.png` | Load MetricBar + Sleep honest-absent ring |
+| Scrolled | `today_f2ac5ed_scrolled.png` | Load MetricBar + Sleep honest-absent ring + build stamp |
 
-**Note:** Screenshot required after hot-reload on simulator.
+**Captured:** 2026-07-02 — Load + Sleep ring + `build f2ac5ed` stamp verified in frame.
 
 ---
 
@@ -99,10 +101,12 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 | ID | Fix | Status |
 |----|-----|--------|
-| D1 | Legend order Light/REM/Deep/Awake | Done @ `c942d60` |
+| D1 | Legend order Light/REM/Deep/Awake | Done @ `b4e6d45` |
 | D2 | Ring proportion (verify in render) | Not blocking |
 | D3 | BUILD-REPORT with accessor + placeholder ⚠ | This file |
-| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `c942d60` |
+| D4 | SHA handshake (report ↔ screenshot) | Fixed — both use `f2ac5ed` |
+| D6 | kDebugMode build stamp on Today | Done @ `b4e6d45` |
+| D7 | Re-capture screenshot (stale image fix) | Done — ring + stamp verified |
 
 ---
 
@@ -110,7 +114,7 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 | SHA | Filename | Task | Date |
 |-----|----------|------|------|
-| `c942d60` | _pending_ | BS-006 + DR-014 D1/D3/D4 | 2026-07-01 |
+| `f2ac5ed` | `today_f2ac5ed_scrolled.png` | BS-006 + DR-014 D1–D6 | 2026-07-02 |
 | `29d4b5c` | `today_29d4b5c_scrolled.png` | DR-013 — Sleep card witness | 2026-07-01 |
 | `b6001e6` | `today_b6001e6_normal.png` | BS-005 — MetricBar | 2026-07-01 |
 | `c9f4b4b` | `today_c9f4b4b_normal.png` | BS-004 — type scale bump | 2026-07-01 |
@@ -119,11 +123,11 @@ Located at `lib/widgets/today/sleep_stage_ring.dart`
 
 ## Next
 
-**Completed:** BS-006 + DR-014 D1/D3/D4.
+**Completed:** BS-006 + DR-014 D1/D3/D4/D6/D7.
 
 **Awaiting:**
-1. Scrolled screenshot `today_c942d60_scrolled.png` (Load MetricBar + Sleep honest-absent ring)
-2. DR-014 close
+1. DR-014 close
+2. Merge `feature/dr014-d6-stamp` → `main`
 
 **Merge intent:** After DR-014 closes, merge `feature/bs004-typescale` → `main`.
 
