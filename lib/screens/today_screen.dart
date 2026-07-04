@@ -331,8 +331,9 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  /// Weather slot — uses real data if available, placeholder otherwise.
-  /// BS-002: weather placeholder is acceptable (not engine data).
+  /// Weather slot — real OS-provided data if available, honest absence otherwise.
+  /// Rule 6: weather comes from Apple WeatherKit via the OS frame; on any failure
+  /// we render nothing (no icon, no forecast), never a fabricated condition.
   Widget _buildWeatherSlot() {
     if (_weather != null) {
       final tempC = _weather!.temperatureC.round();
@@ -354,22 +355,9 @@ class _TodayScreenState extends State<TodayScreen> {
         ],
       );
     }
-    // Placeholder weather (BS-002: acceptable for static glanceable slot)
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.wb_sunny_outlined, size: 18, color: MivaltaColors.textSecondary),
-        SizedBox(width: 5),
-        Text(
-          'Sunny 18°',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 15,
-            color: MivaltaColors.textSecondary,
-          ),
-        ),
-      ],
-    );
+    // Honest absence (Rule 6): no real weather → render nothing, never a
+    // fabricated "Sunny 18°" placeholder.
+    return const SizedBox.shrink();
   }
 
   /// Map weather symbol to Material icon.
@@ -546,20 +534,29 @@ class _TodayScreenState extends State<TodayScreen> {
               ModuleCard(
                 title: 'Load today',
                 icon: Icons.trending_up,
-                child: _data.todayLoad != null
+                // Rule 3 (no fabricated defaults): the ranged bar only renders
+                // when the engine has provided a real load ceiling (chronic-load
+                // baseline from ACWR). Before that exists we do NOT invent a
+                // "600" range — we show honest absence of the range.
+                child: (_data.todayLoad != null && _data.loadCeiling != null)
                     ? MetricBar(
                         value: _data.todayLoad,
-                        max: _data.loadCeiling ?? 600, // fallback ceiling if no ACWR yet
+                        max: _data.loadCeiling!,
                         ceiling: _data.loadCeiling,
                         color: MivaltaColors.stateProductive,
                         scaleStart: '0',
-                        scaleEnd: _data.loadCeiling?.round().toString() ?? '600',
+                        scaleEnd: _data.loadCeiling!.round().toString(),
                         caption: _buildLoadCaption(),
                       )
-                    : const _HonestAbsence(
-                        label: 'No activity recorded',
-                        unlock: 'Log a workout to see your load',
-                      ),
+                    : _data.todayLoad != null
+                        ? const _HonestAbsence(
+                            label: 'Load range still building',
+                            unlock: 'A few more logged days set your baseline',
+                          )
+                        : const _HonestAbsence(
+                            label: 'No activity recorded',
+                            unlock: 'Log a workout to see your load',
+                          ),
               ),
 
               const SizedBox(height: MivaltaSpace.x3),
