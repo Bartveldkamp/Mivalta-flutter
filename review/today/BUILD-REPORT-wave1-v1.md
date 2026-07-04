@@ -131,7 +131,13 @@ BS-008 requires 5 shots that need authenticated state with engine data:
 
 ## Next
 
-1. Build and run app, complete onboarding via automation
+1. ~~Build and run app, complete onboarding via automation~~ Manual tap-through (Bart drives)
 2. Capture BS-008 shots (Today screen with engine data)
 3. Capture DR-018 Advisor shots
 4. Merge `feature/bs008-wave1` → `main`
+
+---
+
+## Follow-up (queued)
+
+- **integration_test corridor check** — Automate Splash→Auth→Onboarding→Today flow verification. Blocked by simulator click automation; revisit with flutter_driver or integration_test package.
