@@ -1,9 +1,9 @@
 STATUS: ACTIVE
-**Branch:** `feature/bs008-wave1` · **SHA:** `35570f2`
+**Branch:** `feature/bs008-wave1` · **SHA:** `5f65cd8`
 
 # BS-008 Wave 1 — Build Report v1
 
-**Live build as of SHA `35570f2`.**
+**Live build as of SHA `5f65cd8`.**
 
 **Branch:** `feature/bs008-wave1`
 **Date:** 2026-07-04
@@ -93,7 +93,7 @@ return prefs.getBool('has_auth_session') ?? false;
 |------|---------|
 | `lib/screens/auth_screen.dart` | W1: Route new accounts to Onboarding + store session marker |
 | `lib/screens/splash_screen.dart` | W1: Check session marker for 3-way routing |
-| `lib/screens/onboarding_screen.dart` | BS-002 v3.2: `_buildPromiseGlow()` + 76px logo |
+| `lib/screens/onboarding_screen.dart` | BS-002 v3.2: `_buildPromiseGlow()` + 76px logo + Semantics fix |
 | `lib/theme/tokens.dart` | D-2: Token sweep (if applicable) |
 
 ---
@@ -102,6 +102,7 @@ return prefs.getBool('has_auth_session') ?? false;
 
 | SHA | Message |
 |-----|---------|
+| `5f65cd8` | fix(onboarding): add Semantics to bottom buttons for automation |
 | `35570f2` | docs(witness): updated corridor with real-state routing + v3.2 glow |
 | `9190ab2` | feat(auth): W1 real-state routing — session marker separates auth from profile |
 | `6364d38` | feat(onboarding): BS-002 v3.2 — auth-style glow, 76px logo, no tile |
@@ -124,12 +125,13 @@ BS-008 requires 5 shots that need authenticated state with engine data:
 | calibrated | Calibrated state | Blocked — need Today |
 | josi-numbers | Josi with numbers | Blocked — need Today |
 
-**Blocker:** Onboarding "Get started" button uses GestureDetector without Semantics — can't automate clicks.
+**Blocker resolved (5f65cd8):** Added Semantics to bottom buttons — automation now possible.
 
 ---
 
 ## Next
 
-1. Manual device interaction to complete onboarding → capture BS-008 shots
-2. DR-018 Advisor shots (also require Today state)
-3. Merge `feature/bs008-wave1` → `main`
+1. Build and run app, complete onboarding via automation
+2. Capture BS-008 shots (Today screen with engine data)
+3. Capture DR-018 Advisor shots
+4. Merge `feature/bs008-wave1` → `main`
