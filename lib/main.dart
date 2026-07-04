@@ -4,7 +4,6 @@
 // Flutter DISPLAYS. See docs/UI_CLEANOUT_PLAN.md for the clean-out that
 // preceded this fresh build.
 
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
@@ -20,9 +19,10 @@ void main() async {
 
   // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
   // Enabled for BS-001 design verification with real engine-computed data
-  if (kDebugMode) {
-    await _seedDemoIfNeeded();
-  }
+  // DISABLED for DR-017 final witness — fresh onboarding E2E
+  // if (kDebugMode) {
+  //   await _seedDemoIfNeeded();
+  // }
 
   runApp(const MivaltaApp());
 }
@@ -30,6 +30,13 @@ void main() async {
 /// kDebugMode-only: seed the demo athlete if no profile exists.
 /// Uses the real ingest path (DemoSeeder → IngestAdapter) so the engine
 /// genuinely computes every readiness state from the seeded observations.
+//
+// Parked kDebugMode-only demo toggle: intentionally uncalled during the
+// fresh-onboarding E2E witness (see the commented boot call in `main` above);
+// kept ready to re-enable, not dead code — re-add the `flutter/foundation.dart`
+// `kDebugMode` import when the boot call is uncommented. (Mirrors the Rust
+// `#[allow(dead_code)]`-with-justification convention.)
+// ignore: unused_element
 Future<void> _seedDemoIfNeeded() async {
   if (await ProfileService.hasPersistedProfile()) return; // skip if already seeded
 

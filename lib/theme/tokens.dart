@@ -78,6 +78,15 @@ abstract final class MivaltaType {
         fontFeatures: _tabularLining,
       );
 
+  /// Extra-large title — 32px Inter w700 (BS-002 onboarding Promise).
+  static TextStyle get titleXL => GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.w700,
+        height: 1.15,
+        letterSpacing: -0.5,
+        fontFeatures: _tabularLining,
+      );
+
   /// Large title — 24px Inter w700.
   static TextStyle get titleL => GoogleFonts.inter(
         fontSize: 24,
@@ -215,6 +224,19 @@ abstract final class MivaltaGlow {
 
   // Breathe animation: 6 seconds, counter-phased.
   static const splashBreatheDuration = Duration(seconds: 6);
+
+  // ─── Onboarding glow (BS-002-onboarding) ───
+  // Promise lock tile: 72px r22 mint-14% bg.
+  static const onbLockTileSize = 72.0;
+  static const onbLockTileRadius = 22.0;
+  static const onbLockTileAlpha = 0.14;
+
+  // Payoff mini glow: 150px, teal.
+  static const onbPayoffGlowSize = 150.0;
+  static const onbPayoffOuterAlpha = 0.26;
+  static const onbPayoffOuterBlur = 12.0;
+  static const onbPayoffMidAlpha = 0.40;
+  static const onbPayoffMidBlur = 6.0;
 }
 
 /// Spacing scale tokens.

@@ -62,6 +62,9 @@ dependencies:
   # PR-G: Share exported files via platform share sheet.
   share_plus: ^10.0.0
 
+  # BS-002 v2: Local preferences storage (detail/gear, NOT engine payload).
+  shared_preferences: ^2.2.3
+
   # Task A (input layer): BLE HR-strap pairing over the public Heart Rate
   # Service (0x180D / 0x2A37). Used ONLY by FlutterBlueTransport — all BLE
   # logic depends on the BleTransport interface, so session/decode/packaging is
@@ -76,9 +79,6 @@ dependencies:
 
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
-
-  # BS-003: Local app state persistence (chosen workout option, etc.).
-  shared_preferences: ^2.2.0
 
 dev_dependencies:
   flutter_test:
