@@ -1,6 +1,6 @@
-// Corridor Guard Integration Test — BS-008 Wave 1
+// Corridor Guard Integration Test — BS-008 Wave 1 + BS-015 Journey
 //
-// Drives Splash → Auth → Onboarding (full intake) → Today.
+// Drives Splash → Auth → Onboarding (full intake) → Today → Journey.
 // This test is the CI corridor guard — any break in the flow fails the build.
 //
 // NOTE: Uses `pump()` with durations instead of `pumpAndSettle()` for screens
@@ -58,7 +58,7 @@ void main() {
 
   group('Corridor Guard', () {
     testWidgets(
-      'Splash → Auth → Onboarding (full intake) → Today',
+      'Splash → Auth → Onboarding (full intake) → Today → Journey',
       (WidgetTester tester) async {
         // ─── SETUP: Clear all state for fresh install ───
         await clearAllState();
@@ -207,7 +207,31 @@ void main() {
         expect(find.text('Your body.\nYour data.'), findsNothing);
         expect(find.text('Your aim'), findsNothing);
 
-        debugPrint('Corridor complete: Splash → Auth → Onboarding → Today');
+        // Verify Today screen is showing (bottom nav "Today" should be present)
+        expect(find.text('Today'), findsOneWidget);
+
+        // ─── CORRIDOR 05: JOURNEY ───
+        // Tap Journey in bottom nav
+        await tester.tap(find.text('Journey'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Wait for Journey screen to load (engine bootstrap may take time)
+        for (int i = 0; i < 30; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        checkpoint('corridor_05_journey');
+
+        // Verify Journey screen elements
+        // Section eyebrow "YOUR ARC" is unique to Journey screen
+        expect(find.text('YOUR ARC'), findsOneWidget);
+
+        // Verify bottom nav is present (Today/Journey/You labels)
+        // Note: "Journey" appears twice (masthead title + nav label)
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.text('You'), findsOneWidget);
+
+        debugPrint('Corridor complete: Splash → Auth → Onboarding → Today → Journey');
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
