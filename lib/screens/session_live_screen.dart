@@ -12,7 +12,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../services/session_recorder.dart';
 import '../theme/tokens.dart';
-import 'today_screen.dart';
+import 'session_reveal_screen.dart';
 
 /// Live session display — recorder + display only.
 class SessionLiveScreen extends StatefulWidget {
@@ -319,21 +319,20 @@ class _SessionLiveScreenState extends State<SessionLiveScreen> {
 
   void _endSession() {
     // Stop recording and get completed session.
-    // BS-011 will use this for reveal + vault persistence.
-    _recorder.stop();
+    final completed = _recorder.stop();
 
     // TODO: Persist to vault via write_raw_observation.
-    // For now, just navigate back to Today with the completed session.
+    // The reveal screen will show the session data and try to fetch
+    // engine analysis once vault persistence is wired.
 
     // Haptic feedback.
     HapticFeedback.mediumImpact();
 
-    // Navigate to reveal screen (BS-011) or Today if not built.
-    // BS-011 not built yet — land on Today.
+    // Navigate to reveal screen (BS-011).
     Navigator.pushReplacement(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => const TodayScreen(),
+        builder: (context) => SessionRevealScreen(session: completed),
       ),
     );
   }
