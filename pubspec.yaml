@@ -80,6 +80,9 @@ dependencies:
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
 
+  # BS-010: Keep screen awake during session recording.
+  wakelock_plus: ^1.2.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
