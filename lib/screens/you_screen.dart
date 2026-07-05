@@ -9,12 +9,19 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/learning_status.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+
+/// Coach presence level — governs notification frequency (BS-012 reads this).
+enum CoachPresence { off, quiet, moderate }
+
+/// Detail preference — words-first or numbers-first display style.
+enum DetailPreference { wordsFirst, numbersFirst }
 
 /// You tab — profile, sources, sovereignty.
 class YouScreen extends StatefulWidget {
@@ -39,6 +46,10 @@ class _YouScreenState extends State<YouScreen> {
 
   // Pause state.
   bool _isLearningPaused = false;
+
+  // Coach presence and detail preference (local prefs, BS-012 reads presence).
+  CoachPresence _coachPresence = CoachPresence.moderate;
+  DetailPreference _detailPreference = DetailPreference.wordsFirst;
 
   // Engine hello (for debug).
   String? _engineHello;
@@ -114,6 +125,9 @@ class _YouScreenState extends State<YouScreen> {
       // Load data from engine.
       await _loadEngineData(binding, handle);
 
+      // Load local preferences (coach presence, detail preference).
+      await _loadLocalPreferences();
+
       setState(() => _loading = false);
     } catch (e) {
       setState(() {
@@ -168,6 +182,39 @@ class _YouScreenState extends State<YouScreen> {
         // Ignore.
       }
     }
+  }
+
+  /// Load local preferences (coach presence, detail preference).
+  Future<void> _loadLocalPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Coach presence: 'off', 'quiet', 'moderate' (default: moderate).
+    final presenceStr = prefs.getString('coach_presence') ?? 'moderate';
+    _coachPresence = CoachPresence.values.firstWhere(
+      (e) => e.name == presenceStr,
+      orElse: () => CoachPresence.moderate,
+    );
+
+    // Detail preference: 'wordsFirst', 'numbersFirst' (default: wordsFirst).
+    final detailStr = prefs.getString('detail_preference') ?? 'wordsFirst';
+    _detailPreference = DetailPreference.values.firstWhere(
+      (e) => e.name == detailStr,
+      orElse: () => DetailPreference.wordsFirst,
+    );
+  }
+
+  /// Save coach presence preference.
+  Future<void> _saveCoachPresence(CoachPresence value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('coach_presence', value.name);
+    setState(() => _coachPresence = value);
+  }
+
+  /// Save detail preference.
+  Future<void> _saveDetailPreference(DetailPreference value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('detail_preference', value.name);
+    setState(() => _detailPreference = value);
   }
 
   @override
@@ -242,6 +289,9 @@ class _YouScreenState extends State<YouScreen> {
 
           // Sovereignty card.
           _buildSovereigntyCard(),
+
+          // How MiValta speaks card (Y1).
+          _buildSpeakCard(),
 
           // Display settings card.
           _buildDisplayCard(),
@@ -498,6 +548,45 @@ class _YouScreenState extends State<YouScreen> {
           label: 'Erase everything',
           subtitle: 'Destroys the key — data is gone, instantly',
           onTap: _confirmErase,
+        ),
+      ],
+    );
+  }
+
+  /// How MiValta speaks card (Y1): coach presence dial + detail preference.
+  Widget _buildSpeakCard() {
+    return _Card(
+      title: 'How MiValta speaks',
+      icon: Icons.record_voice_over_outlined,
+      children: [
+        // Coach presence dial: Off / Quiet / Moderate.
+        Text(
+          'Coach presence',
+          style: MivaltaType.label.copyWith(
+            color: MivaltaColors.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        _PresenceSelector(
+          value: _coachPresence,
+          onChanged: _saveCoachPresence,
+        ),
+
+        const SizedBox(height: MivaltaSpace.x4),
+
+        // Detail preference: words-first / numbers-first.
+        Text(
+          'Detail preference',
+          style: MivaltaType.label.copyWith(
+            color: MivaltaColors.textSecondary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        _DetailPreferenceSelector(
+          value: _detailPreference,
+          onChanged: _saveDetailPreference,
         ),
       ],
     );
@@ -1217,6 +1306,175 @@ class _TierChip extends StatelessWidget {
         return kSourceTierColor[SourceTier.partial]!;
       default:
         return kSourceTierColor[SourceTier.manual]!;
+    }
+  }
+}
+
+/// Coach presence selector: Off / Quiet / Moderate.
+class _PresenceSelector extends StatelessWidget {
+  const _PresenceSelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final CoachPresence value;
+  final ValueChanged<CoachPresence> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: CoachPresence.values.map((presence) {
+        final selected = presence == value;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(presence),
+            child: Container(
+              margin: EdgeInsets.only(
+                right: presence != CoachPresence.moderate ? MivaltaSpace.x2 : 0,
+              ),
+              padding: const EdgeInsets.symmetric(
+                vertical: MivaltaSpace.x2,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? MivaltaColors.stateProductive.withValues(alpha: 0.15)
+                    : MivaltaColors.surface1,
+                border: Border.all(
+                  color: selected
+                      ? MivaltaColors.stateProductive
+                      : MivaltaColors.cardBorder,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    _presenceLabel(presence),
+                    style: MivaltaType.label.copyWith(
+                      color: selected
+                          ? MivaltaColors.stateProductive
+                          : MivaltaColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _presenceSubtitle(presence),
+                    style: MivaltaType.small.copyWith(
+                      color: MivaltaColors.textMuted,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _presenceLabel(CoachPresence presence) {
+    switch (presence) {
+      case CoachPresence.off:
+        return 'Off';
+      case CoachPresence.quiet:
+        return 'Quiet';
+      case CoachPresence.moderate:
+        return 'Moderate';
+    }
+  }
+
+  String _presenceSubtitle(CoachPresence presence) {
+    switch (presence) {
+      case CoachPresence.off:
+        return 'No nudges';
+      case CoachPresence.quiet:
+        return 'Essential only';
+      case CoachPresence.moderate:
+        return 'When useful';
+    }
+  }
+}
+
+/// Detail preference selector: words-first / numbers-first.
+class _DetailPreferenceSelector extends StatelessWidget {
+  const _DetailPreferenceSelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final DetailPreference value;
+  final ValueChanged<DetailPreference> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: DetailPreference.values.map((pref) {
+        final selected = pref == value;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(pref),
+            child: Container(
+              margin: EdgeInsets.only(
+                right: pref == DetailPreference.wordsFirst ? MivaltaSpace.x2 : 0,
+              ),
+              padding: const EdgeInsets.symmetric(
+                vertical: MivaltaSpace.x2,
+                horizontal: MivaltaSpace.x2,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? MivaltaColors.stateProductive.withValues(alpha: 0.15)
+                    : MivaltaColors.surface1,
+                border: Border.all(
+                  color: selected
+                      ? MivaltaColors.stateProductive
+                      : MivaltaColors.cardBorder,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    pref == DetailPreference.wordsFirst
+                        ? Icons.text_format
+                        : Icons.insights,
+                    size: 16,
+                    color: selected
+                        ? MivaltaColors.stateProductive
+                        : MivaltaColors.textMuted,
+                  ),
+                  const SizedBox(width: MivaltaSpace.x1),
+                  Text(
+                    _prefLabel(pref),
+                    style: MivaltaType.label.copyWith(
+                      color: selected
+                          ? MivaltaColors.stateProductive
+                          : MivaltaColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _prefLabel(DetailPreference pref) {
+    switch (pref) {
+      case DetailPreference.wordsFirst:
+        return 'Words first';
+      case DetailPreference.numbersFirst:
+        return 'Numbers first';
     }
   }
 }
