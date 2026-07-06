@@ -25,6 +25,7 @@ import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/module_card.dart';
+import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
 
 class JourneyScreen extends StatefulWidget {
@@ -336,21 +337,41 @@ class _JourneyScreenState extends State<JourneyScreen> {
             ],
           ),
           const SizedBox(height: MivaltaSpace.x3),
-          // Row 2: Journey title
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Journey',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: MivaltaColors.textPrimary,
+          // Row 2: Journey title + tune button (W5)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Journey',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: MivaltaColors.textPrimary,
+                ),
               ),
-            ),
+              // W5: Tune button (customization sheet)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showCustomizeSheet,
+                child: const Icon(
+                  Icons.tune,
+                  size: 20,
+                  color: MivaltaColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  /// W5: Show "Make it yours" customization sheet.
+  void _showCustomizeSheet() {
+    MakeItYoursSheet.show(
+      context,
+      screenName: 'Journey',
     );
   }
 

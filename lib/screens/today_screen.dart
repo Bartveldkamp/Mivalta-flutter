@@ -35,6 +35,7 @@ import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
 import '../widgets/today/masthead.dart';
 import '../widgets/today/why_unfold.dart';
+import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
 import 'advisor_screen.dart';
 import 'session_start_screen.dart';
@@ -55,6 +56,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   EnginesHandle? _handle;
   // BS-008 P-4: Detail preference from onboarding
   bool _showNumbers = false;
+  // W5: Weather visibility preference
+  bool _showWeather = true;
 
   @override
   void initState() {
@@ -83,11 +86,16 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   }
 
   /// BS-008 P-4: Load onboarding_detail preference.
+  /// W5: Also loads weather visibility preference.
   Future<void> _loadDetailPreference() async {
     final prefs = await SharedPreferences.getInstance();
     final detail = prefs.getString('onboarding_detail') ?? 'simple';
+    final showWeather = prefs.getBool('show_weather') ?? true;
     if (mounted) {
-      setState(() => _showNumbers = detail == 'numbers');
+      setState(() {
+        _showNumbers = detail == 'numbers';
+        _showWeather = showWeather;
+      });
     }
   }
 
@@ -465,6 +473,15 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// W5: Show "Make it yours" customization sheet.
+  void _showCustomizeSheet() {
+    MakeItYoursSheet.show(
+      context,
+      screenName: 'Today',
+      onChanged: _loadDetailPreference, // Reload prefs when changed
+    );
+  }
+
   Widget _buildContent() {
     if (_data.error != null) {
       return Center(
@@ -482,10 +499,12 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     return CustomScrollView(
       slivers: [
         // Masthead — BS-002: two-tier brand header (wordmark + action row)
+        // W5: onTune opens "Make it yours" sheet; weather conditional on pref
         SliverToBoxAdapter(
           child: TodayMasthead(
             onStartWorkout: _startWorkout,
-            weather: _weather,
+            weather: _showWeather ? _weather : null,
+            onTune: () => _showCustomizeSheet(),
           ),
         ),
 
