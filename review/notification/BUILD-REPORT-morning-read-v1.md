@@ -2,7 +2,7 @@
 
 **Spec:** BS-012-morning-read.md (MCP Design)
 **Branch:** feature/bs012-morning-read
-**Build SHA:** (pending DR-021 commit)
+**Build SHA:** 30b62d4 (DR-021 fixes)
 
 ## Summary
 
