@@ -20,6 +20,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/realized_line.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
@@ -50,6 +51,9 @@ class _JourneyScreenState extends State<JourneyScreen> {
   // Fitness data
   List<double> _fitnessSeries = const [];
   List<double> _fatigueSeries = const [];
+
+  // BS-016 S4: Day summary (Josi's end-of-day line)
+  RealizedLine? _todaySummary;
 
   @override
   void initState() {
@@ -189,6 +193,18 @@ class _JourneyScreenState extends State<JourneyScreen> {
       debugPrint('fitnessSeries failed: $e');
     }
 
+    // BS-016 S4: Day summary — Josi closes the day.
+    try {
+      final today = DateTime.now();
+      final dateStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final summaryJson = await binding.realizeDaySummary(handle, date: dateStr);
+      _todaySummary = RealizedLine.parse(summaryJson);
+    } catch (e) {
+      // Honest absence — no summary if no data for today
+      debugPrint('realizeDaySummary failed: $e');
+    }
+
     setState(() => _loading = false);
   }
 
@@ -233,6 +249,14 @@ class _JourneyScreenState extends State<JourneyScreen> {
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: MivaltaSpace.x5),
+
+              // BS-016 S4: Today's summary — Josi closes the day
+              if (_todaySummary != null) ...[
+                _buildSectionEyebrow('TODAY'),
+                const SizedBox(height: MivaltaSpace.x3),
+                _buildDaySummaryCard(),
+                const SizedBox(height: MivaltaSpace.x5),
+              ],
 
               // Section: THE ARC
               _buildSectionEyebrow('YOUR ARC'),
@@ -339,6 +363,58 @@ class _JourneyScreenState extends State<JourneyScreen> {
         fontSize: 10,
         letterSpacing: 1.1,
         color: MivaltaColors.textSoft45,
+      ),
+    );
+  }
+
+  /// BS-016 S4: Day summary — Josi closes the day.
+  Widget _buildDaySummaryCard() {
+    final summary = _todaySummary;
+    if (summary == null) return const SizedBox.shrink();
+
+    return ModuleCard(
+      title: 'Day summary',
+      icon: Icons.auto_awesome,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Main summary text (Josi voice)
+          Text(
+            summary.text,
+            style: MivaltaType.body.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          // Safety items always render
+          if (summary.safety.isNotEmpty) ...[
+            const SizedBox(height: MivaltaSpace.x2),
+            ...summary.safety.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: MivaltaColors.stateAccumulated,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        s,
+                        style: MivaltaType.small.copyWith(
+                          color: MivaltaColors.stateAccumulated,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

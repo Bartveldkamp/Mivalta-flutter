@@ -133,4 +133,52 @@ void main() {
     expect(engineFields.contains('rationale'), isFalse);
     expect(engineFields.contains('target_pace_mss'), isTrue);
   });
+
+  // BS-016 S3 regression: the realize_advisory_offer seam deserializes the
+  // COMPLETE engine WorkoutOptionData — session_intent, ntiz_by_zone, and the
+  // full structure are serde-REQUIRED with no defaults. The display model
+  // reads none of them, so the raw payload must be couriered back VERBATIM;
+  // a re-serialization from parsed display fields drops them and the engine
+  // rejects every option (offer lines silently never render — #155 review).
+  group('raw payload courier (S3 offer-line seam)', () {
+    test('rawOptionJson preserves engine-only fields the display never reads',
+        () {
+      final engineOption = {
+        'option_id': 'A',
+        'title': 'Endurance Ride',
+        'zone': 'Z2',
+        'why': 'Recovery is building.',
+        'tags': ['endurance'],
+        'structure': {
+          'total_minutes': 60,
+          'main_set': {'cue_start': 'settle in'},
+        },
+        'session_intent': 'base',
+        'ntiz_by_zone': {'Z2': 0.9, 'Z1': 0.1},
+        'uls_stimulus': 42.0,
+      };
+      final option = WorkoutOption.fromJson(engineOption);
+
+      final rawJson = option.rawOptionJson();
+      expect(rawJson, isNotNull);
+      final roundTripped = jsonDecode(rawJson!) as Map<String, dynamic>;
+
+      // Verbatim courier: every engine field survives, including the ones
+      // the Dart model has no field for.
+      expect(roundTripped['session_intent'], 'base');
+      expect(roundTripped['ntiz_by_zone'], {'Z2': 0.9, 'Z1': 0.1});
+      expect(roundTripped['uls_stimulus'], 42.0);
+      expect((roundTripped['structure'] as Map)['main_set'],
+          {'cue_start': 'settle in'});
+      expect(roundTripped.length, engineOption.length,
+          reason: 'no field added or dropped — courier, not reconstruction');
+    });
+
+    test('non-map fallback option has no raw payload (honest absence)', () {
+      final opt = WorkoutOption.fromJson('not a map');
+      expect(opt.raw, isNull);
+      expect(opt.rawOptionJson(), isNull,
+          reason: 'no engine payload → no offer-line call, never a stand-in');
+    });
+  });
 }

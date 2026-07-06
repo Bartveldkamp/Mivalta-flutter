@@ -18,6 +18,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/activity_summary.dart';
 import '../models/home_data.dart';
 import '../models/realized_line.dart';
 import '../models/workout_option.dart';
@@ -394,11 +395,44 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         // Honest absence
       }
 
+      // BS-016 S1: Recent activities + post-workout reflection.
+      // Fetch today's latest activity and get the coach reaction.
+      try {
+        final activitiesJson = await binding.readRecentActivities(handle, limit: 5);
+        final activities = ActivitySummary.listFromJson(jsonDecode(activitiesJson));
+        if (activities.isNotEmpty) {
+          final latest = activities.first;
+          data.latestActivity = latest;
+
+          // Only fetch reflection for today's activities
+          if (latest.date == dateStr) {
+            try {
+              final reflectionJson = await binding.realizeWorkoutReflection(
+                handle,
+                activityId: latest.id,
+                date: dateStr,
+              );
+              data.workoutReflection = RealizedLine.parse(reflectionJson);
+            } catch (e) {
+              // Honest absence — activity may lack quality metrics ("logged, not judged")
+              debugPrint('realizeWorkoutReflection failed: $e');
+            }
+          }
+        }
+      } catch (_) {
+        // Honest absence — no recent activities
+      }
+
+      // The load chain awaits several FFI calls (S1 extended it further);
+      // the screen can be disposed mid-load (e.g. the notification tap
+      // rebuilds the Today route), so guard before touching state.
+      if (!mounted) return;
       setState(() {
         _data = data;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _data.error = e.toString();
         _loading = false;
@@ -754,6 +788,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 
               const SizedBox(height: MivaltaSpace.x3),
 
+              // BS-016 S1: Recent workout with coach reflection (today only).
+              // Shows the latest workout + Josi's post-workout reaction.
+              ..._recentWorkoutCard(),
+
               // BS-006: Sleep stage ring (full 360° donut sliced into stages).
               // Engine doesn't provide per-stage minutes yet — placeholder ⚠
               // Shows honest-absent variant until stage data is available.
@@ -783,6 +821,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                               options: _data.workoutOptions,
                               binding: _binding!,
                               handle: _handle!,
+                              readinessLevel: _data.level, // BS-016 S3
                             ),
                           ),
                         )
@@ -912,6 +951,109 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       parts.add(_data.focusCue!);
     }
     return parts.join(' · ');
+  }
+
+  /// BS-016 S1: Recent workout card with Josi's post-workout reflection
+  /// (renders only for a same-day activity). Built from LOCAL captures of the
+  /// mutable HomeData fields — no `!` between null-check and use, so the card
+  /// always renders one consistent snapshot (#155 review).
+  List<Widget> _recentWorkoutCard() {
+    final latest = _data.latestActivity;
+    if (latest == null || latest.date != _todayDateStr()) return const [];
+    final reflection = _data.workoutReflection;
+    return [
+      ModuleCard(
+        title: 'Recent workout',
+        icon: Icons.check_circle_outline,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Activity summary row
+            Row(
+              children: [
+                Text(
+                  _formatSport(latest.sport),
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: MivaltaColors.textPrimary,
+                  ),
+                ),
+                if (latest.durationMin != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${latest.durationMin} min',
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      color: MivaltaColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            // S1: Coach reflection line
+            if (reflection != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                reflection.text,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  color: MivaltaColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              // Safety items always render
+              if (reflection.safety.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                ...reflection.safety.map(
+                  (s) => Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          size: 14,
+                          color: MivaltaColors.stateAccumulated,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            s,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: MivaltaColors.stateAccumulated,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: MivaltaSpace.x3),
+    ];
+  }
+
+  /// BS-016 S1: Get today's date string for activity date comparison.
+  String _todayDateStr() {
+    final today = DateTime.now();
+    return '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  }
+
+  /// BS-016 S1: Format sport name for display.
+  String _formatSport(String sport) {
+    if (sport.isEmpty) return 'Workout';
+    // Capitalize first letter
+    return '${sport[0].toUpperCase()}${sport.substring(1)}';
   }
 }
 
