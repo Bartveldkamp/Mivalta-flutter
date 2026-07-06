@@ -550,8 +550,8 @@ class _YouScreenState extends State<YouScreen> {
         // CSV export (analytics/research).
         _ActionRow(
           icon: Icons.download_outlined,
-          label: 'Export as CSV',
-          subtitle: 'Spreadsheet of biometrics (90 days)',
+          label: 'Export my data',
+          subtitle: 'CSV file with your biometrics',
           onTap: _exportData,
         ),
 
@@ -832,8 +832,10 @@ class _YouScreenState extends State<YouScreen> {
             ),
             TextButton(
               onPressed: () {
-                if (passphrase.length < 8) {
-                  setState(() => error = 'At least 8 characters');
+                // B3: No Dart-side passphrase rule — engine validates.
+                // Only check confirm match (UX, not security).
+                if (passphrase.isEmpty) {
+                  setState(() => error = 'Passphrase required');
                   return;
                 }
                 if (passphrase != confirm) {
