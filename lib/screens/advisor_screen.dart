@@ -112,17 +112,24 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
 
   /// BS-016 S3: Load Josi offer lines for all options.
   Future<void> _loadOfferLines(List<WorkoutOption> options) async {
-    if (widget.readinessLevel == null) return;
+    final band = widget.readinessLevel;
+    if (band == null) return;
+    final date = _dateStr;
 
     for (final option in options) {
+      // The engine deserializes the COMPLETE WorkoutOptionData
+      // (session_intent, ntiz_by_zone, full structure are serde-required) —
+      // so we courier its own payload back verbatim. An option without a raw
+      // payload gets no offer line (honest absence), never a reconstructed
+      // stand-in.
+      final optionJson = option.rawOptionJson();
+      if (optionJson == null) continue;
       try {
-        // Pass option JSON verbatim — engine expects its own output back
-        final optionJson = jsonEncode(option.toJson());
         final offerJson = await widget.binding.realizeAdvisoryOffer(
           widget.handle,
           optionJson: optionJson,
-          readinessLevel: widget.readinessLevel!,
-          date: _dateStr,
+          readinessLevel: band,
+          date: date,
         );
         final offerLine = RealizedLine.parse(offerJson);
         if (mounted) {

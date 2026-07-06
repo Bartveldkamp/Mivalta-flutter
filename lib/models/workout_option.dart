@@ -12,6 +12,8 @@
 //   option_id, title, zone, why, tags, structure.total_minutes,
 //   target_watts (Option), target_pace_mss (Option, skip_serializing_if none).
 
+import 'dart:convert';
+
 /// Parsed workout option from engine JSON.
 class WorkoutOption {
   final String optionId;
@@ -31,6 +33,16 @@ class WorkoutOption {
   /// Card-sourced zone-purpose prose (`zone_purpose`), engine-owned (Phase 1).
   final String? zonePurpose;
 
+  /// The engine's OWN decoded option payload, held verbatim (every field,
+  /// including ones this display model never reads: session_intent,
+  /// ntiz_by_zone, the full structure…). `realize_advisory_offer` deserializes
+  /// the complete `WorkoutOptionData` — those fields are serde-REQUIRED, so
+  /// couriering the engine's own JSON back is the only correct shape. Never
+  /// reconstruct it from the parsed display fields (a lossy re-serialization
+  /// fails engine-side and silently kills every offer line — the defect the
+  /// #155 review caught). Null only for the non-map parse fallback.
+  final Map<String, dynamic>? raw;
+
   WorkoutOption({
     required this.optionId,
     required this.title,
@@ -43,7 +55,14 @@ class WorkoutOption {
     this.expression,
     this.focusCue,
     this.zonePurpose,
+    this.raw,
   });
+
+  /// The engine's option payload re-encoded verbatim for the
+  /// `realize_advisory_offer` seam (pure courier — no field is added,
+  /// dropped, or renamed). Null when the option did not come from a real
+  /// engine map (honest absence: no offer line can be realized for it).
+  String? rawOptionJson() => raw == null ? null : jsonEncode(raw);
 
   factory WorkoutOption.fromJson(dynamic json) {
     if (json is! Map) {
@@ -89,23 +108,7 @@ class WorkoutOption {
       expression: (json['expression'] is Map)
           ? (json['expression'] as Map)['title']?.toString()
           : null,
+      raw: Map<String, dynamic>.from(json),
     );
-  }
-
-  /// BS-016 S3: Serialize option to JSON for realizeAdvisoryOffer.
-  /// Note: This reconstructs the fields we have; the engine may accept partial data.
-  Map<String, dynamic> toJson() {
-    return {
-      'option_id': optionId,
-      'title': title,
-      'zone': zone,
-      'why': why,
-      'tags': tags,
-      if (durationMin != null) 'structure': {'total_minutes': durationMin},
-      if (targetWatts != null) 'target_watts': targetWatts,
-      if (targetPaceMss != null) 'target_pace_mss': targetPaceMss,
-      if (zonePurpose != null) 'zone_purpose': zonePurpose,
-      if (expression != null) 'expression': {'title': expression},
-    };
   }
 }
