@@ -30,7 +30,7 @@ import '../theme/tokens.dart';
 import '../theme/zone_names.dart';
 import '../widgets/today/glow_hero.dart';
 import '../widgets/today/josi_card.dart';
-import '../widgets/today/metric_bar.dart';
+import '../widgets/today/load_vessel.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
 import '../widgets/today/masthead.dart';
@@ -630,22 +630,19 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
               ),
 
               // Module cards (I2 fix: honest-absence pattern, never blank)
-              // BS-005: Load card with MetricBar (sharp bar + bold number)
+              // DR-024 W6: Load vessel — replaces flat MetricBar with capsule
               ModuleCard(
                 title: 'Load today',
                 icon: Icons.trending_up,
-                // Rule 3 (no fabricated defaults): the ranged bar only renders
+                // Rule 3 (no fabricated defaults): the vessel only renders
                 // when the engine has provided a real load ceiling (chronic-load
                 // baseline from ACWR). Before that exists we do NOT invent a
                 // "600" range — we show honest absence of the range.
                 child: (_data.todayLoad != null && _data.loadCeiling != null)
-                    ? MetricBar(
-                        value: _data.todayLoad,
-                        max: _data.loadCeiling!,
-                        ceiling: _data.loadCeiling,
-                        color: MivaltaColors.stateProductive,
-                        scaleStart: '0',
-                        scaleEnd: _data.loadCeiling!.round().toString(),
+                    ? LoadVessel(
+                        value: _data.todayLoad!,
+                        ceiling: _data.loadCeiling!,
+                        acwrZone: _data.acwrZone ?? 'optimal',
                         caption: _buildLoadCaption(),
                       )
                     : _data.todayLoad != null
