@@ -38,6 +38,7 @@ import '../widgets/today/why_unfold.dart';
 import 'advisor_screen.dart';
 import 'journey_screen.dart';
 import 'session_start_screen.dart';
+import 'you_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -455,16 +456,14 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _startWorkout,
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
-                    SizedBox(width: 6),
+                    const Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
+                    const SizedBox(width: 6),
                     Text(
                       'Start workout',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
+                      style: MivaltaType.small.copyWith(
                         fontWeight: FontWeight.w600,
                         color: MivaltaColors.primaryGreen,
                       ),
@@ -497,11 +496,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           const SizedBox(width: 5),
           Text(
             '$condition $tempC°',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 15,
-              color: MivaltaColors.textSecondary,
-            ),
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
           ),
         ],
       );
@@ -553,57 +548,6 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// BS-008 E-1: Shows an inline honest interim state for stub tabs (Journey/You).
-  void _showInterimState(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => Scaffold(
-          backgroundColor: MivaltaColors.surfaceBackground,
-          appBar: AppBar(
-            backgroundColor: MivaltaColors.surfaceBackground,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: MivaltaColors.textPrimary),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              title,
-              style: MivaltaType.titleM.copyWith(color: MivaltaColors.textPrimary),
-            ),
-          ),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(MivaltaSpace.x6),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    size: 48,
-                    color: MivaltaColors.textMuted,
-                  ),
-                  const SizedBox(height: MivaltaSpace.x4),
-                  Text(
-                    message,
-                    style: MivaltaType.body.copyWith(
-                      color: MivaltaColors.textMuted,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -643,12 +587,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                 activeIcon: Icons.person,
                 label: 'You',
                 isActive: false,
-                onTap: () => _showInterimState(
+                // DR-023 T2: Wire to YouScreen (no longer a stub)
+                onTap: () => Navigator.pushReplacement(
                   context,
-                  icon: Icons.person_outline,
-                  title: 'You',
-                  message: 'Your profile, sources and privacy controls '
-                      'land here soon.',
+                  MaterialPageRoute<void>(builder: (_) => const YouScreen()),
                 ),
               ),
             ],
@@ -665,7 +607,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.all(MivaltaSpace.x4),
           child: Text(
             'Unable to load: ${_data.error}',
-            style: const TextStyle(color: MivaltaColors.levelRed),
+            style: MivaltaType.body.copyWith(color: MivaltaColors.levelRed),
             textAlign: TextAlign.center,
           ),
         ),
@@ -729,49 +671,40 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
               ],
 
               // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
-              // DR-012: Z8 is the ceiling (no restriction) — must NOT render.
-              // Only restrictive caps (Z1–Z7, REST) or a session zone warrant the chip.
+              // DR-012 + DR-023 T1: Z8 is the ceiling (no restriction) — must NOT render.
+              // The chip is a DECISION only when the engine RESTRICTS (Z1–Z7, REST).
+              // A healthy day (Z8) with a session suggestion shows the zone on the
+              // workout card — under the hero it read as "MiValta tells you what to do."
               () {
                 final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
-                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
-                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                final showChip = !_data.insufficientData && restrictiveCap;
                 return showChip
                     ? Column(
                         children: [
                           const SizedBox(height: MivaltaSpace.x3),
-                          _DecisionChip(
-                            zoneCap: restrictiveCap ? _data.zoneCap : null,
-                            sessionZone: _data.sessionZone,
-                          ),
+                          _DecisionChip(zoneCap: _data.zoneCap),
                         ],
                       )
                     : const SizedBox.shrink();
               }(),
 
               // Spacing before cards: reduced when Josi + chip both absent
-              // DR-012: use same restrictive-cap logic for spacer
+              // DR-012 + DR-023 T1: use same restrictive-cap logic for spacer
               () {
                 final hasJosi = _hasJosiLine();
                 final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
-                final hasSession = _data.sessionZone != null && _data.sessionZone!.isNotEmpty;
-                final showChip = !_data.insufficientData && (restrictiveCap || hasSession);
+                final showChip = !_data.insufficientData && restrictiveCap;
                 return SizedBox(
                   height: (!hasJosi && !showChip) ? MivaltaSpace.x2 : MivaltaSpace.x4,
                 );
               }(),
 
-              // "Your day" section eyebrow
+              // "Your day" section eyebrow — DR-023 T3: token sweep (was 10px, below floor)
               Padding(
                 padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
                 child: Text(
                   'YOUR DAY',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    letterSpacing: 1.1,
-                    color: MivaltaColors.textSoft45,
-                  ),
+                  style: MivaltaType.label.copyWith(color: MivaltaColors.textSoft45),
                 ),
               ),
 
@@ -955,10 +888,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                           ],
                           Text(
                             _data.workoutTitle!,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            style: MivaltaType.cardTitle.copyWith(
                               color: MivaltaColors.textPrimary,
                             ),
                           ),
@@ -967,9 +897,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                             const SizedBox(height: 4),
                             Text(
                               _buildWorkoutSubtitle(),
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
+                              style: MivaltaType.small.copyWith(
                                 color: MivaltaColors.textSecondary,
                               ),
                               maxLines: 1,
@@ -1080,7 +1008,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 }
 
 /// Honest-absence pattern for module cards (I2): named state + actionable unlock.
-/// BS-001 Step 9: primary 15px w500 rgba(244,245,244,.7); guidance 12px rgba(244,245,244,.45)
+/// DR-023 T3: token sweep — uses MivaltaType tokens.
 class _HonestAbsence extends StatelessWidget {
   const _HonestAbsence({required this.label, required this.unlock});
 
@@ -1094,9 +1022,7 @@ class _HonestAbsence extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 15, // BS-001: 15px
+          style: MivaltaType.body.copyWith(
             fontWeight: FontWeight.w500,
             color: MivaltaColors.textSoft70,
           ),
@@ -1104,9 +1030,7 @@ class _HonestAbsence extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           unlock,
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
+          style: MivaltaType.label.copyWith(
             fontWeight: FontWeight.w400,
             color: MivaltaColors.textSoft45,
           ),
@@ -1135,9 +1059,7 @@ class _ZoneChip extends StatelessWidget {
       ),
       child: Text(
         '$name · $zone', // ENERGY NAME FIRST
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 12,
+        style: MivaltaType.label.copyWith(
           fontWeight: FontWeight.w500,
           color: color,
         ),
@@ -1186,9 +1108,7 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 11,
+              style: MivaltaType.label.copyWith(
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                 color: color,
               ),
@@ -1200,30 +1120,23 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// Decision chip — shows the zone cap or primary action for today.
+/// Decision chip — shows the zone cap (engine restriction) for today.
 /// V2 (DR-004): check_circle icon (teal), radius md (12), label white.
 /// DR-005: Zone codes must be paired with level names, never bare.
-/// Until engine provides level names (HANDOFF §8.2), we map to readable phrases.
+/// DR-023 T1: chip is a DECISION only when engine RESTRICTS — no sessionZone fallback.
 class _DecisionChip extends StatelessWidget {
-  const _DecisionChip({
-    required this.zoneCap,
-    required this.sessionZone,
-  });
+  const _DecisionChip({required this.zoneCap});
 
   final String? zoneCap;
-  final String? sessionZone;
 
   @override
   Widget build(BuildContext context) {
-    // Show zone cap if available, otherwise session zone, otherwise honest absence
-    final rawZone = zoneCap ?? sessionZone;
-
-    if (rawZone == null || rawZone.isEmpty) {
+    if (zoneCap == null || zoneCap!.isEmpty) {
       // No chip to show — honest absence
       return const SizedBox.shrink();
     }
 
-    final chipText = zoneDisplayLabel(rawZone);
+    final chipText = zoneDisplayLabel(zoneCap!);
 
     // BS-001 Step 7 present-treatment: check_circle teal, radius md (12),
     // bg rgba(0,198,167,.10), border rgba(0,198,167,.28), label white
@@ -1248,9 +1161,7 @@ class _DecisionChip extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               chipText,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
+              style: MivaltaType.small.copyWith(
                 fontWeight: FontWeight.w600,
                 color: MivaltaColors.textPrimary, // white, not teal
               ),

@@ -4,8 +4,11 @@
 // Flutter DISPLAYS. See docs/UI_CLEANOUT_PLAN.md for the clean-out that
 // preceded this fresh build.
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'canonical_seed.dart';
 import 'debug/demo_seeder.dart';
@@ -34,12 +37,16 @@ void main() async {
     },
   );
 
-  // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
-  // Enabled for BS-001 design verification with real engine-computed data
-  // DISABLED for DR-017 final witness — fresh onboarding E2E
-  // if (kDebugMode) {
-  //   await _seedDemoIfNeeded();
-  // }
+  // DEBUG: seed demo athlete on boot — kDebugMode AND an explicit per-run
+  // opt-in, so the two simulator workflows coexist instead of comment-toggling
+  // this block per task (how it got parked before DR-017):
+  //   voice/data verification:  flutter run --dart-define=SEED_DEMO=true
+  //   auth/onboarding witness:  flutter run                (seed stays off)
+  // Compiled out of release entirely (kDebugMode).
+  const seedDemo = bool.fromEnvironment('SEED_DEMO');
+  if (kDebugMode && seedDemo) {
+    await _seedDemoIfNeeded();
+  }
 
   runApp(const MivaltaApp());
 }
@@ -47,13 +54,6 @@ void main() async {
 /// kDebugMode-only: seed the demo athlete if no profile exists.
 /// Uses the real ingest path (DemoSeeder → IngestAdapter) so the engine
 /// genuinely computes every readiness state from the seeded observations.
-//
-// Parked kDebugMode-only demo toggle: intentionally uncalled during the
-// fresh-onboarding E2E witness (see the commented boot call in `main` above);
-// kept ready to re-enable, not dead code — re-add the `flutter/foundation.dart`
-// `kDebugMode` import when the boot call is uncommented. (Mirrors the Rust
-// `#[allow(dead_code)]`-with-justification convention.)
-// ignore: unused_element
 Future<void> _seedDemoIfNeeded() async {
   if (await ProfileService.hasPersistedProfile()) return; // skip if already seeded
 
@@ -75,6 +75,13 @@ Future<void> _seedDemoIfNeeded() async {
   // Seed 30 days of demo biometrics + workouts through real ingest path
   final seeder = DemoSeeder(binding: binding, handle: handle);
   await seeder.seedSeason(days: 30);
+
+  // A seeded debug boot is by definition a "returning athlete": mark the
+  // auth session so SplashScreen routes straight to Today. Without this the
+  // stub auth flow lands on Onboarding, whose profile write would replace
+  // the seeded athlete and orphan the 30 days of vault history.
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('has_auth_session', true);
 }
 
 class MivaltaApp extends StatelessWidget {
