@@ -511,9 +511,9 @@ class _YouScreenState extends State<YouScreen> {
               const SizedBox(width: MivaltaSpace.x2),
               Expanded(
                 child: Text(
-                  'Your health data never leaves this device, and it is never '
-                  'in your phone backups. To move it to a new phone, use the '
-                  'encrypted export.',
+                  'Computed on your phone. Your health data never leaves this '
+                  'device, and it is never in your phone backups. To move it '
+                  'to a new phone, use the encrypted export.',
                   style: MivaltaType.small.copyWith(
                     color: MivaltaColors.textPrimary,
                     height: 1.4,
@@ -550,8 +550,8 @@ class _YouScreenState extends State<YouScreen> {
         // CSV export (analytics/research).
         _ActionRow(
           icon: Icons.download_outlined,
-          label: 'Export my data',
-          subtitle: 'CSV file with your biometrics',
+          label: 'Export readings as CSV',
+          subtitle: 'Spreadsheet of your biometrics — not for moving phones',
           onTap: _exportData,
         ),
 
