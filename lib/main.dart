@@ -11,11 +11,28 @@ import 'canonical_seed.dart';
 import 'debug/demo_seeder.dart';
 import 'rust_engine.dart';
 import 'screens/splash_screen.dart';
+import 'screens/today_screen.dart';
+import 'services/notification_service.dart';
 import 'services/profile_service.dart';
 import 'theme/tokens.dart';
 
+/// Global navigator key for notification tap navigation.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // BS-012 N3: Initialize notification service with tap→Today navigation.
+  await NotificationService.instance.initialize(
+    onTap: () {
+      // Navigate to TodayScreen when notification is tapped.
+      // Uses global navigator key for navigation outside widget tree.
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const TodayScreen()),
+        (route) => false,
+      );
+    },
+  );
 
   // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
   // Enabled for BS-001 design verification with real engine-computed data
@@ -69,6 +86,7 @@ class MivaltaApp extends StatelessWidget {
       title: 'MiValta',
       theme: mivaltaDarkTheme(),
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey, // BS-012 N3: for notification tap navigation
       home: const SplashScreen(),
     );
   }
