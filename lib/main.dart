@@ -37,13 +37,14 @@ void main() async {
     },
   );
 
-  // DEBUG: seed demo athlete on boot (kDebugMode only, compiled out of release)
-  // Enabled for BS-001 design verification with real engine-computed data
-  // DISABLED for DR-017 final witness — fresh onboarding E2E
-  // RE-ENABLED 2026-07-06 for the voice wiring train verification: the coach
-  // lines need 30 days of engine-computed history to have anything true to
-  // say. The DR-017 fresh-onboarding witness is complete (PR #152 report).
-  if (kDebugMode) {
+  // DEBUG: seed demo athlete on boot — kDebugMode AND an explicit per-run
+  // opt-in, so the two simulator workflows coexist instead of comment-toggling
+  // this block per task (how it got parked before DR-017):
+  //   voice/data verification:  flutter run --dart-define=SEED_DEMO=true
+  //   auth/onboarding witness:  flutter run                (seed stays off)
+  // Compiled out of release entirely (kDebugMode).
+  const seedDemo = bool.fromEnvironment('SEED_DEMO');
+  if (kDebugMode && seedDemo) {
     await _seedDemoIfNeeded();
   }
 

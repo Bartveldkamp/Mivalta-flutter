@@ -78,10 +78,17 @@ flutter run                     # simulator → verification list below
 >
 > **Auth is a STUB — it never blocks.** "Continue with email" → any email →
 > send (nothing is actually sent) → type ANY 6 digits → always succeeds.
-> Better: this build re-enables the kDebugMode boot seed, which creates the
-> demo athlete (30 days through the real ingest path), marks the auth
-> session, and boots straight to a data-rich Today. Delete the app from the
-> simulator (or erase the simulator) first so the seed runs on a clean slate.
+> Better: launch with the boot seed, which creates the demo athlete (30 days
+> through the real ingest path), marks the auth session, and boots straight
+> to a data-rich Today:
+>
+> ```bash
+> flutter run --dart-define=SEED_DEMO=true
+> ```
+>
+> Delete the app from the simulator first so the seed runs on a clean slate.
+> A plain `flutter run` keeps the seed OFF — that is the mode for
+> auth/onboarding witness captures, so the two workflows never collide.
 
 1. **S2 (Today headline):** the Josi line on Today renders from the realize
    seam with real seeded data — coach prose, no raw engine tokens.
