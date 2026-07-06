@@ -1,6 +1,12 @@
 // Display-side parse model for the engine's RealizedLine — the deterministic
-// Josi ADVISOR line produced by `gatc_ffi::realize_advisor_line` and couriered
-// across the FFI as JSON.
+// Josi voice line produced by `gatc_ffi::realize_*` seams and couriered across
+// the FFI as JSON.
+//
+// Four voice surfaces (V6):
+//   S1: realize_workout_reflection — post-workout reaction
+//   S2: realize_advisor_line — state/readiness reaction (Today headline)
+//   S3: realize_advisory_offer — advisor offer line + why/purpose disclosure
+//   S4: realize_day_summary — end-of-day summary
 //
 // DISPLAY ONLY (architecture rule 3): this parses the engine's output; it
 // computes nothing, substitutes no slot, formats no number, and never branches
@@ -14,6 +20,9 @@ class RealizedLine {
     required this.text,
     required this.safety,
     required this.degraded,
+    this.degradeReason,
+    this.why,
+    this.purpose,
   });
 
   /// The firewall-validated Josi line — rendered verbatim as the headline.
@@ -28,6 +37,17 @@ class RealizedLine {
   /// faithfully filled). Informational only — `text` is still engine-truth.
   final bool degraded;
 
+  /// Telemetry only — NEVER shown to user. Explains why the line degraded.
+  final String? degradeReason;
+
+  /// The readiness-aware reason for this workout (S3 disclosure).
+  /// Card-templated, from the option itself.
+  final String? why;
+
+  /// What the prescribed zone trains (S3 disclosure).
+  /// From `coach_cues:zone_purpose`.
+  final String? purpose;
+
   factory RealizedLine.fromJson(Map<String, dynamic> json) {
     final rawSafety = json['safety'];
     return RealizedLine(
@@ -36,6 +56,9 @@ class RealizedLine {
           ? rawSafety.map((e) => e.toString()).toList(growable: false)
           : const <String>[],
       degraded: json['degraded'] as bool? ?? false,
+      degradeReason: json['degrade_reason'] as String?,
+      why: json['why'] as String?,
+      purpose: json['purpose'] as String?,
     );
   }
 
