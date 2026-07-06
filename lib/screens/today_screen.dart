@@ -110,68 +110,33 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       final gate = MorningReadGate(prefs: prefs);
 
-      // Gather engine outputs for gate evaluation.
-      String? fatigueStateJson;
-      String? pendingAdvisoriesJson;
-      String? stateAdvisoryJson;
-      String? validationReportJson;
-
-      try {
-        fatigueStateJson = await binding.viterbiFatigueState(handle);
-      } catch (_) {
-        // Honest absence — fatigue state not available yet.
-      }
-
-      try {
-        // pending_advisories returns a JSON array of advisory strings.
-        pendingAdvisoriesJson = await binding.pendingAdvisories(handle);
-      } catch (_) {
-        // Honest absence — no advisories available.
-        pendingAdvisoriesJson = '[]';
-      }
-
-      try {
-        stateAdvisoryJson = await binding.stateAdvisory(handle);
-      } catch (_) {
-        // Honest absence.
-      }
-
-      try {
-        validationReportJson = await binding.validationReport(handle);
-      } catch (_) {
-        // Honest absence — validation not available.
-      }
-
-      // Evaluate the gate.
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson,
-        pendingAdvisoriesJson: pendingAdvisoriesJson,
-        stateAdvisoryJson: stateAdvisoryJson,
-        validationReportJson: validationReportJson,
+      // The ENGINE decides fire/silent (rust-engine #388): Dart couriers the
+      // delivery context in and renders the card-worded verdict out. An
+      // engine error is honest absence — silent, never a fabricated read.
+      final verdictJson = await binding.morningReadVerdict(
+        handle,
+        presence: gate.presenceToken,
+        lastDeliveredState: gate.lastDeliveredState,
+        lastDeliveredBucket: gate.lastDeliveredBucket,
+        alreadyNotifiedToday: gate.alreadyNotifiedToday,
       );
+      final result = gate.parseVerdict(verdictJson);
 
-      // Schedule (or cancel) the notification based on gate result.
+      // Schedule (or cancel) the notification based on the engine verdict.
       await NotificationService.instance.scheduleMorningRead(result: result);
 
       // If we scheduled a notification, mark it as delivered so we don't
       // re-notify for the same state on the next resume.
       if (result.shouldFire) {
-        final fatigueMap = fatigueStateJson != null
-            ? jsonDecode(fatigueStateJson) as Map<String, dynamic>?
-            : null;
-        final validationMap = validationReportJson != null
-            ? jsonDecode(validationReportJson) as Map<String, dynamic>?
-            : null;
-
         gate.markDelivered(
-          state: fatigueMap?['state'] as String?,
-          calibrationBucket: validationMap?['sufficiency_bucket'] as String?,
+          state: result.state,
+          calibrationBucket: result.sufficiencyBucket,
         );
       }
 
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[TodayScreen] Morning read gate: ${result.reason}');
+        print('[TodayScreen] Morning read verdict: ${result.reason}');
       }
     } catch (e) {
       if (kDebugMode) {

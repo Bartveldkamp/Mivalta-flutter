@@ -81,20 +81,24 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationResponse,
     );
 
-    // Create Android notification channel.
+    // Create Android notification channel + request the Android 13+ runtime
+    // permission (API 33: without POST_NOTIFICATIONS granted, every
+    // notification is silently dropped by the OS). Refusal is respected —
+    // scheduling continues but the OS keeps it silent, same end state as
+    // presence=off.
     if (Platform.isAndroid) {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(
-            const AndroidNotificationChannel(
-              _kChannelId,
-              _kChannelName,
-              description: _kChannelDescription,
-              importance: Importance.defaultImportance,
-              playSound: false, // Quiet by default
-            ),
-          );
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _kChannelId,
+          _kChannelName,
+          description: _kChannelDescription,
+          importance: Importance.defaultImportance,
+          playSound: false, // Quiet by default
+        ),
+      );
+      await android?.requestNotificationsPermission();
     }
 
     _initialized = true;
@@ -128,20 +132,21 @@ class NotificationService {
       return;
     }
 
-    // Honest absence over fabrication: without an engine state word there is
-    // nothing true to say — do not schedule (the gate already blocks this;
-    // this is the delivery layer's own backstop, never a made-up title).
-    final stateWord = result.stateWord;
-    if (stateWord == null || stateWord.isEmpty) {
+    // Honest absence over fabrication: without an engine-worded title there
+    // is nothing true to say — do not schedule (the engine's no_state_word
+    // backstop already blocks this; this is the delivery layer's own
+    // backstop, never a made-up title).
+    final engineTitle = result.title;
+    if (engineTitle == null || engineTitle.isEmpty) {
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[NotificationService] No state word — not scheduling');
+        print('[NotificationService] No engine title — not scheduling');
       }
       return;
     }
 
-    // Build notification content — engine words only, couriered verbatim.
-    final title = stateWord;
+    // Notification content — the engine's card-worded title + body verbatim.
+    final title = engineTitle;
     final body = _buildBody(result);
 
     // Calculate next delivery time.
@@ -202,12 +207,13 @@ class NotificationService {
     await _plugin.cancel(_kMorningReadNotificationId);
   }
 
-  /// Build notification body from gate result — the engine's advisory text
+  /// Build notification body from the engine verdict — the engine's body
   /// verbatim, or EMPTY when the engine offered none. Dart never fabricates
   /// coach copy (Charter: no fallback masquerading as the coach's words);
-  /// the title (the engine state word) carries the read on its own.
+  /// the title (the engine's card-worded state display) carries the read on
+  /// its own.
   String _buildBody(MorningReadResult result) {
-    return result.advisoryText ?? '';
+    return result.body ?? '';
   }
 
   /// Calculate the next occurrence of [hour:minute] in local time.
@@ -252,7 +258,7 @@ class NotificationService {
       };
     }
 
-    final title = result.stateWord ?? '';
+    final title = result.title ?? '';
     final body = _buildBody(result);
     final scheduledTime = _nextDeliveryTime(deliveryHour, deliveryMinute);
 

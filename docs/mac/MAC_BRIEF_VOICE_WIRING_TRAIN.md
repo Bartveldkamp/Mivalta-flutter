@@ -55,17 +55,17 @@ shim functions cross the Dart↔Rust boundary.
 
 ## Mac execution steps
 
+> **UPDATE (2026-07-06, post-#388 merge):** the coding seat already executed
+> the pin bump (`3b5ec7c`), `cargo update`, **FRB codegen** (bindings in
+> `lib/src/rust/` are committed), the shim/facade/gate-swap code, and verified
+> `flutter analyze` (0 issues) + `flutter test` (all green) on the branch.
+> The Mac owes ONLY the physical layer:
+
 ```bash
 git checkout claude/mivalta-plan-model-eval-rtbsuq && git pull
-# 1. Confirm the pin line in rust/Cargo.toml carries the #388 merge SHA.
-(cd rust && cargo update -p gatc-ffi -p gatc-viterbi)
-# 2. FRB codegen (REQUIRED this bump — new shim fns):
-flutter_rust_bridge_codegen generate
-git add lib/src/rust rust/ && git commit -m "chore(flutter): FRB regen for voice wiring train"
-# 3. Build + verify:
-flutter pub get && flutter analyze && flutter test
-./scripts/build_ios.sh          # xcframework rebuild at the new pin
-flutter run                     # simulator
+flutter pub get && flutter analyze && flutter test   # confirm locally
+./scripts/build_ios.sh          # xcframework rebuild at pin 3b5ec7c
+flutter run                     # simulator → verification list below
 ```
 
 ## What to verify on the simulator (report each with a screenshot)

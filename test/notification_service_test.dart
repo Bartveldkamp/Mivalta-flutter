@@ -3,10 +3,11 @@
 // Covers the pure content/scheduling logic via the kDebugMode preview seam
 // (previewMorningRead), which exercises the same title/body/next-delivery
 // code paths as scheduleMorningRead WITHOUT touching platform channels.
-// Contract pins (adversarial review 2026-07-06):
-// - title is the ENGINE state word verbatim — never a fabricated word;
-// - body is the engine advisory verbatim, or EMPTY (Dart invents no copy);
-// - a silent gate result previews as silent with its reason;
+// Contract pins (engine-side verdict since rust-engine #388):
+// - title is the ENGINE's card-worded title verbatim — never a fabricated
+//   word, never the raw state token assembled in Dart;
+// - body is the engine's body verbatim, or EMPTY (Dart invents no copy);
+// - a silent verdict previews as silent with its engine reason;
 // - next delivery time rolls to tomorrow when today's slot has passed.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,12 +25,14 @@ void main() {
   });
 
   group('NotificationService preview (content contract)', () {
-    test('title is the engine state word verbatim; body the advisory', () {
+    test('title is the engine card-worded title verbatim; body the advisory',
+        () {
       const result = MorningReadResult(
         shouldFire: true,
-        stateWord: 'Productive',
+        title: 'Making gains',
+        body: 'Fatigue is trending down.',
+        state: 'Productive',
         stateColor: '#00C6A7',
-        advisoryText: 'Fatigue is trending down.',
         reason: 'moderate+state_changed',
       );
 
@@ -38,17 +41,19 @@ void main() {
 
       expect(preview, isNotNull);
       expect(preview!['status'], 'scheduled');
-      expect(preview['title'], 'Productive'); // engine word, no mapping
+      expect(preview['title'], 'Making gains',
+          reason: 'the engine card wording verbatim — never the raw token');
       expect(preview['body'], 'Fatigue is trending down.'); // verbatim
       expect(preview['stateColor'], '#00C6A7');
     });
 
-    test('no advisory → EMPTY body, never fabricated copy', () {
+    test('no engine body → EMPTY body, never fabricated copy', () {
       const result = MorningReadResult(
         shouldFire: true,
-        stateWord: 'Accumulated',
+        title: 'Carrying some fatigue',
+        state: 'Accumulated',
         stateColor: '#E8C547',
-        advisoryText: null,
+        body: null,
         reason: 'moderate+calibration',
       );
 
@@ -56,12 +61,12 @@ void main() {
           NotificationService.instance.previewMorningRead(result: result);
 
       expect(preview!['status'], 'scheduled');
-      expect(preview['title'], 'Accumulated');
+      expect(preview['title'], 'Carrying some fatigue');
       expect(preview['body'], '',
           reason: 'Dart must not invent coach copy when the engine is silent');
     });
 
-    test('silent gate result previews as silent with its reason', () {
+    test('silent verdict previews as silent with its engine reason', () {
       const result = MorningReadResult(
         shouldFire: false,
         reason: 'presence=off',
@@ -78,8 +83,9 @@ void main() {
     test('next delivery time is the next 07:00 local, today or tomorrow', () {
       const result = MorningReadResult(
         shouldFire: true,
-        stateWord: 'Recovered',
-        advisoryText: 'Test',
+        title: 'Fully recovered',
+        state: 'Recovered',
+        body: 'Test',
       );
 
       final preview =

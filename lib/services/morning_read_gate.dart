@@ -1,20 +1,18 @@
-// Morning read gate — BS-012
+// Morning read courier — BS-012 (engine-side verdict since rust-engine #388).
 //
-// The salience gate that decides whether the morning notification fires.
-// Pure Dart; fully unit-tested decision table. Zero new FFI.
+// The salience DECISION lives in the engine (`morning_read_verdict`): whether
+// the coach speaks is a coaching decision, so Viterbi's seam decides it. This
+// file is the client's COURIER half only:
+// - carries the delivery context IN (coach presence preference, last-delivered
+//   markers, the same-day flag — all from SharedPreferences, because the
+//   client owns the calendar and the athlete's device-local preferences);
+// - parses the engine's verdict JSON OUT into `MorningReadResult` for the
+//   delivery layer (title/body verbatim — engine words, never assembled here);
+// - records `markDelivered` after a successful fire.
 //
-// Three reasons to speak (if presence allows):
-// (a) Fatigue state CHANGED vs last delivered read
-// (b) Pending advisories non-empty
-// (c) Calibration milestone crossed (sufficiency bucket changed)
-//
-// Otherwise: NOTHING is sent. Silence is a finished state.
-//
-// DR-021 fixes:
-// - N1: Use locked vocabulary only (Recovered/Productive/Accumulated/
-//       Overreached/IllnessRisk — engine words verbatim)
-// - N2: Use fatigueState from viterbiFatigueState(), not level→word mapping
-// - N3: State color hex from tokens.dart state palette (not level palette)
+// No thresholds, no decision table, no fallback copy in Dart. The engine's
+// `title` is the card-worded state display (e.g. "Carrying some fatigue"),
+// never the raw enum token — the lock-screen enum leak is closed engine-side.
 
 import 'dart:convert';
 
@@ -25,46 +23,53 @@ import '../theme/tokens.dart';
 /// Coach presence level — governs notification frequency.
 /// Defined HERE (single source); the You screen reads/writes the same
 /// `coach_presence` SharedPreferences key and must import this enum rather
-/// than declaring its own.
+/// than declaring its own. `name` values (`off`/`quiet`/`moderate`) are the
+/// engine's presence vocabulary verbatim.
 enum CoachPresence { off, quiet, moderate }
 
-/// The result of evaluating the morning read gate.
+/// The engine's morning-read verdict, parsed for the delivery layer.
+/// Every field is couriered verbatim from the verdict JSON except
+/// [stateColor], which is a display-token lookup (design tokens, not logic).
 class MorningReadResult {
   const MorningReadResult({
     required this.shouldFire,
-    this.stateWord,
+    this.title,
+    this.body,
+    this.state,
+    this.sufficiencyBucket,
     this.stateColor,
-    this.advisoryText,
     this.reason,
   });
 
-  /// Whether the notification should fire.
+  /// Whether the engine says the notification fires.
   final bool shouldFire;
 
-  /// State word from viterbiFatigueState — engine verbatim
-  /// (Recovered/Productive/Accumulated/Overreached/IllnessRisk).
-  final String? stateWord;
+  /// Card-worded notification title from the engine (capitalized state
+  /// display wording) — rendered verbatim, never the raw state token.
+  final String? title;
 
-  /// State color hex from tokens.dart state palette (e.g. "#00C6A7").
+  /// Notification body from the engine (state advisory verbatim). May be
+  /// empty — a title-only notification is honest absence, never filled in.
+  final String? body;
+
+  /// Raw engine state token (Recovered/…/IllnessRisk) — used ONLY as the
+  /// last-delivered marker for the next verdict call, never displayed.
+  final String? state;
+
+  /// Sufficiency bucket token — last-delivered marker only.
+  final String? sufficiencyBucket;
+
+  /// State color hex from the LOCKED design-token state palette.
   final String? stateColor;
 
-  /// Advisory text for line 2 (from state_advisory or realized line).
-  final String? advisoryText;
-
-  /// Debug: why it fired or was silent.
+  /// Engine reason token (debug/telemetry only).
   final String? reason;
 
   /// Silent result.
   static const silent = MorningReadResult(shouldFire: false);
 }
 
-/// The morning read gate service.
-///
-/// Evaluates whether to fire the morning notification based on:
-/// - Coach presence setting
-/// - State change since last read
-/// - Pending advisories
-/// - Calibration milestone changes
+/// The morning-read courier service (see file header).
 class MorningReadGate {
   MorningReadGate({
     required this.prefs,
@@ -78,127 +83,38 @@ class MorningReadGate {
   static const _keyLastCalibrationBucket = 'morning_read_last_calibration';
   static const _keyCoachPresence = 'coach_presence';
 
-  /// Evaluate the gate and return the result.
-  ///
-  /// Parameters are parsed JSON from the engine FFI calls:
-  /// - [fatigueStateJson]: from viterbiFatigueState() — the engine's state word
-  /// - [pendingAdvisoriesJson]: from pending_advisories()
-  /// - [stateAdvisoryJson]: from state_advisory()
-  /// - [validationReportJson]: from validation_report()
-  MorningReadResult evaluate({
-    required String? fatigueStateJson,
-    required String? pendingAdvisoriesJson,
-    required String? stateAdvisoryJson,
-    required String? validationReportJson,
-  }) {
-    // 1. Read coach presence.
-    final presence = _readPresence();
-    if (presence == CoachPresence.off) {
-      return const MorningReadResult(
-        shouldFire: false,
-        reason: 'presence=off',
-      );
-    }
+  /// The presence token to courier to the engine (`off`/`quiet`/`moderate`).
+  /// Default mirrors the You screen's default selection.
+  String get presenceToken =>
+      prefs.getString(_keyCoachPresence) ?? CoachPresence.moderate.name;
 
-    // 2. Parse engine outputs.
-    final fatigueState = _parseJson(fatigueStateJson);
-    final advisories = _parseJsonList(pendingAdvisoriesJson);
-    final stateAdvisory = _parseJson(stateAdvisoryJson);
-    final validation = _parseJson(validationReportJson);
+  /// Last-delivered state token (engine word verbatim), or null before the
+  /// first delivered read.
+  String? get lastDeliveredState => prefs.getString(_keyLastDeliveredState);
 
-    // Extract fatigue state — engine word verbatim (N1/N2).
-    // viterbiFatigueState returns {"state": "Productive", ...}
-    final currentState = fatigueState?['state'] as String?;
-    final stateWord = currentState; // Engine word verbatim, no mapping
-    final stateColor = _stateToColor(currentState);
+  /// Last-delivered sufficiency bucket, or null before the first read.
+  String? get lastDeliveredBucket =>
+      prefs.getString(_keyLastCalibrationBucket);
 
-    // Extract advisory text.
-    final advisoryText = stateAdvisory?['advisory'] as String? ??
-        stateAdvisory?['text'] as String? ??
-        '';
+  /// Whether a read was already delivered today (client owns the calendar —
+  /// same contract as the realize seams' caller-supplied date).
+  bool get alreadyNotifiedToday =>
+      prefs.getString(_keyLastDeliveredDate) == _todayDateString();
 
-    // 3. Check the three reasons.
-    final lastState = prefs.getString(_keyLastDeliveredState);
-    final lastDate = prefs.getString(_keyLastDeliveredDate);
-    final lastCalibration = prefs.getString(_keyLastCalibrationBucket);
-
-    final today = _todayDateString();
-    final currentCalibration = validation?['sufficiency_bucket'] as String?;
-
-    // (a) Fatigue state changed?
-    // First-ever observation (lastState == null) is deliberately SILENT:
-    // there is no baseline to have changed from, and the first read is not
-    // news the athlete asked to be woken for (adversarial review 2026-07-06).
-    final stateChanged = currentState != null &&
-        lastState != null &&
-        currentState != lastState &&
-        lastDate != today;
-
-    // (b) Pending advisories non-empty?
-    final hasAdvisories = advisories.isNotEmpty;
-
-    // (c) Calibration milestone crossed?
-    // Same first-observation dead-zone as (a), same reason: no baseline.
-    final calibrationChanged = currentCalibration != null &&
-        lastCalibration != null &&
-        currentCalibration != lastCalibration &&
-        lastDate != today;
-
-    // 4. Apply presence rules.
-    bool shouldFire = false;
-    String? reason;
-
-    switch (presence) {
-      case CoachPresence.quiet:
-        // Quiet: only fire for advisories.
-        if (hasAdvisories) {
-          shouldFire = true;
-          reason = 'quiet+advisory';
-        } else {
-          reason = 'quiet,no_advisory';
-        }
-        break;
-
-      case CoachPresence.moderate:
-        // Moderate: fire for any of the three reasons.
-        if (stateChanged) {
-          shouldFire = true;
-          reason = 'moderate+state_changed';
-        } else if (hasAdvisories) {
-          shouldFire = true;
-          reason = 'moderate+advisory';
-        } else if (calibrationChanged) {
-          shouldFire = true;
-          reason = 'moderate+calibration';
-        } else {
-          reason = 'moderate,no_change';
-        }
-        break;
-
-      case CoachPresence.off:
-        // Already handled above.
-        break;
-    }
-
-    // 5. Don't fire if there's no content.
-    if (shouldFire && (stateWord == null || stateWord.isEmpty)) {
-      shouldFire = false;
-      reason = 'no_state_word';
-    }
-    if (shouldFire && advisoryText.isEmpty && !stateChanged && !calibrationChanged) {
-      // Advisory-only fire but no text → don't fire.
-      if (hasAdvisories) {
-        shouldFire = false;
-        reason = 'advisory_empty';
-      }
-    }
-
+  /// Parse the engine's verdict JSON into a [MorningReadResult].
+  /// Mechanical courier parse — no defaults masquerading as decisions: a
+  /// malformed payload throws (fail loud), it is never coerced to a fire.
+  MorningReadResult parseVerdict(String verdictJson) {
+    final v = jsonDecode(verdictJson) as Map<String, dynamic>;
+    final state = v['state'] as String?;
     return MorningReadResult(
-      shouldFire: shouldFire,
-      stateWord: stateWord,
-      stateColor: stateColor,
-      advisoryText: advisoryText.isNotEmpty ? advisoryText : null,
-      reason: reason,
+      shouldFire: v['fire'] as bool,
+      title: v['title'] as String?,
+      body: v['body'] as String?,
+      state: state,
+      sufficiencyBucket: v['sufficiency_bucket'] as String?,
+      stateColor: _stateToColor(state),
+      reason: v['reason'] as String?,
     );
   }
 
@@ -214,44 +130,6 @@ class MorningReadGate {
     prefs.setString(_keyLastDeliveredDate, today);
     if (calibrationBucket != null) {
       prefs.setString(_keyLastCalibrationBucket, calibrationBucket);
-    }
-  }
-
-  /// Read coach presence from prefs.
-  CoachPresence _readPresence() {
-    final value = prefs.getString(_keyCoachPresence);
-    switch (value) {
-      case 'off':
-        return CoachPresence.off;
-      case 'quiet':
-        return CoachPresence.quiet;
-      case 'moderate':
-      default:
-        return CoachPresence.moderate;
-    }
-  }
-
-  /// Parse JSON string to map, null-safe.
-  Map<String, dynamic>? _parseJson(String? json) {
-    if (json == null || json.isEmpty) return null;
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is Map<String, dynamic>) return decoded;
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Parse JSON string to list, null-safe.
-  List<dynamic> _parseJsonList(String? json) {
-    if (json == null || json.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is List) return decoded;
-      return const [];
-    } catch (_) {
-      return const [];
     }
   }
 
