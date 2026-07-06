@@ -54,6 +54,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
+    <!-- =======================================================================
+         POST_NOTIFICATIONS — BS-012 morning read
+
+         WHY NEEDED: Android 13+ (API 33) requires this runtime permission
+         before any notification is shown. Without it every morning read is
+         silently dropped by the OS. Requested at runtime in
+         NotificationService.initialize(); the athlete can always refuse —
+         presence=off in the app is the in-product equivalent.
+         ======================================================================= -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- FL-17: on-device-only posture. Disable cloud/Auto Backup so the
          SQLCipher vault (and its file-backed key) under filesDir cannot be
          copied to Google Drive or a new device. allowBackup=false also disables

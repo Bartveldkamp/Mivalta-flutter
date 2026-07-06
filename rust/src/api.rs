@@ -135,8 +135,9 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
     // Same vault_path + profile-derived key as `vault` above — one vault of
     // record, not a divergent instance (founder consistency requirement).
-    let narrative = gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
-        .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
+    let narrative =
+        gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
+            .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -191,8 +192,9 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("vault: {e}")))?;
     // Same vault_path + profile-derived key as `vault` above — one vault of
     // record, not a divergent instance (founder consistency requirement).
-    let narrative = gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
-        .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
+    let narrative =
+        gatc_ffi::NarrativeEngine::new(athlete_profile_json.clone(), vault_path.clone())
+            .map_err(|e| BridgeError::EngineConstructionFailed(format!("narrative: {e}")))?;
     let normalizer = gatc_ffi::NormalizerEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("normalizer: {e}")))?;
     let cp = gatc_ffi::CpEngine::new(athlete_profile_json.clone())
@@ -267,16 +269,82 @@ pub fn state_advisory(handle: &EnginesHandle) -> Result<String, BridgeError> {
 /// no logic. Fails loud (Err) when the engine cannot supply a faithful render —
 /// the Dart caller treats that as honest absence and falls back to its existing
 /// state-recommendation line.
-pub fn realize_advisor_line(
-    handle: &EnginesHandle,
-    date: String,
-) -> Result<String, BridgeError> {
+pub fn realize_advisor_line(handle: &EnginesHandle, date: String) -> Result<String, BridgeError> {
     gatc_ffi::realize_advisor_line(
         &handle.viterbi,
         &handle.narrative,
         &handle.advisor,
         handle.athlete_id.clone(),
         date,
+    )
+    .map_err(Into::into)
+}
+
+/// `gatc_ffi::realize_workout_reflection(vault, advisor, activity_id, date)` —
+/// the S1 post-workout coach reaction (voice wiring train, engine #388). The
+/// engine reads the activity + its grade from the vault, realizes through the
+/// fidelity firewall, and returns `RealizedLine` JSON. Ungraded sessions get
+/// the honest "logged, not judged" line — never a fabricated grade. Pure
+/// pass-through; fails loud when the activity is unknown.
+pub fn realize_workout_reflection(
+    handle: &EnginesHandle,
+    activity_id: String,
+    date: String,
+) -> Result<String, BridgeError> {
+    gatc_ffi::realize_workout_reflection(&handle.vault, &handle.advisor, activity_id, date)
+        .map_err(Into::into)
+}
+
+/// `gatc_ffi::realize_advisory_offer(advisor, option_json, readiness_level, date)`
+/// — the S3 Josi offer line for an advisor option (voice wiring train, engine
+/// #388). `option_json` is the engine's own WorkoutOption JSON couriered back
+/// verbatim; `readiness_level` is the engine's readiness band token. The
+/// returned `RealizedLine` carries `why`/`purpose` for the disclosure tap.
+/// Pure pass-through; fails loud on an empty why (the engine refuses to offer
+/// without its reason).
+pub fn realize_advisory_offer(
+    handle: &EnginesHandle,
+    option_json: String,
+    readiness_level: String,
+    date: String,
+) -> Result<String, BridgeError> {
+    gatc_ffi::realize_advisory_offer(&handle.advisor, option_json, readiness_level, date)
+        .map_err(Into::into)
+}
+
+/// `gatc_ffi::realize_day_summary(vault, viterbi, advisor, date)` — the S4
+/// end-of-day coach summary (voice wiring train, engine #388). The engine
+/// reads the day's activities from the vault, derives the day shape
+/// (rest/single/multi) from the real count, and realizes through the firewall.
+/// Pure pass-through.
+pub fn realize_day_summary(handle: &EnginesHandle, date: String) -> Result<String, BridgeError> {
+    gatc_ffi::realize_day_summary(&handle.vault, &handle.viterbi, &handle.advisor, date)
+        .map_err(Into::into)
+}
+
+/// `gatc_ffi::morning_read_verdict(viterbi, advisor, presence, last_state,
+/// last_bucket, already_notified_today)` — BS-012 moved ENGINE-side (founder
+/// decision 2026-07-06): the engine decides fire/silent and assembles the
+/// card-worded `title` (never the raw state token) + `state_advisory` `body`
+/// (or honestly empty). The client couriers ONLY its delivery context in
+/// (presence preference, last-delivered markers, the same-day flag) and
+/// schedules the OS notification out. Returns JSON `{fire, reason, state,
+/// sufficiency_bucket, title, body}`. Pure pass-through; unknown presence is
+/// a structured Input error.
+pub fn morning_read_verdict(
+    handle: &EnginesHandle,
+    presence: String,
+    last_delivered_state: Option<String>,
+    last_delivered_bucket: Option<String>,
+    already_notified_today: bool,
+) -> Result<String, BridgeError> {
+    gatc_ffi::morning_read_verdict(
+        &handle.viterbi,
+        &handle.advisor,
+        presence,
+        last_delivered_state,
+        last_delivered_bucket,
+        already_notified_today,
     )
     .map_err(Into::into)
 }
@@ -821,7 +889,10 @@ pub fn read_power_profile(handle: &EnginesHandle) -> Result<String, BridgeError>
 /// `VaultEngine::write_power_profile(athlete_id, profile_json)` — persist the
 /// athlete's PowerProfile after a CP refit. Pure pass-through. Activity ingestion
 /// flow (Recipe 4, step 4).
-pub fn write_power_profile(handle: &EnginesHandle, profile_json: String) -> Result<(), BridgeError> {
+pub fn write_power_profile(
+    handle: &EnginesHandle,
+    profile_json: String,
+) -> Result<(), BridgeError> {
     handle
         .vault
         .write_power_profile(handle.athlete_id.clone(), profile_json)
@@ -996,14 +1067,8 @@ pub fn write_minimal_biometric(
 /// `VaultEngine::write_raw_observation(json)` — persist raw vendor observation
 /// BEFORE processing. Returns the row ID for later `mark_raw_observation_processed`.
 /// JSON must include `date`, `source`, `data_type`, and `payload` fields.
-pub fn write_raw_observation(
-    handle: &EnginesHandle,
-    json: String,
-) -> Result<i64, BridgeError> {
-    handle
-        .vault
-        .write_raw_observation(json)
-        .map_err(Into::into)
+pub fn write_raw_observation(handle: &EnginesHandle, json: String) -> Result<i64, BridgeError> {
+    handle.vault.write_raw_observation(json).map_err(Into::into)
 }
 
 /// `VaultEngine::write_biometric(json)` — persist a normalized biometric

@@ -170,6 +170,57 @@ class RustEngineBinding {
           {required String date}) =>
       rust_api.realizeAdvisorLine(handle: handle, date: date);
 
+  /// `gatc_ffi::realize_workout_reflection(...)` — the S1 post-workout coach
+  /// reaction (voice wiring train, engine #388). Raw `RealizedLine` JSON;
+  /// ungraded sessions get the honest "logged, not judged" line, never a
+  /// fabricated grade. Throws when the activity is unknown — the caller
+  /// treats that as honest absence.
+  Future<String> realizeWorkoutReflection(EnginesHandle handle,
+          {required String activityId, required String date}) =>
+      rust_api.realizeWorkoutReflection(
+          handle: handle, activityId: activityId, date: date);
+
+  /// `gatc_ffi::realize_advisory_offer(...)` — the S3 Josi offer line for an
+  /// advisor option (voice wiring train, engine #388). [optionJson] is the
+  /// engine's own WorkoutOption JSON couriered back verbatim; [readinessLevel]
+  /// is the engine's readiness band token. The returned `RealizedLine`
+  /// carries `why`/`purpose` for the disclosure tap.
+  Future<String> realizeAdvisoryOffer(EnginesHandle handle,
+          {required String optionJson,
+          required String readinessLevel,
+          required String date}) =>
+      rust_api.realizeAdvisoryOffer(
+          handle: handle,
+          optionJson: optionJson,
+          readinessLevel: readinessLevel,
+          date: date);
+
+  /// `gatc_ffi::realize_day_summary(...)` — the S4 end-of-day coach summary
+  /// (voice wiring train, engine #388). The engine derives the day shape
+  /// (rest/single/multi) from the vault's real activity count for [date].
+  /// Raw `RealizedLine` JSON.
+  Future<String> realizeDaySummary(EnginesHandle handle,
+          {required String date}) =>
+      rust_api.realizeDaySummary(handle: handle, date: date);
+
+  /// `gatc_ffi::morning_read_verdict(...)` — BS-012 moved ENGINE-side
+  /// (founder decision 2026-07-06): the engine decides fire/silent and
+  /// assembles the card-worded title (never the raw state token) + body
+  /// (state advisory verbatim, or honestly empty). Dart couriers only the
+  /// delivery context in. Returns JSON `{fire, reason, state,
+  /// sufficiency_bucket, title, body}`.
+  Future<String> morningReadVerdict(EnginesHandle handle,
+          {required String presence,
+          String? lastDeliveredState,
+          String? lastDeliveredBucket,
+          required bool alreadyNotifiedToday}) =>
+      rust_api.morningReadVerdict(
+          handle: handle,
+          presence: presence,
+          lastDeliveredState: lastDeliveredState,
+          lastDeliveredBucket: lastDeliveredBucket,
+          alreadyNotifiedToday: alreadyNotifiedToday);
+
   /// `ViterbiEngine::get_acwr()` — AcwrResult JSON (acwr, zone, recommendation,
   /// …). Dashboard removal Phase 2: home today-facts + Explore load context.
   Future<String> getAcwr(EnginesHandle handle) =>
