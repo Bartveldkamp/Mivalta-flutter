@@ -129,6 +129,17 @@ pub fn construct_engines_fresh(
     viterbi
         .enable_card_emissions(tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("emissions: {e}")))?;
+    // Attach the viterbi_advisories card prose — REQUIRED once after
+    // construction for every prose surface (state_advisory, the morning-read
+    // body, the realize_* Josi seams); without it every prose surface is
+    // honest-empty and the realize seam fails loud (rust-engine CLAUDE.md,
+    // ViterbiEngine). Pure transport, same category as enable_card_emissions:
+    // the engine resolves the card itself. Was MISSING until 2026-07-06 —
+    // the coach's mouth was disconnected on the client ("advisor seam needs
+    // advisories", Mac device pass).
+    viterbi
+        .attach_advisories(tables_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisories: {e}")))?;
     let advisor = gatc_ffi::AdvisorEngine::new(athlete_profile_json.clone(), tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
     let vault = gatc_ffi::VaultEngine::new(athlete_profile_json.clone(), vault_path.clone())
@@ -185,6 +196,12 @@ pub fn construct_engines_from_state(
     viterbi
         .enable_card_emissions(tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("emissions: {e}")))?;
+    // Same advisory-prose attach as the fresh path — the persisted state
+    // carries the HMM, never card prose; every restored engine must re-attach
+    // or all prose surfaces stay honest-empty (see fresh-path comment).
+    viterbi
+        .attach_advisories(tables_json.clone())
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisories: {e}")))?;
 
     let advisor = gatc_ffi::AdvisorEngine::new(athlete_profile_json.clone(), tables_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("advisor: {e}")))?;
