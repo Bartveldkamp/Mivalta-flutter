@@ -170,9 +170,6 @@ class NotificationService {
       details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null, // One-shot, not recurring
-      // Required: interpret the scheduled time as absolute local time.
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
 
     if (kDebugMode) {
