@@ -70,16 +70,29 @@ flutter run                     # simulator → verification list below
 
 ## What to verify on the simulator (report each with a screenshot)
 
-1. **S1:** complete/seed a workout → Today shows the coach reflection line
-   (graded session gets prose; ungraded gets the honest "logged, not judged"
-   line — NEVER a fabricated grade).
-2. **S3:** Advisor screen offer line reads as coach voice; "why?" disclosure
-   still works (`why`/`purpose` now ride on the `RealizedLine`).
-3. **S4:** end-of-day summary renders for rest / single / multi-session days.
-4. **BS-012:** notification preview (You screen) shows the card-worded title
-   (e.g. "Carrying some fatigue"), never `Accumulated` raw; presence=off is
-   fully silent; Android 13 asks POST_NOTIFICATIONS at runtime.
-5. `flutter analyze` + `flutter test` output pasted verbatim in the report.
+> **CORRECTED 2026-07-06 (second pass):** S1 reflections and S4 day summaries
+> have LIVE engine seams but **no UI widgets yet** — their on-screen placement
+> is with Claude design, and the wiring PR follows the design spec. They are
+> NOT visible on any screen in this build; do not hunt for them. The
+> verifiable surface today is the list below.
+>
+> **Auth is a STUB — it never blocks.** "Continue with email" → any email →
+> send (nothing is actually sent) → type ANY 6 digits → always succeeds.
+> Better: this build re-enables the kDebugMode boot seed, which creates the
+> demo athlete (30 days through the real ingest path), marks the auth
+> session, and boots straight to a data-rich Today. Delete the app from the
+> simulator (or erase the simulator) first so the seed runs on a clean slate.
+
+1. **S2 (Today headline):** the Josi line on Today renders from the realize
+   seam with real seeded data — coach prose, no raw engine tokens.
+2. **S3 disclosure (Advisor):** options show `why` and the expandable
+   `purpose` — pre-existing surface; confirm it survived the pin bump.
+3. **BS-012 (You screen preview):** the notification preview shows the
+   card-worded title (e.g. "Carrying some fatigue" / "Making gains"), NEVER
+   the raw token `Accumulated`/`Productive`; presence=off previews silent;
+   on an Android 13+ emulator the POST_NOTIFICATIONS prompt appears at
+   first launch.
+4. `flutter analyze` + `flutter test` output pasted verbatim in the report.
 
 ## Known follow-ups (NOT this train)
 
