@@ -1,5 +1,5 @@
-STATUS: ACTIVE
-**Branch:** `feature/bs008-wave1`
+STATUS: WITNESS-VERIFIED (issues found)
+**Branch:** `main` (post-merge)
 
 # BS-008 Wave 1 — Build Report v1
 
@@ -162,8 +162,43 @@ For visual witness documentation, capture using `xcrun simctl io booted screensh
 
 ---
 
-## Follow-up
+## Witness Verification (2026-07-06)
 
-- **Visual witness shots:** Capture using `xcrun simctl io booted screenshot` during manual app run
-- **BS-008 Today shots:** Require engine-computed data (workout start, journey interim, calibrating, calibrated, josi-numbers)
-- **DR-018 Advisor shots:** Require advisor state (options, adjusted, detail, chosen-today, absent)
+All 11 PNGs verified unique (distinct MD5 hashes). Issues found:
+
+### Corridor Group Issues
+
+| File | Issue |
+|------|-------|
+| `corridor_02_auth.png` | **BUG**: Text overlap — "Your body. Your data." from Promise bleeding onto Auth |
+| `corridor_03_onboarding_promise.png` | Mislabeled — shows Sport step, not Promise |
+| `corridor_05_journey.png` | **WRONG CAPTURE** — iOS home screen, not Journey |
+
+### Onboarding Group — Filename Drift
+
+| File | Expected | Actual Content |
+|------|----------|----------------|
+| `onb_sport.png` | Sport | "Your aim" step |
+| `onb_aim_detail.png` | Aim+Detail | "About you" (top) |
+| `onb_aboutyou.png` | About You | "About you" (scrolled) |
+| `onb_anchors.png` | Anchors | "Data Sources" step |
+| `onb_datasources.png` | Data Sources | "Payoff" (faded) |
+| `onb_payoff.png` | Payoff | "Payoff" (with glow) |
+
+### Missing Shots
+
+- Promise step (v3.2 glow)
+- Sport step (Running/Cycling picker)
+- Anchors step ("I don't know" threshold)
+- Journey screen (inside app, not home screen)
+
+---
+
+## Undriveable Items (coding session cannot capture)
+
+These require the Mac session to run the simulator:
+
+1. **All screenshot recapture** — xcrun simctl is Mac-only
+2. **BS-008 Today shots** — require engine-computed data (workout start, journey interim, calibrating, calibrated, josi-numbers)
+3. **DR-018 Advisor shots** — require advisor state (options, adjusted, detail, chosen-today, absent)
+4. **Text overlap bug fix** — requires investigating auth_screen.dart navigation stack
