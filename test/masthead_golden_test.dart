@@ -12,6 +12,7 @@
 // fonts are bundled. Widget behavior tests always run.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -98,6 +99,48 @@ void main() {
   });
 
   group('TodayMasthead widget tests', () {
+    testWidgets('logo size is at least 30', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: TodayMasthead(
+              onStartWorkout: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the SvgPicture widget (logo)
+      final svgFinder = find.byType(SvgPicture);
+      expect(svgFinder, findsOneWidget);
+
+      final svgWidget = tester.widget<SvgPicture>(svgFinder);
+      expect(svgWidget.width, greaterThanOrEqualTo(30));
+      expect(svgWidget.height, greaterThanOrEqualTo(30));
+    });
+
+    testWidgets('wordmark font size is at least 24', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: mivaltaDarkTheme(),
+          home: Scaffold(
+            body: TodayMasthead(
+              onStartWorkout: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final textFinder = find.text('MiValta');
+      expect(textFinder, findsOneWidget);
+
+      final textWidget = tester.widget<Text>(textFinder);
+      expect(textWidget.style?.fontSize, greaterThanOrEqualTo(24));
+    });
+
     testWidgets('renders MiValta wordmark', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
