@@ -2,13 +2,17 @@
 
 **Spec:** BS-012-morning-read.md (MCP Design)
 **Branch:** feature/bs012-morning-read
-**Build SHA:** 30b62d4 (DR-021 fixes)
+**Build SHA:** (updated post-N3)
 
 ## Summary
 
-The morning read salience gate — pure Dart service, fully unit-tested. Decides
+The morning read notification feature — gate logic + delivery layer. Decides
 whether to fire the morning notification based on Coach presence setting and
-three reasons to speak. Zero new FFI.
+three reasons to speak, then schedules via flutter_local_notifications.
+
+**N3 Delivery Layer (DR-021):** Added flutter_local_notifications with zonedSchedule,
+app resume + post-ingest triggers, sensitive lock-screen handling (NotificationVisibility.secret),
+badge:false on iOS, and tap→TodayScreen navigation.
 
 ## DR-021 Fixes Applied
 
@@ -18,11 +22,15 @@ three reasons to speak. Zero new FFI.
 | **N2** | level→word mapping in Dart violated "engine words verbatim" | Use `fatigueState` from `viterbiFatigueState()` directly; no translation |
 | **N3** | Wrong color hex values (e.g. #2BD974 instead of #00C6A7) | Use state palette from tokens.dart, not level palette |
 
-## Files Created
+## Files Created / Modified
 
 | File | Purpose |
 |------|---------|
-| `lib/services/morning_read_gate.dart` | Salience gate service (274 lines) |
+| `lib/services/morning_read_gate.dart` | Salience gate service |
+| `lib/services/notification_service.dart` | Delivery layer service (N3) |
+| `lib/main.dart` | NotificationService init + global navigator key |
+| `lib/screens/today_screen.dart` | Lifecycle observer + scheduling triggers |
+| `pubspec.yaml` | flutter_local_notifications + timezone deps |
 | `test/morning_read_gate_test.dart` | 15 decision-table unit tests |
 
 ## Decision Table (15 cases)
@@ -68,19 +76,19 @@ The gate reads engine outputs via JSON (no new FFI):
 | Overreached | #CE7B5A |
 | IllnessRisk | #B85C63 |
 
-## Scheduling Seam (Honest Naming)
+## Scheduling Seam
 
-**Status: NOT WIRED THIS PASS.**
+**Status: WIRED (N3 complete).**
 
-The spec calls for `flutter_local_notifications` + `zonedSchedule`. This requires:
-1. Adding the dependency to pubspec.yaml
-2. iOS permission request flow (in-context, not at launch)
-3. iOS Background Modes entitlement for scheduled wake
+The spec's `flutter_local_notifications` + `zonedSchedule` is now implemented:
+1. Dependency added: `flutter_local_notifications: ^18.0.1` + `timezone: ^0.10.0`
+2. iOS permissions: requested at init (sound + alert, no badge)
+3. Scheduling triggers: app resume (WidgetsBindingObserver) + post-ingest
 
-**Known iOS constraint:** iOS heavily restricts background execution. The gate
-evaluation may need to happen at schedule time (not fire time) if the app isn't
-running. This is acceptable for v1 — the gate can be evaluated when scheduling
-the next morning's notification (app resume + post-ingest).
+**iOS constraint:** iOS heavily restricts background execution. The gate is
+evaluated at schedule time (app resume + post-ingest), not at fire time. This
+means the notification content is determined when the app was last open, not
+at 07:00 delivery time. Acceptable for v1.
 
 ## Blocked Items
 
@@ -89,7 +97,6 @@ the next morning's notification (app resume + post-ingest).
 | Debug preview row in You | You screen not on main (feature/bs013-you unmerged) |
 | Witness shots (notif-normal, notif-advisory, lockscreen-hidden) | Mac-only; sim required |
 | Delivery window picker | Spec says "constant default is fine, note it" |
-| flutter_local_notifications wiring | Dependency not added; gate logic is ready |
 
 ## Presence Mapping
 
@@ -101,8 +108,21 @@ defaults to `moderate` (the spec default).
 
 ```
 flutter analyze  → No issues found!
-flutter test     → 15 tests passed
+flutter test     → 262 tests passed (15 gate-specific)
 ```
+
+## N3 Delivery Layer — Implementation
+
+| Component | Status |
+|-----------|--------|
+| `flutter_local_notifications` dependency | Added v18.0.1 + timezone v0.10.0 |
+| `NotificationService` singleton | Initializes plugin, schedules via zonedSchedule |
+| App resume trigger | WidgetsBindingObserver in TodayScreen |
+| Post-ingest trigger | Called after _loadHomeData completes |
+| Sensitive lock-screen | NotificationVisibility.secret (Android) |
+| badge:false | DarwinNotificationDetails(presentBadge: false) |
+| Tap→Today navigation | Global navigator key in main.dart |
+| Default delivery time | 07:00 local (constant, not configurable) |
 
 ## DoD Checklist
 
@@ -113,12 +133,17 @@ flutter test     → 15 tests passed
 - [x] Calibration milestone detection
 - [x] Same-day deduplication (lastDeliveredDate)
 - [x] Unit tests (15 cases, ≥9 required)
+- [x] flutter_local_notifications wiring (DR-021 N3)
+- [x] App resume scheduling trigger
+- [x] Post-ingest scheduling trigger
+- [x] Tap→Today navigation
+- [x] badge:false (iOS)
+- [x] Sensitive lock-screen body (Android visibility: secret)
 - [x] analyze green
-- [x] test green (15 tests passed)
-- [ ] flutter_local_notifications wiring (blocked: dep not added)
+- [x] test green (262 tests passed)
 - [ ] Debug preview row (blocked: You screen not on main)
 - [ ] Witness shots (blocked: Mac-only)
 
 ---
 
-*Updated: 2026-07-06 (DR-021 fixes)*
+*Updated: 2026-07-06 (DR-021 N1/N2/N3 complete)*

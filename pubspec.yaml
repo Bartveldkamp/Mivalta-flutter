@@ -80,6 +80,11 @@ dependencies:
   # Runtime BLE permission requests (Android 12+ scan/connect, iOS bluetooth).
   permission_handler: ^11.3.1
 
+  # BS-012: Local notifications for morning read (one daily, local-only).
+  # zonedSchedule requires timezone for local time handling.
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

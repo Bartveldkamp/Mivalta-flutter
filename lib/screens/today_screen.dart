@@ -22,6 +22,8 @@ import '../models/home_data.dart';
 import '../models/realized_line.dart';
 import '../models/workout_option.dart';
 import '../rust_engine.dart';
+import '../services/morning_read_gate.dart';
+import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
 import '../theme/tokens.dart';
@@ -42,7 +44,7 @@ class TodayScreen extends StatefulWidget {
   State<TodayScreen> createState() => _TodayScreenState();
 }
 
-class _TodayScreenState extends State<TodayScreen> {
+class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   HomeData _data = HomeData();
   bool _loading = true;
   WeatherReport? _weather;
@@ -55,9 +57,27 @@ class _TodayScreenState extends State<TodayScreen> {
   @override
   void initState() {
     super.initState();
+    // BS-012 N3: Register lifecycle observer for app resume trigger.
+    WidgetsBinding.instance.addObserver(this);
     _initEngine();
     _fetchWeather();
     _loadDetailPreference();
+  }
+
+  @override
+  void dispose() {
+    // BS-012 N3: Unregister lifecycle observer.
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// BS-012 N3: App lifecycle callback for notification scheduling.
+  /// Evaluates the morning read gate on app resume.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleMorningReadIfNeeded();
+    }
   }
 
   /// BS-008 P-4: Load onboarding_detail preference.
@@ -66,6 +86,97 @@ class _TodayScreenState extends State<TodayScreen> {
     final detail = prefs.getString('onboarding_detail') ?? 'simple';
     if (mounted) {
       setState(() => _showNumbers = detail == 'numbers');
+    }
+  }
+
+  /// BS-012 N3: Evaluate the morning read gate and schedule notification.
+  ///
+  /// Called on:
+  /// - App resume (lifecycle callback)
+  /// - Post-ingest (after home data loads)
+  ///
+  /// The gate reads engine outputs and decides whether to fire based on:
+  /// - Coach presence setting (from SharedPreferences)
+  /// - State change vs last delivered read
+  /// - Pending advisories
+  /// - Calibration milestone changes
+  Future<void> _scheduleMorningReadIfNeeded() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final gate = MorningReadGate(prefs: prefs);
+
+      // Gather engine outputs for gate evaluation.
+      String? fatigueStateJson;
+      String? pendingAdvisoriesJson;
+      String? stateAdvisoryJson;
+      String? validationReportJson;
+
+      try {
+        fatigueStateJson = await binding.viterbiFatigueState(handle);
+      } catch (_) {
+        // Honest absence — fatigue state not available yet.
+      }
+
+      try {
+        // pending_advisories returns a JSON array of advisory strings.
+        pendingAdvisoriesJson = await binding.pendingAdvisories(handle);
+      } catch (_) {
+        // Honest absence — no advisories available.
+        pendingAdvisoriesJson = '[]';
+      }
+
+      try {
+        stateAdvisoryJson = await binding.stateAdvisory(handle);
+      } catch (_) {
+        // Honest absence.
+      }
+
+      try {
+        validationReportJson = await binding.validationReport(handle);
+      } catch (_) {
+        // Honest absence — validation not available.
+      }
+
+      // Evaluate the gate.
+      final result = gate.evaluate(
+        fatigueStateJson: fatigueStateJson,
+        pendingAdvisoriesJson: pendingAdvisoriesJson,
+        stateAdvisoryJson: stateAdvisoryJson,
+        validationReportJson: validationReportJson,
+      );
+
+      // Schedule (or cancel) the notification based on gate result.
+      await NotificationService.instance.scheduleMorningRead(result: result);
+
+      // If we scheduled a notification, mark it as delivered so we don't
+      // re-notify for the same state on the next resume.
+      if (result.shouldFire) {
+        final fatigueMap = fatigueStateJson != null
+            ? jsonDecode(fatigueStateJson) as Map<String, dynamic>?
+            : null;
+        final validationMap = validationReportJson != null
+            ? jsonDecode(validationReportJson) as Map<String, dynamic>?
+            : null;
+
+        gate.markDelivered(
+          state: fatigueMap?['state'] as String?,
+          calibrationBucket: validationMap?['sufficiency_bucket'] as String?,
+        );
+      }
+
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[TodayScreen] Morning read gate: ${result.reason}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[TodayScreen] Morning read scheduling failed: $e');
+      }
     }
   }
 
@@ -136,6 +247,11 @@ class _TodayScreenState extends State<TodayScreen> {
 
       // Load home data
       await _loadHomeData(binding, handle);
+
+      // BS-012 N3: Schedule morning read notification post-ingest.
+      // The gate evaluates whether to fire based on state changes, advisories,
+      // and calibration milestones since the last delivered notification.
+      await _scheduleMorningReadIfNeeded();
     } catch (e) {
       setState(() {
         _data.error = e.toString();
