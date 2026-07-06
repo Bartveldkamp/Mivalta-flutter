@@ -91,4 +91,21 @@ class WorkoutOption {
           : null,
     );
   }
+
+  /// BS-016 S3: Serialize option to JSON for realizeAdvisoryOffer.
+  /// Note: This reconstructs the fields we have; the engine may accept partial data.
+  Map<String, dynamic> toJson() {
+    return {
+      'option_id': optionId,
+      'title': title,
+      'zone': zone,
+      'why': why,
+      'tags': tags,
+      if (durationMin != null) 'structure': {'total_minutes': durationMin},
+      if (targetWatts != null) 'target_watts': targetWatts,
+      if (targetPaceMss != null) 'target_pace_mss': targetPaceMss,
+      if (zonePurpose != null) 'zone_purpose': zonePurpose,
+      if (expression != null) 'expression': {'title': expression},
+    };
+  }
 }

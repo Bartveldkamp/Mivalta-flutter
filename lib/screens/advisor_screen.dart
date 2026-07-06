@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/realized_line.dart';
 import '../models/workout_option.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
@@ -27,6 +28,7 @@ class AdvisorScreen extends StatefulWidget {
     required this.binding,
     required this.handle,
     this.safetyAdvisories = const [],
+    this.readinessLevel,
   });
 
   /// Initial options from Today's recommend_workout call.
@@ -41,6 +43,10 @@ class AdvisorScreen extends StatefulWidget {
   /// Safety advisories from realized line (degraded state). Rendered above
   /// options in stateAccumulated when non-empty.
   final List<String> safetyAdvisories;
+
+  /// BS-016 S3: Readiness level for advisory offer line voice.
+  /// Passed from Today's readinessIndicator (Green/Yellow/Orange/Red).
+  final String? readinessLevel;
 
   @override
   State<AdvisorScreen> createState() => _AdvisorScreenState();
@@ -69,6 +75,10 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   // Previously chosen option ID for today
   String? _chosenOptionId;
 
+  // BS-016 S3: Offer lines per option (keyed by optionId).
+  // Contains Josi's coach voice for each workout option.
+  final Map<String, RealizedLine> _offerLines = {};
+
   /// Equipment display values — UI labels shown to user.
   List<String> get _equipmentValues => const ['outdoor', 'indoor'];
 
@@ -91,6 +101,40 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
     _options = widget.options;
     _loadChosenOption();
     _loadSport();
+    _loadOfferLines(_options); // BS-016 S3
+  }
+
+  /// BS-016 S3: Today's date string for offer line calls.
+  String get _dateStr {
+    final today = DateTime.now();
+    return '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  }
+
+  /// BS-016 S3: Load Josi offer lines for all options.
+  Future<void> _loadOfferLines(List<WorkoutOption> options) async {
+    if (widget.readinessLevel == null) return;
+
+    for (final option in options) {
+      try {
+        // Pass option JSON verbatim — engine expects its own output back
+        final optionJson = jsonEncode(option.toJson());
+        final offerJson = await widget.binding.realizeAdvisoryOffer(
+          widget.handle,
+          optionJson: optionJson,
+          readinessLevel: widget.readinessLevel!,
+          date: _dateStr,
+        );
+        final offerLine = RealizedLine.parse(offerJson);
+        if (mounted) {
+          setState(() {
+            _offerLines[option.optionId] = offerLine;
+          });
+        }
+      } catch (e) {
+        // Honest absence — keep existing option.why/zonePurpose as fallback
+        debugPrint('realizeAdvisoryOffer failed for ${option.optionId}: $e');
+      }
+    }
   }
 
   Future<void> _loadSport() async {
@@ -137,8 +181,11 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
         if (mounted) {
           setState(() {
             _options = options;
+            _offerLines.clear(); // BS-016 S3: Clear old offer lines
             _loading = false;
           });
+          // BS-016 S3: Load offer lines for new options
+          _loadOfferLines(options);
         }
       }
     } catch (e) {
@@ -327,12 +374,14 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
             final option = _options[index];
             final isRecommended = index == 0;
             final isChosen = option.optionId == _chosenOptionId;
+            final offerLine = _offerLines[option.optionId]; // BS-016 S3
             return Padding(
               padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
               child: _OptionCard(
                 option: option,
                 isRecommended: isRecommended,
                 isChosen: isChosen,
+                offerLine: offerLine, // BS-016 S3
                 onTap: () => setState(() => _selectedOption = option),
               ),
             );
@@ -418,6 +467,11 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
 
   /// Detail view for a selected option.
   Widget _buildDetailView(WorkoutOption option) {
+    // BS-016 S3: Use offer line's why/purpose if available
+    final offerLine = _offerLines[option.optionId];
+    final displayWhy = offerLine?.why ?? option.why;
+    final displayPurpose = offerLine?.purpose ?? option.zonePurpose;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
       child: Column(
@@ -468,9 +522,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
             ],
           ),
           const SizedBox(height: MivaltaSpace.x2),
-          // Why
+          // BS-016 S3: Why — from offer line if available, else option.why
           Text(
-            option.why,
+            displayWhy,
             style: MivaltaType.body.copyWith(
               color: MivaltaColors.textSecondary,
             ),
@@ -479,9 +533,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
           // Specs row
           _buildSpecsRow(option),
           const SizedBox(height: MivaltaSpace.x4),
-          // Zone purpose (expandable — 2 lines collapsed, tappable "more")
-          if (option.zonePurpose != null) ...[
-            _ExpandableZonePurpose(text: option.zonePurpose!),
+          // BS-016 S3: Zone purpose — from offer line if available
+          if (displayPurpose != null) ...[
+            _ExpandableZonePurpose(text: displayPurpose),
             const SizedBox(height: MivaltaSpace.x4),
           ],
           // Structure preview (TODO: full structure renderer)
@@ -658,12 +712,16 @@ class _OptionCard extends StatelessWidget {
     required this.isRecommended,
     required this.isChosen,
     required this.onTap,
+    this.offerLine,
   });
 
   final WorkoutOption option;
   final bool isRecommended;
   final bool isChosen;
   final VoidCallback onTap;
+
+  /// BS-016 S3: Josi's offer line for this option.
+  final RealizedLine? offerLine;
 
   @override
   Widget build(BuildContext context) {
@@ -767,11 +825,13 @@ class _OptionCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: MivaltaSpace.x1),
-              // Why
+              // BS-016 S3: Offer line (Josi voice) when available, else option.why
               Text(
-                option.why,
+                offerLine?.text ?? option.why,
                 style: MivaltaType.body.copyWith(
                   color: MivaltaColors.textSecondary,
+                  // Josi voice has slight italic styling to distinguish
+                  fontStyle: offerLine != null ? FontStyle.italic : FontStyle.normal,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
