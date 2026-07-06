@@ -754,87 +754,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 
               // BS-016 S1: Recent workout with coach reflection (today only).
               // Shows the latest workout + Josi's post-workout reaction.
-              if (_data.latestActivity != null &&
-                  _data.latestActivity!.date == _todayDateStr()) ...[
-                ModuleCard(
-                  title: 'Recent workout',
-                  icon: Icons.check_circle_outline,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Activity summary row
-                      Row(
-                        children: [
-                          Text(
-                            _formatSport(_data.latestActivity!.sport),
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: MivaltaColors.textPrimary,
-                            ),
-                          ),
-                          if (_data.latestActivity!.durationMin != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              '${_data.latestActivity!.durationMin} min',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                color: MivaltaColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      // S1: Coach reflection line
-                      if (_data.workoutReflection != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _data.workoutReflection!.text,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14,
-                            color: MivaltaColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        // Safety items always render
-                        if (_data.workoutReflection!.safety.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          ..._data.workoutReflection!.safety.map(
-                            (s) => Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                    Icons.info_outline,
-                                    size: 14,
-                                    color: MivaltaColors.stateAccumulated,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      s,
-                                      style: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 12,
-                                        color: MivaltaColors.stateAccumulated,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: MivaltaSpace.x3),
-              ],
+              ..._recentWorkoutCard(),
 
               // BS-006: Sleep stage ring (full 360° donut sliced into stages).
               // Engine doesn't provide per-stage minutes yet — placeholder ⚠
@@ -991,6 +911,96 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       parts.add(_data.focusCue!);
     }
     return parts.join(' · ');
+  }
+
+  /// BS-016 S1: Recent workout card with Josi's post-workout reflection
+  /// (renders only for a same-day activity). Built from LOCAL captures of the
+  /// mutable HomeData fields — no `!` between null-check and use, so the card
+  /// always renders one consistent snapshot (#155 review).
+  List<Widget> _recentWorkoutCard() {
+    final latest = _data.latestActivity;
+    if (latest == null || latest.date != _todayDateStr()) return const [];
+    final reflection = _data.workoutReflection;
+    return [
+      ModuleCard(
+        title: 'Recent workout',
+        icon: Icons.check_circle_outline,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Activity summary row
+            Row(
+              children: [
+                Text(
+                  _formatSport(latest.sport),
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: MivaltaColors.textPrimary,
+                  ),
+                ),
+                if (latest.durationMin != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${latest.durationMin} min',
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      color: MivaltaColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            // S1: Coach reflection line
+            if (reflection != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                reflection.text,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  color: MivaltaColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              // Safety items always render
+              if (reflection.safety.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                ...reflection.safety.map(
+                  (s) => Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          size: 14,
+                          color: MivaltaColors.stateAccumulated,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            s,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: MivaltaColors.stateAccumulated,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: MivaltaSpace.x3),
+    ];
   }
 
   /// BS-016 S1: Get today's date string for activity date comparison.
