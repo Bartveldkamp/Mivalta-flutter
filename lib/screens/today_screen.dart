@@ -14,8 +14,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/activity_summary.dart';
@@ -35,6 +33,7 @@ import '../widgets/today/josi_card.dart';
 import '../widgets/today/metric_bar.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
+import '../widgets/today/masthead.dart';
 import '../widgets/today/why_unfold.dart';
 import 'advisor_screen.dart';
 import 'journey_screen.dart';
@@ -457,123 +456,6 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Two-tier masthead — BS-002 (Bart-approved variant 1b).
-  /// Row 1: Brand wordmark centered. Row 2: Start workout left, weather right.
-  Widget _buildMasthead() {
-    return Padding(
-      // horizontal = x4 (16) to align with module-card edges; top = 8
-      padding: const EdgeInsets.fromLTRB(MivaltaSpace.x4, 8, MivaltaSpace.x4, 0),
-      child: Column(
-        children: [
-          // ── Row 1 · brand masthead, centered ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.asset('assets/mivalta-logo.svg', width: 22, height: 22),
-              const SizedBox(width: 9),
-              Text(
-                'MiValta',
-                style: GoogleFonts.zenDots(
-                  fontSize: 19,
-                  letterSpacing: 0.19, // ~0.01em × 19
-                  color: MivaltaColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: MivaltaSpace.x3), // 12px
-
-          // ── Row 2 · action micro-row ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // left · Start workout (labeled text-button, brand green)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _startWorkout,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.play_arrow, size: 18, color: MivaltaColors.primaryGreen),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Start workout',
-                      style: MivaltaType.small.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: MivaltaColors.primaryGreen,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // right · weather (glanceable, text-secondary)
-              _buildWeatherSlot(),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Weather slot — real OS-provided data if available, honest absence otherwise.
-  /// Rule 6: weather comes from Apple WeatherKit via the OS frame; on any failure
-  /// we render nothing (no icon, no forecast), never a fabricated condition.
-  Widget _buildWeatherSlot() {
-    if (_weather != null) {
-      final tempC = _weather!.temperatureC.round();
-      final icon = _iconForWeatherSymbol(_weather!.symbol);
-      final condition = _conditionForSymbol(_weather!.symbol);
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: MivaltaColors.textSecondary),
-          const SizedBox(width: 5),
-          Text(
-            '$condition $tempC°',
-            style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
-          ),
-        ],
-      );
-    }
-    // Honest absence (Rule 6): no real weather → render nothing, never a
-    // fabricated "Sunny 18°" placeholder.
-    return const SizedBox.shrink();
-  }
-
-  /// Map weather symbol to Material icon.
-  IconData _iconForWeatherSymbol(String symbol) {
-    return switch (symbol.toLowerCase()) {
-      'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
-      'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
-      'cloud' || 'cloud.fill' => Icons.cloud,
-      'cloud.rain' || 'cloud.rain.fill' => Icons.grain,
-      'cloud.heavyrain' || 'cloud.heavyrain.fill' => Icons.water_drop,
-      'cloud.snow' || 'cloud.snow.fill' => Icons.ac_unit,
-      'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
-      'moon' || 'moon.fill' => Icons.nightlight,
-      'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
-      _ => Icons.wb_sunny_outlined,
-    };
-  }
-
-  /// Map weather symbol to condition text.
-  String _conditionForSymbol(String symbol) {
-    return switch (symbol.toLowerCase()) {
-      'sun.max' || 'sun.max.fill' => 'Sunny',
-      'cloud.sun' || 'cloud.sun.fill' => 'Partly cloudy',
-      'cloud' || 'cloud.fill' => 'Cloudy',
-      'cloud.rain' || 'cloud.rain.fill' => 'Rain',
-      'cloud.heavyrain' || 'cloud.heavyrain.fill' => 'Heavy rain',
-      'cloud.snow' || 'cloud.snow.fill' => 'Snow',
-      'cloud.bolt' || 'cloud.bolt.fill' => 'Thunderstorm',
-      'moon' || 'moon.fill' => 'Clear',
-      'cloud.moon' || 'cloud.moon.fill' => 'Partly cloudy',
-      _ => 'Sunny',
-    };
-  }
-
   void _startWorkout() {
     // BS-010: Navigate to session start screen.
     Navigator.push(
@@ -654,7 +536,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       slivers: [
         // Masthead — BS-002: two-tier brand header (wordmark + action row)
         SliverToBoxAdapter(
-          child: _buildMasthead(),
+          child: TodayMasthead(
+            onStartWorkout: _startWorkout,
+            weather: _weather,
+          ),
         ),
 
         // Content

@@ -19,8 +19,10 @@ import '../rust_engine.dart';
 import '../services/morning_read_gate.dart' show CoachPresence, MorningReadGate;
 import '../services/notification_service.dart';
 import '../services/profile_service.dart';
+import '../services/weather_location.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
+import '../widgets/weather_place_picker.dart';
 
 /// Detail preference — words-first or numbers-first display style.
 enum DetailPreference { wordsFirst, numbersFirst }
@@ -58,6 +60,9 @@ class _YouScreenState extends State<YouScreen> {
 
   // Notification preview (kDebugMode only).
   Map<String, String>? _notificationPreview;
+
+  // Weather location preference (DR-024 W2).
+  WeatherLocation _weatherLocation = WeatherLocation.none;
 
   bool _loading = true;
   String? _error;
@@ -210,7 +215,7 @@ class _YouScreenState extends State<YouScreen> {
     }
   }
 
-  /// Load local preferences (coach presence, detail preference).
+  /// Load local preferences (coach presence, detail preference, weather location).
   Future<void> _loadLocalPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -227,6 +232,9 @@ class _YouScreenState extends State<YouScreen> {
       (e) => e.name == detailStr,
       orElse: () => DetailPreference.wordsFirst,
     );
+
+    // Weather location (DR-024 W2).
+    _weatherLocation = await WeatherLocationService.load();
   }
 
   /// Save coach presence preference.
@@ -635,6 +643,14 @@ class _YouScreenState extends State<YouScreen> {
       title: 'Display',
       icon: Icons.tune_outlined,
       children: [
+        // DR-024 W2: Weather location.
+        _ActionRow(
+          icon: Icons.wb_sunny_outlined,
+          label: 'Weather location',
+          subtitle: _weatherLocationSubtitle(),
+          onTap: _showWeatherLocationPicker,
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
         _ActionRow(
           icon: Icons.text_fields,
           label: 'Text size',
@@ -654,6 +670,27 @@ class _YouScreenState extends State<YouScreen> {
         ),
       ],
     );
+  }
+
+  /// Returns the subtitle for the weather location row.
+  String _weatherLocationSubtitle() {
+    switch (_weatherLocation.source) {
+      case WeatherLocationSource.none:
+        return 'Hidden';
+      case WeatherLocationSource.gps:
+        return 'Using your location';
+      case WeatherLocationSource.manual:
+        return _weatherLocation.placeName ?? 'Manual location';
+    }
+  }
+
+  /// Shows the weather location picker and saves the selection.
+  Future<void> _showWeatherLocationPicker() async {
+    final selected = await showWeatherPlacePicker(context);
+    if (selected != null && mounted) {
+      await WeatherLocationService.save(selected);
+      setState(() => _weatherLocation = selected);
+    }
   }
 
   Widget _buildDebugStamp() {
