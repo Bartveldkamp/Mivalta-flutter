@@ -128,8 +128,20 @@ class NotificationService {
       return;
     }
 
-    // Build notification content.
-    final title = _buildTitle(result);
+    // Honest absence over fabrication: without an engine state word there is
+    // nothing true to say — do not schedule (the gate already blocks this;
+    // this is the delivery layer's own backstop, never a made-up title).
+    final stateWord = result.stateWord;
+    if (stateWord == null || stateWord.isEmpty) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[NotificationService] No state word — not scheduling');
+      }
+      return;
+    }
+
+    // Build notification content — engine words only, couriered verbatim.
+    final title = stateWord;
     final body = _buildBody(result);
 
     // Calculate next delivery time.
@@ -170,9 +182,10 @@ class NotificationService {
       details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null, // One-shot, not recurring
-      // Required in flutter_local_notifications 18.x: interpret the
-      // scheduled time as absolute local time. (Removed only in later
-      // majors — CI falsified the removal-at-18 claim on 2026-07-06.)
+      // Required named parameter on zonedSchedule in the 18.x API
+      // (flutter_local_notifications 18.0.1, zonedSchedule signature):
+      // interpret the scheduled time as absolute local time. Removed only
+      // in later major versions of the plugin.
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -189,20 +202,12 @@ class NotificationService {
     await _plugin.cancel(_kMorningReadNotificationId);
   }
 
-  /// Build notification title from gate result.
-  String _buildTitle(MorningReadResult result) {
-    final stateWord = result.stateWord ?? 'Ready';
-    return stateWord;
-  }
-
-  /// Build notification body from gate result.
+  /// Build notification body from gate result — the engine's advisory text
+  /// verbatim, or EMPTY when the engine offered none. Dart never fabricates
+  /// coach copy (Charter: no fallback masquerading as the coach's words);
+  /// the title (the engine state word) carries the read on its own.
   String _buildBody(MorningReadResult result) {
-    final advisory = result.advisoryText;
-    if (advisory != null && advisory.isNotEmpty) {
-      return advisory;
-    }
-    // Fallback to a generic message if no advisory.
-    return "Check in to see today's plan.";
+    return result.advisoryText ?? '';
   }
 
   /// Calculate the next occurrence of [hour:minute] in local time.
@@ -247,7 +252,7 @@ class NotificationService {
       };
     }
 
-    final title = _buildTitle(result);
+    final title = result.stateWord ?? '';
     final body = _buildBody(result);
     final scheduledTime = _nextDeliveryTime(deliveryHour, deliveryMinute);
 

@@ -20,8 +20,12 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../theme/tokens.dart';
+
 /// Coach presence level — governs notification frequency.
-/// Imported from you_screen.dart where the user sets it.
+/// Defined HERE (single source); the You screen reads/writes the same
+/// `coach_presence` SharedPreferences key and must import this enum rather
+/// than declaring its own.
 enum CoachPresence { off, quiet, moderate }
 
 /// The result of evaluating the morning read gate.
@@ -122,6 +126,9 @@ class MorningReadGate {
     final currentCalibration = validation?['sufficiency_bucket'] as String?;
 
     // (a) Fatigue state changed?
+    // First-ever observation (lastState == null) is deliberately SILENT:
+    // there is no baseline to have changed from, and the first read is not
+    // news the athlete asked to be woken for (adversarial review 2026-07-06).
     final stateChanged = currentState != null &&
         lastState != null &&
         currentState != lastState &&
@@ -131,6 +138,7 @@ class MorningReadGate {
     final hasAdvisories = advisories.isNotEmpty;
 
     // (c) Calibration milestone crossed?
+    // Same first-observation dead-zone as (a), same reason: no baseline.
     final calibrationChanged = currentCalibration != null &&
         lastCalibration != null &&
         currentCalibration != lastCalibration &&
@@ -247,23 +255,21 @@ class MorningReadGate {
     }
   }
 
-  /// Map fatigue state to color hex — locked state palette from tokens.dart.
+  /// Map fatigue state to color hex — the LOCKED state palette, read from
+  /// the design tokens (never hardcoded hex; adversarial review 2026-07-06).
   /// Engine word verbatim; only the 5 locked states are recognized.
   String? _stateToColor(String? state) {
-    switch (state?.toLowerCase()) {
-      case 'recovered':
-        return '#7FE3B0';
-      case 'productive':
-        return '#00C6A7';
-      case 'accumulated':
-        return '#E8C547';
-      case 'overreached':
-        return '#CE7B5A';
-      case 'illnessrisk':
-        return '#B85C63';
-      default:
-        return null;
-    }
+    final color = switch (state?.toLowerCase()) {
+      'recovered' => MivaltaColors.stateRecovered,
+      'productive' => MivaltaColors.stateProductive,
+      'accumulated' => MivaltaColors.stateAccumulated,
+      'overreached' => MivaltaColors.stateOverreached,
+      'illnessrisk' => MivaltaColors.stateIllnessRisk,
+      _ => null,
+    };
+    if (color == null) return null;
+    final argb = color.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${argb.substring(2).toUpperCase()}';
   }
 
   /// Get today's date as string (YYYY-MM-DD).
