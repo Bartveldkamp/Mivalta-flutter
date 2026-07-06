@@ -21,6 +21,15 @@ on:
   push:
     branches: [main]
 
+# Cancel a superseded in-flight smoke build when new commits land on the SAME
+# PR — this is the ~20-min Android cross-compile, so a stale run finishing
+# behind you is the most expensive zombie in the repo. Scoped so cancellation
+# is PR-only: push-to-main (the fail-closed protected-branch gate) never
+# cancels. Distinct group prefix so it never cancels the CI/analyze workflow.
+concurrency:
+  group: smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -80,6 +89,23 @@ jobs:
         run: |
           rustup target add aarch64-linux-android
           cargo install --locked cargo-ndk || true
+
+      # Cache the arm64 cross-compile dependency artifacts — the dominant smoke
+      # cost is vendored OpenSSL (bundled-sqlcipher-vendored-openssl) compiling
+      # from C source for aarch64-linux-android, twice (the `check` gate then the
+      # `build`). rust-cache restores the release-profile dep artifacts (OpenSSL +
+      # all crates.io deps + the pinned gatc-ffi git-dep) so they compile once,
+      # not cold every run. Keyed on rust/Cargo.lock, so a pin bump correctly
+      # invalidates and rebuilds. save-if=main keeps PR restores fast and stable.
+      # rust-cache prunes workspace-crate artifacts, so the shim always recompiles
+      # — no stale-binary risk (the exact class scripts/build_ios.sh guards).
+      - name: Cache Rust (arm64 deps + vendored OpenSSL)
+        if: steps.check_key.outputs.skip == 'false'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+          key: android-arm64-release
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up Android NDK 27
         if: steps.check_key.outputs.skip == 'false'
