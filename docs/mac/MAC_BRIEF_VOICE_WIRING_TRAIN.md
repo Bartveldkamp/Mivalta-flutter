@@ -70,11 +70,15 @@ flutter run                     # simulator → verification list below
 
 ## What to verify on the simulator (report each with a screenshot)
 
-> **CORRECTED 2026-07-06 (second pass):** S1 reflections and S4 day summaries
-> have LIVE engine seams but **no UI widgets yet** — their on-screen placement
-> is with Claude design, and the wiring PR follows the design spec. They are
-> NOT visible on any screen in this build; do not hunt for them. The
-> verifiable surface today is the list below.
+> **CORRECTED 2026-07-06 (third pass — supersedes the second):** #155 merged
+> the S1/S3/S4 widgets, so ALL FOUR surfaces are now on screen. The second
+> pass's "no UI widgets yet" note is obsolete — do not skip them.
+>
+> **MANDATORY: rebuild the Rust layer first** — `./scripts/build_ios.sh`.
+> The advisories-attach fix (f8ced1a) lives in the Rust shim inside the
+> xcframework; `flutter run` rebuilds only Dart, so without this step every
+> coach line renders empty against the stale engine (exactly what the
+> 2026-07-06 device pass observed).
 >
 > **Auth is a STUB — it never blocks.** "Continue with email" → any email →
 > send (nothing is actually sent) → type ANY 6 digits → always succeeds.

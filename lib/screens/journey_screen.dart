@@ -26,6 +26,7 @@ import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/module_card.dart';
 import 'today_screen.dart';
+import 'you_screen.dart';
 
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({super.key});
@@ -616,59 +617,16 @@ class _JourneyScreenState extends State<JourneyScreen> {
                 activeIcon: Icons.person,
                 label: 'You',
                 isActive: false,
-                onTap: () => _showInterimState(
+                // DR-023 T2 parity: Today's You tab was wired to YouScreen in
+                // #156; Journey's copy of the nav kept the interim stub —
+                // caught by the voice device pass (You-preview unreachable
+                // from Journey).
+                onTap: () => Navigator.pushReplacement(
                   context,
-                  icon: Icons.person_outline,
-                  title: 'You',
-                  message: 'Your profile, sources and privacy controls '
-                      'land here soon.',
+                  MaterialPageRoute<void>(builder: (_) => const YouScreen()),
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showInterimState(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => Scaffold(
-          backgroundColor: MivaltaColors.surfaceBackground,
-          appBar: AppBar(
-            backgroundColor: MivaltaColors.surfaceBackground,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: MivaltaColors.textPrimary),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              title,
-              style: MivaltaType.titleM.copyWith(color: MivaltaColors.textPrimary),
-            ),
-          ),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(MivaltaSpace.x6),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 48, color: MivaltaColors.textMuted),
-                  const SizedBox(height: MivaltaSpace.x4),
-                  Text(
-                    message,
-                    style: MivaltaType.body.copyWith(color: MivaltaColors.textMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
