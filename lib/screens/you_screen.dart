@@ -16,12 +16,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/learning_status.dart';
 import '../rust_engine.dart';
+import '../services/morning_read_gate.dart' show CoachPresence, MorningReadGate;
+import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
-
-/// Coach presence level — governs notification frequency (BS-012 reads this).
-enum CoachPresence { off, quiet, moderate }
 
 /// Detail preference — words-first or numbers-first display style.
 enum DetailPreference { wordsFirst, numbersFirst }
@@ -56,6 +55,9 @@ class _YouScreenState extends State<YouScreen> {
 
   // Engine hello (for debug).
   String? _engineHello;
+
+  // Notification preview (kDebugMode only).
+  Map<String, String>? _notificationPreview;
 
   bool _loading = true;
   String? _error;
@@ -183,6 +185,43 @@ class _YouScreenState extends State<YouScreen> {
         _engineHello = await binding.hello();
       } catch (_) {
         // Ignore.
+      }
+
+      // Notification preview (BS-012 kDebugMode preview row).
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final gate = MorningReadGate(prefs: prefs);
+
+        // Gather engine outputs.
+        String? fatigueStateJson;
+        String? pendingAdvisoriesJson = '[]';
+        String? stateAdvisoryJson;
+        String? validationReportJson;
+
+        try {
+          fatigueStateJson = await binding.viterbiFatigueState(handle);
+        } catch (_) {}
+        try {
+          pendingAdvisoriesJson = await binding.pendingAdvisories(handle);
+        } catch (_) {}
+        try {
+          stateAdvisoryJson = await binding.stateAdvisory(handle);
+        } catch (_) {}
+        try {
+          validationReportJson = await binding.validationReport(handle);
+        } catch (_) {}
+
+        final result = gate.evaluate(
+          fatigueStateJson: fatigueStateJson,
+          pendingAdvisoriesJson: pendingAdvisoriesJson,
+          stateAdvisoryJson: stateAdvisoryJson,
+          validationReportJson: validationReportJson,
+        );
+
+        _notificationPreview =
+            NotificationService.instance.previewMorningRead(result: result);
+      } catch (_) {
+        // Ignore preview failures.
       }
     }
   }
@@ -660,6 +699,96 @@ class _YouScreenState extends State<YouScreen> {
                 fontSize: 11,
               ),
             ),
+          // BS-012: Morning read notification preview.
+          if (_notificationPreview != null) ...[
+            const SizedBox(height: MivaltaSpace.x2),
+            _buildNotificationPreview(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// BS-012 kDebugMode preview row for morning read notification.
+  Widget _buildNotificationPreview() {
+    final preview = _notificationPreview;
+    if (preview == null) return const SizedBox.shrink();
+
+    final status = preview['status'] ?? 'unknown';
+    final isSilent = status == 'silent';
+
+    return Container(
+      padding: const EdgeInsets.all(MivaltaSpace.x2),
+      decoration: BoxDecoration(
+        color: isSilent
+            ? MivaltaColors.textMuted.withValues(alpha: 0.1)
+            : MivaltaColors.stateProductive.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+        border: Border.all(
+          color: isSilent
+              ? MivaltaColors.textMuted.withValues(alpha: 0.3)
+              : MivaltaColors.stateProductive.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isSilent ? Icons.notifications_off : Icons.notifications_active,
+                size: 14,
+                color: isSilent
+                    ? MivaltaColors.textMuted
+                    : MivaltaColors.stateProductive,
+              ),
+              const SizedBox(width: MivaltaSpace.x1),
+              Text(
+                'Morning Read: ${isSilent ? 'SILENT' : 'SCHEDULED'}',
+                style: MivaltaType.small.copyWith(
+                  color: isSilent
+                      ? MivaltaColors.textMuted
+                      : MivaltaColors.stateProductive,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          if (isSilent && preview['reason'] != null) ...[
+            const SizedBox(height: MivaltaSpace.x1),
+            Text(
+              'Reason: ${preview['reason']}',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textMuted,
+                fontFamily: 'monospace',
+                fontSize: 10,
+              ),
+            ),
+          ],
+          if (!isSilent) ...[
+            const SizedBox(height: MivaltaSpace.x1),
+            Text(
+              '${preview['title']} — ${preview['body']}',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textPrimary,
+                fontSize: 11,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (preview['scheduledTime'] != null) ...[
+              const SizedBox(height: MivaltaSpace.x1),
+              Text(
+                'At: ${preview['scheduledTime']}',
+                style: MivaltaType.small.copyWith(
+                  color: MivaltaColors.textMuted,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
