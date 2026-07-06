@@ -85,6 +85,9 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.0
 
+  # BS-010: Keep screen awake during session recording.
+  wakelock_plus: ^1.2.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

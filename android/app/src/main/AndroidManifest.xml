@@ -57,12 +57,16 @@
     <!-- FL-17: on-device-only posture. Disable cloud/Auto Backup so the
          SQLCipher vault (and its file-backed key) under filesDir cannot be
          copied to Google Drive or a new device. allowBackup=false also disables
-         D2D transfer of app data; fullBackupContent guards pre-API-31 devices. -->
+         D2D transfer of app data; fullBackupContent guards pre-API-31 devices.
+         Entry AM defense-in-depth: dataExtractionRules is the API-31+ control
+         (explicit excludes in res/xml/data_extraction_rules.xml), so the
+         vault-free-backup posture holds even if allowBackup is ever flipped. -->
     <application
         android:label="MiValta"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher">
         <!-- Portrait-only for beta. Two-pane landscape deferred post-beta
              (design in Responsive-Orientation.html). -->

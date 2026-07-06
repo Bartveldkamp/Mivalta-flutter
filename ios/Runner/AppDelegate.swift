@@ -15,7 +15,39 @@ import WeatherKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    excludeAppDataFromBackup()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// DECISIONS Entry AM, invariant I-7 (mivalta-rust-engine
+  /// docs/DECISIONS.md): platform backups must be vault-free. The vault
+  /// lives in Application Support (Dart roots `vaultPath` at
+  /// `getApplicationSupportDirectory()`), where the SQLCipher key files
+  /// (`vault.key`, `cache.key`) sit BESIDE the ciphertext they protect — an
+  /// iCloud/Finder backup would carry keys + ciphertext together, and a
+  /// retained backup defeats crypto-erasure (destroying the on-device key
+  /// cannot destroy the copy inside an old backup). Excluding the directory
+  /// covers its whole subtree, including files created later. Device
+  /// migration is served by the V5 encrypted vault export/import, never by
+  /// platform backup.
+  private func excludeAppDataFromBackup() {
+    let fm = FileManager.default
+    guard let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else {
+      NSLog("MiValta: Application Support not found — backup exclusion NOT applied")
+      return
+    }
+    do {
+      try fm.createDirectory(at: support, withIntermediateDirectories: true)
+      var url = support
+      var values = URLResourceValues()
+      values.isExcludedFromBackup = true
+      try url.setResourceValues(values)
+    } catch {
+      // Loud in the log, non-fatal for launch: the exclusion is defense in
+      // depth on top of the vault's own encryption.
+      NSLog("MiValta: failed to exclude app data from backup: \(error)")
+    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

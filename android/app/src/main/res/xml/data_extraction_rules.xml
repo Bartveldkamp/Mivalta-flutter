@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DECISIONS Entry AM, invariant I-7 (mivalta-rust-engine docs/DECISIONS.md):
+     platform backups must be vault-free. API 31+ consults THESE rules;
+     allowBackup=false / fullBackupContent=false stay in the manifest as the
+     first line of defense for all API levels. Everything is excluded — a
+     backup or device transfer carrying vault.key beside vault.db would hand
+     over keys + ciphertext together and defeat crypto-erasure (a destroyed
+     key survives inside old backups). Device migration is served by the V5
+     encrypted vault export/import, never by platform backup. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>
