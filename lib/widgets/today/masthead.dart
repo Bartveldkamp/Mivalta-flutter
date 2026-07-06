@@ -38,13 +38,13 @@ class TodayMasthead extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset('assets/mivalta-logo.svg', width: 22, height: 22),
-              const SizedBox(width: 9),
+              SvgPicture.asset('assets/mivalta-logo.svg', width: 30, height: 30),
+              const SizedBox(width: 10),
               Text(
                 'MiValta',
                 style: GoogleFonts.zenDots(
-                  fontSize: 19,
-                  letterSpacing: 0.19, // ~0.01em × 19
+                  fontSize: 24,
+                  letterSpacing: 0.24, // ~0.01em × 24
                   color: MivaltaColors.textPrimary,
                 ),
               ),
