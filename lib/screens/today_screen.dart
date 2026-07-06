@@ -34,6 +34,7 @@ import '../widgets/today/sleep_stage_ring.dart';
 import '../widgets/today/why_unfold.dart';
 import 'advisor_screen.dart';
 import 'journey_screen.dart';
+import 'session_start_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -433,48 +434,11 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   void _startWorkout() {
-    // BS-008 E-1: Honest interim bottom sheet — recording arrives with next update.
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: MivaltaColors.surface1,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(MivaltaRadii.lg)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(MivaltaSpace.x5),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recording arrives with the next update',
-              style: MivaltaType.cardTitle.copyWith(
-                color: MivaltaColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: MivaltaSpace.x3),
-            Text(
-              "Your watch's sessions already count — they arrive through Apple Health.",
-              style: MivaltaType.body.copyWith(
-                color: MivaltaColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: MivaltaSpace.x5),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Got it',
-                  style: MivaltaType.body.copyWith(
-                    color: MivaltaColors.stateProductive,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+    // BS-010: Navigate to session start screen.
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const SessionStartScreen(),
       ),
     );
   }
