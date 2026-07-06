@@ -80,8 +80,31 @@ void main() {
           reason: 'raw token kept ONLY as the next last-delivered marker');
       expect(result.sufficiencyBucket, 'insufficient');
       expect(result.reason, 'moderate+state_changed');
-      expect(result.stateColor, isNotNull,
-          reason: 'locked token palette lookup for a known state');
+      expect(result.stateColor, '#E8C547',
+          reason: 'the LOCKED state-palette hex for Accumulated, via tokens');
+    });
+
+    test('stateColor pins the LOCKED palette for all five engine states',
+        () async {
+      // The palette lock (tokens.dart) was previously pinned by the deleted
+      // decision-table tests; re-pinned here so a token drift stays loud.
+      final gate = await gateWith({});
+      const expected = {
+        'Recovered': '#7FE3B0',
+        'Productive': '#00C6A7',
+        'Accumulated': '#E8C547',
+        'Overreached': '#CE7B5A',
+        'IllnessRisk': '#B85C63',
+      };
+      for (final entry in expected.entries) {
+        final result = gate.parseVerdict(
+          '{"fire":true,"reason":"moderate+state_changed",'
+          '"state":"${entry.key}","sufficiency_bucket":"low",'
+          '"title":"t","body":""}',
+        );
+        expect(result.stateColor, entry.value,
+            reason: '${entry.key} must map to its locked token hex');
+      }
     });
 
     test('silent verdict parses silent with the engine reason', () async {
