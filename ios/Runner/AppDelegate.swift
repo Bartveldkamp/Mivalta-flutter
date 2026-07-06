@@ -58,12 +58,18 @@ import WeatherKit
   }
 }
 
+/// DR-024 W2: Weather channel with manual place support.
+///
 /// Round 3 items 11+18 (FOUNDER_FEEDBACK_2026-06-12): local weather via Apple
 /// WeatherKit — the founder-approved OS-LEVEL exception to the no-cloud rule
 /// (CLAUDE.md rule 6). The fetch runs entirely through Apple's OS frame
 /// (CoreLocation one-shot + WeatherKit); MiValta servers are never involved.
 /// Every failure path returns a FlutterError so the Dart side renders honest
 /// absence (no icon) instead of fabricated conditions.
+///
+/// Methods:
+///   - getWeatherAt(lat, lon): Fetch weather for specific coordinates (manual place)
+///   - getWeatherWithGPS: Fetch weather using GPS (for GPS opt-in users)
 class MivaltaWeatherChannel: NSObject, CLLocationManagerDelegate {
   private let channel: FlutterMethodChannel
   private let locationManager = CLLocationManager()
@@ -80,15 +86,46 @@ class MivaltaWeatherChannel: NSObject, CLLocationManagerDelegate {
         return
       }
       switch call.method {
+      case "getWeatherAt":
+        // DR-024 W2: Fetch weather for specific coordinates (manual place).
+        guard let args = call.arguments as? [String: Any],
+              let lat = args["latitude"] as? Double,
+              let lon = args["longitude"] as? Double else {
+          result(FlutterError(code: "invalid_args", message: "latitude and longitude required", details: nil))
+          return
+        }
+        self.getWeatherAt(latitude: lat, longitude: lon, result: result)
+      case "getWeatherWithGPS":
+        // DR-024 W2: Fetch weather using GPS (for GPS opt-in users).
+        self.getWeatherWithGPS(result: result)
       case "getWeather":
-        self.getWeather(result: result)
+        // Legacy method — still supported for backwards compatibility.
+        // Prefer getWeatherAt or getWeatherWithGPS for new code.
+        self.getWeatherWithGPS(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
     }
   }
 
-  private func getWeather(result: @escaping FlutterResult) {
+  /// DR-024 W2: Fetch weather for specific coordinates (manual place).
+  /// No GPS permission required — coordinates provided by caller.
+  private func getWeatherAt(latitude: Double, longitude: Double, result: @escaping FlutterResult) {
+    guard #available(iOS 16.0, *) else {
+      result(FlutterError(code: "unsupported", message: "WeatherKit requires iOS 16+", details: nil))
+      return
+    }
+    guard pending == nil else {
+      result(FlutterError(code: "busy", message: "weather fetch already in flight", details: nil))
+      return
+    }
+    pending = result
+    let location = CLLocation(latitude: latitude, longitude: longitude)
+    fetchWeather(for: location)
+  }
+
+  /// Fetch weather using GPS location (requires location permission).
+  private func getWeatherWithGPS(result: @escaping FlutterResult) {
     guard #available(iOS 16.0, *) else {
       result(FlutterError(code: "unsupported", message: "WeatherKit requires iOS 16+", details: nil))
       return
@@ -111,7 +148,7 @@ class MivaltaWeatherChannel: NSObject, CLLocationManagerDelegate {
   func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
     // This delegate method only fires on iOS 14+; the guard exists purely to
     // satisfy availability checking with the app's lower deployment target.
-    // The feature itself is iOS 16+ (gated in getWeather).
+    // The feature itself is iOS 16+ (gated in getWeatherWithGPS).
     guard #available(iOS 14.0, *), pending != nil else { return }
     switch manager.authorizationStatus {
     case .authorizedWhenInUse, .authorizedAlways:
@@ -125,6 +162,11 @@ class MivaltaWeatherChannel: NSObject, CLLocationManagerDelegate {
 
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     guard let location = locations.last, pending != nil else { return }
+    fetchWeather(for: location)
+  }
+
+  /// Common weather fetch logic used by both coordinate-based and GPS-based methods.
+  private func fetchWeather(for location: CLLocation) {
     if #available(iOS 16.0, *) {
       Task {
         do {

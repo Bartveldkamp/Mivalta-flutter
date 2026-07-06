@@ -1,8 +1,14 @@
+// DR-024 W2: Weather service with manual place support.
+//
 // Round 3 items 11+18 (FOUNDER_FEEDBACK_2026-06-12): local weather via Apple
 // WeatherKit — the founder-approved OS-LEVEL exception to the no-cloud rule
 // (CLAUDE.md rule 6). The fetch is performed by the OS frame (WeatherKit +
 // CoreLocation) on the native side; MiValta servers are never involved and
 // no MiValta-originated HTTP happens here.
+//
+// DR-024 W2: Weather uses manual place by default (privacy-first). User can
+// optionally enable coarse GPS for automatic location. If no location is set,
+// weather shows honest absence.
 //
 // This file is pure transport + parsing. ANY failure (no iOS 16, permission
 // denied, WeatherKit error, Android = no implementation yet) returns null and
@@ -10,6 +16,8 @@
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
+
+import 'weather_location.dart';
 
 /// One day of the 7-day forecast, parsed from the native payload.
 class WeatherDay {
@@ -55,9 +63,38 @@ class WeatherService {
   /// Returns null on ANY failure — callers render honest absence.
   /// Android: the channel has no handler yet (equivalent t.b.d. per founder
   /// decision 18), so this returns null there too.
+  ///
+  /// DR-024 W2: Uses stored location preference:
+  /// - Manual place: fetches for stored coordinates (no GPS permission needed)
+  /// - GPS opt-in: fetches using GPS (requires location permission)
+  /// - None: returns null immediately (honest absence)
   static Future<WeatherReport?> fetch() async {
     try {
-      final raw = await _channel.invokeMethod<dynamic>('getWeather');
+      // Load user's location preference
+      final location = await WeatherLocationService.load();
+
+      // No location set → honest absence (privacy-first default)
+      if (location.source == WeatherLocationSource.none) {
+        debugPrint('weather: no location set — honest absence');
+        return null;
+      }
+
+      dynamic raw;
+      if (location.source == WeatherLocationSource.manual) {
+        // Manual place: use stored coordinates (no GPS permission needed)
+        if (!location.hasCoordinates) {
+          debugPrint('weather: manual location missing coordinates');
+          return null;
+        }
+        raw = await _channel.invokeMethod<dynamic>('getWeatherAt', {
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+        });
+      } else {
+        // GPS opt-in: use GPS location
+        raw = await _channel.invokeMethod<dynamic>('getWeatherWithGPS');
+      }
+
       if (raw is! Map) return null;
       return _parse(raw);
     } on PlatformException catch (e) {
@@ -67,6 +104,28 @@ class WeatherService {
       return null;
     } on MissingPluginException {
       debugPrint('weather unavailable — no platform implementation');
+      return null;
+    }
+  }
+
+  /// Fetch weather for specific coordinates (bypasses stored location).
+  /// Used by the place picker to preview weather for a potential selection.
+  static Future<WeatherReport?> fetchAt({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getWeatherAt', {
+        'latitude': latitude,
+        'longitude': longitude,
+      });
+      if (raw is! Map) return null;
+      return _parse(raw);
+    } on PlatformException catch (e) {
+      debugPrint('weather preview unavailable — ${e.code}: ${e.message}');
+      return null;
+    } on MissingPluginException {
+      debugPrint('weather preview unavailable — no platform implementation');
       return null;
     }
   }
