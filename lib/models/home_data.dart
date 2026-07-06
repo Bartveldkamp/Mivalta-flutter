@@ -77,6 +77,10 @@ class HomeData {
   // Latest completed workout (for home workout row)
   ActivitySummary? latestActivity; // readRecentActivities(limit: 1)[0]
 
+  // BS-016 S1: Post-workout reflection for today's latest activity.
+  // Only populated when latestActivity is from today.
+  RealizedLine? workoutReflection; // realizeWorkoutReflection(activityId, date)
+
   // Days with observations the engine has returned — drives the learning ring's
   // "day X" why line.
   int observationDays = 0;     // readBiometricHistory distinct-date row count

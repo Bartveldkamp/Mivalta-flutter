@@ -32,5 +32,27 @@ void main() {
       expect(line.safety, isEmpty);
       expect(line.degraded, isFalse);
     });
+
+    // BS-016 S3: why/purpose ride on the RealizedLine for the advisor offer
+    // disclosure (engine #388). Verbatim couriered, null when absent.
+    test('parses why and purpose verbatim for the S3 disclosure', () {
+      final line = RealizedLine.parse(
+        '{"text":"Recovery is building, so keeping it lighter.",'
+        '"safety":[],"degraded":false,'
+        '"why":"Readiness is yellow — moderate load protects the adaptation.",'
+        '"purpose":"Z2 builds your aerobic base."}',
+      );
+      expect(line.why,
+          'Readiness is yellow — moderate load protects the adaptation.');
+      expect(line.purpose, 'Z2 builds your aerobic base.');
+    });
+
+    test('absent why/purpose stay null — honest absence, no empty-string mask',
+        () {
+      final line =
+          RealizedLine.parse('{"text":"x","safety":[],"degraded":false}');
+      expect(line.why, isNull);
+      expect(line.purpose, isNull);
+    });
   });
 }
