@@ -187,36 +187,20 @@ class _YouScreenState extends State<YouScreen> {
         // Ignore.
       }
 
-      // Notification preview (BS-012 kDebugMode preview row).
+      // Notification preview (BS-012 kDebugMode preview row) — same engine
+      // verdict seam the live path uses; an engine error is honest absence.
       try {
         final prefs = await SharedPreferences.getInstance();
         final gate = MorningReadGate(prefs: prefs);
 
-        // Gather engine outputs.
-        String? fatigueStateJson;
-        String? pendingAdvisoriesJson = '[]';
-        String? stateAdvisoryJson;
-        String? validationReportJson;
-
-        try {
-          fatigueStateJson = await binding.viterbiFatigueState(handle);
-        } catch (_) {}
-        try {
-          pendingAdvisoriesJson = await binding.pendingAdvisories(handle);
-        } catch (_) {}
-        try {
-          stateAdvisoryJson = await binding.stateAdvisory(handle);
-        } catch (_) {}
-        try {
-          validationReportJson = await binding.validationReport(handle);
-        } catch (_) {}
-
-        final result = gate.evaluate(
-          fatigueStateJson: fatigueStateJson,
-          pendingAdvisoriesJson: pendingAdvisoriesJson,
-          stateAdvisoryJson: stateAdvisoryJson,
-          validationReportJson: validationReportJson,
+        final verdictJson = await binding.morningReadVerdict(
+          handle,
+          presence: gate.presenceToken,
+          lastDeliveredState: gate.lastDeliveredState,
+          lastDeliveredBucket: gate.lastDeliveredBucket,
+          alreadyNotifiedToday: gate.alreadyNotifiedToday,
         );
+        final result = gate.parseVerdict(verdictJson);
 
         _notificationPreview =
             NotificationService.instance.previewMorningRead(result: result);

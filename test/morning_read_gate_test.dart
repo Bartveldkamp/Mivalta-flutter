@@ -1,343 +1,141 @@
-// Morning read gate unit tests — BS-012 + DR-021
+// Morning-read courier tests — BS-012 (engine-side verdict since #388).
 //
-// Tests the salience gate decision table.
-// Contract: ≥9 presence × reason combinations.
-//
-// DR-021: Uses engine fatigueState verbatim (Recovered/Productive/Accumulated/
-// Overreached/IllnessRisk) and locked state-palette hex from tokens.dart.
-
-import 'dart:convert';
+// The salience DECISION table lives in the engine now
+// (gatc_viterbi::morning_read_verdict — 8 unit tests + 5 FFI seam tests in
+// rust-engine pin these). What Dart owns, and what these tests pin, is the
+// COURIER half only:
+// - the delivery context read from SharedPreferences (presence token,
+//   last-delivered markers, the same-day flag);
+// - the mechanical parse of the engine's verdict JSON (verbatim fields,
+//   fail-loud on malformed payloads — a broken payload is never coerced
+//   into a fire or a silent);
+// - the markDelivered round-trip that feeds the next verdict call.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:mivalta_flutter/services/morning_read_gate.dart';
 
+Future<MorningReadGate> gateWith(Map<String, Object> prefs) async {
+  SharedPreferences.setMockInitialValues(prefs);
+  return MorningReadGate(prefs: await SharedPreferences.getInstance());
+}
+
 void main() {
-  group('MorningReadGate decision table', () {
-    late SharedPreferences prefs;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    setUp(() async {
-      SharedPreferences.setMockInitialValues({});
-      prefs = await SharedPreferences.getInstance();
+  group('delivery context couriered from prefs', () {
+    test('presence defaults to moderate; reads the You-screen pref verbatim',
+        () async {
+      final fresh = await gateWith({});
+      expect(fresh.presenceToken, 'moderate');
+
+      final quiet = await gateWith({'coach_presence': 'quiet'});
+      expect(quiet.presenceToken, 'quiet');
     });
 
-    // Helper to create gate with a specific presence.
-    MorningReadGate gateWithPresence(String presence) {
-      prefs.setString('coach_presence', presence);
-      return MorningReadGate(prefs: prefs);
-    }
-
-    // Helper to create engine JSON outputs.
-    // DR-021: fatigue state from viterbiFatigueState(), engine words verbatim.
-    String fatigueStateJson(String state) =>
-        jsonEncode({'state': state, 'confidence': 0.8});
-
-    String advisoriesJson(List<String> advisories) => jsonEncode(advisories);
-
-    String stateAdvisoryJson(String text) => jsonEncode({'advisory': text});
-
-    String validationJson(String bucket) =>
-        jsonEncode({'sufficiency_bucket': bucket});
-
-    // ══════════════════════════════════════════════════════════════════════
-    // PRESENCE = OFF (cases 1–3)
-    // ══════════════════════════════════════════════════════════════════════
-
-    test('1. Off + state change + advisory + calibration → silent', () {
-      final gate = gateWithPresence('off');
-      // Seed previous state.
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-      prefs.setString('morning_read_last_calibration', 'low');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson(['Take it easy']),
-        stateAdvisoryJson: stateAdvisoryJson('You are recovered.'),
-        validationReportJson: validationJson('medium'),
-      );
-
-      expect(result.shouldFire, false, reason: 'Off presence = always silent');
-      expect(result.reason, contains('off'));
+    test('last-delivered markers are null before the first delivered read',
+        () async {
+      final gate = await gateWith({});
+      expect(gate.lastDeliveredState, isNull);
+      expect(gate.lastDeliveredBucket, isNull);
+      expect(gate.alreadyNotifiedToday, isFalse);
     });
 
-    test('2. Off + no change + no advisory → silent', () {
-      final gate = gateWithPresence('off');
+    test('markDelivered round-trips state + bucket and arms the same-day flag',
+        () async {
+      final gate = await gateWith({});
+      gate.markDelivered(state: 'Accumulated', calibrationBucket: 'low');
 
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson(''),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, false);
+      expect(gate.lastDeliveredState, 'Accumulated');
+      expect(gate.lastDeliveredBucket, 'low');
+      expect(gate.alreadyNotifiedToday, isTrue,
+          reason: 'delivered today → same-day flag couriers true');
     });
 
-    test('3. Off + advisory only → silent', () {
-      final gate = gateWithPresence('off');
+    test('a delivery on an earlier date does not arm the same-day flag',
+        () async {
+      final gate = await gateWith({
+        'morning_read_last_state': 'Productive',
+        'morning_read_last_date': '2001-01-01',
+      });
+      expect(gate.alreadyNotifiedToday, isFalse);
+    });
+  });
 
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson(['Rest today']),
-        stateAdvisoryJson: stateAdvisoryJson('Rest advisory.'),
-        validationReportJson: validationJson('low'),
+  group('verdict JSON parse (mechanical courier, verbatim fields)', () {
+    test('fire verdict carries title/body/state/bucket verbatim', () async {
+      final gate = await gateWith({});
+      final result = gate.parseVerdict(
+        '{"fire":true,"reason":"moderate+state_changed",'
+        '"state":"Accumulated","sufficiency_bucket":"insufficient",'
+        '"title":"Carrying some fatigue","body":"Keep today controlled."}',
       );
 
-      expect(result.shouldFire, false);
+      expect(result.shouldFire, isTrue);
+      expect(result.title, 'Carrying some fatigue',
+          reason: 'card wording verbatim — never the raw token as title');
+      expect(result.body, 'Keep today controlled.');
+      expect(result.state, 'Accumulated',
+          reason: 'raw token kept ONLY as the next last-delivered marker');
+      expect(result.sufficiencyBucket, 'insufficient');
+      expect(result.reason, 'moderate+state_changed');
+      expect(result.stateColor, '#E8C547',
+          reason: 'the LOCKED state-palette hex for Accumulated, via tokens');
     });
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PRESENCE = QUIET (cases 4–6)
-    // ══════════════════════════════════════════════════════════════════════
-
-    test('4. Quiet + state change only → silent', () {
-      final gate = gateWithPresence('quiet');
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson(''),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, false,
-          reason: 'Quiet ignores state changes');
-      expect(result.reason, contains('quiet'));
+    test('stateColor pins the LOCKED palette for all five engine states',
+        () async {
+      // The palette lock (tokens.dart) was previously pinned by the deleted
+      // decision-table tests; re-pinned here so a token drift stays loud.
+      final gate = await gateWith({});
+      const expected = {
+        'Recovered': '#7FE3B0',
+        'Productive': '#00C6A7',
+        'Accumulated': '#E8C547',
+        'Overreached': '#CE7B5A',
+        'IllnessRisk': '#B85C63',
+      };
+      for (final entry in expected.entries) {
+        final result = gate.parseVerdict(
+          '{"fire":true,"reason":"moderate+state_changed",'
+          '"state":"${entry.key}","sufficiency_bucket":"low",'
+          '"title":"t","body":""}',
+        );
+        expect(result.stateColor, entry.value,
+            reason: '${entry.key} must map to its locked token hex');
+      }
     });
 
-    test('5. Quiet + advisory → FIRE', () {
-      final gate = gateWithPresence('quiet');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson(['Take it easy today']),
-        stateAdvisoryJson: stateAdvisoryJson('High load this week.'),
-        validationReportJson: validationJson('low'),
+    test('silent verdict parses silent with the engine reason', () async {
+      final gate = await gateWith({});
+      final result = gate.parseVerdict(
+        '{"fire":false,"reason":"presence=off","state":null,'
+        '"sufficiency_bucket":null,"title":"","body":""}',
       );
 
-      expect(result.shouldFire, true, reason: 'Quiet fires for advisories');
-      expect(result.stateWord, 'Productive'); // Engine word verbatim
-      expect(result.stateColor, '#00C6A7'); // tokens.dart stateProductive
-      expect(result.advisoryText, 'High load this week.');
-      expect(result.reason, contains('advisory'));
+      expect(result.shouldFire, isFalse);
+      expect(result.reason, 'presence=off');
+      expect(result.state, isNull);
+      expect(result.stateColor, isNull,
+          reason: 'no state → no color, honest absence');
     });
 
-    test('6. Quiet + calibration change only → silent', () {
-      final gate = gateWithPresence('quiet');
-      prefs.setString('morning_read_last_calibration', 'low');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson(''),
-        validationReportJson: validationJson('medium'),
+    test('empty body stays empty — no copy invented in the parse', () async {
+      final gate = await gateWith({});
+      final result = gate.parseVerdict(
+        '{"fire":true,"reason":"moderate+calibration","state":"Productive",'
+        '"sufficiency_bucket":"low","title":"Making gains","body":""}',
       );
-
-      expect(result.shouldFire, false,
-          reason: 'Quiet ignores calibration changes');
+      expect(result.body, '');
     });
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PRESENCE = MODERATE (cases 7–12)
-    // ══════════════════════════════════════════════════════════════════════
-
-    test('7. Moderate + state change → FIRE', () {
-      final gate = gateWithPresence('moderate');
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('You recovered overnight.'),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, true,
-          reason: 'Moderate fires for state changes');
-      expect(result.stateWord, 'Productive');
-      expect(result.reason, contains('state_changed'));
-    });
-
-    test('8. Moderate + advisory → FIRE', () {
-      final gate = gateWithPresence('moderate');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Accumulated'),
-        pendingAdvisoriesJson: advisoriesJson(['Consider rest']),
-        stateAdvisoryJson: stateAdvisoryJson('Fatigue accumulating.'),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, true,
-          reason: 'Moderate fires for advisories');
-      expect(result.stateWord, 'Accumulated'); // Engine word verbatim
-      expect(result.stateColor, '#E8C547'); // tokens.dart stateAccumulated
-      expect(result.reason, contains('advisory'));
-    });
-
-    test('9. Moderate + calibration milestone → FIRE', () {
-      final gate = gateWithPresence('moderate');
-      prefs.setString('morning_read_last_calibration', 'low');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Your readings are validated.'),
-        validationReportJson: validationJson('medium'),
-      );
-
-      expect(result.shouldFire, true,
-          reason: 'Moderate fires for calibration milestones');
-      expect(result.reason, contains('calibration'));
-    });
-
-    test('10. Moderate + no change + no advisory + no calibration → silent', () {
-      final gate = gateWithPresence('moderate');
-      // Same state as last time.
-      prefs.setString('morning_read_last_state', 'Productive');
-      prefs.setString('morning_read_last_calibration', 'low');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson(''),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, false,
-          reason: 'Nothing to report = silence');
-      expect(result.reason, contains('no_change'));
-    });
-
-    test('11. Moderate + state change same day → silent (already notified)', () {
-      final gate = gateWithPresence('moderate');
-      // Set last date to today.
-      final today = DateTime.now();
-      final todayStr =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      prefs.setString('morning_read_last_date', todayStr);
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson(''),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, false,
-          reason: 'Already notified today');
-    });
-
-    // ══════════════════════════════════════════════════════════════════════
-    // EDGE CASES (cases 12–15)
-    // ══════════════════════════════════════════════════════════════════════
-
-    test('12. Missing state word → silent even with reasons', () {
-      final gate = gateWithPresence('moderate');
-
-      final result = gate.evaluate(
-        fatigueStateJson: null, // No fatigue state data.
-        pendingAdvisoriesJson: advisoriesJson(['Something']),
-        stateAdvisoryJson: stateAdvisoryJson('Advisory'),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, false,
-          reason: 'No state word = cannot compose notification');
-    });
-
-    test('13. Default presence (not set) = moderate', () {
-      // Don't set presence.
-      final gate = MorningReadGate(prefs: prefs);
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      final result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Good morning.'),
-        validationReportJson: validationJson('low'),
-      );
-
-      expect(result.shouldFire, true,
-          reason: 'Default presence is moderate');
-    });
-
-    test('14. All 5 locked states map to correct colors (N1 vocabulary)', () {
-      final gate = gateWithPresence('moderate');
-      prefs.setString('morning_read_last_state', 'IllnessRisk');
-      prefs.setString('morning_read_last_date', '2024-01-01');
-
-      // Recovered → #7FE3B0
-      var result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Recovered'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'Recovered');
-      expect(result.stateColor, '#7FE3B0');
-
-      // Productive → #00C6A7
-      prefs.setString('morning_read_last_state', 'Recovered');
-      result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Productive'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'Productive');
-      expect(result.stateColor, '#00C6A7');
-
-      // Accumulated → #E8C547
-      prefs.setString('morning_read_last_state', 'Productive');
-      result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Accumulated'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'Accumulated');
-      expect(result.stateColor, '#E8C547');
-
-      // Overreached → #CE7B5A
-      prefs.setString('morning_read_last_state', 'Accumulated');
-      result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('Overreached'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'Overreached');
-      expect(result.stateColor, '#CE7B5A');
-
-      // IllnessRisk → #B85C63
-      prefs.setString('morning_read_last_state', 'Overreached');
-      result = gate.evaluate(
-        fatigueStateJson: fatigueStateJson('IllnessRisk'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'IllnessRisk');
-      expect(result.stateColor, '#B85C63');
-    });
-
-    test('15. markDelivered persists state for next evaluation', () {
-      final gate = gateWithPresence('moderate');
-
-      gate.markDelivered(state: 'Productive', calibrationBucket: 'high');
-
-      expect(prefs.getString('morning_read_last_state'), 'Productive');
-      expect(prefs.getString('morning_read_last_calibration'), 'high');
-      expect(prefs.getString('morning_read_last_date'), isNotNull);
+    test('malformed payload fails loud — never coerced to a verdict',
+        () async {
+      final gate = await gateWith({});
+      expect(() => gate.parseVerdict('not json'), throwsA(anything));
+      expect(() => gate.parseVerdict('{"reason":"x"}'), throwsA(anything),
+          reason: 'a payload without "fire" must throw, not default silent');
     });
   });
 }
