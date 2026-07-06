@@ -482,6 +482,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
+
   Widget _buildContent() {
     if (_data.error != null) {
       return Center(
