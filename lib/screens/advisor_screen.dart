@@ -75,6 +75,12 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
   // Previously chosen option ID for today
   String? _chosenOptionId;
 
+  // BS-016 S3: Load generation — bumped on every _loadOfferLines call so a
+  // stale in-flight response from a previous option set can never land in
+  // _offerLines after a reload cleared it (option IDs repeat across
+  // reloads, so a late arrival would show under the WRONG card).
+  int _offerGen = 0;
+
   // BS-016 S3: Offer lines per option (keyed by optionId).
   // Contains Josi's coach voice for each workout option.
   final Map<String, RealizedLine> _offerLines = {};
@@ -115,6 +121,7 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
     final band = widget.readinessLevel;
     if (band == null) return;
     final date = _dateStr;
+    final gen = ++_offerGen;
 
     for (final option in options) {
       // The engine deserializes the COMPLETE WorkoutOptionData
@@ -131,12 +138,13 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
           readinessLevel: band,
           date: date,
         );
+        // A reload superseded this pass while we awaited — drop the stale
+        // line instead of attaching it to a recycled option ID (#155 review).
+        if (!mounted || gen != _offerGen) return;
         final offerLine = RealizedLine.parse(offerJson);
-        if (mounted) {
-          setState(() {
-            _offerLines[option.optionId] = offerLine;
-          });
-        }
+        setState(() {
+          _offerLines[option.optionId] = offerLine;
+        });
       } catch (e) {
         // Honest absence — keep existing option.why/zonePurpose as fallback
         debugPrint('realizeAdvisoryOffer failed for ${option.optionId}: $e');
