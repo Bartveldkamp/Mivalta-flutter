@@ -2,7 +2,7 @@
 
 **Spec:** BS-012-morning-read.md (MCP Design)
 **Branch:** feature/bs012-morning-read
-**Build SHA:** 3c53bcb
+**Build SHA:** (pending DR-021 commit)
 
 ## Summary
 
@@ -10,11 +10,19 @@ The morning read salience gate — pure Dart service, fully unit-tested. Decides
 whether to fire the morning notification based on Coach presence setting and
 three reasons to speak. Zero new FFI.
 
+## DR-021 Fixes Applied
+
+| Fix | Issue | Resolution |
+|-----|-------|------------|
+| **N1** | Fabricated word "Fatigued" not in engine vocabulary | Use only locked states: Recovered/Productive/Accumulated/Overreached/IllnessRisk |
+| **N2** | level→word mapping in Dart violated "engine words verbatim" | Use `fatigueState` from `viterbiFatigueState()` directly; no translation |
+| **N3** | Wrong color hex values (e.g. #2BD974 instead of #00C6A7) | Use state palette from tokens.dart, not level palette |
+
 ## Files Created
 
 | File | Purpose |
 |------|---------|
-| `lib/services/morning_read_gate.dart` | Salience gate service (187 lines) |
+| `lib/services/morning_read_gate.dart` | Salience gate service (274 lines) |
 | `test/morning_read_gate_test.dart` | 15 decision-table unit tests |
 
 ## Decision Table (15 cases)
@@ -32,18 +40,33 @@ three reasons to speak. Zero new FFI.
 | 9 | Moderate | no | no | yes | **FIRE** | moderate+calibration |
 | 10 | Moderate | no | no | no | **silent** | moderate,no_change |
 | 11 | Moderate | yes* | no | no | **silent** | *already notified today |
-| 12 | — | — | — | — | **silent** | no_state_word (missing indicator) |
+| 12 | — | — | — | — | **silent** | no_state_word (missing fatigue state) |
 | 13 | (unset) | yes | no | no | **FIRE** | default=moderate |
-| 14 | — | — | — | — | — | level→word/color mapping verified |
+| 14 | — | — | — | — | — | 5 locked states → colors verified (N1) |
 | 15 | — | — | — | — | — | markDelivered persistence verified |
 
 ## Engine Integration
 
 The gate reads engine outputs via JSON (no new FFI):
-- `readiness_indicator` → level (Green/Yellow/Orange/Red) → word (Productive/Accumulated/Fatigued/Overreached)
+- `viterbiFatigueState` → state word verbatim (Recovered/Productive/Accumulated/Overreached/IllnessRisk)
 - `pending_advisories` → non-empty list triggers (b)
 - `state_advisory` → advisory text for line 2
 - `validation_report` → sufficiency_bucket for calibration milestone
+
+**Signature change (DR-021 N3):**
+- `evaluate(fatigueStateJson: ...)` replaces `evaluate(readinessIndicatorJson: ...)`
+- `markDelivered(state: ...)` replaces `markDelivered(level: ...)`
+- Pref key `morning_read_last_state` replaces `morning_read_last_level`
+
+## State Color Mapping (locked, from tokens.dart)
+
+| State | Hex |
+|-------|-----|
+| Recovered | #7FE3B0 |
+| Productive | #00C6A7 |
+| Accumulated | #E8C547 |
+| Overreached | #CE7B5A |
+| IllnessRisk | #B85C63 |
 
 ## Scheduling Seam (Honest Naming)
 
@@ -77,25 +100,25 @@ defaults to `moderate` (the spec default).
 ## Verification
 
 ```
-flutter analyze  → (pending)
-flutter test     → 15 tests passed (morning_read_gate_test.dart)
+flutter analyze  → No issues found!
+flutter test     → 15 tests passed
 ```
 
 ## DoD Checklist
 
 - [x] Gate service with three reasons to speak
 - [x] Presence mapping (Off/Quiet/Moderate)
-- [x] State level → word + color mapping
+- [x] Engine words verbatim (DR-021 N1/N2) — fatigueState pass-through
+- [x] Locked state palette colors (DR-021 N3) — from tokens.dart
 - [x] Calibration milestone detection
 - [x] Same-day deduplication (lastDeliveredDate)
 - [x] Unit tests (15 cases, ≥9 required)
-- [x] Engine words verbatim (no fabrication)
+- [x] analyze green
+- [x] test green (15 tests passed)
 - [ ] flutter_local_notifications wiring (blocked: dep not added)
 - [ ] Debug preview row (blocked: You screen not on main)
 - [ ] Witness shots (blocked: Mac-only)
-- [x] analyze green (pending full run)
-- [x] test green (15 tests passed)
 
 ---
 
-*Generated: 2026-07-06*
+*Updated: 2026-07-06 (DR-021 fixes)*

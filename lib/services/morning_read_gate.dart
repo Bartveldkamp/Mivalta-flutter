@@ -4,11 +4,17 @@
 // Pure Dart; fully unit-tested decision table. Zero new FFI.
 //
 // Three reasons to speak (if presence allows):
-// (a) State level CHANGED vs last delivered read
+// (a) Fatigue state CHANGED vs last delivered read
 // (b) Pending advisories non-empty
 // (c) Calibration milestone crossed (sufficiency bucket changed)
 //
 // Otherwise: NOTHING is sent. Silence is a finished state.
+//
+// DR-021 fixes:
+// - N1: Use locked vocabulary only (Recovered/Productive/Accumulated/
+//       Overreached/IllnessRisk — engine words verbatim)
+// - N2: Use fatigueState from viterbiFatigueState(), not level→word mapping
+// - N3: State color hex from tokens.dart state palette (not level palette)
 
 import 'dart:convert';
 
@@ -31,10 +37,11 @@ class MorningReadResult {
   /// Whether the notification should fire.
   final bool shouldFire;
 
-  /// State word from readiness_indicator (e.g. "Productive", "Accumulated").
+  /// State word from viterbiFatigueState — engine verbatim
+  /// (Recovered/Productive/Accumulated/Overreached/IllnessRisk).
   final String? stateWord;
 
-  /// State color hex for the dot (e.g. "#2BD974").
+  /// State color hex from tokens.dart state palette (e.g. "#00C6A7").
   final String? stateColor;
 
   /// Advisory text for line 2 (from state_advisory or realized line).
@@ -62,7 +69,7 @@ class MorningReadGate {
   final SharedPreferences prefs;
 
   // Preference keys.
-  static const _keyLastDeliveredLevel = 'morning_read_last_level';
+  static const _keyLastDeliveredState = 'morning_read_last_state';
   static const _keyLastDeliveredDate = 'morning_read_last_date';
   static const _keyLastCalibrationBucket = 'morning_read_last_calibration';
   static const _keyCoachPresence = 'coach_presence';
@@ -70,12 +77,12 @@ class MorningReadGate {
   /// Evaluate the gate and return the result.
   ///
   /// Parameters are parsed JSON from the engine FFI calls:
-  /// - [readinessIndicatorJson]: from readiness_indicator()
+  /// - [fatigueStateJson]: from viterbiFatigueState() — the engine's state word
   /// - [pendingAdvisoriesJson]: from pending_advisories()
   /// - [stateAdvisoryJson]: from state_advisory()
   /// - [validationReportJson]: from validation_report()
   MorningReadResult evaluate({
-    required String? readinessIndicatorJson,
+    required String? fatigueStateJson,
     required String? pendingAdvisoriesJson,
     required String? stateAdvisoryJson,
     required String? validationReportJson,
@@ -90,15 +97,16 @@ class MorningReadGate {
     }
 
     // 2. Parse engine outputs.
-    final indicator = _parseJson(readinessIndicatorJson);
+    final fatigueState = _parseJson(fatigueStateJson);
     final advisories = _parseJsonList(pendingAdvisoriesJson);
     final stateAdvisory = _parseJson(stateAdvisoryJson);
     final validation = _parseJson(validationReportJson);
 
-    // Extract state level.
-    final currentLevel = indicator?['level'] as String?;
-    final stateWord = _levelToWord(currentLevel);
-    final stateColor = _levelToColor(currentLevel);
+    // Extract fatigue state — engine word verbatim (N1/N2).
+    // viterbiFatigueState returns {"state": "Productive", ...}
+    final currentState = fatigueState?['state'] as String?;
+    final stateWord = currentState; // Engine word verbatim, no mapping
+    final stateColor = _stateToColor(currentState);
 
     // Extract advisory text.
     final advisoryText = stateAdvisory?['advisory'] as String? ??
@@ -106,17 +114,17 @@ class MorningReadGate {
         '';
 
     // 3. Check the three reasons.
-    final lastLevel = prefs.getString(_keyLastDeliveredLevel);
+    final lastState = prefs.getString(_keyLastDeliveredState);
     final lastDate = prefs.getString(_keyLastDeliveredDate);
     final lastCalibration = prefs.getString(_keyLastCalibrationBucket);
 
     final today = _todayDateString();
     final currentCalibration = validation?['sufficiency_bucket'] as String?;
 
-    // (a) State level changed?
-    final stateChanged = currentLevel != null &&
-        lastLevel != null &&
-        currentLevel != lastLevel &&
+    // (a) Fatigue state changed?
+    final stateChanged = currentState != null &&
+        lastState != null &&
+        currentState != lastState &&
         lastDate != today;
 
     // (b) Pending advisories non-empty?
@@ -188,12 +196,12 @@ class MorningReadGate {
 
   /// Mark that a notification was delivered. Call after successful fire.
   void markDelivered({
-    required String? level,
+    required String? state,
     required String? calibrationBucket,
   }) {
     final today = _todayDateString();
-    if (level != null) {
-      prefs.setString(_keyLastDeliveredLevel, level);
+    if (state != null) {
+      prefs.setString(_keyLastDeliveredState, state);
     }
     prefs.setString(_keyLastDeliveredDate, today);
     if (calibrationBucket != null) {
@@ -239,37 +247,20 @@ class MorningReadGate {
     }
   }
 
-  /// Map level to display word.
-  String? _levelToWord(String? level) {
-    switch (level?.toLowerCase()) {
-      case 'green':
-        return 'Productive';
-      case 'yellow':
-        return 'Accumulated';
-      case 'orange':
-        return 'Fatigued';
-      case 'red':
-        return 'Overreached';
-      default:
-        return level; // Pass through if already a word.
-    }
-  }
-
-  /// Map level to color hex.
-  String? _levelToColor(String? level) {
-    switch (level?.toLowerCase()) {
-      case 'green':
+  /// Map fatigue state to color hex — locked state palette from tokens.dart.
+  /// Engine word verbatim; only the 5 locked states are recognized.
+  String? _stateToColor(String? state) {
+    switch (state?.toLowerCase()) {
+      case 'recovered':
+        return '#7FE3B0';
       case 'productive':
-        return '#2BD974';
-      case 'yellow':
+        return '#00C6A7';
       case 'accumulated':
-        return '#E6872F';
-      case 'orange':
-      case 'fatigued':
-        return '#E65C2F';
-      case 'red':
+        return '#E8C547';
       case 'overreached':
-        return '#E63946';
+        return '#CE7B5A';
+      case 'illnessrisk':
+        return '#B85C63';
       default:
         return null;
     }

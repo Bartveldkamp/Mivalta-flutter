@@ -1,7 +1,10 @@
-// Morning read gate unit tests — BS-012
+// Morning read gate unit tests — BS-012 + DR-021
 //
 // Tests the salience gate decision table.
 // Contract: ≥9 presence × reason combinations.
+//
+// DR-021: Uses engine fatigueState verbatim (Recovered/Productive/Accumulated/
+// Overreached/IllnessRisk) and locked state-palette hex from tokens.dart.
 
 import 'dart:convert';
 
@@ -25,8 +28,9 @@ void main() {
     }
 
     // Helper to create engine JSON outputs.
-    String indicatorJson(String level) =>
-        jsonEncode({'level': level, 'score': 75, 'confidence': 0.8});
+    // DR-021: fatigue state from viterbiFatigueState(), engine words verbatim.
+    String fatigueStateJson(String state) =>
+        jsonEncode({'state': state, 'confidence': 0.8});
 
     String advisoriesJson(List<String> advisories) => jsonEncode(advisories);
 
@@ -42,12 +46,12 @@ void main() {
     test('1. Off + state change + advisory + calibration → silent', () {
       final gate = gateWithPresence('off');
       // Seed previous state.
-      prefs.setString('morning_read_last_level', 'Yellow');
+      prefs.setString('morning_read_last_state', 'Accumulated');
       prefs.setString('morning_read_last_date', '2024-01-01');
       prefs.setString('morning_read_last_calibration', 'low');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson(['Take it easy']),
         stateAdvisoryJson: stateAdvisoryJson('You are recovered.'),
         validationReportJson: validationJson('medium'),
@@ -61,7 +65,7 @@ void main() {
       final gate = gateWithPresence('off');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson(''),
         validationReportJson: validationJson('low'),
@@ -74,7 +78,7 @@ void main() {
       final gate = gateWithPresence('off');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson(['Rest today']),
         stateAdvisoryJson: stateAdvisoryJson('Rest advisory.'),
         validationReportJson: validationJson('low'),
@@ -89,11 +93,11 @@ void main() {
 
     test('4. Quiet + state change only → silent', () {
       final gate = gateWithPresence('quiet');
-      prefs.setString('morning_read_last_level', 'Yellow');
+      prefs.setString('morning_read_last_state', 'Accumulated');
       prefs.setString('morning_read_last_date', '2024-01-01');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson(''),
         validationReportJson: validationJson('low'),
@@ -108,15 +112,15 @@ void main() {
       final gate = gateWithPresence('quiet');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson(['Take it easy today']),
         stateAdvisoryJson: stateAdvisoryJson('High load this week.'),
         validationReportJson: validationJson('low'),
       );
 
       expect(result.shouldFire, true, reason: 'Quiet fires for advisories');
-      expect(result.stateWord, 'Productive');
-      expect(result.stateColor, '#2BD974');
+      expect(result.stateWord, 'Productive'); // Engine word verbatim
+      expect(result.stateColor, '#00C6A7'); // tokens.dart stateProductive
       expect(result.advisoryText, 'High load this week.');
       expect(result.reason, contains('advisory'));
     });
@@ -127,7 +131,7 @@ void main() {
       prefs.setString('morning_read_last_date', '2024-01-01');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson(''),
         validationReportJson: validationJson('medium'),
@@ -143,11 +147,11 @@ void main() {
 
     test('7. Moderate + state change → FIRE', () {
       final gate = gateWithPresence('moderate');
-      prefs.setString('morning_read_last_level', 'Yellow');
+      prefs.setString('morning_read_last_state', 'Accumulated');
       prefs.setString('morning_read_last_date', '2024-01-01');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('You recovered overnight.'),
         validationReportJson: validationJson('low'),
@@ -163,7 +167,7 @@ void main() {
       final gate = gateWithPresence('moderate');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Yellow'),
+        fatigueStateJson: fatigueStateJson('Accumulated'),
         pendingAdvisoriesJson: advisoriesJson(['Consider rest']),
         stateAdvisoryJson: stateAdvisoryJson('Fatigue accumulating.'),
         validationReportJson: validationJson('low'),
@@ -171,8 +175,8 @@ void main() {
 
       expect(result.shouldFire, true,
           reason: 'Moderate fires for advisories');
-      expect(result.stateWord, 'Accumulated');
-      expect(result.stateColor, '#E6872F');
+      expect(result.stateWord, 'Accumulated'); // Engine word verbatim
+      expect(result.stateColor, '#E8C547'); // tokens.dart stateAccumulated
       expect(result.reason, contains('advisory'));
     });
 
@@ -182,7 +186,7 @@ void main() {
       prefs.setString('morning_read_last_date', '2024-01-01');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('Your readings are validated.'),
         validationReportJson: validationJson('medium'),
@@ -195,12 +199,12 @@ void main() {
 
     test('10. Moderate + no change + no advisory + no calibration → silent', () {
       final gate = gateWithPresence('moderate');
-      // Same level as last time.
-      prefs.setString('morning_read_last_level', 'Green');
+      // Same state as last time.
+      prefs.setString('morning_read_last_state', 'Productive');
       prefs.setString('morning_read_last_calibration', 'low');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson(''),
         validationReportJson: validationJson('low'),
@@ -217,11 +221,11 @@ void main() {
       final today = DateTime.now();
       final todayStr =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      prefs.setString('morning_read_last_level', 'Yellow');
+      prefs.setString('morning_read_last_state', 'Accumulated');
       prefs.setString('morning_read_last_date', todayStr);
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson(''),
         validationReportJson: validationJson('low'),
@@ -239,7 +243,7 @@ void main() {
       final gate = gateWithPresence('moderate');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: null, // No indicator data.
+        fatigueStateJson: null, // No fatigue state data.
         pendingAdvisoriesJson: advisoriesJson(['Something']),
         stateAdvisoryJson: stateAdvisoryJson('Advisory'),
         validationReportJson: validationJson('low'),
@@ -252,11 +256,11 @@ void main() {
     test('13. Default presence (not set) = moderate', () {
       // Don't set presence.
       final gate = MorningReadGate(prefs: prefs);
-      prefs.setString('morning_read_last_level', 'Yellow');
+      prefs.setString('morning_read_last_state', 'Accumulated');
       prefs.setString('morning_read_last_date', '2024-01-01');
 
       final result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('Good morning.'),
         validationReportJson: validationJson('low'),
@@ -266,61 +270,72 @@ void main() {
           reason: 'Default presence is moderate');
     });
 
-    test('14. All state levels map to correct words and colors', () {
+    test('14. All 5 locked states map to correct colors (N1 vocabulary)', () {
       final gate = gateWithPresence('moderate');
-      prefs.setString('morning_read_last_level', 'Red');
+      prefs.setString('morning_read_last_state', 'IllnessRisk');
       prefs.setString('morning_read_last_date', '2024-01-01');
 
-      // Green → Productive.
+      // Recovered → #7FE3B0
       var result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Green'),
+        fatigueStateJson: fatigueStateJson('Recovered'),
+        pendingAdvisoriesJson: advisoriesJson([]),
+        stateAdvisoryJson: stateAdvisoryJson('Test'),
+        validationReportJson: validationJson('low'),
+      );
+      expect(result.stateWord, 'Recovered');
+      expect(result.stateColor, '#7FE3B0');
+
+      // Productive → #00C6A7
+      prefs.setString('morning_read_last_state', 'Recovered');
+      result = gate.evaluate(
+        fatigueStateJson: fatigueStateJson('Productive'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('Test'),
         validationReportJson: validationJson('low'),
       );
       expect(result.stateWord, 'Productive');
-      expect(result.stateColor, '#2BD974');
+      expect(result.stateColor, '#00C6A7');
 
-      // Yellow → Accumulated.
-      prefs.setString('morning_read_last_level', 'Green');
+      // Accumulated → #E8C547
+      prefs.setString('morning_read_last_state', 'Productive');
       result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Yellow'),
+        fatigueStateJson: fatigueStateJson('Accumulated'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('Test'),
         validationReportJson: validationJson('low'),
       );
       expect(result.stateWord, 'Accumulated');
-      expect(result.stateColor, '#E6872F');
+      expect(result.stateColor, '#E8C547');
 
-      // Orange → Fatigued.
-      prefs.setString('morning_read_last_level', 'Yellow');
+      // Overreached → #CE7B5A
+      prefs.setString('morning_read_last_state', 'Accumulated');
       result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Orange'),
-        pendingAdvisoriesJson: advisoriesJson([]),
-        stateAdvisoryJson: stateAdvisoryJson('Test'),
-        validationReportJson: validationJson('low'),
-      );
-      expect(result.stateWord, 'Fatigued');
-      expect(result.stateColor, '#E65C2F');
-
-      // Red → Overreached.
-      prefs.setString('morning_read_last_level', 'Orange');
-      result = gate.evaluate(
-        readinessIndicatorJson: indicatorJson('Red'),
+        fatigueStateJson: fatigueStateJson('Overreached'),
         pendingAdvisoriesJson: advisoriesJson([]),
         stateAdvisoryJson: stateAdvisoryJson('Test'),
         validationReportJson: validationJson('low'),
       );
       expect(result.stateWord, 'Overreached');
-      expect(result.stateColor, '#E63946');
+      expect(result.stateColor, '#CE7B5A');
+
+      // IllnessRisk → #B85C63
+      prefs.setString('morning_read_last_state', 'Overreached');
+      result = gate.evaluate(
+        fatigueStateJson: fatigueStateJson('IllnessRisk'),
+        pendingAdvisoriesJson: advisoriesJson([]),
+        stateAdvisoryJson: stateAdvisoryJson('Test'),
+        validationReportJson: validationJson('low'),
+      );
+      expect(result.stateWord, 'IllnessRisk');
+      expect(result.stateColor, '#B85C63');
     });
 
     test('15. markDelivered persists state for next evaluation', () {
       final gate = gateWithPresence('moderate');
 
-      gate.markDelivered(level: 'Green', calibrationBucket: 'high');
+      gate.markDelivered(state: 'Productive', calibrationBucket: 'high');
 
-      expect(prefs.getString('morning_read_last_level'), 'Green');
+      expect(prefs.getString('morning_read_last_state'), 'Productive');
       expect(prefs.getString('morning_read_last_calibration'), 'high');
       expect(prefs.getString('morning_read_last_date'), isNotNull);
     });
