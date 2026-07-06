@@ -5,10 +5,13 @@
 // Every toggle reflects REAL state read at open — no optimistic UI lies.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/learning_status.dart';
@@ -487,7 +490,7 @@ class _YouScreenState extends State<YouScreen> {
       title: 'Your data, your device',
       icon: Icons.lock_outline,
       children: [
-        // Promise banner.
+        // Promise banner (BS-017: expectation-setting copy).
         Container(
           padding: const EdgeInsets.all(MivaltaSpace.x3),
           decoration: BoxDecoration(
@@ -508,7 +511,9 @@ class _YouScreenState extends State<YouScreen> {
               const SizedBox(width: MivaltaSpace.x2),
               Expanded(
                 child: Text(
-                  'Computed on your phone. Your biometrics never leave this device.',
+                  'Computed on your phone. Your health data never leaves this '
+                  'device, and it is never in your phone backups. To move it '
+                  'to a new phone, use the encrypted export.',
                   style: MivaltaType.small.copyWith(
                     color: MivaltaColors.textPrimary,
                     height: 1.4,
@@ -532,11 +537,21 @@ class _YouScreenState extends State<YouScreen> {
 
         const SizedBox(height: MivaltaSpace.x3),
 
-        // Export button.
+        // Encrypted export (BS-017: device migration path).
+        _ActionRow(
+          icon: Icons.folder_special_outlined,
+          label: 'Take your data with you',
+          subtitle: 'Passphrase-protected file for new device',
+          onTap: _exportEncryptedVault,
+        ),
+
+        const SizedBox(height: MivaltaSpace.x3),
+
+        // CSV export (analytics/research).
         _ActionRow(
           icon: Icons.download_outlined,
-          label: 'Export my data',
-          subtitle: 'CSV file with your biometrics',
+          label: 'Export readings as CSV',
+          subtitle: 'Spreadsheet of your biometrics — not for moving phones',
           onTap: _exportData,
         ),
 
@@ -546,7 +561,7 @@ class _YouScreenState extends State<YouScreen> {
         _DangerActionRow(
           icon: Icons.delete_forever_outlined,
           label: 'Erase everything',
-          subtitle: 'Destroys the key — data is gone, instantly',
+          subtitle: 'Destroys the key — no backup copy survives',
           onTap: _confirmErase,
         ),
       ],
@@ -685,38 +700,16 @@ class _YouScreenState extends State<YouScreen> {
       // Export last 90 days.
       final csv = await binding.exportBiometricsCsv(handle, days: 90);
 
-      // Show share sheet (simplified — would use share_plus).
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: MivaltaColors.surface1,
-            title: Text(
-              'Export ready',
-              style: MivaltaType.cardTitle.copyWith(
-                color: MivaltaColors.textPrimary,
-              ),
-            ),
-            content: Text(
-              'CSV data (${csv.length} bytes) ready to share.',
-              style: MivaltaType.body.copyWith(
-                color: MivaltaColors.textSecondary,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'Done',
-                  style: MivaltaType.body.copyWith(
-                    color: MivaltaColors.stateProductive,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }
+      // Write to temp file and share via system share sheet.
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().toIso8601String().split('T').first;
+      final file = File('${tempDir.path}/mivalta_export_$timestamp.csv');
+      await file.writeAsString(csv);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'MiValta Export',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -724,6 +717,144 @@ class _YouScreenState extends State<YouScreen> {
         );
       }
     }
+  }
+
+  /// BS-017: Encrypted vault export for device migration.
+  Future<void> _exportEncryptedVault() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+
+    final athleteId = _profile?['athlete_id'] as String?;
+    if (athleteId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No profile to export')),
+        );
+      }
+      return;
+    }
+
+    // Prompt for passphrase.
+    final passphrase = await _promptPassphrase();
+    if (passphrase == null || passphrase.isEmpty) return;
+
+    try {
+      // Export encrypted vault.
+      final bytes = await binding.exportEncryptedVault(
+        handle,
+        athleteId: athleteId,
+        passphrase: passphrase,
+      );
+
+      // Write to temp file and share via system share sheet.
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().toIso8601String().split('T').first;
+      final file = File('${tempDir.path}/mivalta_backup_$timestamp.mvbackup');
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'MiValta Encrypted Backup',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+  /// BS-017: Prompt for passphrase (two fields for confirm).
+  Future<String?> _promptPassphrase() async {
+    String passphrase = '';
+    String confirm = '';
+    String? error;
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: MivaltaColors.surface1,
+          title: Text(
+            'Create passphrase',
+            style: MivaltaType.cardTitle.copyWith(
+              color: MivaltaColors.textPrimary,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This passphrase encrypts your backup. You will need it to '
+                'restore on a new device. If you forget it, your backup '
+                'cannot be recovered.',
+                style: MivaltaType.small.copyWith(
+                  color: MivaltaColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: MivaltaSpace.x3),
+              TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Passphrase',
+                  errorText: error,
+                ),
+                onChanged: (v) => setState(() {
+                  passphrase = v;
+                  error = null;
+                }),
+              ),
+              const SizedBox(height: MivaltaSpace.x2),
+              TextField(
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm passphrase',
+                ),
+                onChanged: (v) => setState(() {
+                  confirm = v;
+                  error = null;
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: MivaltaType.body.copyWith(
+                  color: MivaltaColors.textMuted,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                // B3: No Dart-side passphrase rule — engine validates.
+                // Only check confirm match (UX, not security).
+                if (passphrase.isEmpty) {
+                  setState(() => error = 'Passphrase required');
+                  return;
+                }
+                if (passphrase != confirm) {
+                  setState(() => error = 'Passphrases do not match');
+                  return;
+                }
+                Navigator.pop(ctx, passphrase);
+              },
+              child: Text(
+                'Create backup',
+                style: MivaltaType.body.copyWith(
+                  color: MivaltaColors.stateProductive,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmErase() async {
@@ -744,7 +875,8 @@ class _YouScreenState extends State<YouScreen> {
           '• All biometric history\n'
           '• All workout data\n'
           '• The learning model\n\n'
-          'This cannot be undone.',
+          'This cannot be undone. Your data is not in phone backups, '
+          'so no copy survives.',
           style: MivaltaType.body.copyWith(
             color: MivaltaColors.textSecondary,
             height: 1.5,
@@ -788,7 +920,8 @@ class _YouScreenState extends State<YouScreen> {
           ),
         ),
         content: Text(
-          'This is permanent. Your data will be crypto-erased immediately.',
+          'This is permanent. Your data will be crypto-erased immediately. '
+          'No backup copy survives — deletion is final.',
           style: MivaltaType.body.copyWith(
             color: MivaltaColors.textSecondary,
           ),

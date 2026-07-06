@@ -634,6 +634,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               textAlign: TextAlign.center,
             ),
+
+            const SizedBox(height: MivaltaSpace.x4),
+
+            // BS-017: Restore sentence (backup sovereignty UX).
+            Text(
+              'Restored your phone? Your MiValta data stays out of phone backups by design — import your encrypted export, or start fresh.',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
