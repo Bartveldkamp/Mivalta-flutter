@@ -543,7 +543,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-        // Sub — with bold clause
+        // Sub — BS-001a locked copy: data sovereignty, not cloud sync
         RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
@@ -554,9 +554,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               color: MivaltaColors.textPrimary.withValues(alpha: 0.55),
             ),
             children: [
-              const TextSpan(text: 'It carries your program and tier between devices. '),
+              const TextSpan(text: 'It holds your email and your tier — nothing else.\n'),
               TextSpan(
-                text: 'Your health data never leaves this phone.',
+                text: 'Your body, your data: everything MiValta learns stays on this phone.',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

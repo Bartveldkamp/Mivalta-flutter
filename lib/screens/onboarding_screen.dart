@@ -616,34 +616,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
-            // Sub
+            // BS-002a: ONE clean privacy line (locked copy)
             Text(
-              "Everything is computed on your phone. We can't see it — and we built it that way. Let's set MiValta up for you.",
+              'MiValta runs entirely on this phone. Nothing you enter ever leaves it.',
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
 
-            const SizedBox(height: MivaltaSpace.x4),
+            const SizedBox(height: MivaltaSpace.x5),
 
-            // v3: Added privacy line (bolded)
-            Text(
-              'Nothing you enter here — or ever — leaves your phone. No server, no cloud. MiValta cannot read it.',
-              style: MivaltaType.body.copyWith(
-                color: MivaltaColors.textPrimary,
-                fontWeight: FontWeight.w600,
+            // BS-002a: Restore link (tappable, no explanation — detail behind tap)
+            GestureDetector(
+              onTap: () {
+                // TODO: BS-017 F4 sheet — encrypted export restore flow
+                debugPrint('Restore from encrypted export tapped (stub)');
+              },
+              child: Text(
+                'Restoring from an encrypted export?',
+                style: MivaltaType.small.copyWith(
+                  color: MivaltaColors.textMuted,
+                  decoration: TextDecoration.underline,
+                  decorationColor: MivaltaColors.textMuted,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: MivaltaSpace.x4),
-
-            // BS-017: Restore sentence (backup sovereignty UX).
-            Text(
-              'Restored your phone? Your MiValta data stays out of phone backups by design — import your encrypted export, or start fresh.',
-              style: MivaltaType.small.copyWith(
-                color: MivaltaColors.textMuted,
-              ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -672,8 +668,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x2),
 
+          // BS-002b: Flow framing on first question (locked copy)
           Text(
-            "More sports are coming — pick the one MiValta should coach first.",
+            "Six quick questions set your starting zones and your first plan — about a minute, and you can change any of it later in You. First: what should MiValta coach? More sports are coming.",
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
