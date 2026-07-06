@@ -880,13 +880,13 @@
       "zone": "Z3"
     },
     {
-      "purpose_full": "VO2max development — increases oxygen delivery to muscles",
-      "purpose_short": "VO2max development",
+      "purpose_full": "Lactate threshold — extends sustainable power at threshold",
+      "purpose_short": "lactate threshold",
       "zone": "Z4"
     },
     {
-      "purpose_full": "Anaerobic threshold — extends time at high intensity",
-      "purpose_short": "anaerobic threshold",
+      "purpose_full": "VO2max development — increases oxygen delivery to muscles",
+      "purpose_short": "VO2max development",
       "zone": "Z5"
     },
     {
@@ -4037,6 +4037,18 @@
     {
       "archetype": "general",
       "goal_class": "finish",
+      "goal_type": "endurance",
+      "sport": "any"
+    },
+    {
+      "archetype": "general",
+      "goal_class": "performance",
+      "goal_type": "endurance",
+      "sport": "any"
+    },
+    {
+      "archetype": "general",
+      "goal_class": "finish",
       "goal_type": "weight_loss",
       "sport": "any"
     },
@@ -5238,78 +5250,332 @@
       "pattern": "continuous"
     }
   ],
+  "josi_advisor_lines:advisory_offer_lines": [
+    {
+      "readiness_band": "green",
+      "template": "You're fresh, so let's use it — {session}, about {duration_min}. This should feel good today.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "readiness_band": "green",
+      "template": "Today's a good day for {session} — around {duration_min}. Settle in and enjoy the work.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "readiness_band": "green",
+      "template": "Everything says go: {session}, {duration_min}. Have fun with it.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "readiness_band": "yellow",
+      "template": "You're a touch tired, so {session} fits well today — about {duration_min} at a comfortable effort.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "readiness_band": "yellow",
+      "template": "Middle sort of day, so we keep it sensible: {session}, around {duration_min}. Comfortable is the word.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "readiness_band": "yellow",
+      "template": "{session} today — {duration_min}, nothing forced. It keeps you moving forward without digging in.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "readiness_band": "orange",
+      "template": "Your body wants an easier day, so the plan is {session} — a gentle {duration_min}. Think smooth, not strong.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "readiness_band": "orange",
+      "template": "We keep it light today: {session}, about {duration_min}. The point is to help recovery along, not to add load.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "readiness_band": "orange",
+      "template": "Less is the right call today. {session} for {duration_min} keeps you moving without digging the hole deeper.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "readiness_band": "red",
+      "template": "Today is for backing off — if anything, {session}, a short {duration_min}, and only if it feels right.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "readiness_band": "red",
+      "template": "Recovery leads today; {session} is the most that makes sense, about {duration_min}.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "readiness_band": "red",
+      "template": "The suggestion stays minimal — {session}, {duration_min}, with rest as the real goal.",
+      "tone": "any",
+      "variant_id": "c"
+    }
+  ],
+  "josi_advisor_lines:day_summary_lines": [
+    {
+      "day_shape": "rest",
+      "template": "Rest day — nothing in the log, and that's exactly fine. This is where the training sinks in.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "day_shape": "rest",
+      "template": "No sessions today. Good — your body uses days like this to get stronger.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "day_shape": "rest",
+      "template": "An empty log today, and no guilt about it. Rest is part of the plan, not a break from it.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "day_shape": "single_session",
+      "template": "The day's work is in: {sport}, {duration_min} — banked and counted.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "day_shape": "single_session",
+      "template": "A focused day — {duration_min} of {sport} carried today's training.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "day_shape": "single_session",
+      "template": "Today came down to the {sport}: {duration_min}, logged and done.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "day_shape": "multi_session",
+      "template": "That was a proper day of training — {activities_count} sessions and {duration_min} of work between them. Worth a good meal and an early night.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "day_shape": "multi_session",
+      "template": "You stacked it up today — {activities_count} sessions, {duration_min} all told. Tomorrow will thank you for a calm evening.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "day_shape": "multi_session",
+      "template": "A big day in the legs — {activities_count} sessions and {duration_min} of training. Let recovery do its part tonight.",
+      "tone": "any",
+      "variant_id": "c"
+    }
+  ],
   "josi_advisor_lines:headline_lines": [
     {
       "headline_key": "readiness",
-      "template": "You're {state} today, and readiness is sitting comfortably at {readiness_score}.",
+      "template": "You're looking fresh today — readiness is right up at {readiness_score}. Lovely day to do something with it.",
+      "tone": "any",
       "urgency_band": "low",
       "variant_id": "a"
     },
     {
       "headline_key": "readiness",
-      "template": "Good place to be — {state}, with readiness at {readiness_score}.",
+      "template": "Good place to be: {state}, readiness {readiness_score}. Enjoy this feeling — it's earned.",
+      "tone": "any",
       "urgency_band": "low",
       "variant_id": "b"
     },
     {
       "headline_key": "readiness",
-      "template": "You're {state} — readiness is at {readiness_score}, so there's room to work but keep an eye on it.",
+      "template": "Readiness is up at {readiness_score} and you're {state}. If you've got plans today, your body's on board.",
+      "tone": "any",
+      "urgency_band": "low",
+      "variant_id": "c"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "{state}, readiness {readiness_score} — you've got a green light today. Make it count.",
+      "tone": "any",
+      "urgency_band": "low",
+      "variant_id": "d"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "You're {state} today — readiness {readiness_score}. There's room to work, just keep something in the tank.",
+      "tone": "any",
       "urgency_band": "moderate",
       "variant_id": "a"
     },
     {
       "headline_key": "readiness",
-      "template": "Readiness reads {readiness_score} and you're {state}; a measured day suits this.",
+      "template": "Readiness reads {readiness_score} and you're {state}. A steady day suits you better than a hero day.",
+      "tone": "any",
       "urgency_band": "moderate",
       "variant_id": "b"
     },
     {
       "headline_key": "readiness",
-      "template": "Readiness has dropped to {readiness_score} and you're {state} — ease back today.",
+      "template": "{state}, readiness {readiness_score} — nothing wrong with today, just don't force it.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "c"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Readiness sits at {readiness_score} and you're {state}. Train, but leave a little in reserve.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "d"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Readiness is down to {readiness_score} and you're {state}. Nothing to panic about — an easy day now buys you a better week.",
+      "tone": "any",
       "urgency_band": "high",
       "variant_id": "a"
     },
     {
       "headline_key": "readiness",
-      "template": "You're {state} with readiness down at {readiness_score}; treat today as a lighter one.",
+      "template": "You're {state} with readiness at {readiness_score}. Take the gentle option today; you've earned the break.",
+      "tone": "any",
       "urgency_band": "high",
       "variant_id": "b"
     },
     {
       "headline_key": "readiness",
-      "template": "Your body is asking for recovery — you're {state}, readiness at {readiness_score}.",
+      "template": "Readiness reads {readiness_score} today and you're {state}. Go easy — your next good session is behind a bit of rest.",
+      "tone": "any",
+      "urgency_band": "high",
+      "variant_id": "c"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "{state}, readiness {readiness_score}. Today's job is simple: keep it light and let your body catch up.",
+      "tone": "any",
+      "urgency_band": "high",
+      "variant_id": "d"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Your body is asking for recovery — readiness is down at {readiness_score}. You can take today off with a clear conscience; this is how you come back strong.",
+      "tone": "any",
       "urgency_band": "critical",
       "variant_id": "a"
     },
     {
       "headline_key": "readiness",
-      "template": "Recovery first today: {state}, readiness down at {readiness_score}.",
+      "template": "Rest first today — readiness is at {readiness_score} and your body is clearly asking for a break. We pick it back up when you're ready.",
+      "tone": "any",
       "urgency_band": "critical",
       "variant_id": "b"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Readiness has dropped to {readiness_score}, and that's your body being honest with you. Give it the day — sleep, food, feet up.",
+      "tone": "any",
+      "urgency_band": "critical",
+      "variant_id": "c"
+    },
+    {
+      "headline_key": "readiness",
+      "template": "Today is a real rest day — readiness {readiness_score}. Nothing you'd gain today is worth the recovery you'd skip.",
+      "tone": "any",
+      "urgency_band": "critical",
+      "variant_id": "d"
     },
     {
       "headline_key": "physio_zscore",
       "template": "Recovery is paying off — your readiness is up at {readiness_score}.",
+      "tone": "any",
       "urgency_band": "low",
       "variant_id": "a"
     },
     {
       "headline_key": "physio_zscore",
-      "template": "Your recovery markers look strong today; readiness sits at {readiness_score}.",
+      "template": "Your body's bounced back nicely — readiness sits at {readiness_score}.",
+      "tone": "any",
       "urgency_band": "low",
       "variant_id": "b"
     },
     {
       "headline_key": "physio_zscore",
-      "template": "Your recovery signals are holding, with readiness at {readiness_score}.",
+      "template": "Your recovery is holding steady, with readiness at {readiness_score}.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "physio_zscore",
+      "template": "Recovery is coming along — readiness at {readiness_score}, worth keeping an eye on.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "banister",
+      "template": "Your fitness is carrying you well — readiness at {readiness_score}, {state}.",
+      "tone": "any",
+      "urgency_band": "low",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "banister",
+      "template": "The training is banking fitness — you're {state} with readiness at {readiness_score}.",
+      "tone": "any",
+      "urgency_band": "low",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "banister",
+      "template": "Fitness and fatigue are balancing out — readiness reads {readiness_score}.",
+      "tone": "any",
       "urgency_band": "moderate",
       "variant_id": "a"
     },
     {
       "headline_key": "banister",
-      "template": "Your fitness is carrying you well — readiness at {readiness_score}, {state}.",
+      "template": "The load is showing next to the fitness it builds; readiness at {readiness_score}.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "psychological",
+      "template": "Head and body agree today — you're {state}, readiness at {readiness_score}.",
+      "tone": "any",
       "urgency_band": "low",
       "variant_id": "a"
+    },
+    {
+      "headline_key": "psychological",
+      "template": "Good headspace on board, and readiness backs it up at {readiness_score}.",
+      "tone": "any",
+      "urgency_band": "low",
+      "variant_id": "b"
+    },
+    {
+      "headline_key": "psychological",
+      "template": "Your headspace deserves a look today; readiness reads {readiness_score}.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "a"
+    },
+    {
+      "headline_key": "psychological",
+      "template": "Mind a touch flatter than the body — readiness at {readiness_score}; keep the day kind.",
+      "tone": "any",
+      "urgency_band": "moderate",
+      "variant_id": "b"
     }
   ],
   "josi_advisor_lines:no_data_line": [
@@ -5318,26 +5584,178 @@
       "variant_id": "a"
     },
     {
-      "template": "A few more days of data and Josi can start reading your recovery.",
+      "template": "We're still getting to know you — a few more days of data and the picture gets much clearer.",
       "variant_id": "b"
+    },
+    {
+      "template": "Not enough data yet to be honest about your recovery — and honest is the only way this works. A few more days fills it in.",
+      "variant_id": "c"
+    }
+  ],
+  "josi_advisor_lines:state_display": [
+    {
+      "display": "recovered",
+      "state": "Recovered"
+    },
+    {
+      "display": "in a productive stretch",
+      "state": "Productive"
+    },
+    {
+      "display": "carrying some fatigue",
+      "state": "Accumulated"
+    },
+    {
+      "display": "worn down",
+      "state": "Overreached"
+    },
+    {
+      "display": "at illness risk",
+      "state": "IllnessRisk"
     }
   ],
   "josi_advisor_lines:supporting_clauses": [
     {
       "clause_template": "readiness at {readiness_score}",
-      "finding_key": "readiness"
+      "finding_key": "readiness",
+      "polarity": "neutral"
     },
     {
-      "clause_template": "your recovery markers look strong",
-      "finding_key": "physio_zscore"
+      "clause_template": "your body is recovering well",
+      "finding_key": "physio_zscore",
+      "polarity": "positive"
+    },
+    {
+      "clause_template": "your recovery is still settling",
+      "finding_key": "physio_zscore",
+      "polarity": "neutral"
+    },
+    {
+      "clause_template": "your body is still catching up",
+      "finding_key": "physio_zscore",
+      "polarity": "negative"
     },
     {
       "clause_template": "your fitness is holding",
-      "finding_key": "banister"
+      "finding_key": "banister",
+      "polarity": "positive"
+    },
+    {
+      "clause_template": "fitness and fatigue are about level",
+      "finding_key": "banister",
+      "polarity": "neutral"
+    },
+    {
+      "clause_template": "fatigue is outweighing fitness right now",
+      "finding_key": "banister",
+      "polarity": "negative"
     },
     {
       "clause_template": "and you're in a good frame of mind",
-      "finding_key": "psychological"
+      "finding_key": "psychological",
+      "polarity": "positive"
+    },
+    {
+      "clause_template": "and your headspace is worth a check-in",
+      "finding_key": "psychological",
+      "polarity": "neutral"
+    },
+    {
+      "clause_template": "and your headspace deserves some care too",
+      "finding_key": "psychological",
+      "polarity": "negative"
+    }
+  ],
+  "josi_advisor_lines:workout_reflection_lines": [
+    {
+      "grade": "excellent",
+      "template": "That was a genuinely good {sport} — {duration_min}, and you nailed what it was meant to be. Days like this are where the fitness comes from.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "grade": "excellent",
+      "template": "Beautiful work out there — {duration_min} of {sport}, executed just right. Be proud of that.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "grade": "excellent",
+      "template": "That {sport} went exactly how you'd want it to — {duration_min}, controlled all the way. More of this and you're flying.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "grade": "good",
+      "template": "Solid {sport} today — {duration_min} of honest work. That's you moving forward.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "grade": "good",
+      "template": "Good session in the books: {duration_min} of {sport}. Keep stacking days like this and it adds up fast.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "grade": "good",
+      "template": "You did what today needed — {duration_min} of {sport}, steady and useful. Nicely done.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "grade": "fair",
+      "template": "The {sport} got done — {duration_min} in the bank — even if it wasn't your smoothest. Those days count too.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "grade": "fair",
+      "template": "A scrappy {duration_min} of {sport}, but you got through it. Not every session has to be pretty.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "grade": "fair",
+      "template": "Today's {sport} wandered a bit from the plan — happens to everyone. The {duration_min} still counts.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "grade": "poor",
+      "template": "That {sport} was harder than it should have been — it happens, and it says nothing about your fitness. {duration_min} logged; recover well tonight.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "grade": "poor",
+      "template": "Rough session — the {duration_min} of {sport} didn't go to plan, and that's okay. The best answer is a good night's sleep, not a harder tomorrow.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "grade": "poor",
+      "template": "Not your day out there, and that's allowed. {duration_min} of {sport} done; shake it off — form comes back quicker than you think.",
+      "tone": "any",
+      "variant_id": "c"
+    },
+    {
+      "grade": "ungraded",
+      "template": "That {sport} is in the book — {duration_min} of moving, and that always counts. There wasn't enough signal to say how it went, and I'd rather stay honest than guess.",
+      "tone": "any",
+      "variant_id": "a"
+    },
+    {
+      "grade": "ungraded",
+      "template": "Nice work getting the {sport} in — {duration_min} logged. Not enough came through to read the quality, so I'll leave it at: it happened, and it counts.",
+      "tone": "any",
+      "variant_id": "b"
+    },
+    {
+      "grade": "ungraded",
+      "template": "{duration_min} of {sport}, done and banked. I can't see enough to judge how it went — no guessing, just credit for showing up.",
+      "tone": "any",
+      "variant_id": "c"
     }
   ],
   "josi_explanations:density_rules": [
@@ -5530,12 +5948,12 @@
     },
     {
       "primary_system": "aerobic_power",
-      "what_it_builds": "VO2max development — increases oxygen delivery to muscles.",
+      "what_it_builds": "Lactate threshold — sustains hard, controlled effort at threshold.",
       "zone": "Z4"
     },
     {
       "primary_system": "aerobic_power",
-      "what_it_builds": "Anaerobic threshold — extends time at high intensity.",
+      "what_it_builds": "VO2max development — increases oxygen delivery to muscles.",
       "zone": "Z5"
     },
     {
