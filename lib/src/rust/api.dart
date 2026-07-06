@@ -98,6 +98,75 @@ Future<String> realizeAdvisorLine({
 }) =>
     RustLib.instance.api.crateApiRealizeAdvisorLine(handle: handle, date: date);
 
+/// `gatc_ffi::realize_workout_reflection(vault, advisor, activity_id, date)` —
+/// the S1 post-workout coach reaction (voice wiring train, engine #388). The
+/// engine reads the activity + its grade from the vault, realizes through the
+/// fidelity firewall, and returns `RealizedLine` JSON. Ungraded sessions get
+/// the honest "logged, not judged" line — never a fabricated grade. Pure
+/// pass-through; fails loud when the activity is unknown.
+Future<String> realizeWorkoutReflection({
+  required EnginesHandle handle,
+  required String activityId,
+  required String date,
+}) => RustLib.instance.api.crateApiRealizeWorkoutReflection(
+  handle: handle,
+  activityId: activityId,
+  date: date,
+);
+
+/// `gatc_ffi::realize_advisory_offer(advisor, option_json, readiness_level, date)`
+/// — the S3 Josi offer line for an advisor option (voice wiring train, engine
+/// #388). `option_json` is the engine's own WorkoutOption JSON couriered back
+/// verbatim; `readiness_level` is the engine's readiness band token. The
+/// returned `RealizedLine` carries `why`/`purpose` for the disclosure tap.
+/// Pure pass-through; fails loud on an empty why (the engine refuses to offer
+/// without its reason).
+Future<String> realizeAdvisoryOffer({
+  required EnginesHandle handle,
+  required String optionJson,
+  required String readinessLevel,
+  required String date,
+}) => RustLib.instance.api.crateApiRealizeAdvisoryOffer(
+  handle: handle,
+  optionJson: optionJson,
+  readinessLevel: readinessLevel,
+  date: date,
+);
+
+/// `gatc_ffi::realize_day_summary(vault, viterbi, advisor, date)` — the S4
+/// end-of-day coach summary (voice wiring train, engine #388). The engine
+/// reads the day's activities from the vault, derives the day shape
+/// (rest/single/multi) from the real count, and realizes through the firewall.
+/// Pure pass-through.
+Future<String> realizeDaySummary({
+  required EnginesHandle handle,
+  required String date,
+}) =>
+    RustLib.instance.api.crateApiRealizeDaySummary(handle: handle, date: date);
+
+/// `gatc_ffi::morning_read_verdict(viterbi, advisor, presence, last_state,
+/// last_bucket, already_notified_today)` — BS-012 moved ENGINE-side (founder
+/// decision 2026-07-06): the engine decides fire/silent and assembles the
+/// card-worded `title` (never the raw state token) + `state_advisory` `body`
+/// (or honestly empty). The client couriers ONLY its delivery context in
+/// (presence preference, last-delivered markers, the same-day flag) and
+/// schedules the OS notification out. Returns JSON `{fire, reason, state,
+/// sufficiency_bucket, title, body}`. Pure pass-through; unknown presence is
+/// a structured Input error.
+Future<String> morningReadVerdict({
+  required EnginesHandle handle,
+  required String presence,
+  String? lastDeliveredState,
+  String? lastDeliveredBucket,
+  required bool alreadyNotifiedToday,
+}) => RustLib.instance.api.crateApiMorningReadVerdict(
+  handle: handle,
+  presence: presence,
+  lastDeliveredState: lastDeliveredState,
+  lastDeliveredBucket: lastDeliveredBucket,
+  alreadyNotifiedToday: alreadyNotifiedToday,
+);
+
 /// `ViterbiEngine::get_acwr()` — ACWR value + zone + recommendation. Dashboard
 /// removal Phase 2: replaces the ContextWidget acwr fields. Pure pass-through.
 Future<String> getAcwr({required EnginesHandle handle}) =>
