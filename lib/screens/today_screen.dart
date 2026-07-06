@@ -392,11 +392,16 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         // Honest absence — no recent activities
       }
 
+      // The load chain awaits several FFI calls (S1 extended it further);
+      // the screen can be disposed mid-load (e.g. the notification tap
+      // rebuilds the Today route), so guard before touching state.
+      if (!mounted) return;
       setState(() {
         _data = data;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _data.error = e.toString();
         _loading = false;
