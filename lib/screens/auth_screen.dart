@@ -280,20 +280,26 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     // Route based on whether this is a new account
     // - New account (no profile) → Onboarding
     // - Returning account → Today
-    final destination = isNewAccount ? 'Onboarding' : 'Today';
-    debugPrint('Auth complete: isNewAccount=$isNewAccount → $destination');
+    debugPrint('Auth complete: isNewAccount=$isNewAccount → ${isNewAccount ? "Onboarding" : "Today"}');
 
     if (!mounted) return;
+
+    // Use instant transition for new accounts (Auth→Onboarding) to avoid
+    // text-overlap during fade. Returning accounts get smooth fade.
+    final Widget destinationScreen =
+        isNewAccount ? const OnboardingScreen() : const TodayScreen();
+    final Duration duration =
+        isNewAccount ? Duration.zero : const Duration(milliseconds: 400);
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) {
-          if (isNewAccount) return const OnboardingScreen();
-          return const TodayScreen();
-        },
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            destinationScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          if (duration == Duration.zero) return child;
           return FadeTransition(opacity: animation, child: child);
         },
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: duration,
       ),
     );
   }
