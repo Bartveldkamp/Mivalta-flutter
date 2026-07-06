@@ -57,6 +57,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   EnginesHandle? _handle;
   // BS-008 P-4: Detail preference from onboarding
   bool _showNumbers = false;
+  // DR-024 W2: Weather is opt-in module, default OFF.
+  bool _showWeather = false;
 
   @override
   void initState() {
@@ -64,7 +66,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     // BS-012 N3: Register lifecycle observer for app resume trigger.
     WidgetsBinding.instance.addObserver(this);
     _initEngine();
-    _fetchWeather();
+    _loadWeatherPreference(); // DR-024 W2: load pref, then fetch if enabled
     _loadDetailPreference();
   }
 
@@ -90,6 +92,18 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     final detail = prefs.getString('onboarding_detail') ?? 'simple';
     if (mounted) {
       setState(() => _showNumbers = detail == 'numbers');
+    }
+  }
+
+  /// DR-024 W2: Load show_weather preference (default OFF) and fetch if enabled.
+  Future<void> _loadWeatherPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final show = prefs.getBool('show_weather') ?? false; // default OFF
+    if (mounted) {
+      setState(() => _showWeather = show);
+      if (show) {
+        _fetchWeather();
+      }
     }
   }
 
@@ -457,7 +471,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Two-tier masthead — BS-002 (Bart-approved variant 1b).
+  /// Two-tier masthead — DR-024 W1 locked sizes (3rd size regression fix).
+  /// Logo 30px, wordmark Zen Dots 24px, gap 10px. DO NOT CHANGE WITHOUT BART.
   /// Row 1: Brand wordmark centered. Row 2: Start workout left, weather right.
   Widget _buildMasthead() {
     return Padding(
@@ -466,16 +481,17 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       child: Column(
         children: [
           // ── Row 1 · brand masthead, centered ──
+          // DR-024 W1: LOCKED sizes — logo 30, wordmark 24, gap 10.
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset('assets/mivalta-logo.svg', width: 22, height: 22),
-              const SizedBox(width: 9),
+              SvgPicture.asset('assets/mivalta-logo.svg', width: 30, height: 30),
+              const SizedBox(width: 10),
               Text(
                 'MiValta',
                 style: GoogleFonts.zenDots(
-                  fontSize: 19,
-                  letterSpacing: 0.19, // ~0.01em × 19
+                  fontSize: 24,
+                  letterSpacing: 0.24, // ~0.01em × 24
                   color: MivaltaColors.textPrimary,
                 ),
               ),
@@ -517,10 +533,13 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Weather slot — real OS-provided data if available, honest absence otherwise.
+  /// Weather slot — opt-in module (DR-024 W2), default OFF.
+  /// When enabled: real OS-provided data if available, honest absence otherwise.
   /// Rule 6: weather comes from Apple WeatherKit via the OS frame; on any failure
   /// we render nothing (no icon, no forecast), never a fabricated condition.
   Widget _buildWeatherSlot() {
+    // DR-024 W2: only render if user has opted in via show_weather pref
+    if (!_showWeather) return const SizedBox.shrink();
     if (_weather != null) {
       final tempC = _weather!.temperatureC.round();
       final icon = _iconForWeatherSymbol(_weather!.symbol);
