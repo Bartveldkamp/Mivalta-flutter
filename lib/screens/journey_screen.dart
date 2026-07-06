@@ -25,8 +25,7 @@ import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/today/module_card.dart';
-import 'today_screen.dart';
-import 'you_screen.dart';
+import '../widgets/mivalta_bottom_nav.dart';
 
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({super.key});
@@ -222,7 +221,7 @@ class _JourneyScreenState extends State<JourneyScreen> {
               )
             : _buildContent(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: const MivaltaBottomNav(activeTab: NavTab.journey),
     );
   }
 
@@ -579,60 +578,6 @@ class _JourneyScreenState extends State<JourneyScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: MivaltaColors.surfaceBackground,
-        border: Border(
-          top: BorderSide(
-            color: MivaltaColors.textPrimary.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.wb_sunny_outlined,
-                activeIcon: Icons.wb_sunny,
-                label: 'Today',
-                isActive: false,
-                onTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => const TodayScreen()),
-                ),
-              ),
-              const _NavItem(
-                icon: Icons.route_outlined,
-                activeIcon: Icons.route,
-                label: 'Journey',
-                isActive: true,
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'You',
-                isActive: false,
-                // DR-023 T2 parity: Today's You tab was wired to YouScreen in
-                // #156; Journey's copy of the nav kept the interim stub —
-                // caught by the voice device pass (You-preview unreachable
-                // from Journey).
-                onTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => const YouScreen()),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
@@ -821,57 +766,6 @@ class _HonestAbsence extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Bottom nav item.
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive
-        ? MivaltaColors.stateProductive
-        : MivaltaColors.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: color,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

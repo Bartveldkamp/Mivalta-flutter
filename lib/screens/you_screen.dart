@@ -23,6 +23,7 @@ import '../services/weather_location.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/weather_place_picker.dart';
+import '../widgets/mivalta_bottom_nav.dart';
 
 /// Detail preference — words-first or numbers-first display style.
 enum DetailPreference { wordsFirst, numbersFirst }
@@ -262,6 +263,7 @@ class _YouScreenState extends State<YouScreen> {
                 ? _buildError()
                 : _buildContent(),
       ),
+      bottomNavigationBar: const MivaltaBottomNav(activeTab: NavTab.you),
     );
   }
 
@@ -424,7 +426,8 @@ class _YouScreenState extends State<YouScreen> {
           if (status.isValidated)
             _ProfileRow(
               label: 'Model score',
-              value: '${(status.overallModelScore * 100).toStringAsFixed(0)}%',
+              // W9: Engine returns 0..100 (already percentage), clamp for safety.
+              value: '${status.overallModelScore.clamp(0, 100).toStringAsFixed(0)}%',
             ),
         ],
       ],

@@ -46,8 +46,9 @@ class LearningStatus {
   /// validation_report.period_days — the validation window length.
   final int periodDays;
 
-  /// validation_report.overall_model_score (0..1). Only meaningful once
-  /// validated — see [isValidated]; before that it is the engine's Default 0.
+  /// validation_report.overall_model_score (0..100, already a percentage).
+  /// Only meaningful once validated — see [isValidated]; before that it is
+  /// the engine's default 0. W9: engine computes weighted accuracy_pct * 100.
   final double overallModelScore;
 
   /// Whether the multi-scale HRV windows have begun (first HRV reading folded).

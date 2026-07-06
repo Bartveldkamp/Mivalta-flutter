@@ -35,10 +35,9 @@ import '../widgets/today/module_card.dart';
 import '../widgets/today/sleep_stage_ring.dart';
 import '../widgets/today/masthead.dart';
 import '../widgets/today/why_unfold.dart';
+import '../widgets/mivalta_bottom_nav.dart';
 import 'advisor_screen.dart';
-import 'journey_screen.dart';
 import 'session_start_screen.dart';
-import 'you_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -452,7 +451,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
               )
             : _buildContent(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: const MivaltaBottomNav(activeTab: NavTab.today),
     );
   }
 
@@ -462,58 +461,6 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       context,
       MaterialPageRoute<void>(
         builder: (context) => const SessionStartScreen(),
-      ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: MivaltaColors.surfaceBackground,
-        border: Border(
-          top: BorderSide(
-            color: MivaltaColors.textPrimary.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.wb_sunny_outlined,
-                activeIcon: Icons.wb_sunny,
-                label: 'Today',
-                isActive: true,
-                // Today is active — no navigation
-              ),
-              _NavItem(
-                icon: Icons.route_outlined,
-                activeIcon: Icons.route,
-                label: 'Journey',
-                isActive: false,
-                onTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => const JourneyScreen()),
-                ),
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'You',
-                isActive: false,
-                // DR-023 T2: Wire to YouScreen (no longer a stub)
-                onTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => const YouScreen()),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1001,55 +948,6 @@ class _ZoneChip extends StatelessWidget {
 
   // DR-018 A3: use shared zone naming (engine truth)
   (String, Color) _zoneNameAndColor(String zone) => zoneDisplayNameAndColor(zone);
-}
-
-/// Bottom nav item for Today/Journey/You.
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive
-        ? MivaltaColors.stateProductive
-        : MivaltaColors.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: color,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: MivaltaType.label.copyWith(
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Decision chip — shows the zone cap (engine restriction) for today.

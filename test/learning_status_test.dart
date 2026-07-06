@@ -42,11 +42,14 @@ void main() {
     });
 
     test('validated model surfaces the engine buckets verbatim', () {
+      // W9: Engine returns overall_model_score as 0..100 (already percentage),
+      // NOT 0..1. Verified against gatc-viterbi outcome_validation.rs:
+      // compute_overall_score returns weighted accuracy_pct (0-100 range).
       final s = LearningStatus.parse(
         diagnosticsJson: '{"observation_count":30,"confidence":"high",'
             '"hrv_windows":{"w7":1.0},"hrv_episode":null}',
         validationJson: '{"period_days":90,"paired_observations":42,'
-            '"overall_model_score":0.78,"data_sufficiency":"medium"}',
+            '"overall_model_score":78.0,"data_sufficiency":"medium"}',
       );
       expect(s.observationCount, 30);
       expect(s.confidenceBucket, 'high');
@@ -55,7 +58,7 @@ void main() {
       expect(s.isValidated, isTrue);
       expect(s.pairedObservations, 42);
       expect(s.periodDays, 90);
-      expect(s.overallModelScore, closeTo(0.78, 1e-9));
+      expect(s.overallModelScore, closeTo(78.0, 1e-9));
     });
 
     test('missing validation fields fall back to honest zeros, not guesses',
