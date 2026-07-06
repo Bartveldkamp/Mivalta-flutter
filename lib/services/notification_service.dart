@@ -170,6 +170,11 @@ class NotificationService {
       details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: null, // One-shot, not recurring
+      // Required in flutter_local_notifications 18.x: interpret the
+      // scheduled time as absolute local time. (Removed only in later
+      // majors — CI falsified the removal-at-18 claim on 2026-07-06.)
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
 
     if (kDebugMode) {
