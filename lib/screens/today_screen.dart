@@ -27,6 +27,7 @@ import '../services/morning_read_gate.dart';
 import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
+import '../debug/seam_log.dart';
 import '../theme/tokens.dart';
 import '../theme/zone_names.dart';
 import '../widgets/today/glow_hero.dart';
@@ -233,7 +234,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 
     try {
       // Zone 1 — Readiness indicator (headline)
+      final swIndicator = Stopwatch()..start();
       final indicatorJson = await binding.readinessIndicator(handle);
+      SeamLog.ok('readinessIndicator', swIndicator.elapsedMilliseconds);
       final indicator = jsonDecode(indicatorJson) as Map<String, dynamic>;
       data.readinessScore = (indicator['score'] as num?)?.toInt();
       data.confidence = (indicator['confidence'] as num?)?.toDouble();
@@ -247,17 +250,22 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       data.insufficientData = insufficientDataFromConfidence(data.confidence);
 
       // BS-008 P-1: Personalization diagnostics (calibrated-to-you line)
+      final swDiag = Stopwatch()..start();
       try {
         final diagJson = await binding.personalizationDiagnostics(handle);
+        SeamLog.ok('personalizationDiagnostics', swDiag.elapsedMilliseconds);
         final diag = jsonDecode(diagJson) as Map<String, dynamic>;
         data.calibrationObservations = (diag['observation_count'] as num?)?.toInt();
         data.calibrationConfidence = diag['confidence'] as String?;
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('personalizationDiagnostics', swDiag.elapsedMilliseconds, e);
         // Honest absence — diagnostics not yet available
       }
 
       // State advisory (for Josi fallback)
+      final swState = Stopwatch()..start();
       final stateJson = await binding.stateAdvisory(handle);
+      SeamLog.ok('stateAdvisory', swState.elapsedMilliseconds);
       final stateMap = jsonDecode(stateJson) as Map<String, dynamic>;
       data.stateRecommendation = stateMap['state_recommendation'] as String?;
       data.confidenceAdvisory = stateMap['confidence_advisory'] as String?;
@@ -267,23 +275,30 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       final today = DateTime.now();
       final dateStr =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final swRealize = Stopwatch()..start();
       try {
         final realizedJson = await binding.realizeAdvisorLine(handle, date: dateStr);
+        SeamLog.ok('realizeAdvisorLine', swRealize.elapsedMilliseconds);
         data.realizedLine = RealizedLine.parse(realizedJson);
       } catch (e) {
+        SeamLog.error('realizeAdvisorLine', swRealize.elapsedMilliseconds, e);
         // Honest absence — fall back to stateRecommendation
         debugPrint('realizeAdvisorLine failed: $e');
       }
 
       // Fatigue state (for glow color + state word)
       // Engine returns {"state":"Recovered",...} — key is "state", not "fatigue_state"
+      final swFatigue = Stopwatch()..start();
       final fatigueJson = await binding.viterbiFatigueState(handle);
+      SeamLog.ok('viterbiFatigueState', swFatigue.elapsedMilliseconds);
       final fatigueMap = jsonDecode(fatigueJson) as Map<String, dynamic>;
       data.fatigueState = fatigueMap['state'] as String?;
 
       // Zone 2 — Today load (for module card)
+      final swLoads = Stopwatch()..start();
       try {
         final loadsJson = await binding.readDailyLoads(handle, days: 1);
+        SeamLog.ok('readDailyLoads', swLoads.elapsedMilliseconds);
         final loads = jsonDecode(loadsJson) as List;
         if (loads.isNotEmpty) {
           final todayLoad = loads.last;
@@ -291,51 +306,64 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
             data.todayLoad = (todayLoad[1] as num?)?.toDouble();
           }
         }
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('readDailyLoads', swLoads.elapsedMilliseconds, e);
         // Honest absence
       }
 
       // BS-005: ACWR for Load ceiling + band line
+      final swAcwr = Stopwatch()..start();
       try {
         final acwrJson = await binding.getAcwr(handle);
+        SeamLog.ok('getAcwr', swAcwr.elapsedMilliseconds);
         final acwr = jsonDecode(acwrJson) as Map<String, dynamic>;
         data.acwrValue = (acwr['acwr'] as num?)?.toDouble();
         data.loadCeiling = (acwr['chronic_load'] as num?)?.toDouble();
         data.loadBandLine = acwr['recommendation'] as String?;
         data.acwrZone = acwr['zone'] as String?;
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('getAcwr', swAcwr.elapsedMilliseconds, e);
         // Honest absence — no ACWR yet
       }
 
       // BS-005: Source tier for caption
+      final swTier = Stopwatch()..start();
       try {
         final tierJson = await binding.lastObservationSourceTier(handle);
+        SeamLog.ok('lastObservationSourceTier', swTier.elapsedMilliseconds);
         final tier = jsonDecode(tierJson);
         if (tier != null && tier is String) {
           data.sourceTierLabel = _formatSourceTier(tier);
         }
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('lastObservationSourceTier', swTier.elapsedMilliseconds, e);
         // Honest absence
       }
 
       // Sleep (for module card)
+      final swBio = Stopwatch()..start();
       try {
         final bioJson = await binding.readBiometricHistory(handle, days: 1);
+        SeamLog.ok('readBiometricHistory', swBio.elapsedMilliseconds);
         final bio = jsonDecode(bioJson) as List;
         if (bio.isNotEmpty) {
           final lastBio = bio.last as Map<String, dynamic>;
           data.lastNightSleepHours = (lastBio['sleep_hours'] as num?)?.toDouble();
         }
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('readBiometricHistory', swBio.elapsedMilliseconds, e);
         // Honest absence
       }
 
       // Zone cap (for decision chip)
+      final swZoneCap = Stopwatch()..start();
       try {
         final zoneCapJson = await binding.zoneCapWithAdvisories(handle);
+        SeamLog.ok('zoneCapWithAdvisories', swZoneCap.elapsedMilliseconds);
         final zoneCapMap = jsonDecode(zoneCapJson) as Map<String, dynamic>;
         data.zoneCap = zoneCapMap['zone'] as String?;
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('zoneCapWithAdvisories', swZoneCap.elapsedMilliseconds, e);
         // Honest absence
       }
 
@@ -347,8 +375,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       // shared, tested WorkoutOption model — duration lives in
       // `structure.total_minutes`, there is no top-level `duration_min`.
       // BS-003: Store full options list for Advisor screen.
+      final swWorkout = Stopwatch()..start();
       try {
         final workoutJson = await binding.recommendWorkout(handle);
+        SeamLog.ok('recommendWorkout', swWorkout.elapsedMilliseconds);
         final decoded = jsonDecode(workoutJson);
         if (decoded is List && decoded.isNotEmpty) {
           final options = decoded.map((e) => WorkoutOption.fromJson(e)).toList();
@@ -360,7 +390,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           data.durationMin = option.durationMin;
           data.focusCue = option.focusCue;
         }
-      } catch (_) {
+      } catch (e) {
+        SeamLog.error('recommendWorkout', swWorkout.elapsedMilliseconds, e);
         // Honest absence
       }
 
@@ -856,6 +887,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+
+              // BS-018: kDebugMode-only wiring stamp — seam health panel.
+              // Shows ok/error/not-called status for each FFI seam.
+              if (kDebugMode) _WiringStamp(),
             ]),
           ),
         ),
@@ -1184,6 +1219,144 @@ class _DecisionChip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// BS-018: kDebugMode-only wiring stamp panel.
+///
+/// Shows seam health status: one row per seam with name, result (ok/error), and ms.
+/// Tapping the header expands/collapses the detail rows. The witness pass reads
+/// this panel on device to verify that every seam says `ok` against real data.
+class _WiringStamp extends StatefulWidget {
+  const _WiringStamp();
+
+  @override
+  State<_WiringStamp> createState() => _WiringStampState();
+}
+
+class _WiringStampState extends State<_WiringStamp> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = SeamLog.entries;
+    final okCount = SeamLog.okCount;
+    final errorCount = SeamLog.errorCount;
+    final total = SeamLog.totalCount;
+
+    // Header color: green if all ok, yellow if any errors, gray if empty.
+    final headerColor = errorCount > 0
+        ? MivaltaColors.cautionYellow
+        : okCount > 0
+            ? MivaltaColors.stateProductive
+            : MivaltaColors.textMuted;
+
+    return Column(
+      children: [
+        // Header — tap to expand/collapse
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x3,
+              vertical: MivaltaSpace.x2,
+            ),
+            decoration: BoxDecoration(
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _expanded ? Icons.unfold_less : Icons.unfold_more,
+                  size: 14,
+                  color: MivaltaColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'seams $okCount/$total ok',
+                  style: MivaltaType.small.copyWith(
+                    fontSize: 10,
+                    color: headerColor,
+                  ),
+                ),
+                if (errorCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '($errorCount errors)',
+                    style: MivaltaType.small.copyWith(
+                      fontSize: 10,
+                      color: MivaltaColors.cautionYellow,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        // Detail rows (expanded)
+        if (_expanded && entries.isNotEmpty) ...[
+          const SizedBox(height: MivaltaSpace.x2),
+          Container(
+            padding: const EdgeInsets.all(MivaltaSpace.x3),
+            decoration: BoxDecoration(
+              color: MivaltaColors.surface1,
+              borderRadius: BorderRadius.circular(MivaltaRadii.sm),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: entries.map((record) {
+                final statusColor = switch (record.status) {
+                  SeamStatus.ok => MivaltaColors.stateProductive,
+                  SeamStatus.error => MivaltaColors.cautionYellow,
+                  SeamStatus.notCalled => MivaltaColors.textMuted,
+                };
+                final statusText = switch (record.status) {
+                  SeamStatus.ok => 'ok',
+                  SeamStatus.error => 'err:${record.errorType ?? '?'}',
+                  SeamStatus.notCalled => 'not-called',
+                };
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          record.name,
+                          style: MivaltaType.small.copyWith(
+                            fontSize: 10,
+                            color: MivaltaColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        statusText,
+                        style: MivaltaType.small.copyWith(
+                          fontSize: 10,
+                          color: statusColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${record.durationMs}ms',
+                        style: MivaltaType.small.copyWith(
+                          fontSize: 10,
+                          color: MivaltaColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: MivaltaSpace.x4),
+      ],
     );
   }
 }
