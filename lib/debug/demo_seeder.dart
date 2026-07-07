@@ -47,6 +47,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../rust_engine.dart';
+import '../services/benchmark_sync.dart';
 import '../services/ingest_adapter.dart' as ingest;
 
 /// Outcome of a seed run — how many days were replayed out of the season.
@@ -244,5 +245,36 @@ class DemoSeeder {
       daysAvailable: season.length,
       workoutsSeeded: workoutsSeeded,
     );
+  }
+
+  /// DEBUG witness for the CLOSED benchmark loop (founder 2026-07-07): drives
+  /// two synthetic maximal-effort days through the REAL courier chain
+  /// ([BenchmarkSyncService] → engine gate → vault ledger) and returns the
+  /// engine's decisions, verbatim.
+  ///
+  /// Day 1 must HOLD (`awaiting_pattern:1/2` — the level never rises on one
+  /// workout); calling again on a later calendar day PROMOTES, writes the
+  /// profile, and files the `benchmark_change` ledger event. Same
+  /// synthetic-INPUT / real-PIPELINE contract as [seedSeason]: the engine
+  /// genuinely fits, gates, applies, and records — nothing display-side is
+  /// fabricated. The streams are the athlete's sport-native unit built from
+  /// the bound profile's own benchmark scaled by [gainFraction] (engine
+  /// reads the sport; a cyclist gets watts, a runner m/s — never crossed).
+  ///
+  /// NOTE on dates: the engine keys the evidence window off the REAL device
+  /// date (one candidate per calendar day), so a same-day re-run replaces
+  /// day-1 evidence instead of confirming it — exactly the anti-double-count
+  /// rule. The two-day witness therefore needs two real calendar days (or a
+  /// simulator clock change); the outcome strings make the current state
+  /// visible either way.
+  Future<BenchmarkSyncOutcome?> runBenchmarkSyncWitness({
+    required List<List<double>> effortStreams,
+  }) async {
+    final streams = [
+      for (final samples in effortStreams)
+        {'samples': samples, 'sample_rate_hz': 1.0},
+    ];
+    return BenchmarkSyncService(binding: binding, handle: handle)
+        .run(activityStreamsJson: jsonEncode(streams));
   }
 }

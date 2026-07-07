@@ -540,6 +540,48 @@ class RustEngineBinding {
   Future<String> readViterbiState(EnginesHandle handle) =>
       rust_api.readViterbiState(handle: handle);
 
+  /// `PostProcessEngine::sync_benchmark_from_activities` — the CLOSED
+  /// benchmark loop: raw activity streams → sport-native fit (CP watts for
+  /// cyclists, Critical Speed distance:time for runners — never crossed) →
+  /// confirm/promote gate over the remembered evidence window → the decision
+  /// APPLIED to the engine's bound profile. Returns `{decision, applied,
+  /// event|null, candidate_history, athlete_profile}`. Dart's duties are all
+  /// courier — `BenchmarkSyncService` is the canonical chain.
+  Future<String> syncBenchmarkFromActivities(
+    EnginesHandle handle, {
+    required String activitiesJson,
+    required String candidateHistoryJson,
+  }) =>
+      rust_api.syncBenchmarkFromActivities(
+        handle: handle,
+        activitiesJson: activitiesJson,
+        candidateHistoryJson: candidateHistoryJson,
+      );
+
+  /// `VaultEngine::write_benchmark_event` — file a benchmark promotion or
+  /// demotion in the encrypted audit ledger (`benchmark_change`). Pass the
+  /// sync's `event` object VERBATIM. Returns `{"audit_id": "…"}`.
+  Future<String> writeBenchmarkEvent(EnginesHandle handle, {required String eventJson}) =>
+      rust_api.writeBenchmarkEvent(handle: handle, eventJson: eventJson);
+
+  /// `VaultEngine::write_benchmark_history` — persist the sync's returned
+  /// `candidate_history` VERBATIM (the pattern memory behind "the level
+  /// never rises on one workout").
+  Future<void> writeBenchmarkHistory(EnginesHandle handle, {required String historyJson}) =>
+      rust_api.writeBenchmarkHistory(handle: handle, historyJson: historyJson);
+
+  /// `VaultEngine::read_benchmark_history` — the persisted pattern memory,
+  /// or the string `"null"` on first run (honest absence the sync accepts
+  /// as an empty evidence window).
+  Future<String> readBenchmarkHistory(EnginesHandle handle) =>
+      rust_api.readBenchmarkHistory(handle: handle);
+
+  /// `PostProcessEngine::profile()` — the athlete profile as the LIVE engine
+  /// holds it. After a benchmark promotion this is the byte-exact source to
+  /// persist ([writeProfile]) and re-bind ([updateProfile]) from.
+  Future<String> postprocessProfile(EnginesHandle handle) =>
+      rust_api.postprocessProfile(handle: handle);
+
   /// Minimal biometric write for the hardware-verification debug swatch
   /// exerciser. Writes `source` + ISO date + placeholder `restingHr`, so
   /// the next [lastObservationSourceTier] call returns the matching tier.

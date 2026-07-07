@@ -142,10 +142,31 @@ flutter_rust_bridge = "=2.12.0"
 # function list is curated; seams ride the contract doc §7.1). Build executor:
 # FRB-regen REQUIRED (four new shim fns) + xcframework rebuild — see
 # docs/mac/MAC_BRIEF_VOICE_WIRING_TRAIN.md.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "3b5ec7c749bb35c8de59aa461dcd1f6d84d09bca" }
+# Re-pinned 3b5ec7c → 63d8744 (main after #394 — Phase 0 of the road-to-100%
+# plan). Carries the whole benchmark train this bump exists to consume
+# (#391–#394): the growing-profile learning model (time-in-metabolic-level
+# substrate, dose-response progression), the CLOSED benchmark loop
+# (sync_benchmark_from_activities: streams → sport-native fit → confirm/
+# promote gate → benchmark written into the bound profile, cyclists in watts /
+# runners in Critical Speed), the promotion LEDGER (write_benchmark_event →
+# encrypted audit ledger, event_type benchmark_change), the PATTERN RULE
+# (min_confirming_days 2 — the level never rises on one workout), the
+# per-workout device-parameter storage (9 typed VaultActivity columns), and
+# the vault pattern-memory seams (write/read_benchmark_history). Registry
+# v2.29→v2.42 (curated list; seams ride FFI_API_CONTRACT.md §4.15/§4.6).
+# Every 3b5ec7c..63d8744 FFI change is ADDITIVE (verified: the only deletions
+# in the range are a version-constant bump, a `let mut`, and an extended
+# serialize) — nothing the existing shim calls changed shape. This bump adds
+# FIVE shim fns (sync_benchmark_from_activities, write_benchmark_event,
+# write/read_benchmark_history, postprocess_profile), so FRB-regen is
+# REQUIRED (bindings regenerated in the same PR) and the build executor owes
+# `cargo update` + the xcframework rebuild. openssl-src pinned up to
+# 300.6.1+3.6.3 in Cargo.lock (300.5.5's mkinstallvars.pl breaks under newer
+# perl; 300.6.1 is the version rust-engine's own lock proves green).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "63d8744afa6b80d662e6718542ccec653d380484" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "3b5ec7c749bb35c8de59aa461dcd1f6d84d09bca" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "63d8744afa6b80d662e6718542ccec653d380484" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
