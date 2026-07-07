@@ -10,9 +10,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../models/realized_line.dart';
 import '../models/time_in_zone.dart';
 import '../models/workout_report.dart';
 import '../rust_engine.dart';
+import '../widgets/today/josi_card.dart';
 import '../services/profile_service.dart';
 import '../services/session_recorder.dart';
 import '../theme/tokens.dart';
@@ -36,6 +38,8 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
   WorkoutReport? _report;
   TimeInZone? _timeInZone;
   String? _acwrBand;
+  // BS-016 B1: Josi's post-workout reflection via realize_workout_reflection.
+  RealizedLine? _reflectionLine;
   bool _loading = true;
   String? _error;
 
@@ -138,6 +142,21 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
       } catch (e) {
         // No facts in vault yet — that's OK, we proceed with session data.
         debugPrint('Post-workout report not available: $e');
+      }
+
+      // BS-016 B1: Get Josi's post-workout reflection via realize_workout_reflection.
+      // Activity ID uses the session's start time ISO string for uniqueness.
+      try {
+        final activityId = widget.session.startTime.toIso8601String();
+        final reflectionJson = await binding.realizeWorkoutReflection(
+          handle,
+          activityId: activityId,
+          date: dateStr,
+        );
+        _reflectionLine = RealizedLine.parse(reflectionJson);
+      } catch (e) {
+        // Honest absence — the composed verdict (if any) remains the fallback.
+        debugPrint('realize_workout_reflection not available: $e');
       }
 
       // Compute time-in-zone from recorded samples if available.
@@ -395,130 +414,21 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
     );
   }
 
+  /// BS-016 B1: Josi's post-workout reflection via JosiCard.
+  ///
+  /// Uses realize_workout_reflection as primary source; falls back to the
+  /// report's qualitySummary/autocue if the voice seam isn't available.
+  /// D3: Honest absence ("logged, not judged") renders identically.
   Widget _buildVerdict() {
-    // Use engine's quality summary if available, otherwise show a generic line.
-    final verdictLine = _report?.qualitySummary ?? _report?.autocue;
-
-    // If no engine verdict, show honest interim.
-    if (verdictLine == null || verdictLine.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(MivaltaSpace.x4),
-        child: Container(
-          padding: const EdgeInsets.all(MivaltaSpace.x4),
-          decoration: BoxDecoration(
-            color: MivaltaColors.textPrimary.withValues(alpha: 0.035),
-            border: Border.all(
-              color: MivaltaColors.textPrimary.withValues(alpha: 0.085),
-            ),
-            borderRadius: BorderRadius.circular(MivaltaRadii.lg),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Josi avatar.
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    center: const Alignment(-0.2, -0.3),
-                    colors: [
-                      MivaltaColors.stateProductive,
-                      MivaltaColors.stateProductive.withValues(alpha: 0.7),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: MivaltaSpace.x3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'JOSI',
-                      style: MivaltaType.label.copyWith(
-                        color: MivaltaColors.stateProductive,
-                        fontSize: 10,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Session logged. Quality read arrives once more data is in.',
-                      style: MivaltaType.body.copyWith(
-                        color: MivaltaColors.textPrimary,
-                        fontSize: 14,
-                        height: 1.46,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // Fallback: report's composed line (pre-voice-seam behaviour).
+    final fallbackLine = _report?.qualitySummary ?? _report?.autocue;
 
     return Padding(
       padding: const EdgeInsets.all(MivaltaSpace.x4),
-      child: Container(
-        padding: const EdgeInsets.all(MivaltaSpace.x4),
-        decoration: BoxDecoration(
-          color: MivaltaColors.textPrimary.withValues(alpha: 0.035),
-          border: Border.all(
-            color: MivaltaColors.textPrimary.withValues(alpha: 0.085),
-          ),
-          borderRadius: BorderRadius.circular(MivaltaRadii.lg),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Josi avatar.
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  center: const Alignment(-0.2, -0.3),
-                  colors: [
-                    MivaltaColors.stateProductive,
-                    MivaltaColors.stateProductive.withValues(alpha: 0.7),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: MivaltaSpace.x3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'JOSI',
-                    style: MivaltaType.label.copyWith(
-                      color: MivaltaColors.stateProductive,
-                      fontSize: 10,
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    verdictLine,
-                    style: MivaltaType.body.copyWith(
-                      color: MivaltaColors.textPrimary,
-                      fontSize: 14,
-                      height: 1.46,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      child: JosiCard(
+        realizedLine: _reflectionLine,
+        fallbackLine: fallbackLine ??
+            'Session logged. Quality read arrives once more data is in.',
       ),
     );
   }

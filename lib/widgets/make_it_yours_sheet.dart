@@ -10,7 +10,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/weather_location.dart';
 import '../theme/tokens.dart';
+import 'weather_place_picker.dart';
 
 /// "Make it yours" customization sheet.
 ///
@@ -64,12 +66,40 @@ class _MakeItYoursSheetState extends State<MakeItYoursSheet> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _showWeather = prefs.getBool('show_weather') ?? true;
+        // W2 law: default OFF — weather requires explicit opt-in.
+        _showWeather = prefs.getBool('show_weather') ?? false;
         final detail = prefs.getString('onboarding_detail') ?? 'simple';
         _showNumbers = detail == 'numbers';
         _loading = false;
       });
     }
+  }
+
+  /// DR-024 W5 round 2: Consent moment on toggle-on.
+  ///
+  /// Toggling OFF: just turn it off.
+  /// Toggling ON: open the place picker FIRST. Weather only enables if the
+  /// user selects a place (manual or GPS). Dismissing the picker or selecting
+  /// "none" keeps weather off.
+  Future<void> _onWeatherToggle(bool wantsOn) async {
+    if (!wantsOn) {
+      // Turning off — no consent needed.
+      await _setShowWeather(false);
+      return;
+    }
+
+    // Turning on — open the place picker for consent.
+    if (!mounted) return;
+    final location = await showWeatherPlacePicker(context);
+
+    // User dismissed or selected "none" — don't enable weather.
+    if (location == null || location.source == WeatherLocationSource.none) {
+      return;
+    }
+
+    // User selected a place — save location and enable weather.
+    await WeatherLocationService.save(location);
+    await _setShowWeather(true);
   }
 
   Future<void> _setShowWeather(bool value) async {
@@ -133,12 +163,15 @@ class _MakeItYoursSheetState extends State<MakeItYoursSheet> {
                 ),
               )
             else ...[
-              // Show weather toggle
+              // Show weather toggle — W2: locked honest copy.
               _ToggleRow(
                 label: 'Show weather',
-                subtitle: 'Display local weather in the masthead',
+                // DR-024 W5 round 2: locked honest subtitle.
+                subtitle: 'A forecast needs a place — type one, or use '
+                    'approximate location. Keyless request, never a '
+                    'commercial API; nothing else leaves the phone.',
                 value: _showWeather,
-                onChanged: _setShowWeather,
+                onChanged: _onWeatherToggle,
               ),
 
               const SizedBox(height: MivaltaSpace.x3),

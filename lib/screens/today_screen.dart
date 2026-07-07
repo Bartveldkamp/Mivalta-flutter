@@ -90,7 +90,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   Future<void> _loadDetailPreference() async {
     final prefs = await SharedPreferences.getInstance();
     final detail = prefs.getString('onboarding_detail') ?? 'simple';
-    final showWeather = prefs.getBool('show_weather') ?? true;
+    // W2 law: default OFF — weather requires explicit opt-in.
+    final showWeather = prefs.getBool('show_weather') ?? false;
     if (mounted) {
       setState(() {
         _showNumbers = detail == 'numbers';
