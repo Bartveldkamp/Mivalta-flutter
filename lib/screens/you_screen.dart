@@ -1,8 +1,11 @@
-// You Screen — BS-013
+// You Screen — BS-013 / DR-024 W4
 //
 // The "You" tab: profile summary, learning status, sources, sovereignty.
-// One scroll, grouped cards. Engine DECIDES, Dart DISPLAYS.
+// One scroll, flat sections with eyebrow headings. Engine DECIDES, Dart DISPLAYS.
 // Every toggle reflects REAL state read at open — no optimistic UI lies.
+//
+// W4: Next-gen minimalistic restyle — flat row groups, no per-card icons,
+// eyebrow section titles, hairline separators, 44px min row height.
 
 import 'dart:convert';
 import 'dart:io';
@@ -23,6 +26,7 @@ import '../services/weather_location.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
 import '../widgets/weather_place_picker.dart';
+import '../widgets/mivalta_bottom_nav.dart';
 
 /// Detail preference — words-first or numbers-first display style.
 enum DetailPreference { wordsFirst, numbersFirst }
@@ -262,6 +266,7 @@ class _YouScreenState extends State<YouScreen> {
                 ? _buildError()
                 : _buildContent(),
       ),
+      bottomNavigationBar: const MivaltaBottomNav(activeTab: NavTab.you),
     );
   }
 
@@ -312,23 +317,23 @@ class _YouScreenState extends State<YouScreen> {
           // Header.
           _buildHeader(),
 
-          // Profile card.
-          _buildProfileCard(),
+          // Profile section.
+          _buildProfileSection(),
 
-          // Learning you card.
-          _buildLearningCard(),
+          // Learning you section.
+          _buildLearningSection(),
 
-          // Sources card.
-          _buildSourcesCard(),
+          // Sources section.
+          _buildSourcesSection(),
 
-          // Sovereignty card.
-          _buildSovereigntyCard(),
+          // Sovereignty section — the ONE colored moment.
+          _buildSovereigntySection(),
 
-          // How MiValta speaks card (Y1).
-          _buildSpeakCard(),
+          // How MiValta speaks section.
+          _buildSpeakSection(),
 
-          // Display settings card.
-          _buildDisplayCard(),
+          // Display settings section.
+          _buildDisplaySection(),
 
           // Debug stamp (kDebugMode only).
           if (kDebugMode) _buildDebugStamp(),
@@ -359,117 +364,123 @@ class _YouScreenState extends State<YouScreen> {
     );
   }
 
-  Widget _buildProfileCard() {
+  // ══════════════════════════════════════════════════════════════════════════
+  // PROFILE SECTION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildProfileSection() {
     final sport = _profile?['sport'] as String? ?? 'Unknown';
     final level = _profile?['level'] as String? ?? 'Unknown';
     final goalType = _profile?['goal_type'] as String?;
 
-    return _Card(
-      title: 'Who you are',
-      icon: Icons.person_outline,
+    return _Section(
+      title: 'WHO YOU ARE',
       children: [
-        _ProfileRow(
+        _SettingsRow(
           label: 'Sport',
           value: _formatSport(sport),
         ),
-        _ProfileRow(
+        _SettingsRow(
           label: 'Level',
           value: _formatLevel(level),
         ),
         if (goalType != null)
-          _ProfileRow(
+          _SettingsRow(
             label: 'Goal',
             value: _formatGoal(goalType),
           ),
-        const SizedBox(height: MivaltaSpace.x2),
-        // Edit stub.
-        _ActionRow(
-          icon: Icons.edit_outlined,
+        _SettingsRow(
           label: 'Edit profile',
-          onTap: () {
-            _showEditStub();
-          },
+          onTap: _showEditStub,
         ),
       ],
     );
   }
 
-  Widget _buildLearningCard() {
+  // ══════════════════════════════════════════════════════════════════════════
+  // LEARNING SECTION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildLearningSection() {
     final status = _learningStatus;
 
-    return _Card(
-      title: 'Learning you',
-      icon: Icons.school_outlined,
+    return _Section(
+      title: 'LEARNING YOU',
       children: [
         if (status == null)
-          Text(
-            'No learning data yet',
-            style: MivaltaType.body.copyWith(
-              color: MivaltaColors.textMuted,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x4,
+              vertical: MivaltaSpace.x3,
+            ),
+            child: Text(
+              'No learning data yet',
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textMuted,
+              ),
             ),
           )
         else ...[
-          _ProfileRow(
+          _SettingsRow(
             label: 'Observations',
             value: status.observationCount?.toString() ?? '—',
           ),
-          _ProfileRow(
+          _SettingsRow(
             label: 'Confidence',
             value: _formatBucket(status.confidenceBucket),
           ),
-          _ProfileRow(
+          _SettingsRow(
             label: 'Data sufficiency',
             value: _formatBucket(status.dataSufficiency),
           ),
           if (status.isValidated)
-            _ProfileRow(
+            _SettingsRow(
               label: 'Model score',
-              value: '${(status.overallModelScore * 100).toStringAsFixed(0)}%',
+              // W9: Engine returns 0..100 (already percentage), clamp for safety.
+              value: '${status.overallModelScore.clamp(0, 100).toStringAsFixed(0)}%',
             ),
         ],
       ],
     );
   }
 
-  Widget _buildSourcesCard() {
-    return _Card(
-      title: 'Your sources',
-      icon: Icons.devices_outlined,
+  // ══════════════════════════════════════════════════════════════════════════
+  // SOURCES SECTION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSourcesSection() {
+    return _Section(
+      title: 'YOUR SOURCES',
       children: [
         if (_sources.isEmpty)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'No sources connected',
-                style: MivaltaType.body.copyWith(
-                  color: MivaltaColors.textMuted,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MivaltaSpace.x4,
+                  vertical: MivaltaSpace.x3,
+                ),
+                child: Text(
+                  'No sources connected',
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.textMuted,
+                  ),
                 ),
               ),
-              const SizedBox(height: MivaltaSpace.x3),
-              _ActionRow(
-                icon: Icons.add,
+              _SettingsRow(
                 label: 'Connect a source',
-                onTap: () {
-                  _showConnectSourcesStub();
-                },
+                onTap: _showConnectSourcesStub,
               ),
             ],
           )
-        else
-          Column(
-            children: [
-              for (final source in _sources) _buildSourceRow(source),
-              const SizedBox(height: MivaltaSpace.x2),
-              _ActionRow(
-                icon: Icons.add,
-                label: 'Add another source',
-                onTap: () {
-                  _showConnectSourcesStub();
-                },
-              ),
-            ],
+        else ...[
+          for (final source in _sources) _buildSourceRow(source),
+          _SettingsRow(
+            label: 'Add another source',
+            onTap: _showConnectSourcesStub,
           ),
+        ],
       ],
     );
   }
@@ -477,210 +488,199 @@ class _YouScreenState extends State<YouScreen> {
   Widget _buildSourceRow(Map<String, dynamic> source) {
     final name = source['name'] as String? ?? 'Unknown source';
     final tier = source['tier'] as String? ?? 'partial';
-    final lastSeen = source['last_seen'] as String?;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x1),
-      child: Row(
-        children: [
-          Icon(
-            _tierIcon(tier),
-            size: 18,
-            color: _tierColor(tier),
+    return _SettingsRow(
+      label: name,
+      trailing: _TierChip(tier: tier),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SOVEREIGNTY SECTION — the ONE colored moment
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSovereigntySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Eyebrow title.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MivaltaSpace.x4,
+            MivaltaSpace.x4,
+            MivaltaSpace.x4,
+            MivaltaSpace.x2,
           ),
-          const SizedBox(width: MivaltaSpace.x2),
-          Expanded(
-            child: Column(
+          child: Text(
+            'YOUR DATA, YOUR DEVICE',
+            style: MivaltaType.label.copyWith(
+              color: MivaltaColors.textMuted,
+              fontSize: 11,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+
+        // Promise banner — the ONE colored moment (BS-017).
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+          child: Container(
+            padding: const EdgeInsets.all(MivaltaSpace.x3),
+            decoration: BoxDecoration(
+              color: MivaltaColors.stateProductive.withValues(alpha: 0.08),
+              border: Border.all(
+                color: MivaltaColors.stateProductive.withValues(alpha: 0.25),
+              ),
+              borderRadius: BorderRadius.circular(MivaltaRadii.md),
+            ),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: MivaltaType.body.copyWith(
-                    color: MivaltaColors.textPrimary,
-                  ),
+                Icon(
+                  Icons.lock,
+                  size: 18,
+                  color: MivaltaColors.stateProductive,
                 ),
-                if (lastSeen != null)
-                  Text(
-                    'Last seen: $lastSeen',
+                const SizedBox(width: MivaltaSpace.x2),
+                Expanded(
+                  child: Text(
+                    'Computed on your phone. Your health data never leaves this '
+                    'device, and it is never in your phone backups. To move it '
+                    'to a new phone, use the encrypted export.',
                     style: MivaltaType.small.copyWith(
-                      color: MivaltaColors.textMuted,
-                      fontSize: 11,
+                      color: MivaltaColors.textPrimary,
+                      height: 1.4,
                     ),
                   ),
+                ),
               ],
             ),
           ),
-          _TierChip(tier: tier),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSovereigntyCard() {
-    return _Card(
-      title: 'Your data, your device',
-      icon: Icons.lock_outline,
-      children: [
-        // Promise banner (BS-017: expectation-setting copy).
-        Container(
-          padding: const EdgeInsets.all(MivaltaSpace.x3),
-          decoration: BoxDecoration(
-            color: MivaltaColors.stateProductive.withValues(alpha: 0.08),
-            border: Border.all(
-              color: MivaltaColors.stateProductive.withValues(alpha: 0.25),
-            ),
-            borderRadius: BorderRadius.circular(MivaltaRadii.md),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.lock,
-                size: 18,
-                color: MivaltaColors.stateProductive,
-              ),
-              const SizedBox(width: MivaltaSpace.x2),
-              Expanded(
-                child: Text(
-                  'Computed on your phone. Your health data never leaves this '
-                  'device, and it is never in your phone backups. To move it '
-                  'to a new phone, use the encrypted export.',
-                  style: MivaltaType.small.copyWith(
-                    color: MivaltaColors.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
 
-        const SizedBox(height: MivaltaSpace.x4),
+        const SizedBox(height: MivaltaSpace.x3),
 
-        // Pause learning toggle.
-        _ToggleRow(
-          icon: Icons.pause_circle_outline,
+        // Sovereignty actions — flat rows.
+        _SettingsToggleRow(
           label: 'Pause learning',
-          subtitle: 'Stop model updates — keep using the app',
           value: _isLearningPaused,
           onChanged: _togglePauseLearning,
         ),
-
-        const SizedBox(height: MivaltaSpace.x3),
-
-        // Encrypted export (BS-017: device migration path).
-        _ActionRow(
-          icon: Icons.folder_special_outlined,
+        _SettingsRow(
           label: 'Take your data with you',
-          subtitle: 'Passphrase-protected file for new device',
           onTap: _exportEncryptedVault,
         ),
-
-        const SizedBox(height: MivaltaSpace.x3),
-
-        // CSV export (analytics/research).
-        _ActionRow(
-          icon: Icons.download_outlined,
+        _SettingsRow(
           label: 'Export readings as CSV',
-          subtitle: 'Spreadsheet of your biometrics — not for moving phones',
           onTap: _exportData,
         ),
 
-        const SizedBox(height: MivaltaSpace.x3),
-
-        // Erase button.
-        _DangerActionRow(
-          icon: Icons.delete_forever_outlined,
-          label: 'Erase everything',
-          subtitle: 'Destroys the key — no backup copy survives',
-          onTap: _confirmErase,
-        ),
+        // Erase row — red text, no box-in-box.
+        _EraseRow(onTap: _confirmErase),
       ],
     );
   }
 
-  /// How MiValta speaks card (Y1): coach presence dial + detail preference.
-  Widget _buildSpeakCard() {
-    return _Card(
-      title: 'How MiValta speaks',
-      icon: Icons.record_voice_over_outlined,
+  // ══════════════════════════════════════════════════════════════════════════
+  // HOW MIVALTA SPEAKS SECTION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSpeakSection() {
+    return _Section(
+      title: 'HOW MIVALTA SPEAKS',
       children: [
-        // Coach presence dial: Off / Quiet / Moderate.
-        Text(
-          'Coach presence',
-          style: MivaltaType.label.copyWith(
-            color: MivaltaColors.textSecondary,
-            fontSize: 12,
+        // Coach presence label.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MivaltaSpace.x4,
+            MivaltaSpace.x2,
+            MivaltaSpace.x4,
+            MivaltaSpace.x2,
+          ),
+          child: Text(
+            'Coach presence',
+            style: MivaltaType.body.copyWith(
+              color: MivaltaColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ),
-        const SizedBox(height: MivaltaSpace.x2),
-        _PresenceSelector(
-          value: _coachPresence,
-          onChanged: _saveCoachPresence,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+          child: _PresenceSelector(
+            value: _coachPresence,
+            onChanged: _saveCoachPresence,
+          ),
         ),
 
         const SizedBox(height: MivaltaSpace.x4),
 
-        // Detail preference: words-first / numbers-first.
-        Text(
-          'Detail preference',
-          style: MivaltaType.label.copyWith(
-            color: MivaltaColors.textSecondary,
-            fontSize: 12,
+        // Detail preference label.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MivaltaSpace.x4,
+            0,
+            MivaltaSpace.x4,
+            MivaltaSpace.x2,
+          ),
+          child: Text(
+            'Detail preference',
+            style: MivaltaType.body.copyWith(
+              color: MivaltaColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+          child: _DetailPreferenceSelector(
+            value: _detailPreference,
+            onChanged: _saveDetailPreference,
           ),
         ),
         const SizedBox(height: MivaltaSpace.x2),
-        _DetailPreferenceSelector(
-          value: _detailPreference,
-          onChanged: _saveDetailPreference,
-        ),
       ],
     );
   }
 
-  Widget _buildDisplayCard() {
-    return _Card(
-      title: 'Display',
-      icon: Icons.tune_outlined,
+  // ══════════════════════════════════════════════════════════════════════════
+  // DISPLAY SECTION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildDisplaySection() {
+    return _Section(
+      title: 'DISPLAY',
       children: [
-        // DR-024 W2: Weather location.
-        _ActionRow(
-          icon: Icons.wb_sunny_outlined,
+        // DR-024 W2: Weather location — consent-critical, keep subtitle.
+        _SettingsRow(
           label: 'Weather location',
-          subtitle: _weatherLocationSubtitle(),
+          value: _weatherLocationValue(),
           onTap: _showWeatherLocationPicker,
         ),
-        const SizedBox(height: MivaltaSpace.x2),
-        _ActionRow(
-          icon: Icons.text_fields,
+        _SettingsRow(
           label: 'Text size',
-          subtitle: 'System default',
-          onTap: () {
-            _showTextSizeStub();
-          },
+          value: 'System default',
+          onTap: _showTextSizeStub,
         ),
-        const SizedBox(height: MivaltaSpace.x2),
-        _ActionRow(
-          icon: Icons.straighten,
+        _SettingsRow(
           label: 'Units',
-          subtitle: 'Metric',
-          onTap: () {
-            _showUnitsStub();
-          },
+          value: 'Metric',
+          onTap: _showUnitsStub,
         ),
       ],
     );
   }
 
-  /// Returns the subtitle for the weather location row.
-  String _weatherLocationSubtitle() {
+  /// Returns the value for the weather location row.
+  String _weatherLocationValue() {
     switch (_weatherLocation.source) {
       case WeatherLocationSource.none:
         return 'Hidden';
       case WeatherLocationSource.gps:
-        return 'Using your location';
+        return 'Approximate location';
       case WeatherLocationSource.manual:
-        return _weatherLocation.placeName ?? 'Manual location';
+        return _weatherLocation.placeName ?? 'Manual';
     }
   }
 
@@ -1242,316 +1242,238 @@ class _YouScreenState extends State<YouScreen> {
     if (bucket == null) return '—';
     return bucket[0].toUpperCase() + bucket.substring(1);
   }
-
-  IconData _tierIcon(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'medical':
-        return Icons.local_hospital;
-      case 'device':
-        return Icons.watch;
-      case 'partial':
-        return Icons.smartphone;
-      default:
-        return Icons.edit;
-    }
-  }
-
-  Color _tierColor(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'medical':
-        return kSourceTierColor[SourceTier.medical]!;
-      case 'device':
-        return kSourceTierColor[SourceTier.device]!;
-      case 'partial':
-        return kSourceTierColor[SourceTier.partial]!;
-      default:
-        return kSourceTierColor[SourceTier.manual]!;
-    }
-  }
 }
 
-// === Widgets ===
+// ══════════════════════════════════════════════════════════════════════════════
+// PRIVATE WIDGETS — W4 flat row system
+// ══════════════════════════════════════════════════════════════════════════════
 
-class _Card extends StatelessWidget {
-  const _Card({
+/// Section with eyebrow title and flat rows.
+class _Section extends StatelessWidget {
+  const _Section({
     required this.title,
-    required this.icon,
     required this.children,
   });
 
   final String title;
-  final IconData icon;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: MivaltaSpace.x4,
-        vertical: MivaltaSpace.x2,
-      ),
-      padding: const EdgeInsets.all(MivaltaSpace.x4),
-      decoration: BoxDecoration(
-        color: MivaltaColors.surface1,
-        border: Border.all(color: MivaltaColors.cardBorder),
-        borderRadius: BorderRadius.circular(MivaltaRadii.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: MivaltaColors.stateProductive,
-              ),
-              const SizedBox(width: MivaltaSpace.x2),
-              Text(
-                title,
-                style: MivaltaType.cardTitle.copyWith(
-                  color: MivaltaColors.textPrimary,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: MivaltaSpace.x3),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: MivaltaType.body.copyWith(
-              color: MivaltaColors.textMuted,
-              fontSize: 13,
-            ),
-          ),
-          Text(
-            value,
-            style: MivaltaType.body.copyWith(
-              color: MivaltaColors.textPrimary,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(MivaltaRadii.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: MivaltaColors.stateProductive,
-            ),
-            const SizedBox(width: MivaltaSpace.x2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: MivaltaType.body.copyWith(
-                      color: MivaltaColors.textPrimary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: MivaltaType.small.copyWith(
-                        color: MivaltaColors.textMuted,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: MivaltaColors.textMuted.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DangerActionRow extends StatelessWidget {
-  const _DangerActionRow({
-    required this.icon,
-    required this.label,
-    this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(MivaltaRadii.md),
-      child: Container(
-        padding: const EdgeInsets.all(MivaltaSpace.x3),
-        decoration: BoxDecoration(
-          color: MivaltaColors.stateOverreached.withValues(alpha: 0.08),
-          border: Border.all(
-            color: MivaltaColors.stateOverreached.withValues(alpha: 0.3),
-          ),
-          borderRadius: BorderRadius.circular(MivaltaRadii.md),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: MivaltaColors.stateOverreached,
-            ),
-            const SizedBox(width: MivaltaSpace.x2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: MivaltaType.body.copyWith(
-                      color: MivaltaColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: MivaltaType.small.copyWith(
-                        color: MivaltaColors.textMuted,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: MivaltaColors.textMuted.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({
-    required this.icon,
-    required this.label,
-    this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: MivaltaColors.stateProductive,
-        ),
-        const SizedBox(width: MivaltaSpace.x2),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: MivaltaType.body.copyWith(
-                  color: MivaltaColors.textPrimary,
-                  fontSize: 13,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: MivaltaType.small.copyWith(
-                    color: MivaltaColors.textMuted,
-                    fontSize: 11,
-                  ),
-                ),
-            ],
+        // Eyebrow title (uppercase, muted, small).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MivaltaSpace.x4,
+            MivaltaSpace.x4,
+            MivaltaSpace.x4,
+            MivaltaSpace.x2,
+          ),
+          child: Text(
+            title,
+            style: MivaltaType.label.copyWith(
+              color: MivaltaColors.textMuted,
+              fontSize: 11,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: MivaltaColors.stateProductive,
-          activeTrackColor: MivaltaColors.stateProductive.withValues(alpha: 0.3),
-          inactiveThumbColor: MivaltaColors.textMuted,
-          inactiveTrackColor: MivaltaColors.textMuted.withValues(alpha: 0.3),
+        // Children (rows).
+        ...children,
+      ],
+    );
+  }
+}
+
+/// Settings row — 44px min height, label left, value/chevron right.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.label,
+    this.value,
+    this.trailing,
+    this.onTap,
+  });
+
+  final String label;
+  final String? value;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isAction = onTap != null && value == null && trailing == null;
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x4,
+              vertical: MivaltaSpace.x2,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: MivaltaType.body.copyWith(
+                      color: isAction
+                          ? MivaltaColors.stateProductive
+                          : MivaltaColors.textPrimary,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                if (trailing != null)
+                  trailing!
+                else if (value != null)
+                  Text(
+                    value!,
+                    style: MivaltaType.body.copyWith(
+                      color: MivaltaColors.textMuted,
+                      fontSize: 15,
+                    ),
+                  ),
+                if (onTap != null) ...[
+                  const SizedBox(width: MivaltaSpace.x2),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: MivaltaColors.textMuted.withValues(alpha: 0.5),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        // Hairline separator.
+        Padding(
+          padding: const EdgeInsets.only(left: MivaltaSpace.x4),
+          child: Container(
+            height: 0.5,
+            color: MivaltaColors.cardBorder.withValues(alpha: 0.5),
+          ),
         ),
       ],
     );
   }
 }
 
+/// Settings toggle row — 44px min height, label left, switch right.
+class _SettingsToggleRow extends StatelessWidget {
+  const _SettingsToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(
+            horizontal: MivaltaSpace.x4,
+            vertical: MivaltaSpace.x2,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.textPrimary,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              Switch(
+                value: value,
+                onChanged: onChanged,
+                activeThumbColor: MivaltaColors.stateProductive,
+                activeTrackColor: MivaltaColors.stateProductive.withValues(alpha: 0.3),
+                inactiveThumbColor: MivaltaColors.textMuted,
+                inactiveTrackColor: MivaltaColors.textMuted.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
+        ),
+        // Hairline separator.
+        Padding(
+          padding: const EdgeInsets.only(left: MivaltaSpace.x4),
+          child: Container(
+            height: 0.5,
+            color: MivaltaColors.cardBorder.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Erase row — red text, no box-in-box (W4).
+class _EraseRow extends StatelessWidget {
+  const _EraseRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MivaltaSpace.x4,
+              vertical: MivaltaSpace.x2,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Erase everything',
+                    style: MivaltaType.body.copyWith(
+                      color: MivaltaColors.stateOverreached,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: MivaltaColors.stateOverreached.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Hairline separator.
+        Padding(
+          padding: const EdgeInsets.only(left: MivaltaSpace.x4),
+          child: Container(
+            height: 0.5,
+            color: MivaltaColors.cardBorder.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tier chip for source rows.
 class _TierChip extends StatelessWidget {
   const _TierChip({required this.tier});
 

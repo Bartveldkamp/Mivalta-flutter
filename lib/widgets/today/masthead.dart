@@ -1,7 +1,8 @@
 // DR-024 W1: Masthead widget — extracted for golden testing.
+// DR-024 W5: Tune button added for Make-It-Yours customization sheet.
 //
 // Two-tier masthead — BS-002 (Bart-approved variant 1b).
-// Row 1: Brand wordmark centered. Row 2: Start workout left, weather right.
+// Row 1: Brand wordmark centered. Row 2: Start workout left, weather + tune right.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,12 +14,13 @@ import '../../theme/tokens.dart';
 /// Two-tier masthead for the Today screen.
 ///
 /// Row 1: MiValta logo + wordmark, centered.
-/// Row 2: "Start workout" left, weather slot right.
+/// Row 2: "Start workout" left, weather slot + tune button right.
 class TodayMasthead extends StatelessWidget {
   const TodayMasthead({
     super.key,
     required this.onStartWorkout,
     this.weather,
+    this.onTune,
   });
 
   /// Callback when "Start workout" is tapped.
@@ -26,6 +28,9 @@ class TodayMasthead extends StatelessWidget {
 
   /// Current weather report (null = honest absence → render nothing).
   final WeatherReport? weather;
+
+  /// Callback when tune button is tapped (W5 Make-It-Yours entry).
+  final VoidCallback? onTune;
 
   @override
   Widget build(BuildContext context) {
@@ -77,8 +82,25 @@ class TodayMasthead extends StatelessWidget {
                 ),
               ),
 
-              // right · weather (glanceable, text-secondary)
-              _WeatherSlot(weather: weather),
+              // right · weather + tune button (W5)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _WeatherSlot(weather: weather),
+                  if (onTune != null) ...[
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTune,
+                      child: const Icon(
+                        Icons.tune,
+                        size: 20,
+                        color: MivaltaColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ],
