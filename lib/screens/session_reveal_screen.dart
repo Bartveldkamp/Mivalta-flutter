@@ -15,6 +15,7 @@ import '../models/time_in_zone.dart';
 import '../models/workout_report.dart';
 import '../rust_engine.dart';
 import '../widgets/today/josi_card.dart';
+import '../services/benchmark_sync.dart';
 import '../services/profile_service.dart';
 import '../services/session_recorder.dart';
 import '../theme/tokens.dart';
@@ -23,10 +24,7 @@ import 'today_screen.dart';
 
 /// Post-workout reveal — shows what the session did.
 class SessionRevealScreen extends StatefulWidget {
-  const SessionRevealScreen({
-    super.key,
-    required this.session,
-  });
+  const SessionRevealScreen({super.key, required this.session});
 
   final CompletedSession session;
 
@@ -64,8 +62,9 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
       }
 
       // Load tables.
-      final tablesJson =
-          await rootBundle.loadString('assets/compiled_tables.json');
+      final tablesJson = await rootBundle.loadString(
+        'assets/compiled_tables.json',
+      );
       final vaultPath = await ProfileService.getVaultPath();
 
       // Check for persisted state.
@@ -189,6 +188,31 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
         // ACWR not available — honest absence.
       }
 
+      // Phase 4: feed this session's real stream into the benchmark loop —
+      // a runner's speed → Critical Speed, a cyclist's power → Critical Power
+      // (the symmetric wire; the engine picks the fit from the bound sport).
+      // Pure courier: the RAW recorder samples + a unit tag go to the engine,
+      // which normalizes + validates them (engine PR #397); no Dart math. On a
+      // confirmed pattern the engine promotes the benchmark + files the ledger
+      // event Today's notify card presents. No stream for this sport yet
+      // (GPS / BLE power pending) → null → no sync, honest absence.
+      final benchmarkStreams = benchmarkStreamsForSession(
+        widget.session.sport,
+        widget.session.speedSamples,
+        widget.session.powerSamples,
+      );
+      if (benchmarkStreams != null) {
+        try {
+          await BenchmarkSyncService(
+            binding: binding,
+            handle: handle,
+          ).run(activityStreamsJson: benchmarkStreams);
+        } catch (e) {
+          // A benchmark sync failure never blocks the reveal — honest absence.
+          debugPrint('benchmark sync failed: $e');
+        }
+      }
+
       setState(() => _loading = false);
     } catch (e) {
       setState(() {
@@ -210,8 +234,8 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
                 ),
               )
             : _error != null
-                ? _buildError()
-                : _buildContent(),
+            ? _buildError()
+            : _buildContent(),
       ),
     );
   }
@@ -238,9 +262,7 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
             const SizedBox(height: MivaltaSpace.x2),
             Text(
               _error!,
-              style: MivaltaType.small.copyWith(
-                color: MivaltaColors.textMuted,
-              ),
+              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: MivaltaSpace.x5),
@@ -427,7 +449,8 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
       padding: const EdgeInsets.all(MivaltaSpace.x4),
       child: JosiCard(
         realizedLine: _reflectionLine,
-        fallbackLine: fallbackLine ??
+        fallbackLine:
+            fallbackLine ??
             'Session logged. Quality read arrives once more data is in.',
       ),
     );
@@ -462,7 +485,8 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
   }
 
   Widget _buildTimeInZoneAbsent() {
-    final hasHr = widget.session.hrSamples != null &&
+    final hasHr =
+        widget.session.hrSamples != null &&
         widget.session.hrSamples!.isNotEmpty;
 
     return Container(
@@ -590,9 +614,7 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
   void _navigateToToday() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const TodayScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const TodayScreen()),
     );
   }
 

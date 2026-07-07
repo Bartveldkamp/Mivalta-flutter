@@ -8,11 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 /// Session state during recording.
-enum SessionState {
-  idle,
-  recording,
-  paused,
-}
+enum SessionState { idle, recording, paused }
 
 /// Snapshot of live sensor data.
 class LiveSensorData {
@@ -75,6 +71,7 @@ class CompletedSession {
     this.avgSpeedKmh,
     this.hrSamples,
     this.speedSamples,
+    this.powerSamples,
   });
 
   final String sport;
@@ -91,6 +88,12 @@ class CompletedSession {
 
   /// Raw speed samples (1 Hz) for post-processing.
   final List<double>? speedSamples;
+
+  /// Raw power samples (watts, 1 Hz) for post-processing — the cyclist's
+  /// Critical Power stream, the mirror of [speedSamples] for runners. Source
+  /// is a BLE power meter (pending, like GPS for speed); null until one is
+  /// connected — honest absence, never fabricated watts.
+  final List<int>? powerSamples;
 
   /// Duration as HH:MM:SS.
   String get formattedDuration {
@@ -114,17 +117,18 @@ class CompletedSession {
 
   /// Convert to JSON for vault persistence.
   Map<String, dynamic> toJson() => {
-        'sport': sport,
-        'start_time': startTime.toIso8601String(),
-        'end_time': endTime.toIso8601String(),
-        'elapsed_seconds': elapsedSeconds,
-        if (distanceKm != null) 'distance_km': distanceKm,
-        if (avgHeartRate != null) 'avg_heart_rate': avgHeartRate,
-        if (maxHeartRate != null) 'max_heart_rate': maxHeartRate,
-        if (avgSpeedKmh != null) 'avg_speed_kmh': avgSpeedKmh,
-        if (hrSamples != null) 'hr_samples': hrSamples,
-        if (speedSamples != null) 'speed_samples': speedSamples,
-      };
+    'sport': sport,
+    'start_time': startTime.toIso8601String(),
+    'end_time': endTime.toIso8601String(),
+    'elapsed_seconds': elapsedSeconds,
+    if (distanceKm != null) 'distance_km': distanceKm,
+    if (avgHeartRate != null) 'avg_heart_rate': avgHeartRate,
+    if (maxHeartRate != null) 'max_heart_rate': maxHeartRate,
+    if (avgSpeedKmh != null) 'avg_speed_kmh': avgSpeedKmh,
+    if (hrSamples != null) 'hr_samples': hrSamples,
+    if (speedSamples != null) 'speed_samples': speedSamples,
+    if (powerSamples != null) 'power_samples': powerSamples,
+  };
 }
 
 /// Session recorder — Dart-side, no engine until session end.
@@ -153,10 +157,12 @@ class SessionRecorder {
   // Sample buffers (1 Hz).
   final List<int> _hrSamples = [];
   final List<double> _speedSamples = [];
+  final List<int> _powerSamples = [];
 
   // Live sensor state (simulated for now — BLE integration pending).
   int? _currentHr;
   double? _currentSpeed;
+  int? _currentPower;
   double _distance = 0;
 
   // Stream controllers.
@@ -198,6 +204,7 @@ class SessionRecorder {
     _elapsedSeconds = 0;
     _hrSamples.clear();
     _speedSamples.clear();
+    _powerSamples.clear();
     _distance = 0;
 
     _state = SessionState.recording;
@@ -266,6 +273,7 @@ class SessionRecorder {
           : null,
       hrSamples: _hrSamples.isNotEmpty ? List.from(_hrSamples) : null,
       speedSamples: _speedSamples.isNotEmpty ? List.from(_speedSamples) : null,
+      powerSamples: _powerSamples.isNotEmpty ? List.from(_powerSamples) : null,
     );
 
     debugPrint('Session stopped: ${completed.formattedDuration}');
@@ -287,6 +295,7 @@ class SessionRecorder {
   void _pollSensors() {
     // BLE HR strap integration pending — _currentHr stays null.
     // GPS integration pending — _currentSpeed stays null.
+    // BLE power-meter integration pending — _currentPower stays null.
     // This is correct honest-absence behavior per BS-010.
 
     // Record samples if we have values.
@@ -298,6 +307,15 @@ class SessionRecorder {
       // Accumulate distance (speed is km/h, sample is 1 second).
       _distance += _currentSpeed! / 3600;
     }
+    if (_currentPower != null) {
+      _powerSamples.add(_currentPower!);
+    }
+  }
+
+  /// Inject a live power sample (watts) — the BLE power-meter seam, mirror of
+  /// [injectSpeed]. Test/integration entry until a real power meter is wired.
+  void injectPower(int? watts) {
+    _currentPower = watts;
   }
 
   /// Build current sensor data snapshot.

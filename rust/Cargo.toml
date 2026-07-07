@@ -171,10 +171,17 @@ flutter_rust_bridge = "=2.12.0"
 # the new realize_benchmark_change + read_audit_trail pass-throughs, so FRB-regen
 # was done in this PR (host codegen, frb 2.12.0 / Flutter 3.44.0). Build executor
 # owes cargo update + xcframework rebuild.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "16dbf7d1a5ecb285b0df0e02423b949872b3c676" }
+# Re-pinned 16dbf7d → 29c4b1b (main after #397 — the Law-2 fix: the ENGINE now
+# owns stream unit-normalization + per-sport sample validation). ActivityStream
+# gained an optional `unit` tag ("km_h" for running speed → engine ÷3.6; power
+# keeps 0 W, speed drops non-positive). Additive/wire-compatible: no new method,
+# registry stays v2.43. Enables the Flutter benchmark courier to pass RAW samples
+# + a unit tag with NO edge math (runner speed km/h, cyclist power watts). No new
+# shim fn → no FRB-regen; build executor owes cargo update + xcframework rebuild.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "29c4b1b7b0c16dbacdaa45500becdab72564394c" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "16dbf7d1a5ecb285b0df0e02423b949872b3c676" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "29c4b1b7b0c16dbacdaa45500becdab72564394c" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
