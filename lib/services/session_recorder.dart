@@ -312,12 +312,6 @@ class SessionRecorder {
     }
   }
 
-  /// Inject a live power sample (watts) — the BLE power-meter seam, mirror of
-  /// [injectSpeed]. Test/integration entry until a real power meter is wired.
-  void injectPower(int? watts) {
-    _currentPower = watts;
-  }
-
   /// Build current sensor data snapshot.
   LiveSensorData _buildSensorData() {
     final avgHr = _hrSamples.isNotEmpty
@@ -359,5 +353,13 @@ class SessionRecorder {
   @visibleForTesting
   void injectSpeed(double? speedKmh) {
     _currentSpeed = speedKmh;
+  }
+
+  /// Inject a power sample (watts) — the BLE power-meter seam, the mirror of
+  /// [injectSpeed]. Test/integration entry until a real power meter is wired;
+  /// null until one is connected (honest absence, never fabricated watts).
+  @visibleForTesting
+  void injectPower(int? watts) {
+    _currentPower = watts;
   }
 }
