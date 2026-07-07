@@ -1,5 +1,5 @@
 // Benchmark sync courier — the app-side half of the CLOSED benchmark loop
-// (rust-engine `gatc_postprocess::benchmark`, registry v2.42; founder
+// (rust-engine `gatc_postprocess::benchmark`, registry v2.43; founder
 // decisions 2026-07-07: auto-apply + full ledger + the pattern rule).
 //
 // The ENGINE does everything that is coaching: merge streams → sport-native
@@ -17,10 +17,12 @@
 //      b. update_profile        (re-bind every profile-bound engine)
 //      c. write_benchmark_event (file the ledger event verbatim)
 //
-// No math, no thresholds, no assembly anywhere in this file (Law 2). A sync
-// with no usable streams is still meaningful: the engine prunes the evidence
-// window and holds honestly — the wire stays live until real stream sources
-// (GPS speed / power meters) land.
+// No math, no thresholds, no assembly anywhere in this file (Law 2) — not even
+// a unit conversion: the app couriers the recorder's RAW samples plus a unit
+// tag, and the ENGINE normalizes (km/h→m/s) and validates them (PR #171 review,
+// engine PR #397). A sync with no usable streams is still meaningful: the
+// engine prunes the evidence window and holds honestly — the wire stays live
+// until real stream sources (GPS speed / BLE power meters) land.
 
 import 'dart:convert';
 
@@ -48,6 +50,45 @@ class BenchmarkSyncOutcome {
   final String? eventJson;
 }
 
+/// The benchmark stream wire a completed SESSION should sync, or `null` when
+/// this session's sport / stream doesn't feed a benchmark from the in-app
+/// recorder. Pure transport: the raw recorded samples are couriered with a
+/// unit tag; the ENGINE converts + validates (engine PR #397). No Dart math.
+///
+/// - **Running** → the speed stream, tagged `km_h` (the recorder's unit); the
+///   engine normalizes to m/s for the Critical Speed fit.
+/// - **Cycling** → the power stream, tagged `watts`, for the Critical Power
+///   fit — the exact mirror (founder 2026-07-07). Runners are never fed watts,
+///   cyclists never fed speed.
+/// - Any other sport, or no samples for the sport's stream → `null` (no sync
+///   from this path; honest absence).
+String? benchmarkStreamsForSession(
+  String sport,
+  List<double>? speedSamplesKmh,
+  List<int>? powerSamplesWatts,
+) {
+  switch (sport.toLowerCase()) {
+    case 'running':
+      final s = speedSamplesKmh ?? const [];
+      if (s.isEmpty) return null;
+      return jsonEncode([
+        {'samples': s, 'sample_rate_hz': 1.0, 'unit': 'km_h'},
+      ]);
+    case 'cycling':
+      final p = powerSamplesWatts ?? const [];
+      if (p.isEmpty) return null;
+      return jsonEncode([
+        {
+          'samples': [for (final w in p) w.toDouble()],
+          'sample_rate_hz': 1.0,
+          'unit': 'watts',
+        },
+      ]);
+    default:
+      return null;
+  }
+}
+
 /// Runs the courier chain around `sync_benchmark_from_activities`.
 class BenchmarkSyncService {
   BenchmarkSyncService({required this.binding, required this.handle});
@@ -63,7 +104,9 @@ class BenchmarkSyncService {
   /// Returns the engine's outcome, or null when the chain failed (the error
   /// is named in debug; the benchmark simply doesn't move — the vault and
   /// profile are only ever touched with engine-produced values).
-  Future<BenchmarkSyncOutcome?> run({required String activityStreamsJson}) async {
+  Future<BenchmarkSyncOutcome?> run({
+    required String activityStreamsJson,
+  }) async {
     try {
       // 1. The remembered evidence window ("null" on first run).
       final history = await binding.readBenchmarkHistory(handle);

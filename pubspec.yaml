@@ -96,6 +96,10 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
+  # Deterministic virtual clock for timer-driven services (SessionRecorder's
+  # 1 Hz sensor timer) — test-only, already resolved transitively.
+  fake_async: ^1.3.3
+
   # FRB codegen emits freezed-style sealed classes for BridgeError
   # variants. Generation-time only.
   freezed: ^2.5.0
