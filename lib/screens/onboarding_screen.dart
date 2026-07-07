@@ -667,7 +667,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 1: Profile (W14 — BS-002c: disclosure pattern + multi-select).
+  /// Step 1: Profile (BS-002c v2 — redline RL-profile-r1.html).
+  /// Two states: collapsed (default) + expanded disclosure.
   Widget _buildSportStep() {
     const sports = [
       ('running', Icons.directions_run, 'Running'),
@@ -679,32 +680,51 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Redline: x6 top (24px)
           const SizedBox(height: MivaltaSpace.x6),
 
-          // W14: Title changed to "Your profile"
+          // Redline: title-lg 24px
           Text(
             'Your profile',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
+          // Redline: x3 (12px) gap to sub
           const SizedBox(height: MivaltaSpace.x3),
 
-          // W14 / BS-002c: Sub (locked copy)
-          Text(
-            'MiValta builds a personal profile to understand you and personalize '
-            'your training, recovery and insights.\n\n'
-            'Everything stays on this device.',
-            style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+          // BS-002c v2: Sub with bold last line (verbatim)
+          RichText(
+            text: TextSpan(
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textSecondary,
+                height: 1.5,
+              ),
+              children: [
+                const TextSpan(
+                  text: 'MiValta builds a personal profile that becomes more '
+                      'accurate over time as it learns from and with you.\n\n',
+                ),
+                TextSpan(
+                  text: 'Everything stays on your device. Never on a server.',
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
 
+          // Redline: x4 (16px) gap to disclosure
           const SizedBox(height: MivaltaSpace.x4),
 
-          // W14 / BS-002c: Disclosure row (below sub, above question)
+          // BS-002c v2: Disclosure row
           _buildProfileDisclosure(),
 
+          // Redline: x5 (20px) gap to question lead
           const SizedBox(height: MivaltaSpace.x5),
 
-          // W14 / BS-002c: Question lead
+          // Redline: lead = body weight 600
           Text(
             "Let's start with your sports.",
             style: MivaltaType.body.copyWith(
@@ -713,17 +733,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ),
 
+          // Redline: x1 (4px) gap to caption
           const SizedBox(height: MivaltaSpace.x1),
 
-          // W14 / BS-002c: Caption
+          // Redline: caption = small textSecondary
           Text(
             'Select all that apply.',
             style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
           ),
 
-          const SizedBox(height: MivaltaSpace.x4),
+          // Redline: x3 (12px) gap to first sport row, then x3 between rows
+          const SizedBox(height: MivaltaSpace.x3),
 
-          // W14: Multi-select sports (checkbox semantics)
+          // Multi-select sports (checkbox semantics)
           ...sports.map((s) {
             final (id, icon, label) = s;
             final isSelected = _selectedSports.contains(id);
@@ -737,22 +759,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 } else {
                   _selectedSports.add(id);
                 }
-                // W14: First selected = primary sport for engine
+                // First selected = primary sport for engine
                 _sport = _selectedSports.isNotEmpty ? _selectedSports.first : null;
               }),
             );
           }),
 
-          const SizedBox(height: MivaltaSpace.x5),
-
-          // Footer (unchanged)
-          Center(
-            child: Text(
-              'On this phone. Never on a server.',
-              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          // BS-002c v2: Footer REMOVED on this step (one-claim law).
+          // Sub already says "Never on a server" — redundant.
 
           const SizedBox(height: MivaltaSpace.x4),
         ],
@@ -760,12 +774,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// W14 / BS-002c: Disclosure row with expandable privacy explanation.
+  /// BS-002c v2: Disclosure row with expandable privacy explanation.
+  /// Redline: RL-profile-r1.html — both states (collapsed + expanded).
   Widget _buildProfileDisclosure() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Disclosure row: lock glyph + text + chevron
+        // Disclosure row: lock glyph + label + chevron (≥44px)
         GestureDetector(
           onTap: () => setState(() => _profileDisclosureExpanded = !_profileDisclosureExpanded),
           child: Container(
@@ -779,9 +794,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
                 const SizedBox(width: MivaltaSpace.x2),
                 Expanded(
+                  // BS-002c v2: Label text — turns textPrimary when open
                   child: Text(
-                    'How your private profile works',
-                    style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                    'Why we ask these questions',
+                    style: MivaltaType.body.copyWith(
+                      color: _profileDisclosureExpanded
+                          ? MivaltaColors.textPrimary
+                          : MivaltaColors.textSecondary,
+                    ),
                   ),
                 ),
                 AnimatedRotation(
@@ -798,28 +818,64 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
 
-        // Expanded body — AnimatedSize for smooth expand/collapse
+        // Expanded body — AnimatedSize for smooth expand/collapse (280ms)
         AnimatedSize(
           duration: MivaltaMotion.standard,
           curve: MivaltaMotion.standardEase,
           alignment: Alignment.topLeft,
           child: _profileDisclosureExpanded
               ? Padding(
+                  // Redline: indent 26px (aligns under label, not lock)
                   padding: const EdgeInsets.only(
                     top: MivaltaSpace.x3,
-                    left: MivaltaSpace.x2,
+                    left: 26,
                   ),
-                  child: Text(
-                    'MiValta is built differently from most health and fitness apps.\n\n'
-                    'The AI runs entirely on your device. Your personal profile, health data '
-                    'and training history are never uploaded to MiValta or any cloud.\n\n'
-                    'The more information you choose to share — such as your sports, goals, '
-                    'training history and wearable data — the better MiValta understands you. '
-                    'Over time it learns from and with you, providing increasingly accurate '
-                    'insights, feedback and, if you choose, personalized training plans.\n\n'
-                    'You remain in control. You decide what to share, and your data always '
-                    'stays with you.',
-                    style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
+                  // BS-002c v2: Full disclosure body (verbatim)
+                  child: RichText(
+                    text: TextSpan(
+                      style: MivaltaType.small.copyWith(
+                        color: MivaltaColors.textSecondary,
+                        height: 1.55,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: "Unlike most health and fitness apps, MiValta doesn't "
+                              "build your profile in the cloud. Your profile lives only "
+                              "on your device, where the AI runs locally and learns "
+                              "exclusively from the information you choose to provide.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "As you use MiValta, it gradually builds a deeper "
+                              "understanding of you. Your sports, goals, training history, "
+                              "wearable data and your own feedback help create a profile "
+                              "that is uniquely yours. Because no two people are the same, "
+                              "your profile becomes increasingly personal over time.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "The more information you choose to share, the better "
+                              "MiValta can understand your body, your habits and your "
+                              "progress. This allows it to provide more accurate insights, "
+                              "smarter recommendations and, if you choose, highly "
+                              "personalized training plans and coaching.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "Your health data, training history and personal profile "
+                              "are never uploaded to MiValta or any cloud service. Your "
+                              "account exists only to manage your email, membership and "
+                              "access to the app. Your personal profile always remains on "
+                              "your device.\n\n",
+                        ),
+                        // Closing line: weight 600 / textPrimary
+                        TextSpan(
+                          text: "Your data remains yours. Always.",
+                          style: MivaltaType.small.copyWith(
+                            color: MivaltaColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            height: 1.55,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : const SizedBox.shrink(),

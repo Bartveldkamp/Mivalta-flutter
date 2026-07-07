@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REDLINE — Your profile step (BS-002c v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0C0E; --surface1:#15171A; --text-primary:#F2F4F5; --text-secondary:#A8B0B4; --text-muted:#6B7378;
+    --teal:#17B8A6; --productive:#00C6A7; --hairline:rgba(107,115,120,.2);
+    --x1:4px; --x2:8px; --x3:12px; --x4:16px; --x5:20px; --x6:24px;
+    --title-lg:24px; --body:17px; --small:14px;
+    --red:#FF4D5E;
+  }
+  body{margin:0;background:#1A1C1F;font-family:Inter,system-ui,sans-serif;color:var(--text-primary);display:flex;justify-content:center;gap:48px;padding:40px;align-items:flex-start;}
+  a{color:var(--teal);} a:hover{color:#5FD9CC;}
+  .col h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#9AA3A8;font-weight:700;margin:0 0 14px;text-align:center;}
+  .device{position:relative;width:393px;height:852px;background:var(--bg);border-radius:44px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);flex:none;}
+  .safe{position:absolute;inset:59px 0 34px 0;display:flex;flex-direction:column;}
+  .dots{display:flex;justify-content:center;gap:8px;padding:16px 0;}
+  .dots span{width:8px;height:8px;border-radius:50%;background:rgba(107,115,120,.3);}
+  .dots span.cur{background:var(--text-primary);}
+  .dots span.done{background:var(--productive);}
+  .scroll{flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;}
+  .title{font-size:var(--title-lg);font-weight:700;line-height:1.2;margin-top:var(--x6);}
+  .sub{font-size:var(--body);line-height:1.5;color:var(--text-secondary);margin-top:var(--x3);}
+  .sub b{color:var(--text-secondary);font-weight:600;}
+  .disc{margin-top:var(--x4);min-height:44px;display:flex;align-items:center;gap:8px;}
+  .disc .lock{width:18px;height:18px;flex:none;color:var(--text-secondary);}
+  .disc .lbl{flex:1;font-size:var(--body);color:var(--text-secondary);}
+  .disc .chev{width:24px;height:24px;color:var(--text-secondary);flex:none;transition:transform .28s;}
+  .disc.open .chev{transform:rotate(180deg);}
+  .discbody{font-size:var(--small);line-height:1.55;color:var(--text-secondary);padding:var(--x3) 0 0 26px;}
+  .discbody p{margin:0 0 12px;}
+  .lead{font-size:var(--body);font-weight:600;margin-top:var(--x5);}
+  .cap{font-size:var(--small);color:var(--text-secondary);margin-top:var(--x1);}
+  .sport{margin-top:var(--x3);min-height:56px;border-radius:12px;background:var(--surface1);border:1px solid var(--hairline);display:flex;align-items:center;gap:16px;padding:16px;}
+  .sport.sel{background:rgba(0,198,167,.15);border-color:var(--productive);}
+  .sport .ic{width:28px;height:28px;color:var(--text-secondary);flex:none;}
+  .sport.sel .ic{color:var(--productive);}
+  .sport .nm{flex:1;font-size:18px;font-weight:600;}
+  .sport.sel .nm{color:var(--productive);}
+  .sport .ck{width:24px;height:24px;color:var(--productive);flex:none;}
+  .cta{margin:12px 16px 16px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:#0B0C0E;flex:none;}
+  .homebar{height:34px;display:flex;align-items:center;justify-content:center;}
+  .homebar div{width:134px;height:5px;border-radius:3px;background:#3A4045;}
+  /* redline tags */
+  .tag{position:absolute;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;white-space:nowrap;z-index:5;}
+  .tag.g{background:#0E7C6E;}
+  .note{width:330px;font-size:13px;line-height:1.55;color:#C4CBCF;}
+  .note h2{text-align:left;}
+  .note ol{padding-left:18px;margin:0;}
+  .note li{margin-bottom:10px;}
+  .note code{background:#26292D;padding:1px 5px;border-radius:4px;font-size:12px;color:#7FE3D2;}
+  .note .warn{color:var(--red);font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="col">
+  <h2>State A — collapsed (default)</h2>
+  <div class="device" data-screen-label="Profile step — collapsed">
+    <div class="safe">
+      <div class="dots"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="scroll">
+        <div class="title">Your profile</div>
+        <div class="sub">MiValta builds a personal profile that becomes more accurate over time as it learns from and with you.<br><br><b>Everything stays on your device. Never on a server.</b></div>
+        <div class="disc">
+          <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+          <div class="lbl">Why we ask these questions</div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+        </div>
+        <div class="lead">Let's start with your sports.</div>
+        <div class="cap">Select all that apply.</div>
+        <div class="sport sel">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4a2 2 0 1 0 2-2 2 2 0 0 0-2 2zM5 22l3-7 3 2v5M8 12l2-5 4 2 3-1M14 9l1 4 4 2"></path></svg>
+          <div class="nm">Running</div>
+          <svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 12.5l2.5 2.5 4.5-5"></path></svg>
+        </div>
+        <div class="sport">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="17" r="3.5"></circle><circle cx="18" cy="17" r="3.5"></circle><path d="M6 17l4-8h5l3 8M10 9l-1.5-3H6"></path></svg>
+          <div class="nm">Cycling</div>
+        </div>
+      </div>
+      <div class="cta" style="background:var(--productive)">Continue</div>
+    </div>
+    <div class="homebar"><div></div></div>
+    <div class="tag g" style="top:123px;left:16px">title-lg 24 · x6 top</div>
+    <div class="tag" style="top:330px;left:16px">disclosure row ≥44 · x4 above</div>
+    <div class="tag" style="top:395px;left:16px">lead x5 · cap x1</div>
+    <div class="tag g" style="top:470px;left:200px">rows ≥56 · r12 · x3 gap</div>
+    <div class="tag" style="top:660px;left:16px">NO footer line this step (one-claim law)</div>
+  </div>
+</div>
+
+<div class="col">
+  <h2>State B — disclosure expanded</h2>
+  <div class="device" data-screen-label="Profile step — expanded">
+    <div class="safe">
+      <div class="dots"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="scroll" style="margin-top:-180px">
+        <div class="title">Your profile</div>
+          <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+          <div class="lbl" style="color:var(--text-primary)">Why we ask these questions</div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+        </div>
+        <div class="discbody">
+          <p>Unlike most health and fitness apps, MiValta doesn't build your profile in the cloud. Your profile lives only on your device, where the AI runs locally and learns exclusively from the information you choose to provide.</p>
+          <p>As you use MiValta, it gradually builds a deeper understanding of you. Your sports, goals, training history, wearable data and your own feedback help create a profile that is uniquely yours. Because no two people are the same, your profile becomes increasingly personal over time.</p>
+          <p>The more information you choose to share, the better MiValta can understand your body, your habits and your progress. This allows it to provide more accurate insights, smarter recommendations and, if you choose, highly personalized training plans and coaching.</p>
+          <p>Your health data, training history and personal profile are never uploaded to MiValta or any cloud service. Your account exists only to manage your email, membership and access to the app. Your personal profile always remains on your device.</p>
+          <p><b style="color:var(--text-primary)">Your data remains yours. Always.</b></p>
+        </div>
+      </div>
+      <div class="cta" style="background:rgba(0,198,167,.4)">Continue</div>
+    </div>
+    <div class="homebar"><div></div></div>
+    <div class="tag g" style="top:300px;left:120px">AnimatedSize 280ms · chevron rotates 180°</div>
+    <div class="tag g" style="top:420px;left:16px">body = small 14 · lh 1.55 · indent 26 (aligns under label)</div>
+    <div class="tag" style="top:800px;left:16px">SCROLLS when open — question below, never hidden</div>
+  </div>
+</div>
+
+<div class="col note">
+  <h2>Build notes (BS-002c v2)</h2>
+  <ol>
+    <li>Copy is <span class="warn">verbatim from the spec</span> — the sub's last line is <code>weight 600</code>, same color (emphasis without a new claim style). Closing line "Your data remains yours. Always." is 600 / textPrimary.</li>
+    <li>Disclosure label: <b>"Why we ask these questions"</b> (v2 — replaces "How your private profile works"). Row ≥44px; expanded body indents 26px so text aligns under the label, not the lock.</li>
+    <li>When open, the label turns <code>textPrimary</code>; body stays <code>MivaltaType.small</code> / <code>textSecondary</code>.</li>
+    <li><span class="warn">Footer "On this phone. Never on a server." REMOVED on this step only</span> — redundant with the sub (one-claim law). Other steps keep theirs.</li>
+    <li>Expanded state must scroll — the question + sports are pushed down, never overlapped or hidden; CTA stays pinned.</li>
+    <li>Sport rows unchanged from current build (≥56, r12, multi-select, check-circle on selected).</li>
+    <li><b>Golden tests:</b> <code>profile_step_golden_test.dart</code> — both states (collapsed + expanded), fonts bundled.</li>
+  </ol>
+</div>
+
+</body>
+</html>

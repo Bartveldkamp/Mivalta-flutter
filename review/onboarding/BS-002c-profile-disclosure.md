@@ -5,7 +5,39 @@ Supersedes BS-002b's sub-line for the Sport step. Bart's design, locked.
 Rationale: ~95% of users want speed, ~5% want the architecture story — a
 collapsible disclosure serves both without cluttering the screen.
 
-## Locked layout & copy (step 1 of intake)
+## v2 COPY (Bart, 2026-07-07 17:35 walk — REPLACES the v1 copy below, verbatim)
+**REDLINE: `review/onboarding/redlines/RL-profile-r1.html`** — both states
+(collapsed + expanded) at 393×852, measured, with build notes. Build against
+the redline; diff sim shot before it lands on the round-3 branch.
+- Sub: **"MiValta builds a personal profile that becomes more accurate over
+  time as it learns from and with you.\n\nEverything stays on your device.
+  Never on a server."**
+- Disclosure row label: **"Why we ask these questions"** (lock glyph +
+  chevron unchanged).
+- Expanded body, verbatim:
+  **"Unlike most health and fitness apps, MiValta doesn't build your
+  profile in the cloud. Your profile lives only on your device, where the
+  AI runs locally and learns exclusively from the information you choose
+  to provide.\n\nAs you use MiValta, it gradually builds a deeper
+  understanding of you. Your sports, goals, training history, wearable
+  data and your own feedback help create a profile that is uniquely
+  yours. Because no two people are the same, your profile becomes
+  increasingly personal over time.\n\nThe more information you choose to
+  share, the better MiValta can understand your body, your habits and
+  your progress. This allows it to provide more accurate insights,
+  smarter recommendations and, if you choose, highly personalized
+  training plans and coaching.\n\nYour health data, training history and
+  personal profile are never uploaded to MiValta or any cloud service.
+  Your account exists only to manage your email, membership and access
+  to the app. Your personal profile always remains on your device.\n\n
+  Your data remains yours. Always."**
+- Step footer "On this phone. Never on a server." is now REDUNDANT with
+  the sub's second line — REMOVE it on this step only (one-claim law);
+  other steps keep theirs.
+- Everything else per v1 below (question lead, caption, multi-select,
+  disclosure mechanics).
+
+## v1 — Locked layout & copy (step 1 of intake)
 - Title: **"Your profile"**
 - Sub (MivaltaType.body, textSecondary):
   **"MiValta builds a personal profile to understand you and personalize
