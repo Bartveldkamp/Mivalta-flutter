@@ -39,6 +39,7 @@ import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
 import 'advisor_screen.dart';
 import 'session_start_screen.dart';
+import 'workout_detail_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -814,6 +815,24 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       ModuleCard(
         title: 'Recent workout',
         icon: Icons.check_circle_outline,
+        onTap: (_binding != null && _handle != null)
+            ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => WorkoutDetailScreen(
+                      binding: _binding!,
+                      handle: _handle!,
+                      date: latest.date,
+                      sportLabel: _formatSport(latest.sport),
+                    ),
+                  ),
+                )
+            : null,
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 20,
+          color: MivaltaColors.textSecondary,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
