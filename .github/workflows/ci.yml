@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel a superseded analyze/test run on the same PR (push-to-main never
+# cancels). Distinct group prefix from the smoke workflow so the two never
+# cancel each other.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
