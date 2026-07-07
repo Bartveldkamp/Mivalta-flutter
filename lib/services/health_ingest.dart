@@ -45,6 +45,7 @@ import 'package:health/health.dart';
 
 import '../models/time_in_zone.dart';
 import '../rust_engine.dart';
+import 'benchmark_sync.dart';
 import 'ingest_adapter.dart' as ingest;
 
 // ============================================================================
@@ -482,6 +483,15 @@ class HealthIngestService {
       if (workoutsProcessed > 0) {
         final stateJson = await binding.saveState(handle);
         await binding.writeViterbiState(handle, stateJson: stateJson);
+
+        // Benchmark sync — the CLOSED loop (founder 2026-07-07). HealthKit
+        // gives this path no watts/speed sample streams yet (HR only), so
+        // the streams list is honestly EMPTY — the engine prunes its
+        // evidence window and holds; the moment a real stream source lands
+        // (GPS speed / power meter), this same wire carries it. Never a
+        // stand-in stream (Law 3: HR is neither watts nor m/s).
+        await BenchmarkSyncService(binding: binding, handle: handle)
+            .run(activityStreamsJson: '[]');
       }
 
       // De-silence (Law 6 — fail loud over fail quiet): decide success/error

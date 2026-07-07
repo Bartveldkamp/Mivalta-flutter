@@ -1041,6 +1041,84 @@ pub fn read_viterbi_state(handle: &EnginesHandle) -> Result<String, BridgeError>
         .map_err(Into::into)
 }
 
+/// `PostProcessEngine::sync_benchmark_from_activities` — the CLOSED benchmark
+/// loop (rust-engine registry v2.42): raw activity streams → merged
+/// best-effort curve → sport-native fit (CP watts for cyclists, Critical
+/// Speed for runners) → confirm/promote gate over the remembered evidence
+/// window → the decision APPLIED to the engine's bound profile. The engine
+/// derives `today` from the device clock here in the shim (same precedent as
+/// `advisor_options`' `today_iso` — the caller supplies the real current
+/// date; the engine itself stays clock-free).
+///
+/// `activities_json`: `[{"samples":[f64…],"sample_rate_hz":1.0}]` — watts for
+/// a cyclist, metres/second for a runner (the athlete's own unit; never
+/// crossed). `candidate_history_json`: what `read_benchmark_history`
+/// returned (`"null"` on first run).
+///
+/// Returns `{decision, applied, event|null, candidate_history,
+/// athlete_profile}`. Dart's courier duties, all verbatim: persist
+/// `athlete_profile` (write_profile + update_profile), store
+/// `candidate_history` (write_benchmark_history), file `event`
+/// (write_benchmark_event) when present.
+pub fn sync_benchmark_from_activities(
+    handle: &EnginesHandle,
+    activities_json: String,
+    candidate_history_json: String,
+) -> Result<String, BridgeError> {
+    let today_epoch_day = chrono::Utc::now().timestamp() / 86_400;
+    handle
+        .postprocess
+        .sync_benchmark_from_activities(activities_json, today_epoch_day, candidate_history_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::write_benchmark_event(athlete_id, event_json)` — file a
+/// benchmark promotion/demotion in the encrypted audit ledger
+/// (`event_type = "benchmark_change"`). Pass the `event` object from
+/// `sync_benchmark_from_activities` VERBATIM; the vault validates every
+/// field and composes the human message engine-side. Returns
+/// `{"audit_id": "…"}`.
+pub fn write_benchmark_event(
+    handle: &EnginesHandle,
+    event_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .write_benchmark_event(handle.athlete_id.clone(), event_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::write_benchmark_history(athlete_id, history_json)` — persist
+/// the benchmark pattern memory (the `candidate_history` the sync returned),
+/// VERBATIM, athlete-keyed like `write_viterbi_state`.
+pub fn write_benchmark_history(
+    handle: &EnginesHandle,
+    history_json: String,
+) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .write_benchmark_history(handle.athlete_id.clone(), history_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_benchmark_history(athlete_id)` — read the persisted
+/// pattern memory, or the string `"null"` on first run (honest absence the
+/// sync seam accepts as an empty evidence window).
+pub fn read_benchmark_history(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_benchmark_history(handle.athlete_id.clone())
+        .map_err(Into::into)
+}
+
+/// `PostProcessEngine::profile()` — the athlete profile AS THE LIVE ENGINE
+/// HOLDS IT. After `sync_benchmark_from_activities` applies a promotion,
+/// THIS is the byte-exact source Dart persists and re-binds from — never a
+/// Dart re-assembly of the sync payload (Law 2).
+pub fn postprocess_profile(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.postprocess.profile().map_err(Into::into)
+}
+
 /// Minimal biometric write for the hardware-verification debug swatch
 /// exerciser. Composes a minimal VaultBiometric JSON with `date`,
 /// `source`, and a placeholder `resting_hr` so the next
@@ -1202,6 +1280,16 @@ pub fn update_profile(
     handle
         .normalizer
         .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
+    // cp + postprocess re-bind too (PR-A1b surface) — a promoted benchmark
+    // must reach EVERY bound profile, or zone/W′ math runs on a stale FTP.
+    handle
+        .cp
+        .update_profile(athlete_profile_json.clone())
+        .map_err(BridgeError::from)?;
+    handle
+        .postprocess
+        .update_profile(athlete_profile_json)
         .map_err(BridgeError::from)?;
     Ok(())
 }

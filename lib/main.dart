@@ -76,6 +76,22 @@ Future<void> _seedDemoIfNeeded() async {
   final seeder = DemoSeeder(binding: binding, handle: handle);
   await seeder.seedSeason(days: 30);
 
+  // Witness the CLOSED benchmark loop over the seeded athlete: two synthetic
+  // maximal watt efforts through the REAL courier chain (history read →
+  // engine fit/gate → history write → ledger on promote). The canonical seed
+  // carries no FTP benchmark yet, so the engine HOLDS (no_current_benchmark)
+  // — the witness proves the wire end-to-end and prints the engine's own
+  // decision verbatim. Synthetic INPUT, real PIPELINE (the seeder contract).
+  final witness = await seeder.runBenchmarkSyncWitness(effortStreams: [
+    [for (var i = 0; i < 300; i++) 285.0], // 5-min max effort (watts)
+    [for (var i = 0; i < 1200; i++) 262.0], // 20-min max effort (watts)
+  ]);
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print('benchmark loop witness: decision=${witness?.decision} '
+        'applied=${witness?.applied}');
+  }
+
   // A seeded debug boot is by definition a "returning athlete": mark the
   // auth session so SplashScreen routes straight to Today. Without this the
   // stub auth flow lands on Onboarding, whose profile write would replace

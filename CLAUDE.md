@@ -135,45 +135,34 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a579584`**
-(rust-engine `main` after the audit-fix train #377–#380; engine_registry
-**v2.29** / **14 engines** per `engine_registry.json` at that rev). The
-`rev = "a579584"` line in `rust/Cargo.toml` is **authoritative**, and the comment
-block above it narrates the full re-pin history (`…b7264cb → a579584`); this
-section only summarizes. The `…b7264cb` bump added the F-ING-A engine half
-(engine computes workout avg/max HR from a raw `hr_samples` stream), which this
-repo's ingest now feeds; no shim/FFI signature change, so no FRB-regen (only a
-`cargo update` + xcframework rebuild). This rev carries (superset of the prior
-`8b3b95a`/v2.27 pin):
-- **`gatc-vault` SQLCipher with vendored OpenSSL** (`bundled-sqlcipher-vendored-openssl`),
-  so the Android cross-compile resolves with no system OpenSSL — the Flutter `smoke`
-  CI job is green end-to-end on this pin. (See `mivalta-rust-engine/docs/PRODUCT_READINESS.md`
-  §6 for the standing OpenSSL-patch obligation this creates.)
-- **Deterministic Josi voice pipeline** — CommunicationPlan → microplanner →
-  fidelity firewall → `RealizedLine`, plus the `gatc_ffi::realize_advisor_line`
-  FFI seam (#363–#365). Wired to Flutter in **#116** (the realize-seam shim +
-  `NarrativeEngine` added to the engines handle) and surfaced in **#117** (the
-  ADVISOR present-and-disclose surface).
-- **#358 ChatEngine removal** + **#359 trend layer** (`fitness_trend` /
-  `hrv_trend` / `rhr_trend` — additive accessors) + **#367 HmmPosteriors removed
-  from the voice/finding contract** (it's the state estimator, not a peer finding).
-- **Dashboard removal (#356)** — `gatc-dashboard`/`DashboardEngine` deleted; the
-  shim (`rust/src/api.rs`) is dashboard-free.
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`63d8744`**
+(rust-engine `main` after #394 — Phase 0 of the road-to-100% plan;
+engine_registry **v2.42** per `engine_registry.json` at that rev). The
+`rev = "63d8744…"` line in `rust/Cargo.toml` is **authoritative**, and the
+comment block above it narrates the full re-pin history
+(`…a579584 → 3b5ec7c → 63d8744`); this section only summarizes. This bump
+carries the whole benchmark train (#391–#394): the growing-profile learning
+model, the CLOSED benchmark loop (`sync_benchmark_from_activities` — streams →
+sport-native fit → confirm/promote gate → benchmark written into the bound
+profile; cyclists in watts, runners in Critical Speed), the promotion LEDGER
+(`write_benchmark_event` → encrypted audit ledger), the PATTERN RULE
+(`min_confirming_days` 2 — the level never rises on one workout), per-workout
+device-parameter storage (9 typed `VaultActivity` columns), and the vault
+pattern-memory seams (`write`/`read_benchmark_history`).
 
-The build executor still owes the **iOS xcframework rebuild** at this rev (Android
-is proven by the `smoke` CI cross-compile; iOS is Mac-only) — see
-`docs/mac/MAC_BRIEF_REALIZE_SEAM.md`.
+**FIVE new shim fns** consume it (`sync_benchmark_from_activities`,
+`write_benchmark_event`, `write_benchmark_history`, `read_benchmark_history`,
+`postprocess_profile`) — FRB bindings were regenerated IN the same PR (host
+codegen, frb 2.12.0 / Flutter 3.44.0, matching the drift-guard pins). The
+build executor owes `cargo update` + the **xcframework rebuild** — see
+`docs/mac/MAC_BRIEF_BENCHMARK_LOOP.md`. The Dart courier chain is
+`lib/services/benchmark_sync.dart` (canonical order: read history → ONE sync
+call → store history → on apply: persist the LIVE engine profile + re-bind +
+file the ledger event), called from the ingest post-workout path and the
+kDebugMode seeder witness.
 
-**Pin currency (as of 2026-07):** `a579584` **is** rust-engine `main` — the
-audit-fix train (#377 audit fixes + dead chat-history removal, #378
-Viterbi-terminology purge + guard, #379 duration-only honest-absence +
-determinism guard, #380 F-ING-A engine half) is all in this pin. No shim/FFI
-signature change across the bump (the removed `cleanup_expired_conversation_turns`
-was never called by `rust/src/api.rs`; the added `hr_samples` handling is inside
-the existing `normalize_observation` path), so **no FRB-regen** — the build
-executor owes only a `cargo update` + xcframework rebuild. `engine_registry`
-stays v2.29 / 14 engines. Re-verify against `engine_registry.json` at the pinned
-rev before any future bump (Rule 4 — zero guessing).
+**Pin currency:** re-verify against `engine_registry.json` at the pinned rev
+before any future bump (Rule 4 — zero guessing).
 
 ## Repository Structure
 
