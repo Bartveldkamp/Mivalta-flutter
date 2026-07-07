@@ -6,6 +6,26 @@ paragraphs (intro claim + bolded claim + restore paragraph) — repetitive,
 over-claiming, not next-generation. Confidence is restraint: say it once,
 cleanly, and stop.
 
+## ROUND 3 (device witness 2026-07-07 16:55 — layout defeated by glow-field padding)
+Root cause, from source: `_buildPromiseGlow` centres a 76px mark inside a
+245×245 field — ~85px invisible padding below the mark BEFORE the x5 gap,
+so the title still floats low and the mark reads small. Fixes, exact:
+1. Logo 76 → **96** (match splash; this is the brand cover of intake).
+2. Glow must HUG the mark: `SizedBox` = logo size (96); render halos in an
+   unclipped `Stack` (`clipBehavior: Clip.none`) via `Positioned` centred
+   halos — blur may overflow, layout box may not. The x5 gap then measures
+   from the VISUAL mark edge to the title — the whole point of the duo.
+3. Cluster placement: not dead-centre — top-weighted like splash: column
+   top-aligned, ~18% viewport top padding, so logo+title sit as one unit in
+   the upper half and the lower half stays calm until the CTA.
+4. **DELETE the restore link from this step** (Bart ruling): the import seam
+   doesn't exist yet (BS-017 blocked) — a dead link on the first screen is
+   dishonest. It returns with the real restore flow, on Auth, when the seam
+   lands.
+Asset note (closes the swap question): the fingerprint-wave IS the brand
+mark — verified against assets/brand in the Design project. No swap needed;
+size/position only.
+
 ## Locked copy (FINAL wording from Bart, 2026-07-07 11:59 walk) — replaces the block below
 - Layout: title block moves UP to form a duo with the logo — logo, x5 gap,
   then the block (currently stranded mid-screen, too far from the mark).

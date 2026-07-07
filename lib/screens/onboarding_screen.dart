@@ -526,70 +526,80 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // STEP BUILDERS (v3)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Auth-style glow behind the Promise logo (BS-002 v3.2).
-  /// Same structure as auth_screen's glow, scaled for 76px logo.
+  /// BS-002a Round 3: Glow HUGS the 96px mark — layout box = logo size,
+  /// halos overflow unclipped via Clip.none. The x5 gap then measures from
+  /// the VISUAL mark edge to the title.
   Widget _buildPromiseGlow() {
-    // Scaled from auth (62px logo → 76px): field 245, outer 245, mid 162
-    const fieldSize = 245.0;
-    const outerSize = 245.0;
-    const midSize = 162.0;
-    const logoSize = 76.0;
+    // Round 3: layout box = 96px, halos overflow
+    const logoSize = 96.0;
+    // Halo sizes scaled from splash proportions
+    const outerSize = 280.0;
+    const midSize = 190.0;
 
     return SizedBox(
-      width: fieldSize,
-      height: fieldSize,
+      width: logoSize,
+      height: logoSize,
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none, // Round 3: halos may overflow
         children: [
-          // Outer halo
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: MivaltaGlow.authOuterBlur,
-              sigmaY: MivaltaGlow.authOuterBlur,
-            ),
-            child: Container(
-              width: outerSize,
-              height: outerSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    MivaltaColors.tertiaryTealSolid.withValues(
-                      alpha: MivaltaGlow.authOuterAlpha,
-                    ),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, MivaltaGlow.authOuterStop],
+          // Outer halo (positioned to overflow center)
+          Positioned(
+            left: (logoSize - outerSize) / 2,
+            top: (logoSize - outerSize) / 2,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: MivaltaGlow.authOuterBlur,
+                sigmaY: MivaltaGlow.authOuterBlur,
+              ),
+              child: Container(
+                width: outerSize,
+                height: outerSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      MivaltaColors.tertiaryTealSolid.withValues(
+                        alpha: MivaltaGlow.authOuterAlpha,
+                      ),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, MivaltaGlow.authOuterStop],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Mid halo
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: MivaltaGlow.authMidBlur,
-              sigmaY: MivaltaGlow.authMidBlur,
-            ),
-            child: Container(
-              width: midSize,
-              height: midSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    MivaltaColors.tertiaryTealSolid.withValues(
-                      alpha: MivaltaGlow.authMidAlpha,
-                    ),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, MivaltaGlow.authMidStop],
+          // Mid halo (positioned to overflow center)
+          Positioned(
+            left: (logoSize - midSize) / 2,
+            top: (logoSize - midSize) / 2,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: MivaltaGlow.authMidBlur,
+                sigmaY: MivaltaGlow.authMidBlur,
+              ),
+              child: Container(
+                width: midSize,
+                height: midSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      MivaltaColors.tertiaryTealSolid.withValues(
+                        alpha: MivaltaGlow.authMidAlpha,
+                      ),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, MivaltaGlow.authMidStop],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Logo (76px)
+          // Logo (96px) — Round 3: brand cover, match splash
           SvgPicture.asset(
             'assets/mivalta-logo.svg',
             width: logoSize,
@@ -600,66 +610,60 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 0: Promise (W13 — BS-002a FINAL: logo duo with title, locked copy).
+  /// Step 0: Promise (BS-002a Round 3: top-weighted, glow hugs mark, no restore link).
   Widget _buildPromiseStep() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // W13: Logo duo with title — logo, x5 gap, then the title block.
-            _buildPromiseGlow(),
-
-            // x5 gap between logo and title (W13: the pair reads as one unit with air)
-            const SizedBox(height: MivaltaSpace.x5),
-
-            // Title — unchanged size
-            Text(
-              'Your body.\nYour data.',
-              style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
-              textAlign: TextAlign.center,
+    // Round 3: top-weighted layout (~18% viewport padding), not dead-center
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final topPadding = constraints.maxHeight * 0.18;
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: topPadding,
+              left: MivaltaSpace.x4,
+              right: MivaltaSpace.x4,
             ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Round 3: Logo (96px, glow hugs mark) — brand cover of intake.
+                _buildPromiseGlow(),
 
-            const SizedBox(height: MivaltaSpace.x4),
+                // x5 gap between logo and title (the pair reads as one unit with air)
+                const SizedBox(height: MivaltaSpace.x5),
 
-            // W13 / BS-002a FINAL: "Private by design."
-            Text(
-              'Private by design.',
-              style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: MivaltaSpace.x2),
-
-            // W13 / BS-002a FINAL: "Let's personalize MiValta to you."
-            Text(
-              "Let's personalize MiValta to you.",
-              style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: MivaltaSpace.x5),
-
-            // Restore link (unchanged)
-            GestureDetector(
-              onTap: () {
-                // TODO: BS-017 F4 sheet — encrypted export restore flow
-                debugPrint('Restore from encrypted export tapped (stub)');
-              },
-              child: Text(
-                'Restoring from an encrypted export?',
-                style: MivaltaType.small.copyWith(
-                  color: MivaltaColors.textMuted,
-                  decoration: TextDecoration.underline,
-                  decorationColor: MivaltaColors.textMuted,
+                // Title — unchanged size
+                Text(
+                  'Your body.\nYour data.',
+                  style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
+
+                const SizedBox(height: MivaltaSpace.x4),
+
+                // BS-002a FINAL: "Private by design."
+                Text(
+                  'Private by design.',
+                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: MivaltaSpace.x2),
+
+                // BS-002a FINAL: "Let's personalize MiValta to you."
+                Text(
+                  "Let's personalize MiValta to you.",
+                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+
+                // Round 3: Restore link DELETED — seam doesn't exist yet (BS-017 blocked).
+                // Returns with the real restore flow, on Auth, when the seam lands.
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -32,7 +32,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: 395056b3175ba4f08480a7c5de30cd36d69827e4
   health: a4ddeac72091000e94776864d0028f6be31ec7a5
-  MivaltaRustBridge: ac2ecb1e66aca9ecde10bfdf276fb6f638b57d8a
+  MivaltaRustBridge: 2efb824a58a9a94a345b4a4e787e8bc94b650913
 
 PODFILE CHECKSUM: 37d51ba363080e89cdc6ce4c54ae6bd7eff38b21
 
