@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>REDLINE — Your profile step (BS-002c v2)</title>
+<title>REDLINE — Your profile step (BS-002c v3)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -47,7 +47,7 @@
   .homebar{height:34px;display:flex;align-items:center;justify-content:center;}
   .homebar div{width:134px;height:5px;border-radius:3px;background:#3A4045;}
   /* redline tags */
-  .tag{position:absolute;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;white-space:nowrap;z-index:5;}
+  .tag{position:absolute;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;white-space:normal;max-width:340px;line-height:1.4;z-index:5;}
   .tag.g{background:#0E7C6E;}
   .note{width:330px;font-size:13px;line-height:1.55;color:#C4CBCF;}
   .note h2{text-align:left;}
@@ -66,7 +66,7 @@
       <div class="dots"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div>
       <div class="scroll">
         <div class="title">Your profile</div>
-        <div class="sub">MiValta builds a personal profile that becomes more accurate over time as it learns from and with you.<br><br><b>Everything stays on your device. Never on a server.</b></div>
+        <div class="sub">With your input, MiValta builds a personal profile that becomes more accurate over time as it learns from and with you.<br><br><b>Your data stays on your device. Never on a server. Real privacy. Real control.</b></div>
         <div class="disc">
           <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
           <div class="lbl">Why we ask these questions</div>
@@ -87,9 +87,9 @@
       <div class="cta" style="background:var(--productive)">Continue</div>
     </div>
     <div class="homebar"><div></div></div>
-    <div class="tag g" style="top:123px;left:16px">title-lg 24 · x6 top</div>
-    <div class="tag" style="top:330px;left:16px">disclosure row ≥44 · x4 above</div>
-    <div class="tag" style="top:395px;left:16px">lead x5 · cap x1</div>
+    <div class="tag g" style="top:104px;left:16px">title-lg 24 · x6 top</div>
+    <div class="tag" style="top:311px;left:16px">disclosure row ≥44 · x4 above</div>
+    <div class="tag" style="top:376px;left:16px">lead x5 · cap x1</div>
     <div class="tag g" style="top:470px;left:200px">rows ≥56 · r12 · x3 gap</div>
     <div class="tag" style="top:660px;left:16px">NO footer line this step (one-claim law)</div>
   </div>
@@ -100,33 +100,43 @@
   <div class="device" data-screen-label="Profile step — expanded">
     <div class="safe">
       <div class="dots"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="scroll" style="margin-top:-180px">
+      <div class="scroll">
+        <div class="scrolled" style="margin-top:-176px">
         <div class="title">Your profile</div>
+        <div class="sub">With your input, MiValta builds a personal profile that becomes more accurate over time as it learns from and with you.<br><br><b>Your data stays on your device. Never on a server. Real privacy. Real control.</b></div>
+        <div class="disc open">
           <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
           <div class="lbl" style="color:var(--text-primary)">Why we ask these questions</div>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
         </div>
         <div class="discbody">
-          <p>Unlike most health and fitness apps, MiValta doesn't build your profile in the cloud. Your profile lives only on your device, where the AI runs locally and learns exclusively from the information you choose to provide.</p>
-          <p>As you use MiValta, it gradually builds a deeper understanding of you. Your sports, goals, training history, wearable data and your own feedback help create a profile that is uniquely yours. Because no two people are the same, your profile becomes increasingly personal over time.</p>
-          <p>The more information you choose to share, the better MiValta can understand your body, your habits and your progress. This allows it to provide more accurate insights, smarter recommendations and, if you choose, highly personalized training plans and coaching.</p>
-          <p>Your health data, training history and personal profile are never uploaded to MiValta or any cloud service. Your account exists only to manage your email, membership and access to the app. Your personal profile always remains on your device.</p>
-          <p><b style="color:var(--text-primary)">Your data remains yours. Always.</b></p>
+          <p>Every answer you provide helps MiValta build a profile that is uniquely yours. Because no two people are the same, your profile continuously evolves as it learns from and with you.</p>
+          <p>The more you choose to share — such as your sports, goals, training history, wearable data and your own feedback — the better MiValta understands your body, your habits and your progress. Over time, this enables increasingly accurate insights, more meaningful feedback and, if you choose, highly personalized training plans.</p>
+          <p>Your profile is built and stored entirely on your device, where MiValta's AI runs locally. Your health data, training history and personal profile are never uploaded to MiValta or any server.</p>
+          <p>Your account exists only to manage your email, membership and access to premium features. It is never connected to your personal profile or your health and training data.</p>
+          <p><b style="color:var(--text-primary)">Your data remains yours. Your profile remains yours. Always.</b></p>
+        </div>
+        <div class="lead">Let's start with your sports.</div>
+        <div class="cap">Select all that apply.</div>
+        <div class="sport sel">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4a2 2 0 1 0 2-2 2 2 0 0 0-2 2zM5 22l3-7 3 2v5M8 12l2-5 4 2 3-1M14 9l1 4 4 2"></path></svg>
+          <div class="nm">Running</div>
+        </div>
         </div>
       </div>
       <div class="cta" style="background:rgba(0,198,167,.4)">Continue</div>
     </div>
     <div class="homebar"><div></div></div>
-    <div class="tag g" style="top:300px;left:120px">AnimatedSize 280ms · chevron rotates 180°</div>
-    <div class="tag g" style="top:420px;left:16px">body = small 14 · lh 1.55 · indent 26 (aligns under label)</div>
-    <div class="tag" style="top:800px;left:16px">SCROLLS when open — question below, never hidden</div>
+    <div class="tag g" style="top:120px;left:150px">AnimatedSize 280ms · chevron 180°</div>
+    <div class="tag g" style="top:250px;left:16px">body = small 14 · lh 1.55 · indent 26</div>
+    <div class="tag" style="top:64px;left:16px">shown SCROLLED — question sits below, never hidden</div>
   </div>
 </div>
 
 <div class="col note">
-  <h2>Build notes (BS-002c v2)</h2>
+  <h2>Build notes (BS-002c v3)</h2>
   <ol>
-    <li>Copy is <span class="warn">verbatim from the spec</span> — the sub's last line is <code>weight 600</code>, same color (emphasis without a new claim style). Closing line "Your data remains yours. Always." is 600 / textPrimary.</li>
+    <li>Copy is <span class="warn">verbatim from the spec</span> — the sub's last line is <code>weight 600</code>, same color (emphasis without a new claim style). Closing line "Your data remains yours. Your profile remains yours. Always." is 600 / textPrimary.</li>
     <li>Disclosure label: <b>"Why we ask these questions"</b> (v2 — replaces "How your private profile works"). Row ≥44px; expanded body indents 26px so text aligns under the label, not the lock.</li>
     <li>When open, the label turns <code>textPrimary</code>; body stays <code>MivaltaType.small</code> / <code>textSecondary</code>.</li>
     <li><span class="warn">Footer "On this phone. Never on a server." REMOVED on this step only</span> — redundant with the sub (one-claim law). Other steps keep theirs.</li>

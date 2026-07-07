@@ -5,7 +5,33 @@ Supersedes BS-002b's sub-line for the Sport step. Bart's design, locked.
 Rationale: ~95% of users want speed, ~5% want the architecture story — a
 collapsible disclosure serves both without cluttering the screen.
 
-## v2 COPY (Bart, 2026-07-07 17:35 walk — REPLACES the v1 copy below, verbatim)
+## v3 COPY (Bart, 2026-07-07 — FINAL, replaces v2 text; layout/mechanics unchanged)
+- Sub: **"With your input, MiValta builds a personal profile that becomes
+  more accurate over time as it learns from and with you.\n\nYour data
+  stays on your device. Never on a server. Real privacy. Real control."**
+  (second para = weight 600, same treatment as v2's bold line)
+- Disclosure row label: **"Why we ask these questions"** (unchanged)
+- Expanded body, verbatim:
+  **"Every answer you provide helps MiValta build a profile that is
+  uniquely yours. Because no two people are the same, your profile
+  continuously evolves as it learns from and with you.\n\nThe more you
+  choose to share — such as your sports, goals, training history,
+  wearable data and your own feedback — the better MiValta understands
+  your body, your habits and your progress. Over time, this enables
+  increasingly accurate insights, more meaningful feedback and, if you
+  choose, highly personalized training plans.\n\nYour profile is built
+  and stored entirely on your device, where MiValta's AI runs locally.
+  Your health data, training history and personal profile are never
+  uploaded to MiValta or any server.\n\nYour account exists only to
+  manage your email, membership and access to premium features. It is
+  never connected to your personal profile or your health and training
+  data.\n\nYour data remains yours. Your profile remains yours.
+  Always."**
+  (closing line = 600 / textPrimary, as in v2)
+- All layout, mechanics, footer-removal and golden-test rules from v2 +
+  RL-profile-r1 stand — this is a TEXT swap only.
+
+## v2 COPY (superseded by v3 — kept for history)
 **REDLINE: `review/onboarding/redlines/RL-profile-r1.html`** — both states
 (collapsed + expanded) at 393×852, measured, with build notes. Build against
 the redline; diff sim shot before it lands on the round-3 branch.

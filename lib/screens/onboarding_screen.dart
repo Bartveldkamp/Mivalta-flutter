@@ -667,7 +667,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 1: Profile (BS-002c v2 — redline RL-profile-r1.html).
+  /// Step 1: Profile (BS-002c v3 — redline RL-profile-r1.html).
   /// Two states: collapsed (default) + expanded disclosure.
   Widget _buildSportStep() {
     const sports = [
@@ -692,7 +692,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           // Redline: x3 (12px) gap to sub
           const SizedBox(height: MivaltaSpace.x3),
 
-          // BS-002c v2: Sub with bold last line (verbatim)
+          // BS-002c v3: Sub with bold last line (verbatim)
           RichText(
             text: TextSpan(
               style: MivaltaType.body.copyWith(
@@ -701,11 +701,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               children: [
                 const TextSpan(
-                  text: 'MiValta builds a personal profile that becomes more '
-                      'accurate over time as it learns from and with you.\n\n',
+                  text: 'With your input, MiValta builds a personal profile that '
+                      'becomes more accurate over time as it learns from and '
+                      'with you.\n\n',
                 ),
                 TextSpan(
-                  text: 'Everything stays on your device. Never on a server.',
+                  text: 'Your data stays on your device. Never on a server. '
+                      'Real privacy. Real control.',
                   style: MivaltaType.body.copyWith(
                     color: MivaltaColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -774,7 +776,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// BS-002c v2: Disclosure row with expandable privacy explanation.
+  /// BS-002c v3: Disclosure row with expandable privacy explanation.
   /// Redline: RL-profile-r1.html — both states (collapsed + expanded).
   Widget _buildProfileDisclosure() {
     return Column(
@@ -830,7 +832,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     top: MivaltaSpace.x3,
                     left: 26,
                   ),
-                  // BS-002c v2: Full disclosure body (verbatim)
+                  // BS-002c v3: Full disclosure body (verbatim)
                   child: RichText(
                     text: TextSpan(
                       style: MivaltaType.small.copyWith(
@@ -839,35 +841,33 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                       children: [
                         const TextSpan(
-                          text: "Unlike most health and fitness apps, MiValta doesn't "
-                              "build your profile in the cloud. Your profile lives only "
-                              "on your device, where the AI runs locally and learns "
-                              "exclusively from the information you choose to provide.\n\n",
-                        ),
-                        const TextSpan(
-                          text: "As you use MiValta, it gradually builds a deeper "
-                              "understanding of you. Your sports, goals, training history, "
-                              "wearable data and your own feedback help create a profile "
+                          text: "Every answer you provide helps MiValta build a profile "
                               "that is uniquely yours. Because no two people are the same, "
-                              "your profile becomes increasingly personal over time.\n\n",
+                              "your profile continuously evolves as it learns from and "
+                              "with you.\n\n",
                         ),
                         const TextSpan(
-                          text: "The more information you choose to share, the better "
-                              "MiValta can understand your body, your habits and your "
-                              "progress. This allows it to provide more accurate insights, "
-                              "smarter recommendations and, if you choose, highly "
-                              "personalized training plans and coaching.\n\n",
+                          text: "The more you choose to share — such as your sports, goals, "
+                              "training history, wearable data and your own feedback — the "
+                              "better MiValta understands your body, your habits and your "
+                              "progress. Over time, this enables increasingly accurate "
+                              "insights, more meaningful feedback and, if you choose, "
+                              "highly personalized training plans.\n\n",
                         ),
                         const TextSpan(
-                          text: "Your health data, training history and personal profile "
-                              "are never uploaded to MiValta or any cloud service. Your "
-                              "account exists only to manage your email, membership and "
-                              "access to the app. Your personal profile always remains on "
-                              "your device.\n\n",
+                          text: "Your profile is built and stored entirely on your device, "
+                              "where MiValta's AI runs locally. Your health data, training "
+                              "history and personal profile are never uploaded to MiValta "
+                              "or any server.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "Your account exists only to manage your email, membership "
+                              "and access to premium features. It is never connected to "
+                              "your personal profile or your health and training data.\n\n",
                         ),
                         // Closing line: weight 600 / textPrimary
                         TextSpan(
-                          text: "Your data remains yours. Always.",
+                          text: "Your data remains yours. Your profile remains yours. Always.",
                           style: MivaltaType.small.copyWith(
                             color: MivaltaColors.textPrimary,
                             fontWeight: FontWeight.w600,
