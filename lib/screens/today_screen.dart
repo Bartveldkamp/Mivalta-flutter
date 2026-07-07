@@ -40,6 +40,9 @@ import '../widgets/mivalta_bottom_nav.dart';
 import 'advisor_screen.dart';
 import 'session_start_screen.dart';
 import 'workout_detail_screen.dart';
+import '../models/benchmark_change_card.dart';
+import '../services/benchmark_notify.dart';
+import '../widgets/today/benchmark_notify_card.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -55,6 +58,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   // BS-003: Store binding and handle for Advisor navigation
   RustEngineBinding? _binding;
   EnginesHandle? _handle;
+  // Phase 3: the latest not-yet-dismissed benchmark-change notification.
+  BenchmarkChangeCard? _benchmarkCard;
+  String? _benchmarkAuditId;
   // BS-008 P-4: Detail preference from onboarding
   bool _showNumbers = false;
   // W5: Weather visibility preference
@@ -181,7 +187,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       }
 
       // Load tables
-      final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
+      final tablesJson = await rootBundle.loadString(
+        'assets/compiled_tables.json',
+      );
       final vaultPath = await ProfileService.getVaultPath();
 
       // Check for persisted state
@@ -222,6 +230,16 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       _binding = binding;
       _handle = handle;
 
+      // Phase 3: the benchmark-change notify card (engine composes every word).
+      // Honest absence on any failure — the home never breaks on a missing
+      // notify.
+      final notify = await BenchmarkNotifyService(
+        binding: binding,
+        handle: handle,
+      ).loadPending();
+      _benchmarkCard = notify?.card;
+      _benchmarkAuditId = notify?.auditId;
+
       // Load home data
       await _loadHomeData(binding, handle);
 
@@ -237,7 +255,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadHomeData(RustEngineBinding binding, EnginesHandle handle) async {
+  Future<void> _loadHomeData(
+    RustEngineBinding binding,
+    EnginesHandle handle,
+  ) async {
     final data = HomeData();
 
     try {
@@ -249,7 +270,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       data.readinessScore = (indicator['score'] as num?)?.toInt();
       data.confidence = (indicator['confidence'] as num?)?.toDouble();
       data.level = indicator['level'] as String?;
-      data.contributions = (indicator['contributions'] as List?)
+      data.contributions =
+          (indicator['contributions'] as List?)
               ?.map((e) => e as Map<String, dynamic>)
               .toList() ??
           const [];
@@ -263,10 +285,15 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         final diagJson = await binding.personalizationDiagnostics(handle);
         SeamLog.ok('personalizationDiagnostics', swDiag.elapsedMilliseconds);
         final diag = jsonDecode(diagJson) as Map<String, dynamic>;
-        data.calibrationObservations = (diag['observation_count'] as num?)?.toInt();
+        data.calibrationObservations = (diag['observation_count'] as num?)
+            ?.toInt();
         data.calibrationConfidence = diag['confidence'] as String?;
       } catch (e) {
-        SeamLog.error('personalizationDiagnostics', swDiag.elapsedMilliseconds, e);
+        SeamLog.error(
+          'personalizationDiagnostics',
+          swDiag.elapsedMilliseconds,
+          e,
+        );
         // Honest absence — diagnostics not yet available
       }
 
@@ -285,7 +312,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       final swRealize = Stopwatch()..start();
       try {
-        final realizedJson = await binding.realizeAdvisorLine(handle, date: dateStr);
+        final realizedJson = await binding.realizeAdvisorLine(
+          handle,
+          date: dateStr,
+        );
         SeamLog.ok('realizeAdvisorLine', swRealize.elapsedMilliseconds);
         data.realizedLine = RealizedLine.parse(realizedJson);
       } catch (e) {
@@ -344,7 +374,11 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           data.sourceTierLabel = _formatSourceTier(tier);
         }
       } catch (e) {
-        SeamLog.error('lastObservationSourceTier', swTier.elapsedMilliseconds, e);
+        SeamLog.error(
+          'lastObservationSourceTier',
+          swTier.elapsedMilliseconds,
+          e,
+        );
         // Honest absence
       }
 
@@ -356,7 +390,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         final bio = jsonDecode(bioJson) as List;
         if (bio.isNotEmpty) {
           final lastBio = bio.last as Map<String, dynamic>;
-          data.lastNightSleepHours = (lastBio['sleep_hours'] as num?)?.toDouble();
+          data.lastNightSleepHours = (lastBio['sleep_hours'] as num?)
+              ?.toDouble();
         }
       } catch (e) {
         SeamLog.error('readBiometricHistory', swBio.elapsedMilliseconds, e);
@@ -371,7 +406,11 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         final zoneCapMap = jsonDecode(zoneCapJson) as Map<String, dynamic>;
         data.zoneCap = zoneCapMap['zone'] as String?;
       } catch (e) {
-        SeamLog.error('zoneCapWithAdvisories', swZoneCap.elapsedMilliseconds, e);
+        SeamLog.error(
+          'zoneCapWithAdvisories',
+          swZoneCap.elapsedMilliseconds,
+          e,
+        );
         // Honest absence
       }
 
@@ -389,7 +428,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         SeamLog.ok('recommendWorkout', swWorkout.elapsedMilliseconds);
         final decoded = jsonDecode(workoutJson);
         if (decoded is List && decoded.isNotEmpty) {
-          final options = decoded.map((e) => WorkoutOption.fromJson(e)).toList();
+          final options = decoded
+              .map((e) => WorkoutOption.fromJson(e))
+              .toList();
           data.workoutOptions = options;
           // Primary display (option A) for Today card
           final option = options.first;
@@ -406,8 +447,13 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       // BS-016 S1: Recent activities + post-workout reflection.
       // Fetch today's latest activity and get the coach reaction.
       try {
-        final activitiesJson = await binding.readRecentActivities(handle, limit: 5);
-        final activities = ActivitySummary.listFromJson(jsonDecode(activitiesJson));
+        final activitiesJson = await binding.readRecentActivities(
+          handle,
+          limit: 5,
+        );
+        final activities = ActivitySummary.listFromJson(
+          jsonDecode(activitiesJson),
+        );
         if (activities.isNotEmpty) {
           final latest = activities.first;
           data.latestActivity = latest;
@@ -465,13 +511,37 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// The benchmark-change notify card, or nothing. Reads the field into a
+  /// local FIRST so a concurrent `_dismissBenchmarkCard` setState cannot null
+  /// it between the guard and the render (PR #170 review).
+  List<Widget> _benchmarkNotifyCard() {
+    final card = _benchmarkCard;
+    if (card == null) return const [];
+    return [
+      const SizedBox(height: MivaltaSpace.x4),
+      BenchmarkNotifyCard(card: card, onDismiss: _dismissBenchmarkCard),
+    ];
+  }
+
+  void _dismissBenchmarkCard() {
+    final id = _benchmarkAuditId;
+    final binding = _binding;
+    final handle = _handle;
+    setState(() {
+      _benchmarkCard = null;
+      _benchmarkAuditId = null;
+    });
+    if (id != null && binding != null && handle != null) {
+      // Best-effort persist — a failed write just re-shows it once.
+      BenchmarkNotifyService(binding: binding, handle: handle).dismiss(id);
+    }
+  }
+
   void _startWorkout() {
     // BS-010: Navigate to session start screen.
     Navigator.push(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const SessionStartScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const SessionStartScreen()),
     );
   }
 
@@ -517,13 +587,17 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
             delegate: SliverChildListDelegate([
               // BS-002 Step 3: 24px from masthead micro-row to glow hero
               const SizedBox(height: MivaltaSpace.x5), // 24px
-
               // Glow hero
               GlowHero(
                 score: _data.readinessScore,
                 fatigueState: _data.fatigueState,
                 insufficientData: _data.insufficientData,
               ),
+
+              // Phase 3: benchmark-change notify ("your threshold improved").
+              // Only renders when the engine produced a card the athlete
+              // hasn't dismissed — honest absence otherwise.
+              ..._benchmarkNotifyCard(),
 
               // BS-008 P-1: Calibrated-to-you line under hero
               // Engine decides confidence bucket; Dart only renders.
@@ -584,7 +658,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                 final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
                 final showChip = !_data.insufficientData && restrictiveCap;
                 return SizedBox(
-                  height: (!hasJosi && !showChip) ? MivaltaSpace.x2 : MivaltaSpace.x4,
+                  height: (!hasJosi && !showChip)
+                      ? MivaltaSpace.x2
+                      : MivaltaSpace.x4,
                 );
               }(),
 
@@ -593,7 +669,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
                 child: Text(
                   'YOUR DAY',
-                  style: MivaltaType.label.copyWith(color: MivaltaColors.textSoft45),
+                  style: MivaltaType.label.copyWith(
+                    color: MivaltaColors.textSoft45,
+                  ),
                 ),
               ),
 
@@ -614,14 +692,14 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                         caption: _buildLoadCaption(),
                       )
                     : _data.todayLoad != null
-                        ? const _HonestAbsence(
-                            label: 'Load range still building',
-                            unlock: 'A few more logged days set your baseline',
-                          )
-                        : const _HonestAbsence(
-                            label: 'No activity recorded',
-                            unlock: 'Log a workout to see your load',
-                          ),
+                    ? const _HonestAbsence(
+                        label: 'Load range still building',
+                        unlock: 'A few more logged days set your baseline',
+                      )
+                    : const _HonestAbsence(
+                        label: 'No activity recorded',
+                        unlock: 'Log a workout to see your load',
+                      ),
               ),
 
               const SizedBox(height: MivaltaSpace.x3),
@@ -665,16 +743,16 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                 icon: Icons.fitness_center,
                 onTap: _data.workoutOptions.isNotEmpty
                     ? () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => AdvisorScreen(
-                              options: _data.workoutOptions,
-                              binding: _binding!,
-                              handle: _handle!,
-                              readinessLevel: _data.level, // BS-016 S3
-                            ),
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => AdvisorScreen(
+                            options: _data.workoutOptions,
+                            binding: _binding!,
+                            handle: _handle!,
+                            readinessLevel: _data.level, // BS-016 S3
                           ),
-                        )
+                        ),
+                      )
                     : null,
                 trailing: _data.workoutOptions.isNotEmpty
                     ? const Icon(
@@ -699,7 +777,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                             ),
                           ),
                           // BS-003: Duration + focusCue preview
-                          if (_data.durationMin != null || _data.focusCue != null) ...[
+                          if (_data.durationMin != null ||
+                              _data.focusCue != null) ...[
                             const SizedBox(height: 4),
                             Text(
                               _buildWorkoutSubtitle(),
@@ -715,7 +794,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                     : const _HonestAbsence(
                         label: 'No suggestion yet',
                         // BS-003: Updated copy (no gamification)
-                        unlock: 'MiValta suggests sessions once it\'s read a few of your days.',
+                        unlock:
+                            'MiValta suggests sessions once it\'s read a few of your days.',
                       ),
               ),
 
@@ -778,7 +858,8 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     if (_data.realizedLine != null && _data.realizedLine!.text.isNotEmpty) {
       return true;
     }
-    return _data.stateRecommendation != null && _data.stateRecommendation!.isNotEmpty;
+    return _data.stateRecommendation != null &&
+        _data.stateRecommendation!.isNotEmpty;
   }
 
   /// DR-012: A zone CAP is a decision only when it holds the athlete back.
@@ -817,16 +898,16 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         icon: Icons.check_circle_outline,
         onTap: (_binding != null && _handle != null)
             ? () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => WorkoutDetailScreen(
-                      binding: _binding!,
-                      handle: _handle!,
-                      date: latest.date,
-                      sportLabel: _formatSport(latest.sport),
-                    ),
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => WorkoutDetailScreen(
+                    binding: _binding!,
+                    handle: _handle!,
+                    date: latest.date,
+                    sportLabel: _formatSport(latest.sport),
                   ),
-                )
+                ),
+              )
             : null,
         trailing: const Icon(
           Icons.chevron_right,
@@ -986,7 +1067,8 @@ class _ZoneChip extends StatelessWidget {
   }
 
   // DR-018 A3: use shared zone naming (engine truth)
-  (String, Color) _zoneNameAndColor(String zone) => zoneDisplayNameAndColor(zone);
+  (String, Color) _zoneNameAndColor(String zone) =>
+      zoneDisplayNameAndColor(zone);
 }
 
 /// Decision chip — shows the zone cap (engine restriction) for today.
@@ -1068,8 +1150,8 @@ class _WiringStampState extends State<_WiringStamp> {
     final headerColor = errorCount > 0
         ? MivaltaColors.cautionYellow
         : okCount > 0
-            ? MivaltaColors.stateProductive
-            : MivaltaColors.textMuted;
+        ? MivaltaColors.stateProductive
+        : MivaltaColors.textMuted;
 
     return Column(
       children: [
@@ -1179,4 +1261,3 @@ class _WiringStampState extends State<_WiringStamp> {
     );
   }
 }
-

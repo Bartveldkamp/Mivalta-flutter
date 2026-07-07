@@ -945,6 +945,38 @@ pub fn get_workout_detail(handle: &EnginesHandle, date: String) -> Result<String
     handle.vault.get_workout_detail(date).map_err(Into::into)
 }
 
+/// `VaultEngine::realize_benchmark_change(event_json)` — compose the Phase 3
+/// notify card from a `benchmark_change` event ("your threshold improved").
+/// Pass the `event` from `sync_benchmark_from_activities`, or the
+/// `assessment_json` of a `benchmark_change` ledger row. Returns
+/// `{kind, headline, benchmark_line, disclosure:[…]}` (engine-composed,
+/// unit-correct) or the string `"null"` on an absent/unknown event. Pure
+/// pass-through; the engine composes every word.
+pub fn realize_benchmark_change(
+    handle: &EnginesHandle,
+    event_json: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .realize_benchmark_change(event_json)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::read_audit_trail(athlete_id, event_type, plan_id, limit)` —
+/// the athlete's audit ledger, newest first, optionally filtered by event
+/// type (empty = all). Used to read the latest `benchmark_change` row for the
+/// notify card. Returns a JSON array of audit entries. Pure pass-through.
+pub fn read_audit_trail(
+    handle: &EnginesHandle,
+    event_type: String,
+    limit: i32,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_audit_trail(handle.athlete_id.clone(), event_type, String::new(), limit)
+        .map_err(Into::into)
+}
+
 /// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
 /// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
 /// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
