@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REDLINE — Promise step (BS-002a Round 3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Zen+Dots&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0C0E; --text-primary:#F2F4F5; --text-secondary:#A8B0B4; --text-muted:#6B7378;
+    --teal:#17B8A6; --productive:#00C6A7;
+    --x1:4px; --x2:8px; --x3:12px; --x4:16px; --x5:20px; --x6:24px;
+    --display:40px; --body:17px; --small:14px;
+    --red:#FF4D5E;
+  }
+  body{margin:0;background:#1A1C1F;font-family:Inter,system-ui,sans-serif;color:var(--text-primary);display:flex;justify-content:center;gap:56px;padding:40px;}
+  a{color:var(--teal);} a:hover{color:#5FD9CC;}
+  .col h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#9AA3A8;font-weight:700;margin:0 0 14px;text-align:center;}
+  /* ── device ── */
+  .device{position:relative;width:393px;height:852px;background:var(--bg);border-radius:44px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);flex:none;}
+  .safe{position:absolute;inset:59px 0 34px 0;display:flex;flex-direction:column;}
+  /* top-weighted cluster: 18% of 852 = 153 from screen top ⇒ 94 below safe-top */
+  .cluster{margin-top:94px;display:flex;flex-direction:column;align-items:center;}
+  .mark{position:relative;width:96px;height:96px;flex:none;}
+  .mark .halo1,.mark .halo2{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;}
+  .mark .halo1{width:245px;height:245px;background:radial-gradient(circle,rgba(23,184,166,.16) 0%,transparent 62%);filter:blur(18px);}
+  .mark .halo2{width:162px;height:162px;background:radial-gradient(circle,rgba(23,184,166,.22) 0%,transparent 62%);filter:blur(10px);}
+  .mark img{position:relative;width:96px;height:96px;display:block;}
+  .title{margin-top:var(--x5);font-size:var(--display);line-height:1.2;font-weight:700;letter-spacing:-0.02em;text-align:center;}
+  .sub1{margin-top:var(--x4);font-size:var(--body);color:var(--text-secondary);text-align:center;}
+  .sub2{margin-top:var(--x2);font-size:var(--body);color:var(--text-secondary);text-align:center;}
+  .spacer{flex:1;}
+  .cta{margin:0 16px;height:52px;border-radius:14px;background:var(--productive);color:#0B0C0E;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+  .homebar{height:34px;display:flex;align-items:center;justify-content:center;}
+  .homebar div{width:134px;height:5px;border-radius:3px;background:#3A4045;}
+  /* ── redline overlays ── */
+  .rl .dim{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .rl .dim .line{position:absolute;left:50%;transform:translateX(-50%);width:1px;background:var(--red);top:0;bottom:0;}
+  .rl .dim .tag{position:relative;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;white-space:nowrap;z-index:2;}
+  .rl .edge{position:absolute;left:24px;right:24px;height:0;border-top:1px dashed rgba(255,77,94,.55);}
+  .note{width:340px;font-size:13px;line-height:1.55;color:#C4CBCF;}
+  .note h2{text-align:left;}
+  .note ol{padding-left:18px;margin:0;}
+  .note li{margin-bottom:10px;}
+  .note code{background:#26292D;padding:1px 5px;border-radius:4px;font-size:12px;color:#7FE3D2;}
+  .note .warn{color:var(--red);font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="col">
+  <h2>Rendered target — 393×852 (iPhone 16 Pro)</h2>
+  <div class="device" data-screen-label="Promise redline — render">
+    <div class="safe">
+      <div class="cluster">
+        <div class="mark">
+          <div class="halo1"></div><div class="halo2"></div>
+          <img src="../../../assets/brand/mivalta-logo.png" alt="MiValta mark">
+        </div>
+        <div class="title">Your body.<br>Your data.</div>
+        <div class="sub1">Private by design.</div>
+        <div class="sub2">Let's personalize MiValta to you.</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="cta">Get started</div>
+      <div style="height:16px"></div>
+    </div>
+    <div class="homebar"><div></div></div>
+  </div>
+</div>
+
+<div class="col">
+  <h2>Redline — every gap measured</h2>
+  <div class="device rl" data-screen-label="Promise redline — measurements">
+    <div class="safe">
+      <div class="cluster" style="opacity:.45">
+        <div class="mark">
+          <div class="halo1"></div><div class="halo2"></div>
+          <img src="../../../assets/brand/mivalta-logo.png" alt="">
+        </div>
+        <div class="title">Your body.<br>Your data.</div>
+        <div class="sub1">Private by design.</div>
+        <div class="sub2">Let's personalize MiValta to you.</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="cta" style="opacity:.45">Get started</div>
+      <div style="height:16px"></div>
+    </div>
+    <!-- dimension callouts (positions relative to 852px screen) -->
+    <div class="edge" style="top:153px"></div>
+    <div class="dim" style="top:59px;height:94px"><div class="line"></div><div class="tag">94 safe-top → mark (18% vp)</div></div>
+    <div class="edge" style="top:249px"></div>
+    <div class="dim" style="top:153px;height:96px"><div class="line" style="display:none"></div><div class="tag" style="background:#0E7C6E">MARK 96×96 — layout box = 96, halos overflow (Clip.none)</div></div>
+    <div class="dim" style="top:249px;height:20px"><div class="line"></div><div class="tag">x5 = 20 (visual mark edge → title cap)</div></div>
+    <div class="dim" style="top:365px;height:16px"><div class="line"></div><div class="tag">x4 = 16</div></div>
+    <div class="dim" style="top:406px;height:8px"><div class="line"></div><div class="tag">x2 = 8</div></div>
+    <div class="dim" style="top:740px;height:0"><div class="tag" style="background:#444">NO restore link — deleted (BS-017 seam absent)</div></div>
+    <div class="dim" style="top:768px;height:52px"><div class="tag" style="background:#0E7C6E">CTA h=52 · r=14 · inset x4</div></div>
+  </div>
+</div>
+
+<div class="col note">
+  <h2>Build notes (BS-002a §Round 3)</h2>
+  <ol>
+    <li><span class="warn">The bug this fixes:</span> mark was centred in a 245px glow FIELD — ~85px invisible padding sat below the mark before the x5 gap. <strong>Layout box = the 96px mark.</strong> Halos are painted, not laid out: <code>Stack(clipBehavior: Clip.none)</code> + centred <code>Positioned</code> halos (245 / 162, same blurs as auth).</li>
+    <li>Cluster is <strong>top-weighted</strong>: 94px below safe-area top (18% of viewport height), never <code>Center()</code>.</li>
+    <li>Title = <code>MivaltaType.titleXL</code> (40px, w700, −0.02em, lh 1.2), two lines. Subs = <code>MivaltaType.body</code> (17) / <code>textSecondary</code>; gaps x4 then x2.</li>
+    <li><span class="warn">Restore link: DELETED.</span> Returns on Auth when the import seam (BS-017) exists.</li>
+    <li>CTA unchanged: 52 h, r14, <code>stateProductive</code>, x4 side insets, 16 above home bar.</li>
+    <li><strong>Golden test:</strong> add <code>promise_golden_test.dart</code> — pin this exact layout at 393×852. Bundle Inter/Zen Dots in the test so goldens are NOT skipped (the masthead precedent of skipping for fonts is over).</li>
+  </ol>
+</div>
+
+</body>
+</html>

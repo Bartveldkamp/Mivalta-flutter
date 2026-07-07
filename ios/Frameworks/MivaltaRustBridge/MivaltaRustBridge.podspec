@@ -25,7 +25,8 @@ Privacy-first AI fitness coaching engine. 100% on-device. No cloud.
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    # Exclude x86_64 since xcframework only has arm64 for simulator (OpenSSL 3.6 device-slice issue)
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64',
   }
 
   # Force-load all symbols from static libraries so FFI can look them up at runtime.
@@ -33,5 +34,6 @@ Privacy-first AI fitness coaching engine. 100% on-device. No cloud.
   # Using -all_load instead of -force_load to avoid build order issues.
   s.user_target_xcconfig = {
     'OTHER_LDFLAGS' => '-all_load',
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64',
   }
 end

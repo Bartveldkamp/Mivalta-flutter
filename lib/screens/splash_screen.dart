@@ -584,25 +584,25 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  /// W15: Privacy line — 14px mark + MivaltaType.small/textMuted.
   Widget _buildPrivacyLine() {
     return Opacity(
       opacity: _privacyOpacity.value,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.lock,
-            size: 13,
-            color: MivaltaColors.brandGreen,
+          // W15: 14px mivalta-logo.svg in place of Icons.lock
+          SvgPicture.asset(
+            'assets/mivalta-logo.svg',
+            width: 14,
+            height: 14,
           ),
           const SizedBox(width: 6),
+          // W15: MivaltaType.small + textMuted (copy unchanged)
           Text(
             'Computed on your phone · never on a server',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
-              color: MivaltaColors.textPrimary.withValues(alpha: 0.4),
+            style: MivaltaType.small.copyWith(
+              color: MivaltaColors.textMuted,
             ),
           ),
         ],

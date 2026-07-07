@@ -6,6 +6,128 @@ STATUS: OPEN — rolling beta-walk review (2026-07-06, walk started at Today).
   ("One quiet account" is a positioning ERROR — sovereignty-first locked copy;
   logo 64 / wordmark 28; verify the logo asset is the MiValta mark, not a
   fingerprint glyph).
+- **W20 · CALIBRATION PROTOCOL SURFACES IN THE UI (Bart ruling, 18:35) —
+  the engine's B5 cold-start (spec §11.2, `calibration_probes` card,
+  gatc-advisor) is real and already served; the UI must finally SHOW it.**
+  Three surfaces, all engine-verbatim (no Dart-invented copy):
+  1. **Payoff step:** replace the vague "Learning you — your first few
+     days of data shape a picture just for you." with, verbatim:
+     **"Your first five workouts calibrate MiValta. Each one is a short,
+     structured probe — how you respond becomes your personal baseline."**
+     (+ keep the aim line above it unchanged.)
+  2. **Today, calibration phase:** while the advisor serves probes
+     (calibration-eligible), the workout card shows a probe-progress
+     eyebrow **"CALIBRATION · N OF 5"** (MivaltaType.label, tealSolid) and
+     Josi's line comes from the engine's own calibration template — render
+     verbatim, never composed in Dart. The rest-day probe renders with the
+     same framing (it IS a probe, say so).
+  3. **Anchors tie-in (amends W18a):** when "I don't know" is active the
+     reassurance line becomes, verbatim: **"MiValta will find it during
+     your first five calibration workouts — a heart-rate monitor or
+     sports watch helps."** (True: the probes exist to measure exactly
+     this.)
+  Engine facts to respect: gate closes after 6 completed workouts (then
+  the selector takes over — the eyebrow disappears, no ghost state);
+  readiness caps outrank probes (a capped day may serve non-probe — the
+  eyebrow only shows when the served option IS a probe,
+  `template_key == "calibration_probe"`); a long break can reopen the
+  gate (§11.5) — same eyebrow returns, no special copy. Verify the FFI
+  exposes probe_seq/probe_total (they exist in the card template params);
+  if not surfaced through the seam → engine ask in the report, and the
+  eyebrow ships gated on the field's presence. Round-3 branch.
+- **W19 · Data sources: PAST-WORKOUT IMPORT (18:25 walk) — new capability
+  ruling.** Screen approved as-is; ADD a second section below the connect
+  rows, eyebrow **"YOUR HISTORY"**:
+  1. Row **"Import past workouts"** / sub **"FIT, TCX or GPX files — from a
+     Garmin or Polar export, another app, or anywhere on this phone."**
+     Opens the iOS file picker (multi-select). This is the sovereign path
+     to history: the user exports THEIR archive from any platform and
+     hands MiValta the files locally — no cloud API, no account linking.
+  2. Apple Health connect already carries history — the row's sub gains
+     one honest line when connected: "Includes your existing Apple Health
+     history." Verify how far back the ingest actually reads and state it
+     in the build report — no silent 30-day window.
+  3. Sub under the eyebrow: **"The more of your past MiValta can see, the
+     faster your profile becomes accurate."**
+  **Engine ask (likely):** a bulk-history ingest seam (batch of parsed
+  workout facts → vault + model warm-up) — if the current per-workout
+  ingest can't take a backfill batch, log the gap honestly; the UI ships
+  with file picking + parse + count shown ("14 workouts found") and feeds
+  what the seam accepts. Bluetooth sensor pairing is a separate feature
+  (live recording, BS-010 territory), NOT this row.
+- **W18a · Anchors reassurance line (18:23 walk) — HONESTY FIX, locked
+  copy:** "MiValta will find it from your first sessions." is NOT TRUE and
+  is deleted. Replace with, verbatim: **"MiValta will learn it from your
+  upcoming workouts — a heart-rate monitor or sports watch helps."**
+  (Same style/position. No overpromising, ever — learning needs data from
+  a device, and the line now says so.)
+  Also: when "I don't know" is active the input's placeholder must NOT
+  echo "I don't know" (screenshot shows it twice) — disabled field shows
+  an em-dash.
+- **W18 · Anchors step (18:19 walk) — becomes "Your thresholds", THREE
+  optional anchors ("if they have it"):**
+  1. **Heart-rate threshold (bpm)** — shown for EVERY athlete, any sport.
+  2. **Threshold pace (time /km)** — shown when running is among the
+     selected sports.
+  3. **Threshold power (watts)** — shown when cycling is among the
+     selected sports.
+  Multi-sport fix folded in: since W14 multi-select, this step must show a
+  section per SELECTED sport (screenshot showed only running despite both
+  selected). Each anchor keeps its own "I don't know" — all optional;
+  "MiValta will find it from your first sessions." reassurance unchanged.
+  Title: **"Your thresholds"**; intro reworded to cover the set: "If you
+  know any of these from a test, a race or a head unit, MiValta sets your
+  zones from day one. Skip anything you don't know."
+  **Contract check (no silent drop):** engine inputs_json has `ftp_watts` +
+  `threshold_pace_sec_km`; verify a heart-rate-threshold field exists
+  (`lthr_bpm` or equivalent). If absent → ENGINE ASK logged in the build
+  report; the HR field still renders but its value is persisted app-side
+  and passed once the contract lands — stated honestly in the report.
+  Round-3 branch.
+- **W17 · About you (18:14 walk) — three rulings:**
+  1. **Age bands extended:** 18–29 / 30–39 / 40–49 / 50–59 / **60–69 /
+     70–79 / 80+** (real fitness differences in these decades — Bart).
+     Representative ints for the engine: 65 / 75 / 85. Chips wrap to a
+     third row; same chip component.
+  2. **Sex gets the third chip NOW: "I'd rather not say"** (stored
+     `prefer_not_say`, omitted from inputs_json — the Dart path already
+     exists). If the engine at current pin rejects a missing sex, that is
+     an ENGINE bug to fix (G9 — sex as Option, neutral zone defaults):
+     **G9 escalates from queued to blocking**; the UI does not wait, and
+     the build report states the gap honestly if profile build fails.
+  3. **Sex explainer copy** — replace "Used only on-device, to set
+     heart-rate zones." with, verbatim: **"Used only on your device — it
+     sets your heart-rate zones, and for women it lets MiValta respect
+     how the menstrual cycle affects training and recovery."**
+     (MivaltaType.small, textMuted, same position.)
+  Rest of the screen approved as-is. Round-3 branch.
+- **W16 · Aim step, lower section (18:04 walk) — COPY RULING, layout
+  unchanged.** Upper part (Your aim + 3 options) approved as-is. Lower
+  section becomes, verbatim:
+  - Section title: **"How would you like to receive your training
+    information?"** (replaces "How should MiValta talk to you?")
+  - Option 1: **"Just the essentials"** / sub **"Simple guidance without
+    unnecessary details."** (stored value `simple`, unchanged)
+  - Option 2: **"I like the details"** / sub **"Show me the numbers and
+    explain the recommendations."** (stored value `numbers`, unchanged)
+  - New caption below the options: **"You can change this at any time."**
+    — MivaltaType.small, textMuted, x3 above the footer area.
+  Pref keys and engine mapping untouched — text swap only. Round-3 branch.
+- **W14/BS-002c v3 — WITNESSED ✓ (2026-07-07 18:01, Bart: right direction):**
+  profile step matches RL-profile-r1 + v3 copy — verbatim sub with "Real
+  privacy. Real control.", disclosure both states, scroll behavior, closing
+  line 600/primary, multi-select (both sports selectable). On the round-3
+  branch. Round stays open.
+- **W13/Round-3 Promise — WITNESSED ✓ (2026-07-07 17:27, Bart approved):**
+  duo layout matches RL-promise-r3, restore link gone, top-weighted cluster.
+  First redline-driven fix — method confirmed. Round stays open on
+  `feat/dr024-walk-round3` for further finds; no PR yet.
+- **W15 · Splash privacy line (source-verify @ #166)** — `_buildPrivacyLine`
+  uses generic `Icons.lock` 13px + raw `TextStyle` fontSize 11 (below the 12
+  floor, off-token). Fix: 14px `assets/mivalta-logo.svg` in place of the
+  lock glyph; text → `MivaltaType.small` + `textMuted`. Copy unchanged
+  ("Computed on your phone · never on a server"). Tiny — fold into the next
+  batch, not its own PR.
 - **W14 · Sport step → "Your profile" (12:07)** → ruling
   `review/onboarding/BS-002c-profile-disclosure.md`: disclosure pattern
   (🔒 "How your private profile works" ▾), multi-select sports (engine
@@ -82,8 +204,23 @@ rework. Don't hardcode order-dependent logic between cards.
 30/24 · vessel (calm/amber states) · model score ~53% · You bottom nav · You
 restyle · tune sheet (weather OFF by default, picker on toggle-on) · reveal
 Josi card. Then the walk continues: Advisor → Session → Journey.
-
-## Merge policy (Bart, 2026-07-06): ONE batch PR per walk round
+1. **Weather defaults ON** — `prefs.getBool('show_weather') ?? true`. W2 law:
+   DEFAULT OFF. Change to `?? false` (and Today's slot must respect it).
+2. **Toggle-on skips the consent moment** — flipping the switch must open the
+   place flow: manual place picker (weather_place_picker) FIRST, "use my
+   approximate location" as the secondary option. A bare bool flip that
+   silently enables GPS-backed fetch breaks the ruling.
+3. **Subtitle is the generic line** ("Display local weather in the masthead")
+   — replace with the locked honest copy: "A forecast needs a place — type
+   one, or use approximate location. Keyless request, never a commercial
+   API; nothing else leaves the phone."
+Rest of W5 ✓ (tune icon placement, sheet shape, Numbers-first reuse, You
+excluded, modules honestly deferred).
+## Merge policy (Bart, 2026-07-07 — STANDING, tightened): ONE PR per work
+session, not per fix. A merge costs ~45 min, so: collect every fix from a
+walk round / day session on ONE branch, keep committing there as rulings
+land, and open the PR only when Design says the round is closed. Never a
+single-fix PR unless Design explicitly marks it URGENT-SOLO.
 Merges cost ~45 min each — no more loose single-fix PRs. Collect all open
 DR-024 work (W8 · W9 · W4 · W5, plus anything already sitting unmerged on
 the dr-024 branch) onto ONE branch, one PR, one merge. Design verifies the
@@ -119,7 +256,6 @@ the source exceeds 1.0/100. Also: Observations/Confidence show "—" while
 sufficiency shows Medium — check those two reads while in there (same
 diagnostics seam; — next to a real value smells like a parse miss, not
 honest absence).
-
 ## W4 · You page — next-gen minimalistic restyle
 The stacked icon+title card pile reads as settings-app, not MiValta. Ruling:
 - Kill the per-card leading icons (the glyph noise is the clutter).

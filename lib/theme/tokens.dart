@@ -93,12 +93,13 @@ abstract final class MivaltaType {
         fontFeatures: _tabularLining,
       );
 
-  /// Extra-large title — 32px Inter w700 (BS-002 onboarding Promise).
+  /// Extra-large title — 40px Inter w700 (BS-002a Round 3 redline).
+  /// Used on Promise step; height 1.2, letterSpacing -0.02em.
   static TextStyle get titleXL => GoogleFonts.inter(
-        fontSize: 32,
+        fontSize: 40,
         fontWeight: FontWeight.w700,
-        height: 1.15,
-        letterSpacing: -0.5,
+        height: 1.2,
+        letterSpacing: -0.8, // -0.02em at 40px
         fontFeatures: _tabularLining,
       );
 

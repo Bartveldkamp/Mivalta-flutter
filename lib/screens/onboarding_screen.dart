@@ -55,8 +55,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String? _weeklyHours; // '2-3' | '4-6' | '7-10' | '10+' → weekly_hours double
   double? _ftp; // null = "I don't know" (optional)
   double? _thresholdPace; // null = "I don't know" (optional)
+  double? _lthr; // W18: Heart-rate threshold (bpm), shown for ALL athletes
   bool _ftpUnknown = false;
   bool _paceUnknown = false;
+  bool _lthrUnknown = false;
 
   // ─── App-side prefs (NOT sent to engine) ───
   String? _detail; // 'simple' | 'numbers' — stored locally
@@ -121,9 +123,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Anchors(4, conditional) → DataSources(5) → Payoff(6)
   int get _totalSteps => 7;
 
-  /// Anchors step shows only if sport is cycling or running.
-  bool get _showAnchors => _sport == 'cycling' || _sport == 'running';
-
   /// Check if current step's need() is satisfied.
   bool get _canContinue {
     switch (_currentStep) {
@@ -153,12 +152,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Go to next step.
   void _nextStep() {
     if (_currentStep < _totalSteps - 1) {
-      int nextStep = _currentStep + 1;
-      // Skip Anchors (step 4) if sport doesn't need it
-      if (nextStep == 4 && !_showAnchors) {
-        nextStep = 5;
-      }
-      setState(() => _currentStep = nextStep);
+      // W18: Anchors (step 4) now always shows — HR threshold is for everyone.
+      setState(() => _currentStep = _currentStep + 1);
       _animateEntrance();
     } else {
       // Final step — submit
@@ -169,12 +164,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Go to previous step.
   void _prevStep() {
     if (_currentStep > 0) {
-      int prevStep = _currentStep - 1;
-      // Skip Anchors (step 4) if sport doesn't need it
-      if (prevStep == 4 && !_showAnchors) {
-        prevStep = 3;
-      }
-      setState(() => _currentStep = prevStep);
+      // W18: Anchors (step 4) now always shows — HR threshold is for everyone.
+      setState(() => _currentStep = _currentStep - 1);
       _animateEntrance();
     }
   }
@@ -184,12 +175,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Map age band label → representative int.
+  /// W17: Extended bands 60–69 / 70–79 / 80+ with representative ints 65/75/85.
   int _ageBandToInt(String? band) => switch (band) {
         '18–29' => 25,
         '30–39' => 35,
         '40–49' => 45,
         '50–59' => 55,
-        '60+' => 65,
+        '60–69' => 65,
+        '70–79' => 75,
+        '80+' => 85,
         _ => 35,
       };
 
@@ -237,11 +231,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       inputs['sex'] = _sex;
     }
 
-    // Optional anchors — null means "I don't know"
-    if (_sport == 'cycling') {
+    // W18: Optional anchors — null means "I don't know"
+    // Heart-rate threshold for ALL athletes
+    // ENGINE ASK: verify lthr_bpm exists in engine inputs contract.
+    // If absent, this value is persisted app-side and passed once the contract lands.
+    inputs['lthr_bpm'] = _lthrUnknown ? null : _lthr?.toInt();
+
+    // Sport-specific thresholds
+    if (_selectedSports.contains('cycling')) {
       inputs['ftp_watts'] = _ftpUnknown ? null : _ftp?.toInt();
     }
-    if (_sport == 'running') {
+    if (_selectedSports.contains('running')) {
       final paceMinKm = _paceUnknown ? null : _thresholdPace;
       inputs['threshold_pace_sec_km'] = paceMinKm != null ? (paceMinKm * 60).toInt() : null;
     }
@@ -409,12 +409,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_totalSteps, (index) {
-          // Skip Anchors dot if not applicable
-          final isAnchorsStep = index == 4;
-          if (isAnchorsStep && !_showAnchors) {
-            return const SizedBox.shrink();
-          }
-
+          // W18: Anchors (step 4) now always shows — no skip logic.
           final isDone = index < _currentStep;
           final isCurrent = index == _currentStep;
 
@@ -526,70 +521,80 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // STEP BUILDERS (v3)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Auth-style glow behind the Promise logo (BS-002 v3.2).
-  /// Same structure as auth_screen's glow, scaled for 76px logo.
+  /// BS-002a Round 3 (redline RL-promise-r3.html): Glow HUGS the 96px mark.
+  /// Layout box = logo size (96), halos overflow unclipped via Clip.none.
+  /// Halo sizes: 245 outer, 162 mid (same as auth, per redline).
   Widget _buildPromiseGlow() {
-    // Scaled from auth (62px logo → 76px): field 245, outer 245, mid 162
-    const fieldSize = 245.0;
+    // Round 3 redline: layout box = 96px, halos overflow
+    const logoSize = 96.0;
+    // Redline spec: 245 outer, 162 mid (same blurs as auth)
     const outerSize = 245.0;
     const midSize = 162.0;
-    const logoSize = 76.0;
 
     return SizedBox(
-      width: fieldSize,
-      height: fieldSize,
+      width: logoSize,
+      height: logoSize,
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none, // Round 3: halos may overflow
         children: [
-          // Outer halo
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: MivaltaGlow.authOuterBlur,
-              sigmaY: MivaltaGlow.authOuterBlur,
-            ),
-            child: Container(
-              width: outerSize,
-              height: outerSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    MivaltaColors.tertiaryTealSolid.withValues(
-                      alpha: MivaltaGlow.authOuterAlpha,
-                    ),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, MivaltaGlow.authOuterStop],
+          // Outer halo (positioned to overflow center)
+          Positioned(
+            left: (logoSize - outerSize) / 2,
+            top: (logoSize - outerSize) / 2,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: MivaltaGlow.authOuterBlur,
+                sigmaY: MivaltaGlow.authOuterBlur,
+              ),
+              child: Container(
+                width: outerSize,
+                height: outerSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      MivaltaColors.tertiaryTealSolid.withValues(
+                        alpha: MivaltaGlow.authOuterAlpha,
+                      ),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, MivaltaGlow.authOuterStop],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Mid halo
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: MivaltaGlow.authMidBlur,
-              sigmaY: MivaltaGlow.authMidBlur,
-            ),
-            child: Container(
-              width: midSize,
-              height: midSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    MivaltaColors.tertiaryTealSolid.withValues(
-                      alpha: MivaltaGlow.authMidAlpha,
-                    ),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, MivaltaGlow.authMidStop],
+          // Mid halo (positioned to overflow center)
+          Positioned(
+            left: (logoSize - midSize) / 2,
+            top: (logoSize - midSize) / 2,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: MivaltaGlow.authMidBlur,
+                sigmaY: MivaltaGlow.authMidBlur,
+              ),
+              child: Container(
+                width: midSize,
+                height: midSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      MivaltaColors.tertiaryTealSolid.withValues(
+                        alpha: MivaltaGlow.authMidAlpha,
+                      ),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, MivaltaGlow.authMidStop],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // Logo (76px)
+          // Logo (96px) — Round 3: brand cover, match splash
           SvgPicture.asset(
             'assets/mivalta-logo.svg',
             width: logoSize,
@@ -600,70 +605,65 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 0: Promise (W13 — BS-002a FINAL: logo duo with title, locked copy).
+  /// Step 0: Promise (BS-002a Round 3 redline: RL-promise-r3.html).
+  /// 94px below safe-area top, mark-to-title gap 20px, no restore link.
   Widget _buildPromiseStep() {
-    return Center(
+    // Round 3 redline: 94px below safe-area top (18% of 852px viewport - safe top)
+    // NOT a percentage of available height; fixed 94px matches the redline exactly.
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+        padding: const EdgeInsets.only(
+          top: 94, // Redline: 94px below safe-area top
+          left: MivaltaSpace.x4,
+          right: MivaltaSpace.x4,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // W13: Logo duo with title — logo, x5 gap, then the title block.
+            // Round 3: Logo (96px, glow hugs mark) — brand cover of intake.
             _buildPromiseGlow(),
 
-            // x5 gap between logo and title (W13: the pair reads as one unit with air)
-            const SizedBox(height: MivaltaSpace.x5),
+            // Redline: 20px gap (visual mark edge → title cap)
+            // Note: MivaltaSpace.x5 is 24px but redline specifies 20px exactly.
+            const SizedBox(height: 20),
 
-            // Title — unchanged size
+            // Title — MivaltaType.titleXL (40px, w700, -0.02em, lh 1.2)
             Text(
               'Your body.\nYour data.',
               style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
               textAlign: TextAlign.center,
             ),
 
+            // Redline: x4 = 16px (title → sub1)
             const SizedBox(height: MivaltaSpace.x4),
 
-            // W13 / BS-002a FINAL: "Private by design."
+            // BS-002a FINAL: "Private by design."
             Text(
               'Private by design.',
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
 
+            // Redline: x2 = 8px (sub1 → sub2)
             const SizedBox(height: MivaltaSpace.x2),
 
-            // W13 / BS-002a FINAL: "Let's personalize MiValta to you."
+            // BS-002a FINAL: "Let's personalize MiValta to you."
             Text(
               "Let's personalize MiValta to you.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
 
-            const SizedBox(height: MivaltaSpace.x5),
-
-            // Restore link (unchanged)
-            GestureDetector(
-              onTap: () {
-                // TODO: BS-017 F4 sheet — encrypted export restore flow
-                debugPrint('Restore from encrypted export tapped (stub)');
-              },
-              child: Text(
-                'Restoring from an encrypted export?',
-                style: MivaltaType.small.copyWith(
-                  color: MivaltaColors.textMuted,
-                  decoration: TextDecoration.underline,
-                  decorationColor: MivaltaColors.textMuted,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+            // Round 3: Restore link DELETED — seam doesn't exist yet (BS-017 blocked).
+            // Returns with the real restore flow, on Auth, when the seam lands.
           ],
         ),
       ),
     );
   }
 
-  /// Step 1: Profile (W14 — BS-002c: disclosure pattern + multi-select).
+  /// Step 1: Profile (BS-002c v3 — redline RL-profile-r1.html).
+  /// Two states: collapsed (default) + expanded disclosure.
   Widget _buildSportStep() {
     const sports = [
       ('running', Icons.directions_run, 'Running'),
@@ -675,32 +675,53 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Redline: x6 top (24px)
           const SizedBox(height: MivaltaSpace.x6),
 
-          // W14: Title changed to "Your profile"
+          // Redline: title-lg 24px
           Text(
             'Your profile',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
+          // Redline: x3 (12px) gap to sub
           const SizedBox(height: MivaltaSpace.x3),
 
-          // W14 / BS-002c: Sub (locked copy)
-          Text(
-            'MiValta builds a personal profile to understand you and personalize '
-            'your training, recovery and insights.\n\n'
-            'Everything stays on this device.',
-            style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+          // BS-002c v3: Sub with bold last line (verbatim)
+          RichText(
+            text: TextSpan(
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textSecondary,
+                height: 1.5,
+              ),
+              children: [
+                const TextSpan(
+                  text: 'With your input, MiValta builds a personal profile that '
+                      'becomes more accurate over time as it learns from and '
+                      'with you.\n\n',
+                ),
+                TextSpan(
+                  text: 'Your data stays on your device. Never on a server. '
+                      'Real privacy. Real control.',
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
 
+          // Redline: x4 (16px) gap to disclosure
           const SizedBox(height: MivaltaSpace.x4),
 
-          // W14 / BS-002c: Disclosure row (below sub, above question)
+          // BS-002c v2: Disclosure row
           _buildProfileDisclosure(),
 
+          // Redline: x5 (20px) gap to question lead
           const SizedBox(height: MivaltaSpace.x5),
 
-          // W14 / BS-002c: Question lead
+          // Redline: lead = body weight 600
           Text(
             "Let's start with your sports.",
             style: MivaltaType.body.copyWith(
@@ -709,17 +730,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ),
 
+          // Redline: x1 (4px) gap to caption
           const SizedBox(height: MivaltaSpace.x1),
 
-          // W14 / BS-002c: Caption
+          // Redline: caption = small textSecondary
           Text(
             'Select all that apply.',
             style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
           ),
 
-          const SizedBox(height: MivaltaSpace.x4),
+          // Redline: x3 (12px) gap to first sport row, then x3 between rows
+          const SizedBox(height: MivaltaSpace.x3),
 
-          // W14: Multi-select sports (checkbox semantics)
+          // Multi-select sports (checkbox semantics)
           ...sports.map((s) {
             final (id, icon, label) = s;
             final isSelected = _selectedSports.contains(id);
@@ -733,22 +756,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 } else {
                   _selectedSports.add(id);
                 }
-                // W14: First selected = primary sport for engine
+                // First selected = primary sport for engine
                 _sport = _selectedSports.isNotEmpty ? _selectedSports.first : null;
               }),
             );
           }),
 
-          const SizedBox(height: MivaltaSpace.x5),
-
-          // Footer (unchanged)
-          Center(
-            child: Text(
-              'On this phone. Never on a server.',
-              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          // BS-002c v2: Footer REMOVED on this step (one-claim law).
+          // Sub already says "Never on a server" — redundant.
 
           const SizedBox(height: MivaltaSpace.x4),
         ],
@@ -756,12 +771,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// W14 / BS-002c: Disclosure row with expandable privacy explanation.
+  /// BS-002c v3: Disclosure row with expandable privacy explanation.
+  /// Redline: RL-profile-r1.html — both states (collapsed + expanded).
   Widget _buildProfileDisclosure() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Disclosure row: lock glyph + text + chevron
+        // Disclosure row: lock glyph + label + chevron (≥44px)
         GestureDetector(
           onTap: () => setState(() => _profileDisclosureExpanded = !_profileDisclosureExpanded),
           child: Container(
@@ -775,9 +791,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
                 const SizedBox(width: MivaltaSpace.x2),
                 Expanded(
+                  // BS-002c v2: Label text — turns textPrimary when open
                   child: Text(
-                    'How your private profile works',
-                    style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                    'Why we ask these questions',
+                    style: MivaltaType.body.copyWith(
+                      color: _profileDisclosureExpanded
+                          ? MivaltaColors.textPrimary
+                          : MivaltaColors.textSecondary,
+                    ),
                   ),
                 ),
                 AnimatedRotation(
@@ -794,28 +815,62 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
 
-        // Expanded body — AnimatedSize for smooth expand/collapse
+        // Expanded body — AnimatedSize for smooth expand/collapse (280ms)
         AnimatedSize(
           duration: MivaltaMotion.standard,
           curve: MivaltaMotion.standardEase,
           alignment: Alignment.topLeft,
           child: _profileDisclosureExpanded
               ? Padding(
+                  // Redline: indent 26px (aligns under label, not lock)
                   padding: const EdgeInsets.only(
                     top: MivaltaSpace.x3,
-                    left: MivaltaSpace.x2,
+                    left: 26,
                   ),
-                  child: Text(
-                    'MiValta is built differently from most health and fitness apps.\n\n'
-                    'The AI runs entirely on your device. Your personal profile, health data '
-                    'and training history are never uploaded to MiValta or any cloud.\n\n'
-                    'The more information you choose to share — such as your sports, goals, '
-                    'training history and wearable data — the better MiValta understands you. '
-                    'Over time it learns from and with you, providing increasingly accurate '
-                    'insights, feedback and, if you choose, personalized training plans.\n\n'
-                    'You remain in control. You decide what to share, and your data always '
-                    'stays with you.',
-                    style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
+                  // BS-002c v3: Full disclosure body (verbatim)
+                  child: RichText(
+                    text: TextSpan(
+                      style: MivaltaType.small.copyWith(
+                        color: MivaltaColors.textSecondary,
+                        height: 1.55,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: "Every answer you provide helps MiValta build a profile "
+                              "that is uniquely yours. Because no two people are the same, "
+                              "your profile continuously evolves as it learns from and "
+                              "with you.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "The more you choose to share — such as your sports, goals, "
+                              "training history, wearable data and your own feedback — the "
+                              "better MiValta understands your body, your habits and your "
+                              "progress. Over time, this enables increasingly accurate "
+                              "insights, more meaningful feedback and, if you choose, "
+                              "highly personalized training plans.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "Your profile is built and stored entirely on your device, "
+                              "where MiValta's AI runs locally. Your health data, training "
+                              "history and personal profile are never uploaded to MiValta "
+                              "or any server.\n\n",
+                        ),
+                        const TextSpan(
+                          text: "Your account exists only to manage your email, membership "
+                              "and access to premium features. It is never connected to "
+                              "your personal profile or your health and training data.\n\n",
+                        ),
+                        // Closing line: weight 600 / textPrimary
+                        TextSpan(
+                          text: "Your data remains yours. Your profile remains yours. Always.",
+                          style: MivaltaType.small.copyWith(
+                            color: MivaltaColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            height: 1.55,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : const SizedBox.shrink(),
@@ -832,9 +887,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ('both', 'A bit of both', 'Balance performance with sustainable fitness'),
     ];
 
+    // W16: Locked copy for detail options
     const details = [
-      ('simple', 'Just tell me what to do', 'Clear guidance without the numbers'),
-      ('numbers', 'Show me the numbers too', 'See the data behind the decisions'),
+      ('simple', 'Just the essentials', 'Simple guidance without unnecessary details.'),
+      ('numbers', 'I like the details', 'Show me the numbers and explain the recommendations.'),
     ];
 
     return SingleChildScrollView(
@@ -872,9 +928,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x4),
 
-          // v3: Detail on same screen
+          // W16: Detail on same screen — locked copy
           Text(
-            'How should MiValta talk to you?',
+            'How would you like to receive your training information?',
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
 
@@ -891,6 +947,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             );
           }),
 
+          // W16: Caption below options
+          const SizedBox(height: MivaltaSpace.x3),
+
+          Text(
+            'You can change this at any time.',
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+          ),
+
           const SizedBox(height: MivaltaSpace.x4),
         ],
       ),
@@ -899,10 +963,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Step 3: About You (v3: all basics on one scrollable screen).
   Widget _buildAboutYouStep() {
-    const ageBands = ['18–29', '30–39', '40–49', '50–59', '60+'];
-    // E6 flag-hide: "I'd rather not say" hidden until engine G9 (sex as Option) is live.
-    // The engine requires a real sex value at current pin (a579584).
-    const sexOptions = ['Female', 'Male'];
+    // W17: Extended age bands with real fitness differences in these decades.
+    const ageBands = ['18–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80+'];
+    // W17: Third chip "I'd rather not say" — stored prefer_not_say, omitted from inputs_json.
+    // Engine G9 (sex as Option) escalates from queued to blocking if profile build fails.
+    const sexOptions = ['Female', 'Male', "I'd rather not say"];
     const levels = [
       ('beginner', 'Beginner'),
       ('novice', 'Getting back'),
@@ -971,8 +1036,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
           const SizedBox(height: MivaltaSpace.x2),
+          // W17: Locked explainer copy
           Text(
-            'Used only on-device, to set heart-rate zones.',
+            'Used only on your device — it sets your heart-rate zones, and for women it lets MiValta respect how the menstrual cycle affects training and recovery.',
             style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
           ),
           const SizedBox(height: MivaltaSpace.x3),
@@ -980,8 +1046,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
             children: sexOptions.map((option) {
-              // E6: simplified - no prefer_not_say case until G9 is live
-              final value = option.toLowerCase();
+              // W17: Map "I'd rather not say" to 'prefer_not_say' (omitted from inputs_json)
+              final value = option == "I'd rather not say"
+                  ? 'prefer_not_say'
+                  : option.toLowerCase();
               final isSelected = _sex == value;
               return _buildSmallChip(
                 label: option,
@@ -1074,16 +1142,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 4: Anchors (v3: with explanation).
+  /// Step 4: W18 "Your thresholds" — three optional anchors.
+  /// Heart-rate threshold shown for ALL athletes.
+  /// Threshold pace shown when running is among selected sports.
+  /// Threshold power shown when cycling is among selected sports.
   Widget _buildAnchorsStep() {
-    final isRunning = _sport == 'running';
-    final isCycling = _sport == 'cycling';
+    final hasRunning = _selectedSports.contains('running');
+    final hasCycling = _selectedSports.contains('cycling');
 
-    // v3: Sport-specific title and intro
-    final title = isRunning ? 'Your running threshold' : 'Your FTP';
-    final intro = isRunning
-        ? "If you know your threshold pace — the fastest pace you could hold for about an hour — MiValta sets your training zones from day one. From a recent race or test is perfect."
-        : "If you know your FTP from a test or a head unit, MiValta sets your power zones from day one.";
+    // W18: Any "I don't know" is active
+    final anyUnknown = _lthrUnknown || _ftpUnknown || _paceUnknown;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
@@ -1092,40 +1160,40 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const SizedBox(height: MivaltaSpace.x6),
 
+          // W18: Title
           Text(
-            title,
+            'Your thresholds',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
           const SizedBox(height: MivaltaSpace.x2),
 
-          // v3: Explain why
+          // W18: Intro covering all anchors
           Text(
-            intro,
+            "If you know any of these from a test, a race or a head unit, MiValta sets your zones from day one. Skip anything you don't know.",
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // FTP (cycling)
-          if (isCycling) ...[
-            _buildAnchorInput(
-              label: 'FTP (watts)',
-              value: _ftp,
-              isUnknown: _ftpUnknown,
-              onChanged: (v) => setState(() {
-                _ftp = v;
-                _ftpUnknown = false;
-              }),
-              onUnknown: () => setState(() {
-                _ftpUnknown = !_ftpUnknown;
-                if (_ftpUnknown) _ftp = null;
-              }),
-            ),
-          ],
+          // W18: Heart-rate threshold — shown for EVERY athlete
+          _buildAnchorInput(
+            label: 'Heart-rate threshold (bpm)',
+            value: _lthr,
+            isUnknown: _lthrUnknown,
+            onChanged: (v) => setState(() {
+              _lthr = v;
+              _lthrUnknown = false;
+            }),
+            onUnknown: () => setState(() {
+              _lthrUnknown = !_lthrUnknown;
+              if (_lthrUnknown) _lthr = null;
+            }),
+          ),
 
-          // Threshold pace (running)
-          if (isRunning) ...[
+          // W18: Threshold pace — shown when running is among selected sports
+          if (hasRunning) ...[
+            const SizedBox(height: MivaltaSpace.x4),
             _buildAnchorInput(
               label: 'Threshold pace (min/km)',
               value: _thresholdPace,
@@ -1141,18 +1209,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ],
 
-          // v3: Reassurance line when "I don't know" is selected
-          if (_ftpUnknown || _paceUnknown) ...[
+          // W18: Threshold power — shown when cycling is among selected sports
+          if (hasCycling) ...[
             const SizedBox(height: MivaltaSpace.x4),
+            _buildAnchorInput(
+              label: 'Threshold power (watts)',
+              value: _ftp,
+              isUnknown: _ftpUnknown,
+              onChanged: (v) => setState(() {
+                _ftp = v;
+                _ftpUnknown = false;
+              }),
+              onUnknown: () => setState(() {
+                _ftpUnknown = !_ftpUnknown;
+                if (_ftpUnknown) _ftp = null;
+              }),
+            ),
+          ],
+
+          // W18a: Reassurance line when ANY "I don't know" is active
+          if (anyUnknown) ...[
+            const SizedBox(height: MivaltaSpace.x4),
+            // W18a: Honest copy — learning needs data from a device
             Text(
-              'MiValta will find it from your first sessions.',
+              "MiValta will learn it from your upcoming workouts — a heart-rate monitor or sports watch helps.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.stateProductive),
             ),
           ],
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // v3: Footer on every data screen
+          // Footer on every data screen
           Center(
             child: Text(
               'On this phone. Never on a server.',
@@ -1309,8 +1396,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
+            // W20: Calibration protocol surfaces in the UI — verbatim copy
             Text(
-              'Learning you — your first few days of data shape a picture just for you.',
+              "Your first five workouts calibrate MiValta. Each one is a short, structured probe — how you respond becomes your personal baseline.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
@@ -1653,13 +1741,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     color: MivaltaColors.textMuted.withValues(alpha: 0.2),
                   ),
                 ),
+                // W18a: em-dash placeholder when "I don't know" is active, not echoing the label
                 child: TextField(
                   enabled: !isUnknown,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: MivaltaType.body.copyWith(color: MivaltaColors.textPrimary),
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    hintText: isUnknown ? "I don't know" : 'Enter value',
+                    hintText: isUnknown ? '—' : 'Enter value',
                     hintStyle: MivaltaType.body.copyWith(color: MivaltaColors.textMuted),
                   ),
                   onChanged: (text) {
