@@ -55,8 +55,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String? _weeklyHours; // '2-3' | '4-6' | '7-10' | '10+' → weekly_hours double
   double? _ftp; // null = "I don't know" (optional)
   double? _thresholdPace; // null = "I don't know" (optional)
+  double? _lthr; // W18: Heart-rate threshold (bpm), shown for ALL athletes
   bool _ftpUnknown = false;
   bool _paceUnknown = false;
+  bool _lthrUnknown = false;
 
   // ─── App-side prefs (NOT sent to engine) ───
   String? _detail; // 'simple' | 'numbers' — stored locally
@@ -121,9 +123,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Anchors(4, conditional) → DataSources(5) → Payoff(6)
   int get _totalSteps => 7;
 
-  /// Anchors step shows only if sport is cycling or running.
-  bool get _showAnchors => _sport == 'cycling' || _sport == 'running';
-
   /// Check if current step's need() is satisfied.
   bool get _canContinue {
     switch (_currentStep) {
@@ -153,12 +152,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Go to next step.
   void _nextStep() {
     if (_currentStep < _totalSteps - 1) {
-      int nextStep = _currentStep + 1;
-      // Skip Anchors (step 4) if sport doesn't need it
-      if (nextStep == 4 && !_showAnchors) {
-        nextStep = 5;
-      }
-      setState(() => _currentStep = nextStep);
+      // W18: Anchors (step 4) now always shows — HR threshold is for everyone.
+      setState(() => _currentStep = _currentStep + 1);
       _animateEntrance();
     } else {
       // Final step — submit
@@ -169,12 +164,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Go to previous step.
   void _prevStep() {
     if (_currentStep > 0) {
-      int prevStep = _currentStep - 1;
-      // Skip Anchors (step 4) if sport doesn't need it
-      if (prevStep == 4 && !_showAnchors) {
-        prevStep = 3;
-      }
-      setState(() => _currentStep = prevStep);
+      // W18: Anchors (step 4) now always shows — HR threshold is for everyone.
+      setState(() => _currentStep = _currentStep - 1);
       _animateEntrance();
     }
   }
@@ -184,12 +175,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Map age band label → representative int.
+  /// W17: Extended bands 60–69 / 70–79 / 80+ with representative ints 65/75/85.
   int _ageBandToInt(String? band) => switch (band) {
         '18–29' => 25,
         '30–39' => 35,
         '40–49' => 45,
         '50–59' => 55,
-        '60+' => 65,
+        '60–69' => 65,
+        '70–79' => 75,
+        '80+' => 85,
         _ => 35,
       };
 
@@ -237,11 +231,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       inputs['sex'] = _sex;
     }
 
-    // Optional anchors — null means "I don't know"
-    if (_sport == 'cycling') {
+    // W18: Optional anchors — null means "I don't know"
+    // Heart-rate threshold for ALL athletes
+    // ENGINE ASK: verify lthr_bpm exists in engine inputs contract.
+    // If absent, this value is persisted app-side and passed once the contract lands.
+    inputs['lthr_bpm'] = _lthrUnknown ? null : _lthr?.toInt();
+
+    // Sport-specific thresholds
+    if (_selectedSports.contains('cycling')) {
       inputs['ftp_watts'] = _ftpUnknown ? null : _ftp?.toInt();
     }
-    if (_sport == 'running') {
+    if (_selectedSports.contains('running')) {
       final paceMinKm = _paceUnknown ? null : _thresholdPace;
       inputs['threshold_pace_sec_km'] = paceMinKm != null ? (paceMinKm * 60).toInt() : null;
     }
@@ -409,12 +409,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_totalSteps, (index) {
-          // Skip Anchors dot if not applicable
-          final isAnchorsStep = index == 4;
-          if (isAnchorsStep && !_showAnchors) {
-            return const SizedBox.shrink();
-          }
-
+          // W18: Anchors (step 4) now always shows — no skip logic.
           final isDone = index < _currentStep;
           final isCurrent = index == _currentStep;
 
@@ -892,9 +887,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ('both', 'A bit of both', 'Balance performance with sustainable fitness'),
     ];
 
+    // W16: Locked copy for detail options
     const details = [
-      ('simple', 'Just tell me what to do', 'Clear guidance without the numbers'),
-      ('numbers', 'Show me the numbers too', 'See the data behind the decisions'),
+      ('simple', 'Just the essentials', 'Simple guidance without unnecessary details.'),
+      ('numbers', 'I like the details', 'Show me the numbers and explain the recommendations.'),
     ];
 
     return SingleChildScrollView(
@@ -932,9 +928,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x4),
 
-          // v3: Detail on same screen
+          // W16: Detail on same screen — locked copy
           Text(
-            'How should MiValta talk to you?',
+            'How would you like to receive your training information?',
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
 
@@ -951,6 +947,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             );
           }),
 
+          // W16: Caption below options
+          const SizedBox(height: MivaltaSpace.x3),
+
+          Text(
+            'You can change this at any time.',
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+          ),
+
           const SizedBox(height: MivaltaSpace.x4),
         ],
       ),
@@ -959,10 +963,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Step 3: About You (v3: all basics on one scrollable screen).
   Widget _buildAboutYouStep() {
-    const ageBands = ['18–29', '30–39', '40–49', '50–59', '60+'];
-    // E6 flag-hide: "I'd rather not say" hidden until engine G9 (sex as Option) is live.
-    // The engine requires a real sex value at current pin (a579584).
-    const sexOptions = ['Female', 'Male'];
+    // W17: Extended age bands with real fitness differences in these decades.
+    const ageBands = ['18–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80+'];
+    // W17: Third chip "I'd rather not say" — stored prefer_not_say, omitted from inputs_json.
+    // Engine G9 (sex as Option) escalates from queued to blocking if profile build fails.
+    const sexOptions = ['Female', 'Male', "I'd rather not say"];
     const levels = [
       ('beginner', 'Beginner'),
       ('novice', 'Getting back'),
@@ -1031,8 +1036,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textSecondary),
           ),
           const SizedBox(height: MivaltaSpace.x2),
+          // W17: Locked explainer copy
           Text(
-            'Used only on-device, to set heart-rate zones.',
+            'Used only on your device — it sets your heart-rate zones, and for women it lets MiValta respect how the menstrual cycle affects training and recovery.',
             style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
           ),
           const SizedBox(height: MivaltaSpace.x3),
@@ -1040,8 +1046,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             spacing: MivaltaSpace.x2,
             runSpacing: MivaltaSpace.x2,
             children: sexOptions.map((option) {
-              // E6: simplified - no prefer_not_say case until G9 is live
-              final value = option.toLowerCase();
+              // W17: Map "I'd rather not say" to 'prefer_not_say' (omitted from inputs_json)
+              final value = option == "I'd rather not say"
+                  ? 'prefer_not_say'
+                  : option.toLowerCase();
               final isSelected = _sex == value;
               return _buildSmallChip(
                 label: option,
@@ -1134,16 +1142,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 4: Anchors (v3: with explanation).
+  /// Step 4: W18 "Your thresholds" — three optional anchors.
+  /// Heart-rate threshold shown for ALL athletes.
+  /// Threshold pace shown when running is among selected sports.
+  /// Threshold power shown when cycling is among selected sports.
   Widget _buildAnchorsStep() {
-    final isRunning = _sport == 'running';
-    final isCycling = _sport == 'cycling';
+    final hasRunning = _selectedSports.contains('running');
+    final hasCycling = _selectedSports.contains('cycling');
 
-    // v3: Sport-specific title and intro
-    final title = isRunning ? 'Your running threshold' : 'Your FTP';
-    final intro = isRunning
-        ? "If you know your threshold pace — the fastest pace you could hold for about an hour — MiValta sets your training zones from day one. From a recent race or test is perfect."
-        : "If you know your FTP from a test or a head unit, MiValta sets your power zones from day one.";
+    // W18: Any "I don't know" is active
+    final anyUnknown = _lthrUnknown || _ftpUnknown || _paceUnknown;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
@@ -1152,40 +1160,40 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const SizedBox(height: MivaltaSpace.x6),
 
+          // W18: Title
           Text(
-            title,
+            'Your thresholds',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
           const SizedBox(height: MivaltaSpace.x2),
 
-          // v3: Explain why
+          // W18: Intro covering all anchors
           Text(
-            intro,
+            "If you know any of these from a test, a race or a head unit, MiValta sets your zones from day one. Skip anything you don't know.",
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // FTP (cycling)
-          if (isCycling) ...[
-            _buildAnchorInput(
-              label: 'FTP (watts)',
-              value: _ftp,
-              isUnknown: _ftpUnknown,
-              onChanged: (v) => setState(() {
-                _ftp = v;
-                _ftpUnknown = false;
-              }),
-              onUnknown: () => setState(() {
-                _ftpUnknown = !_ftpUnknown;
-                if (_ftpUnknown) _ftp = null;
-              }),
-            ),
-          ],
+          // W18: Heart-rate threshold — shown for EVERY athlete
+          _buildAnchorInput(
+            label: 'Heart-rate threshold (bpm)',
+            value: _lthr,
+            isUnknown: _lthrUnknown,
+            onChanged: (v) => setState(() {
+              _lthr = v;
+              _lthrUnknown = false;
+            }),
+            onUnknown: () => setState(() {
+              _lthrUnknown = !_lthrUnknown;
+              if (_lthrUnknown) _lthr = null;
+            }),
+          ),
 
-          // Threshold pace (running)
-          if (isRunning) ...[
+          // W18: Threshold pace — shown when running is among selected sports
+          if (hasRunning) ...[
+            const SizedBox(height: MivaltaSpace.x4),
             _buildAnchorInput(
               label: 'Threshold pace (min/km)',
               value: _thresholdPace,
@@ -1201,18 +1209,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ],
 
-          // v3: Reassurance line when "I don't know" is selected
-          if (_ftpUnknown || _paceUnknown) ...[
+          // W18: Threshold power — shown when cycling is among selected sports
+          if (hasCycling) ...[
             const SizedBox(height: MivaltaSpace.x4),
+            _buildAnchorInput(
+              label: 'Threshold power (watts)',
+              value: _ftp,
+              isUnknown: _ftpUnknown,
+              onChanged: (v) => setState(() {
+                _ftp = v;
+                _ftpUnknown = false;
+              }),
+              onUnknown: () => setState(() {
+                _ftpUnknown = !_ftpUnknown;
+                if (_ftpUnknown) _ftp = null;
+              }),
+            ),
+          ],
+
+          // W18a: Reassurance line when ANY "I don't know" is active
+          if (anyUnknown) ...[
+            const SizedBox(height: MivaltaSpace.x4),
+            // W18a: Honest copy — learning needs data from a device
             Text(
-              'MiValta will find it from your first sessions.',
+              "MiValta will learn it from your upcoming workouts — a heart-rate monitor or sports watch helps.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.stateProductive),
             ),
           ],
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // v3: Footer on every data screen
+          // Footer on every data screen
           Center(
             child: Text(
               'On this phone. Never on a server.',
@@ -1369,8 +1396,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
+            // W20: Calibration protocol surfaces in the UI — verbatim copy
             Text(
-              'Learning you — your first few days of data shape a picture just for you.',
+              "Your first five workouts calibrate MiValta. Each one is a short, structured probe — how you respond becomes your personal baseline.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
@@ -1713,13 +1741,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     color: MivaltaColors.textMuted.withValues(alpha: 0.2),
                   ),
                 ),
+                // W18a: em-dash placeholder when "I don't know" is active, not echoing the label
                 child: TextField(
                   enabled: !isUnknown,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: MivaltaType.body.copyWith(color: MivaltaColors.textPrimary),
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    hintText: isUnknown ? "I don't know" : 'Enter value',
+                    hintText: isUnknown ? '—' : 'Enter value',
                     hintStyle: MivaltaType.body.copyWith(color: MivaltaColors.textMuted),
                   ),
                   onChanged: (text) {
