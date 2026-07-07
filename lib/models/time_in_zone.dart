@@ -41,10 +41,17 @@ class TimeInZone {
   /// Total classified seconds (engine sum; excludes skipped samples).
   final double totalSeconds;
 
+  /// Engine rollup of the nine zones into the six metabolic levels
+  /// (`aerobic_base` … `anaerobic_neuro`, plus `unclassified`) — which
+  /// energy system was trained, for how long. Empty when the wire predates
+  /// the rollup or the engine omitted it (honest absence; render nothing).
+  final Map<String, double> metabolicSeconds;
+
   const TimeInZone({
     required this.anchor,
     required this.zones,
     required this.totalSeconds,
+    this.metabolicSeconds = const {},
   });
 
   /// No samples classified yet (engine returned an empty/zero distribution).
@@ -74,10 +81,18 @@ class TimeInZone {
     final zs = raw is List
         ? raw.whereType<Map>().map(ZoneSeconds.fromJson).toList(growable: false)
         : const <ZoneSeconds>[];
+    final metabolic = <String, double>{};
+    final rawMet = json['metabolic_seconds'];
+    if (rawMet is Map) {
+      rawMet.forEach((k, v) {
+        if (v is num) metabolic[k.toString()] = v.toDouble();
+      });
+    }
     return TimeInZone(
       anchor: json['anchor']?.toString() ?? '',
       zones: zs,
       totalSeconds: (json['total_seconds'] as num?)?.toDouble() ?? 0,
+      metabolicSeconds: metabolic,
     );
   }
 }
