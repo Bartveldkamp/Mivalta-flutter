@@ -40,6 +40,9 @@ import '../widgets/mivalta_bottom_nav.dart';
 import 'advisor_screen.dart';
 import 'session_start_screen.dart';
 import 'workout_detail_screen.dart';
+import '../models/benchmark_change_card.dart';
+import '../services/benchmark_notify.dart';
+import '../widgets/today/benchmark_notify_card.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -55,6 +58,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   // BS-003: Store binding and handle for Advisor navigation
   RustEngineBinding? _binding;
   EnginesHandle? _handle;
+  // Phase 3: the latest not-yet-dismissed benchmark-change notification.
+  BenchmarkChangeCard? _benchmarkCard;
+  String? _benchmarkAuditId;
   // BS-008 P-4: Detail preference from onboarding
   bool _showNumbers = false;
   // W5: Weather visibility preference
@@ -221,6 +227,14 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       // BS-003: Store binding and handle for Advisor navigation
       _binding = binding;
       _handle = handle;
+
+      // Phase 3: the benchmark-change notify card (engine composes every word).
+      // Honest absence on any failure — the home never breaks on a missing
+      // notify.
+      final notify = await BenchmarkNotifyService(binding: binding, handle: handle)
+          .loadPending();
+      _benchmarkCard = notify?.card;
+      _benchmarkAuditId = notify?.auditId;
 
       // Load home data
       await _loadHomeData(binding, handle);
@@ -465,6 +479,20 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _dismissBenchmarkCard() {
+    final id = _benchmarkAuditId;
+    final binding = _binding;
+    final handle = _handle;
+    setState(() {
+      _benchmarkCard = null;
+      _benchmarkAuditId = null;
+    });
+    if (id != null && binding != null && handle != null) {
+      // Best-effort persist — a failed write just re-shows it once.
+      BenchmarkNotifyService(binding: binding, handle: handle).dismiss(id);
+    }
+  }
+
   void _startWorkout() {
     // BS-010: Navigate to session start screen.
     Navigator.push(
@@ -524,6 +552,17 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                 fatigueState: _data.fatigueState,
                 insufficientData: _data.insufficientData,
               ),
+
+              // Phase 3: benchmark-change notify ("your threshold improved").
+              // Only renders when the engine produced a card the athlete
+              // hasn't dismissed — honest absence otherwise.
+              if (_benchmarkCard != null) ...[
+                const SizedBox(height: MivaltaSpace.x4),
+                BenchmarkNotifyCard(
+                  card: _benchmarkCard!,
+                  onDismiss: _dismissBenchmarkCard,
+                ),
+              ],
 
               // BS-008 P-1: Calibrated-to-you line under hero
               // Engine decides confidence bucket; Dart only renders.

@@ -481,6 +481,21 @@ class RustEngineBinding {
   Future<String> getWorkoutDetail(EnginesHandle handle, {required String date}) =>
       rust_api.getWorkoutDetail(handle: handle, date: date);
 
+  /// `VaultEngine::realize_benchmark_change(event_json)` — compose the Phase 3
+  /// notify card ("your threshold improved") from a `benchmark_change` event.
+  /// Returns `{kind, headline, benchmark_line, disclosure:[…]}` (engine
+  /// composes every word, unit-correct) or the string `"null"` when the event
+  /// is absent/unknown — honest absence.
+  Future<String> realizeBenchmarkChange(EnginesHandle handle, {required String eventJson}) =>
+      rust_api.realizeBenchmarkChange(handle: handle, eventJson: eventJson);
+
+  /// `VaultEngine::read_audit_trail(event_type, limit)` — the athlete's audit
+  /// ledger newest-first, filtered by `eventType` (empty = all). Used to read
+  /// the latest `benchmark_change` row for the notify card. JSON array.
+  Future<String> readAuditTrail(EnginesHandle handle,
+          {required String eventType, required int limit}) =>
+      rust_api.readAuditTrail(handle: handle, eventType: eventType, limit: limit);
+
   /// `VaultEngine::completed_workout_facts(date)` — the post-workout report's
   /// INPUT facts (engine-classified zone + actuals + quality) for a date; JSON
   /// `CompletedWorkoutFacts`, or `null` when no activity. Pair with

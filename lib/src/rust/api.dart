@@ -499,6 +499,35 @@ Future<String> getWorkoutDetail({
   required String date,
 }) => RustLib.instance.api.crateApiGetWorkoutDetail(handle: handle, date: date);
 
+/// `VaultEngine::realize_benchmark_change(event_json)` — compose the Phase 3
+/// notify card from a `benchmark_change` event ("your threshold improved").
+/// Pass the `event` from `sync_benchmark_from_activities`, or the
+/// `assessment_json` of a `benchmark_change` ledger row. Returns
+/// `{kind, headline, benchmark_line, disclosure:[…]}` (engine-composed,
+/// unit-correct) or the string `"null"` on an absent/unknown event. Pure
+/// pass-through; the engine composes every word.
+Future<String> realizeBenchmarkChange({
+  required EnginesHandle handle,
+  required String eventJson,
+}) => RustLib.instance.api.crateApiRealizeBenchmarkChange(
+  handle: handle,
+  eventJson: eventJson,
+);
+
+/// `VaultEngine::read_audit_trail(athlete_id, event_type, plan_id, limit)` —
+/// the athlete's audit ledger, newest first, optionally filtered by event
+/// type (empty = all). Used to read the latest `benchmark_change` row for the
+/// notify card. Returns a JSON array of audit entries. Pure pass-through.
+Future<String> readAuditTrail({
+  required EnginesHandle handle,
+  required String eventType,
+  required int limit,
+}) => RustLib.instance.api.crateApiReadAuditTrail(
+  handle: handle,
+  eventType: eventType,
+  limit: limit,
+);
+
 /// `VaultEngine::completed_workout_facts(date)` — assembles the post-workout
 /// report's INPUT facts (engine-classified zone + actuals + quality) for a date.
 /// JSON `CompletedWorkoutFacts`, or `null` when no activity. Pair with
