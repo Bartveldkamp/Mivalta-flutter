@@ -398,10 +398,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   children: [
                     _buildGlowWithLogo(),
                     const SizedBox(height: 18),
+                    // Wordmark — W10: Zen Dots 28.
                     Text(
                       'MiValta',
                       style: GoogleFonts.zenDots(
-                        fontSize: 19,
+                        fontSize: 28,
                         fontWeight: FontWeight.w400,
                         color: MivaltaColors.textPrimary,
                       ),
@@ -528,44 +529,36 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildCopyBlock() {
+    // BS-001b: Sovereignty-first copy — DELETE "One quiet account."
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Heading
+        // Eyebrow — W10: MivaltaType.label, textMuted, uppercase
         Text(
-          'One quiet account.',
-          style: GoogleFonts.inter(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.48, // -0.02em
+          'PRIVATE BY DESIGN',
+          style: MivaltaType.label.copyWith(
+            color: MivaltaColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: MivaltaSpace.x2),
+        // Headline — W10: MivaltaType.titleL "Your body. Your data."
+        Text(
+          'Your body. Your data.',
+          style: MivaltaType.titleL.copyWith(
             color: MivaltaColors.textPrimary,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 12),
-        // Sub — BS-001a locked copy: data sovereignty, not cloud sync
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              height: 1.5,
-              color: MivaltaColors.textPrimary.withValues(alpha: 0.55),
-            ),
-            children: [
-              const TextSpan(text: 'It holds your email and your tier — nothing else.\n'),
-              TextSpan(
-                text: 'Your body, your data: everything MiValta learns stays on this phone.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  height: 1.5,
-                  color: MivaltaColors.textPrimary.withValues(alpha: 0.84),
-                ),
-              ),
-            ],
+        const SizedBox(height: MivaltaSpace.x3),
+        // Sub — W10: sovereignty 3-line verbatim, MivaltaType.body, textSecondary
+        Text(
+          'MiValta runs entirely on this phone.\n'
+          'Your account stores only your email and membership.\n'
+          'Your health and training data is never connected to your account.',
+          style: MivaltaType.body.copyWith(
+            color: MivaltaColors.textSecondary,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -654,35 +647,23 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildConsentLine() {
+    // W12: footer ≥12
+    final baseStyle = MivaltaType.small.copyWith(
+      color: MivaltaColors.textMuted,
+    );
+    final linkStyle = MivaltaType.small.copyWith(
+      color: MivaltaColors.textSecondary,
+      decoration: TextDecoration.underline,
+    );
     return RichText(
       textAlign: TextAlign.center,
       text: TextSpan(
-        style: GoogleFonts.inter(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w400,
-          color: MivaltaColors.textPrimary.withValues(alpha: 0.40),
-        ),
+        style: baseStyle,
         children: [
           const TextSpan(text: 'By continuing you agree to the '),
-          TextSpan(
-            text: 'Terms',
-            style: GoogleFonts.inter(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w400,
-              color: MivaltaColors.textPrimary.withValues(alpha: 0.64),
-              decoration: TextDecoration.underline,
-            ),
-          ),
+          TextSpan(text: 'Terms', style: linkStyle),
           const TextSpan(text: ' & '),
-          TextSpan(
-            text: 'Privacy Policy',
-            style: GoogleFonts.inter(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w400,
-              color: MivaltaColors.textPrimary.withValues(alpha: 0.64),
-              decoration: TextDecoration.underline,
-            ),
-          ),
+          TextSpan(text: 'Privacy Policy', style: linkStyle),
           const TextSpan(text: '.'),
         ],
       ),
@@ -708,24 +689,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 32),
 
-          // Logo mark (40px)
+          // Logo mark — W12: 64px on EVERY auth screen.
           Center(
             child: SvgPicture.asset(
               'assets/mivalta-logo.svg',
-              width: 40,
-              height: 40,
+              width: MivaltaGlow.authLogoSize,
+              height: MivaltaGlow.authLogoSize,
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // Heading
+          // Heading — W12: MivaltaType.title
           Center(
             child: Text(
               "What's your email?",
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+              style: MivaltaType.titleL.copyWith(
                 color: MivaltaColors.textPrimary,
               ),
             ),
@@ -733,14 +712,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 8),
 
-          // Sub
+          // Sub — W12: MivaltaType.body (never below 14)
           Center(
             child: Text(
               "We'll send a one-time code — no password to set.",
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: MivaltaColors.textPrimary.withValues(alpha: 0.50),
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -814,14 +791,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const Spacer(),
 
-          // Reassurance (binding boundary statement)
+          // Reassurance — W12: MivaltaType.small, textMuted (min 12).
           Center(
             child: Text(
-              'Used to sign you in and carry your tier. Never for health data.',
-              style: GoogleFonts.inter(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w400,
-                color: MivaltaColors.textPrimary.withValues(alpha: 0.40),
+              'Used to sign you in. Never for health data.',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textMuted,
               ),
               textAlign: TextAlign.center,
             ),
@@ -850,24 +825,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 32),
 
-          // Logo mark (40px)
+          // Logo mark — W12: 64px on EVERY auth screen.
           Center(
             child: SvgPicture.asset(
               'assets/mivalta-logo.svg',
-              width: 40,
-              height: 40,
+              width: MivaltaGlow.authLogoSize,
+              height: MivaltaGlow.authLogoSize,
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // Heading
+          // Heading — W12: MivaltaType.title
           Center(
             child: Text(
               'Enter your code',
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+              style: MivaltaType.titleL.copyWith(
                 color: MivaltaColors.textPrimary,
               ),
             ),
@@ -875,14 +848,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 8),
 
-          // Sub — shows email
+          // Sub — W12: MivaltaType.body (never below 14)
           Center(
             child: Text(
               'Sent to ${_emailController.text}',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: MivaltaColors.textPrimary.withValues(alpha: 0.50),
+              style: MivaltaType.body.copyWith(
+                color: MivaltaColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -949,14 +920,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
           const Spacer(),
 
-          // Reassurance (binding boundary statement)
+          // Reassurance — W12: MivaltaType.small, textMuted (min 12).
           Center(
             child: Text(
-              'Used to sign you in and carry your tier. Never for health data.',
-              style: GoogleFonts.inter(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w400,
-                color: MivaltaColors.textPrimary.withValues(alpha: 0.40),
+              'Used to sign you in. Never for health data.',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textMuted,
               ),
               textAlign: TextAlign.center,
             ),

@@ -43,7 +43,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<Offset> _slideAnimation;
 
   // ─── Engine payload fields (v2/v3 contract) ───
-  String? _sport; // SINGULAR: 'cycling' | 'running' only (FL-17)
+  // W14: Changed to multi-select — engine takes primary + secondary if contract has field.
+  // Until engine contract verified, first selected = primary, rest = secondary.
+  final Set<String> _selectedSports = {}; // W14: multi-select
+  String? _sport; // Primary sport (first selected, for engine contract)
   String? _aim; // 'perform' | 'healthy' | 'both' → maps to goal_type
   String? _ageBand; // UI label → age int
   String? _sex; // 'female' | 'male' | 'prefer_not_say' (omitted from inputs_json if prefer_not_say)
@@ -65,6 +68,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // Loading state for final step
   bool _isSubmitting = false;
   String? _error;
+
+  // W14: Disclosure expansion state for "How your private profile works"
+  bool _profileDisclosureExpanded = false;
 
   // C6: Persisted athlete_id (generated once, never changes).
   String _athleteId = const Uuid().v4();
@@ -123,8 +129,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     switch (_currentStep) {
       case 0: // Promise — always enabled
         return true;
-      case 1: // Sport — required (single choice)
-        return _sport != null;
+      case 1: // Profile/Sport — W14: at least one sport selected
+        return _selectedSports.isNotEmpty;
       case 2: // Aim + Detail — both required
         return _aim != null && _detail != null;
       case 3: // About You (age + sex + level + experience + hours) — all required
@@ -594,7 +600,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 0: Promise (v3.2: auth-style glow, 76px logo, no tile).
+  /// Step 0: Promise (W13 — BS-002a FINAL: logo duo with title, locked copy).
   Widget _buildPromiseStep() {
     return Center(
       child: Padding(
@@ -602,12 +608,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Auth-style glow with 76px logo (BS-002 v3.2)
+            // W13: Logo duo with title — logo, x5 gap, then the title block.
             _buildPromiseGlow(),
 
+            // x5 gap between logo and title (W13: the pair reads as one unit with air)
             const SizedBox(height: MivaltaSpace.x5),
 
-            // Title
+            // Title — unchanged size
             Text(
               'Your body.\nYour data.',
               style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
@@ -616,16 +623,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             const SizedBox(height: MivaltaSpace.x4),
 
-            // BS-002a: ONE clean privacy line (locked copy)
+            // W13 / BS-002a FINAL: "Private by design."
             Text(
-              'MiValta runs entirely on this phone. Nothing you enter ever leaves it.',
+              'Private by design.',
+              style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: MivaltaSpace.x2),
+
+            // W13 / BS-002a FINAL: "Let's personalize MiValta to you."
+            Text(
+              "Let's personalize MiValta to you.",
               style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
               textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: MivaltaSpace.x5),
 
-            // BS-002a: Restore link (tappable, no explanation — detail behind tap)
+            // Restore link (unchanged)
             GestureDetector(
               onTap: () {
                 // TODO: BS-017 F4 sheet — encrypted export restore flow
@@ -647,7 +663,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 1: Sport (unchanged from v2).
+  /// Step 1: Profile (W14 — BS-002c: disclosure pattern + multi-select).
   Widget _buildSportStep() {
     const sports = [
       ('running', Icons.directions_run, 'Running'),
@@ -661,33 +677,150 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const SizedBox(height: MivaltaSpace.x6),
 
+          // W14: Title changed to "Your profile"
           Text(
-            'Your sport',
+            'Your profile',
             style: MivaltaType.titleL.copyWith(color: MivaltaColors.textPrimary),
           ),
 
-          const SizedBox(height: MivaltaSpace.x2),
+          const SizedBox(height: MivaltaSpace.x3),
 
-          // BS-002b: Flow framing on first question (locked copy)
+          // W14 / BS-002c: Sub (locked copy)
           Text(
-            "Six quick questions set your starting zones and your first plan — about a minute, and you can change any of it later in You. First: what should MiValta coach? More sports are coming.",
+            'MiValta builds a personal profile to understand you and personalize '
+            'your training, recovery and insights.\n\n'
+            'Everything stays on this device.',
             style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
           ),
 
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // W14 / BS-002c: Disclosure row (below sub, above question)
+          _buildProfileDisclosure(),
+
           const SizedBox(height: MivaltaSpace.x5),
 
+          // W14 / BS-002c: Question lead
+          Text(
+            "Let's start with your sports.",
+            style: MivaltaType.body.copyWith(
+              color: MivaltaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x1),
+
+          // W14 / BS-002c: Caption
+          Text(
+            'Select all that apply.',
+            style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x4),
+
+          // W14: Multi-select sports (checkbox semantics)
           ...sports.map((s) {
             final (id, icon, label) = s;
-            final isSelected = _sport == id;
+            final isSelected = _selectedSports.contains(id);
             return _buildSportRow(
               icon: icon,
               label: label,
               isSelected: isSelected,
-              onTap: () => setState(() => _sport = id),
+              onTap: () => setState(() {
+                if (isSelected) {
+                  _selectedSports.remove(id);
+                } else {
+                  _selectedSports.add(id);
+                }
+                // W14: First selected = primary sport for engine
+                _sport = _selectedSports.isNotEmpty ? _selectedSports.first : null;
+              }),
             );
           }),
+
+          const SizedBox(height: MivaltaSpace.x5),
+
+          // Footer (unchanged)
+          Center(
+            child: Text(
+              'On this phone. Never on a server.',
+              style: MivaltaType.small.copyWith(color: MivaltaColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          const SizedBox(height: MivaltaSpace.x4),
         ],
       ),
+    );
+  }
+
+  /// W14 / BS-002c: Disclosure row with expandable privacy explanation.
+  Widget _buildProfileDisclosure() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Disclosure row: lock glyph + text + chevron
+        GestureDetector(
+          onTap: () => setState(() => _profileDisclosureExpanded = !_profileDisclosureExpanded),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 18,
+                  color: MivaltaColors.textSecondary,
+                ),
+                const SizedBox(width: MivaltaSpace.x2),
+                Expanded(
+                  child: Text(
+                    'How your private profile works',
+                    style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _profileDisclosureExpanded ? 0.5 : 0.0,
+                  duration: MivaltaMotion.standard,
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 24,
+                    color: MivaltaColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Expanded body — AnimatedSize for smooth expand/collapse
+        AnimatedSize(
+          duration: MivaltaMotion.standard,
+          curve: MivaltaMotion.standardEase,
+          alignment: Alignment.topLeft,
+          child: _profileDisclosureExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(
+                    top: MivaltaSpace.x3,
+                    left: MivaltaSpace.x2,
+                  ),
+                  child: Text(
+                    'MiValta is built differently from most health and fitness apps.\n\n'
+                    'The AI runs entirely on your device. Your personal profile, health data '
+                    'and training history are never uploaded to MiValta or any cloud.\n\n'
+                    'The more information you choose to share — such as your sports, goals, '
+                    'training history and wearable data — the better MiValta understands you. '
+                    'Over time it learns from and with you, providing increasingly accurate '
+                    'insights, feedback and, if you choose, personalized training plans.\n\n'
+                    'You remain in control. You decide what to share, and your data always '
+                    'stays with you.',
+                    style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 

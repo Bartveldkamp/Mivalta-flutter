@@ -259,8 +259,8 @@ abstract final class MivaltaGlow {
   // Resting opacity for auth halos.
   static const authRestingAlpha = 0.85;
 
-  // Logo mark size in auth.
-  static const authLogoSize = 62.0;
+  // Logo mark size in auth — W10: 64px locked on ALL auth screens.
+  static const authLogoSize = 64.0;
 
   // Breathe animation: 6 seconds, counter-phased (same as splash).
   static const authBreatheDuration = Duration(seconds: 6);
