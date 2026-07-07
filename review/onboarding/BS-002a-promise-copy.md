@@ -7,6 +7,12 @@ over-claiming, not next-generation. Confidence is restraint: say it once,
 cleanly, and stop.
 
 ## ROUND 3 (device witness 2026-07-07 16:55 — layout defeated by glow-field padding)
+**REDLINE (build against THIS, not the prose):**
+`review/onboarding/redlines/RL-promise-r3.html` — pixel-exact render at
+393×852 + measured overlay + build notes. New standing rule: every screen
+ruling ships a redline; the fix is diffed against it (downscaled sim shot)
+BEFORE the PR opens; and each walked screen gets a golden test with fonts
+bundled — no more skipped goldens.
 Root cause, from source: `_buildPromiseGlow` centres a 76px mark inside a
 245×245 field — ~85px invisible padding below the mark BEFORE the x5 gap,
 so the title still floats low and the mark reads small. Fixes, exact:

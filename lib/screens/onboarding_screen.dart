@@ -526,15 +526,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // STEP BUILDERS (v3)
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// BS-002a Round 3: Glow HUGS the 96px mark — layout box = logo size,
-  /// halos overflow unclipped via Clip.none. The x5 gap then measures from
-  /// the VISUAL mark edge to the title.
+  /// BS-002a Round 3 (redline RL-promise-r3.html): Glow HUGS the 96px mark.
+  /// Layout box = logo size (96), halos overflow unclipped via Clip.none.
+  /// Halo sizes: 245 outer, 162 mid (same as auth, per redline).
   Widget _buildPromiseGlow() {
-    // Round 3: layout box = 96px, halos overflow
+    // Round 3 redline: layout box = 96px, halos overflow
     const logoSize = 96.0;
-    // Halo sizes scaled from splash proportions
-    const outerSize = 280.0;
-    const midSize = 190.0;
+    // Redline spec: 245 outer, 162 mid (same blurs as auth)
+    const outerSize = 245.0;
+    const midSize = 162.0;
 
     return SizedBox(
       width: logoSize,
@@ -610,60 +610,60 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Step 0: Promise (BS-002a Round 3: top-weighted, glow hugs mark, no restore link).
+  /// Step 0: Promise (BS-002a Round 3 redline: RL-promise-r3.html).
+  /// 94px below safe-area top, mark-to-title gap 20px, no restore link.
   Widget _buildPromiseStep() {
-    // Round 3: top-weighted layout (~18% viewport padding), not dead-center
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final topPadding = constraints.maxHeight * 0.18;
-        return SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.only(
-              top: topPadding,
-              left: MivaltaSpace.x4,
-              right: MivaltaSpace.x4,
+    // Round 3 redline: 94px below safe-area top (18% of 852px viewport - safe top)
+    // NOT a percentage of available height; fixed 94px matches the redline exactly.
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: 94, // Redline: 94px below safe-area top
+          left: MivaltaSpace.x4,
+          right: MivaltaSpace.x4,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Round 3: Logo (96px, glow hugs mark) — brand cover of intake.
+            _buildPromiseGlow(),
+
+            // Redline: 20px gap (visual mark edge → title cap)
+            // Note: MivaltaSpace.x5 is 24px but redline specifies 20px exactly.
+            const SizedBox(height: 20),
+
+            // Title — MivaltaType.titleXL (40px, w700, -0.02em, lh 1.2)
+            Text(
+              'Your body.\nYour data.',
+              style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
+              textAlign: TextAlign.center,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Round 3: Logo (96px, glow hugs mark) — brand cover of intake.
-                _buildPromiseGlow(),
 
-                // x5 gap between logo and title (the pair reads as one unit with air)
-                const SizedBox(height: MivaltaSpace.x5),
+            // Redline: x4 = 16px (title → sub1)
+            const SizedBox(height: MivaltaSpace.x4),
 
-                // Title — unchanged size
-                Text(
-                  'Your body.\nYour data.',
-                  style: MivaltaType.titleXL.copyWith(color: MivaltaColors.textPrimary),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: MivaltaSpace.x4),
-
-                // BS-002a FINAL: "Private by design."
-                Text(
-                  'Private by design.',
-                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: MivaltaSpace.x2),
-
-                // BS-002a FINAL: "Let's personalize MiValta to you."
-                Text(
-                  "Let's personalize MiValta to you.",
-                  style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-
-                // Round 3: Restore link DELETED — seam doesn't exist yet (BS-017 blocked).
-                // Returns with the real restore flow, on Auth, when the seam lands.
-              ],
+            // BS-002a FINAL: "Private by design."
+            Text(
+              'Private by design.',
+              style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+              textAlign: TextAlign.center,
             ),
-          ),
-        );
-      },
+
+            // Redline: x2 = 8px (sub1 → sub2)
+            const SizedBox(height: MivaltaSpace.x2),
+
+            // BS-002a FINAL: "Let's personalize MiValta to you."
+            Text(
+              "Let's personalize MiValta to you.",
+              style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+
+            // Round 3: Restore link DELETED — seam doesn't exist yet (BS-017 blocked).
+            // Returns with the real restore flow, on Auth, when the seam lands.
+          ],
+        ),
+      ),
     );
   }
 
