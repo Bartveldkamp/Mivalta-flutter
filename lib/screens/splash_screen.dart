@@ -62,9 +62,14 @@ class _SplashScreenState extends State<SplashScreen>
   bool _entranceComplete = false;
   bool _reducedMotion = false;
 
+  // W11: Minimum hold time — the brand moment needs a beat.
+  late final DateTime _splashStartTime;
+  static const _minimumHoldDuration = Duration(milliseconds: 1200);
+
   @override
   void initState() {
     super.initState();
+    _splashStartTime = DateTime.now();
     _initAnimations();
     _startWarmUp();
   }
@@ -271,9 +276,19 @@ class _SplashScreenState extends State<SplashScreen>
   void _tryHandOff() {
     if (!mounted) return;
 
-    // Hand-off when both: entrance floor reached AND warm-up complete
+    // Hand-off when: entrance floor reached AND warm-up complete AND minimum hold elapsed.
+    // W11: hold ≥1.2s even if routing resolves faster (the brand moment needs a beat).
     if (_entranceComplete && _warmUpComplete) {
-      _handOff();
+      final elapsed = DateTime.now().difference(_splashStartTime);
+      if (elapsed >= _minimumHoldDuration) {
+        _handOff();
+      } else {
+        // Wait remaining time before hand-off
+        final remaining = _minimumHoldDuration - elapsed;
+        Future.delayed(remaining, () {
+          if (mounted) _handOff();
+        });
+      }
     }
   }
 
@@ -429,7 +444,7 @@ class _SplashScreenState extends State<SplashScreen>
             // 26px gap (Step 2)
             const SizedBox(height: 26),
 
-            // Wordmark (Step 4)
+            // Wordmark (Step 4) — W11: Zen Dots 32.
             Transform.translate(
               offset: _wordmarkOffset.value,
               child: Opacity(
@@ -437,7 +452,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Text(
                   'MiValta',
                   style: GoogleFonts.zenDots(
-                    fontSize: 25,
+                    fontSize: 32,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0,
                     color: MivaltaColors.textPrimary,
@@ -446,19 +461,18 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            // Tagline with negative margin (Step 4)
+            // x3 gap below wordmark — W11: MivaltaSpace.x3 (12px).
+            SizedBox(height: MivaltaSpace.x3),
+
+            // Tagline (Step 4) — W11: "Your body. Your data." MivaltaType.body, textSecondary.
             Transform.translate(
-              offset: Offset(0, _taglineOffset.value.dy - 14), // margin-top -14px
+              offset: _taglineOffset.value,
               child: Opacity(
                 opacity: _taglineOpacity.value,
                 child: Text(
-                  'Your body, read honestly.',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0.3,
-                    color: MivaltaColors.textPrimary.withValues(alpha: 0.5),
+                  'Your body. Your data.',
+                  style: MivaltaType.body.copyWith(
+                    color: MivaltaColors.textSecondary,
                   ),
                 ),
               ),
@@ -553,15 +567,15 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // Logo mark (108×108, z-above halos)
+          // Logo mark (96×96, z-above halos) — W11: 96px locked.
           Transform.scale(
             scale: _logoScale.value,
             child: Opacity(
               opacity: _logoOpacity.value,
               child: SvgPicture.asset(
                 'assets/mivalta-logo.svg',
-                width: 108,
-                height: 108,
+                width: 96,
+                height: 96,
               ),
             ),
           ),

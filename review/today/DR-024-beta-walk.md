@@ -1,6 +1,26 @@
 STATUS: OPEN — rolling beta-walk review (2026-07-06, walk started at Today).
 # DR-024-beta-walk — findings from Bart's device walk
 
+## WALK ROUND 2 (2026-07-07, fresh corridor) — open finds
+- **W10 · Auth positioning + sizes** → ruling: `review/auth/BS-001b-auth-splash-sovereignty.md`
+  ("One quiet account" is a positioning ERROR — sovereignty-first locked copy;
+  logo 64 / wordmark 28; verify the logo asset is the MiValta mark, not a
+  fingerprint glyph).
+- **W14 · Sport step → "Your profile" (12:07)** → ruling
+  `review/onboarding/BS-002c-profile-disclosure.md`: disclosure pattern
+  (🔒 "How your private profile works" ▾), multi-select sports (engine
+  contract check — no silent data drop), question lead "Let's start with
+  your sports." Long framing sentence dropped; depth is opt-in.
+- **W13 · Promise step (11:59)** → BS-002a updated with Bart's final copy:
+  title duo'd with the logo (x5 gap, block moves up), "Private by design." +
+  "Let's personalize MiValta to you." — architecture claim stays on Auth.
+  Logo asset swap applies here too.
+- **W12 · Auth flow sub-screens (email + code)** → BS-001b §flow-scale:
+  64px mark on every auth screen, body ≥14, footer ≥12, code boxes 52px —
+  and the fingerprint-style glyph confirms the wrong logo asset flow-wide.
+- **W11 · Splash** → same file: logo 96, wordmark 32, x3 gap before
+  "Your body. Your data.", hold ≥1.2s (currently flashes past).
+
 Build witnessed: post-DR-023 (chip gone ✓, tokens applied ✓). New finds:
 
 ## W1 · Masthead is undersized relative to the layout (locked sizes)
@@ -41,19 +61,28 @@ post-beta (BETA-001 cut line). Meanwhile: every new card MUST be built as a
 ModuleCard (they all are today) so the composability layer bolts on without
 rework. Don't hardcode order-dependent logic between cards.
 
-## W5 round 2 (Design verify @ f49ca2f) — sheet built, 3 W2 violations
-1. **Weather defaults ON** — `prefs.getBool('show_weather') ?? true`. W2 law:
-   DEFAULT OFF. Change to `?? false` (and Today's slot must respect it).
-2. **Toggle-on skips the consent moment** — flipping the switch must open the
-   place flow: manual place picker (weather_place_picker) FIRST, "use my
-   approximate location" as the secondary option. A bare bool flip that
-   silently enables GPS-backed fetch breaks the ruling.
-3. **Subtitle is the generic line** ("Display local weather in the masthead")
-   — replace with the locked honest copy: "A forecast needs a place — type
-   one, or use approximate location. Keyless request, never a commercial
-   API; nothing else leaves the phone."
-Rest of W5 ✓ (tune icon placement, sheet shape, Numbers-first reuse, You
-excluded, modules honestly deferred).
+## Night batch verification (Design, in source @ PR #165 / c85a314)
+- **W5 round 2 ✓ CLOSED** — all three fixed exactly: `?? false` default OFF;
+  toggle-on opens the place picker as the consent moment (dismiss keeps
+  weather off — right); locked subtitle verbatim.
+- **BS-016 B1 ✓ CLOSED (code)** — JosiCard position 2 on the reveal via
+  `realize_workout_reflection`, honest fallback to the report line, D3
+  respected. Note: reveal is its own screen, not a workout-detail view —
+  "same card on detail" applies when a detail view exists (Journey day
+  record, B3). Not a deviation.
+- **REPO-SYNC ✓** — 5 files mirrored; future bridge outages non-blocking.
+- **Deferred honestly, accepted:** B3 evening swap + Journey day record and
+  the corridor You leg — both stay OPEN on this file, next batch.
+- Reveal polish LOG (not blocking): zone-row labels render all-teal
+  regardless of zone color (name uses stateRecovered, bar uses zone color —
+  mismatch); "WHAT IT MEANS" renders the raw ACWR recommendation string —
+  same V-ASK voice-register dependency as W7.
+
+**Bart's morning sequence:** merge PR #165 → rebuild sim → witness: masthead
+30/24 · vessel (calm/amber states) · model score ~53% · You bottom nav · You
+restyle · tune sheet (weather OFF by default, picker on toggle-on) · reveal
+Josi card. Then the walk continues: Advisor → Session → Journey.
+
 ## Merge policy (Bart, 2026-07-06): ONE batch PR per walk round
 Merges cost ~45 min each — no more loose single-fix PRs. Collect all open
 DR-024 work (W8 · W9 · W4 · W5, plus anything already sitting unmerged on
@@ -90,6 +119,7 @@ the source exceeds 1.0/100. Also: Observations/Confidence show "—" while
 sufficiency shows Medium — check those two reads while in there (same
 diagnostics seam; — next to a real value smells like a parse miss, not
 honest absence).
+
 ## W4 · You page — next-gen minimalistic restyle
 The stacked icon+title card pile reads as settings-app, not MiValta. Ruling:
 - Kill the per-card leading icons (the glyph noise is the clutter).
