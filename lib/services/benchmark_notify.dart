@@ -15,6 +15,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
+
 import 'package:path_provider/path_provider.dart';
 
 import '../models/benchmark_change_card.dart';
@@ -69,13 +71,22 @@ class BenchmarkNotifyService {
       if (await _isDismissed(auditId)) return null;
 
       // The engine composes every word of the card from the event.
-      final cardJson =
-          await binding.realizeBenchmarkChange(handle, eventJson: eventJson);
+      final cardJson = await binding.realizeBenchmarkChange(
+        handle,
+        eventJson: eventJson,
+      );
       final card = BenchmarkChangeCard.parse(cardJson);
       if (card == null) return null;
 
       return BenchmarkNotify(auditId: auditId, card: card);
-    } catch (_) {
+    } catch (e) {
+      // Honest absence — but name the cause in debug so a corrupt ledger row
+      // (bad assessment_json) is distinguishable from "no event" on-device
+      // (PR #170 review). A blanket-silent swallow hid real errors elsewhere.
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('BenchmarkNotifyService.loadPending: ${e.runtimeType}: $e');
+      }
       return null;
     }
   }
