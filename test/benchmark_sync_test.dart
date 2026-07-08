@@ -82,6 +82,13 @@ class _RecordingBinding implements RustEngineBinding {
   }
 
   @override
+  Future<void> mergeProfileBenchmarks(EnginesHandle handle,
+      {required String athleteProfileJson}) async {
+    calls.add('mergeProfileBenchmarks');
+    persistedProfile = athleteProfileJson;
+  }
+
+  @override
   Future<void> updateProfile(EnginesHandle handle,
       {required String athleteProfileJson}) async {
     calls.add('updateProfile');
@@ -162,7 +169,7 @@ void main() {
         'sync',
         'writeHistory',
         'postprocessProfile',
-        'writeProfile',
+        'mergeProfileBenchmarks',
         'updateProfile',
         'writeEvent',
       ],
