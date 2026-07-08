@@ -135,12 +135,21 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`63d8744`**
-(rust-engine `main` after #394 — Phase 0 of the road-to-100% plan;
-engine_registry **v2.42** per `engine_registry.json` at that rev). The
-`rev = "63d8744…"` line in `rust/Cargo.toml` is **authoritative**, and the
-comment block above it narrates the full re-pin history
-(`…a579584 → 3b5ec7c → 63d8744`); this section only summarizes. This bump
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a510184`**
+(rust-engine `main` after #398 — the benchmark-persist fix; engine_registry
+**v2.43** per `engine_registry.json` at that rev). The `rev = "a510184…"` line in
+`rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
+the full re-pin history (`…63d8744 → 16dbf7d → 29c4b1b → a510184`); this section
+only summarizes. **#398** fixes the silent-loss persistence bug — a benchmark
+promotion was saved via `writeProfile(postprocessProfile())`, a bare
+`AthleteProfile` (no `athlete_id`) the `VaultProfile` writer serde-rejected, so
+an improved FTP/pace/power-profile never reached the vault and was lost on
+restart. The engine now owns the merge (`VaultEngine::merge_profile_benchmarks`),
+and `VaultProfile` persists the **full cycling power profile** (CP·W′) as a JSON
+column. The Dart courier `lib/services/benchmark_sync.dart` swaps
+`writeProfile` → `mergeProfileBenchmarks`; **one new shim fn** was FRB-regenned
+in this PR (host codegen, frb 2.12.0 / Flutter 3.44.0). The build executor owes
+`cargo update` + the **xcframework rebuild**. The earlier `63d8744` bump
 carries the whole benchmark train (#391–#394): the growing-profile learning
 model, the CLOSED benchmark loop (`sync_benchmark_from_activities` — streams →
 sport-native fit → confirm/promote gate → benchmark written into the bound

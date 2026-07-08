@@ -815,6 +815,23 @@ class RustEngineBinding {
   Future<void> writeProfile(EnginesHandle handle, {required String json}) =>
       rust_api.writeProfile(handle: handle, json: json);
 
+  /// Persist a benchmark promotion into the athlete's stored profile.
+  ///
+  /// The engine merges only the coaching anchors (FTP / threshold pace /
+  /// threshold HR / cycling power profile) into the existing VaultProfile,
+  /// keeping athlete_id + personal data. This is the correct persistence path
+  /// for a promotion — [writeProfile] with a [postprocessProfile] payload
+  /// silently failed (a bare AthleteProfile has no athlete_id, so the
+  /// VaultProfile writer serde-rejected it and the improvement was lost).
+  Future<void> mergeProfileBenchmarks(
+    EnginesHandle handle, {
+    required String athleteProfileJson,
+  }) =>
+      rust_api.mergeProfileBenchmarks(
+        handle: handle,
+        athleteProfileJson: athleteProfileJson,
+      );
+
   /// Read the default profile from the vault.
   ///
   /// Returns the JSON-serialized VaultProfile.

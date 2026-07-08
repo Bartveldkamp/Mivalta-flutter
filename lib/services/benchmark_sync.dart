@@ -130,11 +130,19 @@ class BenchmarkSyncService {
       final applied = sync['applied'] == true;
       String? eventJson;
       if (applied) {
-        // 4a. Persist the profile AS THE LIVE ENGINE NOW HOLDS IT — fetched
-        //     back from the engine itself, byte-exact engine output, never a
-        //     Dart re-assembly of the sync payload.
+        // 4a. Persist the promotion by MERGING it into the stored VaultProfile.
+        //     The engine reads the profile it now holds (byte-exact engine
+        //     output, never a Dart re-assembly), overwrites only the coaching
+        //     anchors, and keeps athlete_id + personal data. This replaces the
+        //     old writeProfile(postprocessProfile()) path, which fed a bare
+        //     AthleteProfile (no athlete_id) to the VaultProfile writer — serde
+        //     rejected it, the error was swallowed, and the improvement was
+        //     silently lost on the next launch.
         final profileJson = await binding.postprocessProfile(handle);
-        await binding.writeProfile(handle, json: profileJson);
+        await binding.mergeProfileBenchmarks(
+          handle,
+          athleteProfileJson: profileJson,
+        );
         // 4b. Every profile-bound engine re-binds to the promoted benchmark.
         await binding.updateProfile(handle, athleteProfileJson: profileJson);
         // 4c. The coach says it out loud — file the ledger event.

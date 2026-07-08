@@ -178,10 +178,21 @@ flutter_rust_bridge = "=2.12.0"
 # registry stays v2.43. Enables the Flutter benchmark courier to pass RAW samples
 # + a unit tag with NO edge math (runner speed km/h, cyclist power watts). No new
 # shim fn → no FRB-regen; build executor owes cargo update + xcframework rebuild.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "29c4b1b7b0c16dbacdaa45500becdab72564394c" }
+# Re-pinned 29c4b1b → a510184 (main after #398 — the benchmark-persist fix). The
+# promotion write was silently lost: writeProfile(postprocessProfile()) fed a bare
+# AthleteProfile (no athlete_id) to the VaultProfile writer, serde-rejected, swallowed
+# → an improved FTP/pace/power-profile never reached the vault (lost on restart). The
+# engine now owns the merge: VaultEngine::merge_profile_benchmarks reads the stored
+# VaultProfile, overwrites only ftp_watts/threshold_pace_sec_km/threshold_hr/power_profile
+# (CP·W′ now a persisted JSON column — founder "any data of watts"), keeps athlete_id +
+# personal data. Registry stays v2.43 / 15 engines (+1 VaultEngine method). This bump
+# adds ONE shim fn (merge_profile_benchmarks), so FRB-regen is REQUIRED (bindings
+# regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build executor owes
+# cargo update + xcframework rebuild.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a510184016567dae03d7452b011e0f8a90d5600f" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "29c4b1b7b0c16dbacdaa45500becdab72564394c" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a510184016567dae03d7452b011e0f8a90d5600f" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

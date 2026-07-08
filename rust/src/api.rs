@@ -1334,6 +1334,25 @@ pub fn write_profile(handle: &EnginesHandle, json: String) -> Result<(), BridgeE
     handle.vault.write_profile(json).map_err(Into::into)
 }
 
+/// Persist a benchmark promotion into the athlete's stored profile.
+///
+/// Pure pass-through to `VaultEngine::merge_profile_benchmarks`, which owns the
+/// merge rule: read the stored `VaultProfile`, overwrite only the coaching
+/// anchors (FTP / threshold pace / threshold HR / cycling power profile), keep
+/// `athlete_id` + personal data, fail loud if no profile exists. The correct
+/// replacement for the silent-loss `write_profile(postprocessProfile())` path —
+/// a bare `AthleteProfile` (no `athlete_id`) the `VaultProfile` writer
+/// serde-rejected, so promotions never reached the vault.
+pub fn merge_profile_benchmarks(
+    handle: &EnginesHandle,
+    athlete_profile_json: String,
+) -> Result<(), BridgeError> {
+    handle
+        .vault
+        .merge_profile_benchmarks(athlete_profile_json)
+        .map_err(Into::into)
+}
+
 /// Read the default profile from the vault.
 ///
 /// Returns the JSON-serialized VaultProfile, or error if none exists.
