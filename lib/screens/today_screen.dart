@@ -9,9 +9,10 @@
 // - Josi line from state_recommendation
 // - Recovered = #7FE3B0
 
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +26,7 @@ import '../services/morning_read_gate.dart';
 import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../services/weather_service.dart';
+import '../services/health_ingest.dart';
 import '../debug/seam_log.dart';
 import '../theme/tokens.dart';
 import '../theme/zone_names.dart';
@@ -65,6 +67,12 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   bool _showNumbers = false;
   // W5: Weather visibility preference
   bool _showWeather = true;
+  // D1: health-store connect affordance — true after a sync landed nothing
+  // (denied, or granted-but-empty). Honest absence, never a fabricated reading.
+  bool _healthNeedsConnect = false;
+  // D1: arm a resume sync only after a real background→foreground cycle, so we
+  // sync once per foreground session rather than on every lifecycle tick.
+  bool _resumeSyncArmed = false;
 
   @override
   void initState() {
@@ -87,8 +95,15 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   /// Evaluates the morning read gate on app resume.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _resumeSyncArmed = true;
+    } else if (state == AppLifecycleState.resumed) {
       _scheduleMorningReadIfNeeded();
+      // D1: pull fresh health-store data once per foreground session.
+      if (_resumeSyncArmed) {
+        _resumeSyncArmed = false;
+        unawaited(_syncHealthInBackground());
+      }
     }
   }
 
@@ -247,12 +262,66 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       // The gate evaluates whether to fire based on state changes, advisories,
       // and calibration milestones since the last delivered notification.
       await _scheduleMorningReadIfNeeded();
+
+      // D1: pull fresh health-store data in the BACKGROUND. Today is already
+      // painted from the vault above — first paint is NEVER gated on a
+      // health-store query (revision 1). On new data this repaints; on nothing
+      // it surfaces the connect affordance; on a real failure it leaves the
+      // vault view untouched.
+      unawaited(_syncHealthInBackground());
     } catch (e) {
       setState(() {
         _data.error = e.toString();
         _loading = false;
       });
     }
+  }
+
+  /// D1: non-blocking health-store sync. The engine ingests HRV / resting HR /
+  /// sleep / workouts from Apple Health or Health Connect; Dart only couriers.
+  /// Fresh data → repaint; nothing landed → connect affordance (honest
+  /// absence); a real failure → leave the vault view as-is (no nag).
+  Future<void> _syncHealthInBackground() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+    try {
+      final result = await HealthIngestService(
+        binding: binding,
+        handle: handle,
+      ).syncHealthData(days: 7);
+      if (!mounted) return;
+      switch (classifyHealthSync(result)) {
+        case HealthSyncOutcome.refreshed:
+          _healthNeedsConnect = false;
+          await _loadHomeData(binding, handle);
+          break;
+        case HealthSyncOutcome.needsConnect:
+          setState(() => _healthNeedsConnect = true);
+          break;
+        case HealthSyncOutcome.unchanged:
+          break;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('health sync failed: ${e.runtimeType}: $e');
+      }
+    }
+  }
+
+  /// D1: the athlete's explicit opt-in — request health-store permission, then
+  /// re-sync. On iOS a denial is opaque, so this just re-runs the sync and lets
+  /// [classifyHealthSync] decide (data lands → refresh; still nothing → the
+  /// affordance stays, never an error state).
+  Future<void> _connectHealth() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+    await HealthIngestService(
+      binding: binding,
+      handle: handle,
+    ).requestPermissions();
+    await _syncHealthInBackground();
   }
 
   Future<void> _loadHomeData(
@@ -598,6 +667,15 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
               // Only renders when the engine produced a card the athlete
               // hasn't dismissed — honest absence otherwise.
               ..._benchmarkNotifyCard(),
+
+              // D1: health-store connect affordance. Shows ONLY after a sync
+              // attempt landed nothing (permission denied, or granted-but-empty
+              // — indistinguishable on iOS). An opt-in, not a nag; never a
+              // fabricated reading.
+              if (_healthNeedsConnect) ...[
+                const SizedBox(height: MivaltaSpace.x3),
+                _HealthConnectCard(onConnect: _connectHealth),
+              ],
 
               // BS-008 P-1: Calibrated-to-you line under hero
               // Engine decides confidence bucket; Dart only renders.
@@ -1119,6 +1197,70 @@ class _DecisionChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// D1: opt-in card to connect the platform health store (Apple Health / Health
+/// Connect). Shown only when a sync attempt landed nothing — an invitation, not
+/// a nag, and never a fabricated reading. Copy names on-device recognisables and
+/// keeps the on-device / no-server promise.
+class _HealthConnectCard extends StatelessWidget {
+  const _HealthConnectCard({required this.onConnect});
+
+  final Future<void> Function() onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final storeName = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'Apple Health'
+        : 'Health Connect';
+    return Container(
+      padding: const EdgeInsets.all(MivaltaSpace.x3),
+      decoration: BoxDecoration(
+        color: MivaltaColors.stateProductive.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(MivaltaRadii.md),
+        border: Border.all(
+          color: MivaltaColors.stateProductive.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.favorite_border,
+            color: MivaltaColors.stateProductive,
+            size: 22,
+          ),
+          const SizedBox(width: MivaltaSpace.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Connect $storeName',
+                  style: MivaltaType.small.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: MivaltaColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Read your HRV, resting heart rate and sleep. '
+                  'On this phone, never on a server.',
+                  style: MivaltaType.small.copyWith(
+                    color: MivaltaColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: MivaltaSpace.x2),
+          TextButton(
+            onPressed: () => onConnect(),
+            child: const Text('Connect'),
+          ),
+        ],
       ),
     );
   }

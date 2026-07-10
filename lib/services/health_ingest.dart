@@ -235,6 +235,37 @@ class HealthSyncResult {
   );
 }
 
+/// What the caller should do after a background health sync.
+enum HealthSyncOutcome {
+  /// Fresh observations landed — refresh the surface.
+  refreshed,
+
+  /// Nothing landed: permission denied, OR granted-but-empty. On iOS a
+  /// HealthKit READ denial is indistinguishable from "no data" by design, so
+  /// both collapse here — surface the connect affordance, never fabricate.
+  needsConnect,
+
+  /// A real failure (transport/plugin), NOT a denial — leave prior vault data
+  /// untouched and do not nag.
+  unchanged,
+}
+
+/// Classify a sync result WITHOUT trusting the (iOS-unreliable) permission
+/// query: decide off "attempted + nothing landed", not the permission flag
+/// alone. This is the honest-absence rule for the health path.
+HealthSyncOutcome classifyHealthSync(HealthSyncResult r) {
+  // Anything reached the vault — daily biometrics or a workout — counts.
+  if (r.observationsProcessed > 0 || r.workoutsProcessed > 0) {
+    return HealthSyncOutcome.refreshed;
+  }
+  // A genuine error that is NOT a denial: keep what we already have.
+  if (!r.success && !r.permissionDenied && r.error != null) {
+    return HealthSyncOutcome.unchanged;
+  }
+  // Denied OR granted-but-empty → both want the connect affordance (iOS-safe).
+  return HealthSyncOutcome.needsConnect;
+}
+
 /// Service for ingesting health data from platform health stores.
 ///
 /// Reads biometrics from Health Connect (Android) or HealthKit (iOS), maps
