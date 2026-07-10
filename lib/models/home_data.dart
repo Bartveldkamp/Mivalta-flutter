@@ -81,6 +81,10 @@ class HomeData {
   // Only populated when latestActivity is from today.
   RealizedLine? workoutReflection; // realizeWorkoutReflection(activityId, date)
 
+  // BS-016 B3: End-of-day summary (Today evening + Journey day).
+  // Populated via realizeDaySummary(date).
+  RealizedLine? daySummary;
+
   // Days with observations the engine has returned — drives the learning ring's
   // "day X" why line.
   int observationDays = 0;     // readBiometricHistory distinct-date row count

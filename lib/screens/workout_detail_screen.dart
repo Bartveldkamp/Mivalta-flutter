@@ -9,14 +9,19 @@
 // elevation/running-index the athlete's device reported), and the per-workout
 // time-in-metabolic-level distribution (which energy system was trained, how
 // long) — the substrate the benchmark model learns from.
+//
+// BS-016 B1: JosiCard with realize_workout_reflection — same card as reveal,
+// position 2 under the session header. "Logged, not judged" is honest absence.
 
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../models/realized_line.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
 import '../theme/tokens.dart';
+import '../widgets/today/josi_card.dart';
 
 class WorkoutDetailScreen extends StatefulWidget {
   const WorkoutDetailScreen({
@@ -24,6 +29,7 @@ class WorkoutDetailScreen extends StatefulWidget {
     required this.binding,
     required this.handle,
     required this.date,
+    required this.activityId,
     required this.sportLabel,
   });
 
@@ -32,6 +38,9 @@ class WorkoutDetailScreen extends StatefulWidget {
 
   /// `YYYY-MM-DD` — the day whose first activity to detail.
   final String date;
+
+  /// Activity ID for voice-line lookup (passed from ActivitySummary.id).
+  final String activityId;
 
   /// Human sport label for the app bar (already formatted by the caller).
   final String sportLabel;
@@ -44,6 +53,9 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   bool _loading = true;
   String? _error;
   WorkoutDetail? _detail;
+
+  // BS-016 B1: Josi's post-workout reflection via realize_workout_reflection.
+  RealizedLine? _reflectionLine;
 
   @override
   void initState() {
@@ -61,6 +73,22 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         _detail = decoded == null ? null : WorkoutDetail.fromJson(decoded);
         _loading = false;
       });
+
+      // BS-016 B1: Fetch Josi's post-workout reflection.
+      // Failure is honest absence ("logged, not judged").
+      try {
+        final reflectionJson = await widget.binding.realizeWorkoutReflection(
+          widget.handle,
+          activityId: widget.activityId,
+          date: widget.date,
+        );
+        setState(() {
+          _reflectionLine = RealizedLine.parse(reflectionJson);
+        });
+      } catch (e) {
+        debugPrint('realizeWorkoutReflection failed: $e');
+        // Honest absence — activity may lack quality metrics
+      }
     } catch (e) {
       setState(() {
         _error = 'Could not load this workout.';
@@ -110,6 +138,12 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       padding: const EdgeInsets.all(MivaltaSpace.x4),
       children: [
         if (d.grade != null && d.grade!.isNotEmpty) _gradeChip(d.grade!),
+        const SizedBox(height: MivaltaSpace.x4),
+        // BS-016 B1: Josi's post-workout reflection. Honest absence = "Logged, not judged."
+        JosiCard(
+          realizedLine: _reflectionLine,
+          fallbackLine: 'Logged, not judged.',
+        ),
         const SizedBox(height: MivaltaSpace.x4),
         _section('Session', _sessionRows(d)),
         if (_deviceRows(d).isNotEmpty) ...[
