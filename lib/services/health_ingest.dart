@@ -412,6 +412,10 @@ class HealthIngestService {
       var processed = 0;
       var mutated = 0; // FL-4: any observation that advanced the HMM state
       var skipped = 0; // FL-4: days dropped by a per-observation failure
+      // #3 write-back: the latest date whose observation actually advanced the
+      // HMM — the row the engine's current readiness gets written back to. ISO
+      // dates sort lexically, so max() is robust to byDate iteration order.
+      String? latestProcessedDate;
       // De-silence: the first per-day failure cause, surfaced in the result so
       // a SYSTEMIC failure (every day failing the same way) is diagnosable by
       // the caller, not just a kDebugMode print.
@@ -448,6 +452,10 @@ class HealthIngestService {
           // processObservation always advanced the HMM → persist after the batch.
           if (result.mutated) {
             mutated++;
+            if (latestProcessedDate == null ||
+                date.compareTo(latestProcessedDate) > 0) {
+              latestProcessedDate = date;
+            }
           }
           // Only count days that carried real biometric content (RHR/HRV/sleep).
           if (result.hadBiometrics) {
@@ -473,6 +481,14 @@ class HealthIngestService {
       if (mutated > 0) {
         final stateJson = await binding.saveState(handle);
         await binding.writeViterbiState(handle, stateJson: stateJson);
+        // #3 readiness write-back: persist the engine's CURRENT 4-axis readiness
+        // indicator to the latest processed day's biometrics row, so the Journey
+        // charts read it back. The shim owns the honest-absence skip (no readiness
+        // yet → no row written, never a fabricated 0); Dart only couriers the date.
+        if (latestProcessedDate != null) {
+          await binding.writeReadinessAssessment(handle,
+              date: latestProcessedDate);
+        }
       }
 
       // ====================================================================
