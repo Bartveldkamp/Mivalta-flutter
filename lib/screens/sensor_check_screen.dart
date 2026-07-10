@@ -284,7 +284,7 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
     }
     return ListView.separated(
       itemCount: _found.length,
-      separatorBuilder: (_, __) => const SizedBox(height: MivaltaSpace.x2),
+      separatorBuilder: (_, _) => const SizedBox(height: MivaltaSpace.x2),
       itemBuilder: (_, i) {
         final d = _found[i];
         return ListTile(
