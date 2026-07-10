@@ -42,6 +42,21 @@
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
 
     <!-- =======================================================================
+         BLUETOOTH LOW ENERGY — HEART-RATE STRAP (D1-B)
+
+         WHY NEEDED: pair a BLE HR strap (Polar H10, Garmin/Wahoo, ANT+/BLE) to
+         capture live heart rate during a workout (HR Service 0x180D).
+         READ-ONLY: MiValta only reads the HR characteristic; it never writes.
+         neverForLocation: MiValta does not derive location from BLE scans, so
+         Android 12+ can skip the ACCESS_FINE_LOCATION requirement.
+         DATA FLOW: strap → engine normalizer → encrypted vault (on-device).
+         ======================================================================= -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+    <!-- =======================================================================
          FOREGROUND SERVICE — HEALTH
 
          WHY NEEDED: Android 14+ requires foreground service for Health Connect.

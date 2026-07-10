@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'sensor_check_screen.dart';
 import 'session_live_screen.dart';
 
 /// Start workout sheet — sport picker + START button.
@@ -98,6 +99,33 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                       onTap: () => setState(() => _selectedSport = sport.id),
                     );
                   }).toList(),
+                ),
+              ),
+
+              // Contextual pairing entry (Screen-Workout step 2): connect a
+              // BLE heart-rate strap before starting. Runtime Bluetooth
+              // permission is requested inside SensorCheckScreen, not here, so
+              // the ask lands at the first real device pairing — not at launch.
+              Padding(
+                padding: const EdgeInsets.only(bottom: MivaltaSpace.x2),
+                child: TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (context) => const SensorCheckScreen(),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 20,
+                    color: MivaltaColors.stateProductive,
+                  ),
+                  label: Text(
+                    'Connect heart-rate strap',
+                    style: MivaltaType.small.copyWith(
+                      color: MivaltaColors.stateProductive,
+                    ),
+                  ),
                 ),
               ),
 
