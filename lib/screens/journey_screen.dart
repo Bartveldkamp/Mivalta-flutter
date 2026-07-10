@@ -24,6 +24,7 @@ import '../models/realized_line.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
+import '../widgets/today/josi_card.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
@@ -388,55 +389,12 @@ class _JourneyScreenState extends State<JourneyScreen> {
     );
   }
 
-  /// BS-016 S4: Day summary — Josi closes the day.
+  /// BS-016 B3: Day summary — Josi closes the day.
+  /// Uses the same JosiCard as Today evening state (same card, all three shapes).
   Widget _buildDaySummaryCard() {
-    final summary = _todaySummary;
-    if (summary == null) return const SizedBox.shrink();
-
-    return ModuleCard(
-      title: 'Day summary',
-      icon: Icons.auto_awesome,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Main summary text (Josi voice)
-          Text(
-            summary.text,
-            style: MivaltaType.body.copyWith(
-              color: MivaltaColors.textPrimary,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          // Safety items always render
-          if (summary.safety.isNotEmpty) ...[
-            const SizedBox(height: MivaltaSpace.x2),
-            ...summary.safety.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: MivaltaColors.stateAccumulated,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        s,
-                        style: MivaltaType.small.copyWith(
-                          color: MivaltaColors.stateAccumulated,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return JosiCard(
+      realizedLine: _todaySummary,
+      fallbackLine: 'Your day is complete.',
     );
   }
 

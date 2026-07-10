@@ -19,6 +19,7 @@ import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import '../theme/zone_names.dart';
+import '../widgets/today/josi_card.dart';
 
 /// Advisor screen showing workout options A/B/C with quick-adjust chips.
 class AdvisorScreen extends StatefulWidget {
@@ -249,11 +250,23 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
 
   /// List view: chip row + option cards.
   Widget _buildListView() {
+    // BS-016 B2: First option's offer line for the JosiCard above options
+    final firstOfferLine = _options.isNotEmpty
+        ? _offerLines[_options.first.optionId]
+        : null;
+
     return Column(
       children: [
         // Quick-adjust chip row
         _buildChipRow(),
-        const SizedBox(height: MivaltaSpace.x4),
+        const SizedBox(height: MivaltaSpace.x3),
+        // BS-016 B2: JosiCard above options (Josi offers, options answer)
+        if (_options.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+            child: JosiCard(realizedLine: firstOfferLine),
+          ),
+        const SizedBox(height: MivaltaSpace.x3),
         // Safety advisories (degraded state)
         if (widget.safetyAdvisories.isNotEmpty)
           Padding(
@@ -391,14 +404,12 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
             final option = _options[index];
             final isRecommended = index == 0;
             final isChosen = option.optionId == _chosenOptionId;
-            final offerLine = _offerLines[option.optionId]; // BS-016 S3
             return Padding(
               padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
               child: _OptionCard(
                 option: option,
                 isRecommended: isRecommended,
                 isChosen: isChosen,
-                offerLine: offerLine, // BS-016 S3
                 onTap: () => setState(() => _selectedOption = option),
               ),
             );
@@ -729,16 +740,12 @@ class _OptionCard extends StatelessWidget {
     required this.isRecommended,
     required this.isChosen,
     required this.onTap,
-    this.offerLine,
   });
 
   final WorkoutOption option;
   final bool isRecommended;
   final bool isChosen;
   final VoidCallback onTap;
-
-  /// BS-016 S3: Josi's offer line for this option.
-  final RealizedLine? offerLine;
 
   @override
   Widget build(BuildContext context) {
@@ -842,13 +849,11 @@ class _OptionCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: MivaltaSpace.x1),
-              // BS-016 S3: Offer line (Josi voice) when available, else option.why
+              // Option description — JosiCard above carries the offer line
               Text(
-                offerLine?.text ?? option.why,
+                option.why,
                 style: MivaltaType.body.copyWith(
                   color: MivaltaColors.textSecondary,
-                  // Josi voice has slight italic styling to distinguish
-                  fontStyle: offerLine != null ? FontStyle.italic : FontStyle.normal,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

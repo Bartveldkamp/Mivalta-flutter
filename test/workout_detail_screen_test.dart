@@ -25,6 +25,12 @@ class _DetailBinding implements RustEngineBinding {
           {required String date}) async =>
       detailJson;
 
+  // BS-016 B1: Stub for realizeWorkoutReflection — honest absence (throws).
+  @override
+  Future<String> realizeWorkoutReflection(EnginesHandle handle,
+          {required String activityId, required String date}) async =>
+      throw Exception('No reflection in test');
+
   @override
   Object? noSuchMethod(Invocation invocation) => null;
 }
@@ -34,6 +40,7 @@ Widget _host(RustEngineBinding binding) => MaterialApp(
         binding: binding,
         handle: _FakeHandle(),
         date: '2026-07-07',
+        activityId: 'test-activity-id',
         sportLabel: 'Cycling',
       ),
     );
