@@ -329,24 +329,12 @@ class RustEngineBinding {
   // ADVISOR ENGINE — workout suggestions (A/B/C options)
   // ===========================================================================
 
-  /// `AdvisorEngine::suggest_workouts(...)` — shim composes the
-  /// `SuggesterContext` from live engine state + profile fields.
-  ///
-  /// Optional [mood], [equipment], and [terrain] parameters allow the UI
-  /// to pass user preferences. Defaults: mood="normal", equipment=null,
-  /// terrain=null (engine interprets as "any").
-  Future<String> recommendWorkout(
-    EnginesHandle handle, {
-    String? mood,
-    String? equipment,
-    String? terrain,
-  }) =>
-      rust_api.recommendWorkout(
-        handle: handle,
-        mood: mood,
-        equipment: equipment,
-        terrain: terrain,
-      );
+  // The stateless `recommendWorkout` facade was removed in the 2.1 advisor
+  // history wire: both production surfaces (Today, Advisor) now call
+  // `recommendWorkoutWithHistory`, which subsumes it (the engine falls back to
+  // baseline behaviour on an empty/balanced history). The engine-side
+  // `recommend_workout` FFI method and the generated binding remain — only the
+  // caller-less hand-written facade is gone (no-dead-code rule 7).
   /// `AdvisorEngine::recommend_workout_with_history(...)` — Phase-2 unified
   /// selector using the activity history window. The shim reads recent
   /// activities from the vault internally, so no history JSON is passed from

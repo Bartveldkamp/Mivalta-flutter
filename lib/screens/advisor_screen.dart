@@ -184,7 +184,9 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
     try {
       // Use the passed binding and handle for re-resolve
       // Note: equipment uses mapped value (indoor → trainer/treadmill per sport)
-      final workoutJson = await widget.binding.recommendWorkout(
+      // 2.1 advisor history wire: identical chip signature, history-aware
+      // engine path (system rotation / dose progression / B5 calibration).
+      final workoutJson = await widget.binding.recommendWorkoutWithHistory(
         widget.handle,
         mood: _selectedMood,
         equipment: _equipmentValueForEngine,
