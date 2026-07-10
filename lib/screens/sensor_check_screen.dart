@@ -189,7 +189,10 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
   Future<void> _connect(BleDevice device) async {
     final service = _service;
     if (service == null) return;
-    await _scanSub?.cancel();
+    // Stop receiving scan results (cleanup — not awaited, the same rule as
+    // BleHrService.stopSessionAndIngest: awaiting a subscription cancel must
+    // never gate the connect path).
+    unawaited(_scanSub?.cancel());
     _scanSub = null;
     try {
       await service.startSession(device.id);
