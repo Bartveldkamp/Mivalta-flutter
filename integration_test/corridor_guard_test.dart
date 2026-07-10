@@ -104,11 +104,11 @@ void main() {
         // Tap "Get started"
         await tester.tap(find.text('Get started'));
         await tester.pump(const Duration(milliseconds: 300));
-        await pumpUntilFound(tester, find.text('Your sport'));
+        await pumpUntilFound(tester, find.text('Your profile'));
 
-        // Step 1: Sport
-        expect(find.text('Your sport'), findsOneWidget);
-        checkpoint('onb_sport');
+        // Step 1: Profile (includes sport selection - BS-002c update)
+        expect(find.text('Your profile'), findsOneWidget);
+        checkpoint('onb_profile');
 
         // Tap "Running"
         await tester.tap(find.text('Running'));
@@ -125,8 +125,8 @@ void main() {
         // Tap "Perform" (aim)
         await tester.tap(find.text('Perform'));
         await tester.pump(const Duration(milliseconds: 100));
-        // Tap "Show me the numbers too" (detail)
-        await tester.tap(find.text('Show me the numbers too'));
+        // Tap "I like the details" (detail preference)
+        await tester.tap(find.text('I like the details'));
         await tester.pump(const Duration(milliseconds: 100));
         // Tap "Continue"
         await tester.tap(find.text('Continue'));
@@ -164,15 +164,20 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
         await tester.tap(find.text('Continue'));
         await tester.pump(const Duration(milliseconds: 300));
-        await pumpUntilFound(tester, find.text('Your running threshold'));
+        await pumpUntilFound(tester, find.text('Your thresholds'));
 
-        // Step 4: Anchors (running threshold — we selected Running)
-        expect(find.text('Your running threshold'), findsOneWidget);
-        checkpoint('onb_anchors');
+        // Step 4: Thresholds (W18/W18a update — now applies to all sports)
+        // Running selected → shows running threshold + LTHR → two "I don't know" chips
+        expect(find.text('Your thresholds'), findsOneWidget);
+        checkpoint('onb_thresholds');
 
-        // Tap "I don't know"
-        await tester.tap(find.text("I don't know"));
-        await tester.pump(const Duration(milliseconds: 100));
+        // Tap both "I don't know" chips (running threshold + LTHR)
+        final dontKnowFinder = find.text("I don't know");
+        final dontKnowWidgets = dontKnowFinder.evaluate();
+        for (var i = 0; i < dontKnowWidgets.length; i++) {
+          await tester.tap(dontKnowFinder.at(i));
+          await tester.pump(const Duration(milliseconds: 100));
+        }
         await tester.tap(find.text('Continue'));
         await tester.pump(const Duration(milliseconds: 300));
         await pumpUntilFound(tester, find.text('Where your data comes from'));

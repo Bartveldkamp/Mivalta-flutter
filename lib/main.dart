@@ -26,16 +26,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // BS-012 N3: Initialize notification service with tap→Today navigation.
-  await NotificationService.instance.initialize(
-    onTap: () {
-      // Navigate to TodayScreen when notification is tapped.
-      // Uses global navigator key for navigation outside widget tree.
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const TodayScreen()),
-        (route) => false,
-      );
-    },
-  );
+  // Skip in integration tests to avoid permission dialog blocking the test.
+  const skipNotifications = bool.fromEnvironment('SKIP_NOTIFICATIONS');
+  if (!skipNotifications) {
+    await NotificationService.instance.initialize(
+      onTap: () {
+        // Navigate to TodayScreen when notification is tapped.
+        // Uses global navigator key for navigation outside widget tree.
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const TodayScreen()),
+          (route) => false,
+        );
+      },
+    );
+  }
 
   // DEBUG: seed demo athlete on boot — kDebugMode AND an explicit per-run
   // opt-in, so the two simulator workflows coexist instead of comment-toggling
