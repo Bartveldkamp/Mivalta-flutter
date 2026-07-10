@@ -11,7 +11,6 @@
 // while running the app manually — Flutter's integration test takeScreenshot()
 // returns identical images on iOS simulator.
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -236,7 +235,46 @@ void main() {
         expect(find.text('Today'), findsOneWidget);
         expect(find.text('You'), findsOneWidget);
 
-        debugPrint('Corridor complete: Splash → Auth → Onboarding → Today → Journey');
+        // ─── CORRIDOR 06: YOU ───
+        // Tap You in bottom nav
+        await tester.tap(find.text('You'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Wait for You screen to load
+        for (int i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        checkpoint('corridor_06_you');
+
+        // Verify You screen elements
+        // W4 You page uses section eyebrows — "YOUR BODY" is unique to You
+        expect(find.text('YOUR BODY'), findsOneWidget);
+
+        // Verify bottom nav is present on all three tabs (W8 shared MivaltaBottomNav)
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.text('Journey'), findsOneWidget);
+        // "You" appears in multiple places on You screen — just verify nav exists
+        expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+        // W9: Assert model score never exceeds 100
+        // The readiness score (if displayed) should be ≤100
+        final scoreTexts = find.textContaining(RegExp(r'^\d{1,3}$'));
+        for (final element in scoreTexts.evaluate()) {
+          final widget = element.widget;
+          if (widget is Text) {
+            final text = widget.data ?? '';
+            final match = RegExp(r'^(\d+)$').firstMatch(text);
+            if (match != null) {
+              final score = int.tryParse(match.group(1)!);
+              if (score != null && score > 100) {
+                fail('Found score >100: $score');
+              }
+            }
+          }
+        }
+
+        debugPrint('Corridor complete: Splash → Auth → Onboarding → Today → Journey → You');
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );

@@ -46,6 +46,12 @@ import '../models/benchmark_change_card.dart';
 import '../services/benchmark_notify.dart';
 import '../widgets/today/benchmark_notify_card.dart';
 
+/// BS-016 B3 (D8): Evening threshold — the hour (24h) after which Today shows
+/// the day summary instead of workout suggestions. Per spec: 19:00 local OR
+/// 30 min after last ingest, whichever first. This constant covers the
+/// time-of-day rule; the post-ingest rule requires tracking lastIngestTime.
+const int kEveningThresholdHour = 19;
+
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
 
@@ -73,6 +79,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   // D1: arm a resume sync only after a real background→foreground cycle, so we
   // sync once per foreground session rather than on every lifecycle tick.
   bool _resumeSyncArmed = false;
+
+  /// BS-016 B3: Evening state — when true, the advisor slot shows day summary
+  /// instead of workout suggestions. Rule: now >= 19:00 local.
+  bool get _isEvening => DateTime.now().hour >= kEveningThresholdHour;
 
   @override
   void initState() {
@@ -546,6 +556,21 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         // Honest absence — no recent activities
       }
 
+      // BS-016 B3: Day summary for evening state.
+      // Load only when evening to avoid extra FFI call during day.
+      if (_isEvening) {
+        try {
+          final summaryJson = await binding.realizeDaySummary(
+            handle,
+            date: dateStr,
+          );
+          data.daySummary = RealizedLine.parse(summaryJson);
+        } catch (e) {
+          // Honest absence — no summary if no data
+          debugPrint('realizeDaySummary failed: $e');
+        }
+      }
+
       // The load chain awaits several FFI calls (S1 extended it further);
       // the screen can be disposed mid-load (e.g. the notification tap
       // rebuilds the Today route), so guard before touching state.
@@ -815,67 +840,83 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 
               const SizedBox(height: MivaltaSpace.x3),
 
-              // Suggested workout card — BS-003: tappable → Advisor screen
-              ModuleCard(
-                title: 'Suggested workout',
-                icon: Icons.fitness_center,
-                onTap: _data.workoutOptions.isNotEmpty
-                    ? () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => AdvisorScreen(
-                            options: _data.workoutOptions,
-                            binding: _binding!,
-                            handle: _handle!,
-                            readinessLevel: _data.level, // BS-016 S3
-                          ),
-                        ),
-                      )
-                    : null,
-                trailing: _data.workoutOptions.isNotEmpty
-                    ? const Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: MivaltaColors.textSecondary,
-                      )
-                    : null,
-                child: _data.workoutTitle != null
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // BS-003: Zone chip (energy name first — LOCKED voice rule)
-                          if (_data.sessionZone != null) ...[
-                            _ZoneChip(zone: _data.sessionZone!),
-                            const SizedBox(height: 6),
-                          ],
-                          Text(
-                            _data.workoutTitle!,
-                            style: MivaltaType.cardTitle.copyWith(
-                              color: MivaltaColors.textPrimary,
+              // BS-016 B3: Evening state swaps workout card for day summary.
+              if (_isEvening) ...[
+                // "CLOSING THE DAY" eyebrow + JosiCard with day summary
+                Text(
+                  'CLOSING THE DAY',
+                  style: MivaltaType.label.copyWith(
+                    color: MivaltaColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: MivaltaSpace.x2),
+                JosiCard(
+                  realizedLine: _data.daySummary,
+                  fallbackLine: 'Your day is winding down.',
+                ),
+              ] else ...[
+                // Suggested workout card — BS-003: tappable → Advisor screen
+                ModuleCard(
+                  title: 'Suggested workout',
+                  icon: Icons.fitness_center,
+                  onTap: _data.workoutOptions.isNotEmpty
+                      ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => AdvisorScreen(
+                              options: _data.workoutOptions,
+                              binding: _binding!,
+                              handle: _handle!,
+                              readinessLevel: _data.level, // BS-016 S3
                             ),
                           ),
-                          // BS-003: Duration + focusCue preview
-                          if (_data.durationMin != null ||
-                              _data.focusCue != null) ...[
-                            const SizedBox(height: 4),
+                        )
+                      : null,
+                  trailing: _data.workoutOptions.isNotEmpty
+                      ? const Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                          color: MivaltaColors.textSecondary,
+                        )
+                      : null,
+                  child: _data.workoutTitle != null
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // BS-003: Zone chip (energy name first — LOCKED voice rule)
+                            if (_data.sessionZone != null) ...[
+                              _ZoneChip(zone: _data.sessionZone!),
+                              const SizedBox(height: 6),
+                            ],
                             Text(
-                              _buildWorkoutSubtitle(),
-                              style: MivaltaType.small.copyWith(
-                                color: MivaltaColors.textSecondary,
+                              _data.workoutTitle!,
+                              style: MivaltaType.cardTitle.copyWith(
+                                color: MivaltaColors.textPrimary,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
+                            // BS-003: Duration + focusCue preview
+                            if (_data.durationMin != null ||
+                                _data.focusCue != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _buildWorkoutSubtitle(),
+                                style: MivaltaType.small.copyWith(
+                                  color: MivaltaColors.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
-                        ],
-                      )
-                    : const _HonestAbsence(
-                        label: 'No suggestion yet',
-                        // BS-003: Updated copy (no gamification)
-                        unlock:
-                            'MiValta suggests sessions once it\'s read a few of your days.',
-                      ),
-              ),
+                        )
+                      : const _HonestAbsence(
+                          label: 'No suggestion yet',
+                          // BS-003: Updated copy (no gamification)
+                          unlock:
+                              'MiValta suggests sessions once it\'s read a few of your days.',
+                        ),
+                ),
+              ],
 
               const SizedBox(height: MivaltaSpace.x6),
 
@@ -982,6 +1023,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                     binding: _binding!,
                     handle: _handle!,
                     date: latest.date,
+                    activityId: latest.id,
                     sportLabel: _formatSport(latest.sport),
                   ),
                 ),
