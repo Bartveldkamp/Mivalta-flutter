@@ -503,8 +503,13 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       // BS-003: Store full options list for Advisor screen.
       final swWorkout = Stopwatch()..start();
       try {
-        final workoutJson = await binding.recommendWorkout(handle);
-        SeamLog.ok('recommendWorkout', swWorkout.elapsedMilliseconds);
+        // 2.1 advisor history wire: the history-aware path. The shim reads the
+        // 14-day completed-activity window from the vault itself and the ENGINE
+        // rotates toward the most-needed system / applies dose progression /
+        // offers B5 calibration on a genuinely-empty history — Dart still only
+        // couriers chips (none on this surface) and renders the options.
+        final workoutJson = await binding.recommendWorkoutWithHistory(handle);
+        SeamLog.ok('recommendWorkoutWithHistory', swWorkout.elapsedMilliseconds);
         final decoded = jsonDecode(workoutJson);
         if (decoded is List && decoded.isNotEmpty) {
           final options = decoded
@@ -519,7 +524,11 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
           data.focusCue = option.focusCue;
         }
       } catch (e) {
-        SeamLog.error('recommendWorkout', swWorkout.elapsedMilliseconds, e);
+        SeamLog.error(
+          'recommendWorkoutWithHistory',
+          swWorkout.elapsedMilliseconds,
+          e,
+        );
         // Honest absence
       }
 
