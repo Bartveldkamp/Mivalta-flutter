@@ -184,31 +184,6 @@ class _MakeItYoursSheetState extends State<MakeItYoursSheet> {
                 onChanged: _setShowNumbers,
               ),
 
-              const SizedBox(height: MivaltaSpace.x4),
-
-              // Module visibility section — placeholder for beta
-              Divider(
-                color: MivaltaColors.textMuted.withValues(alpha: 0.2),
-                height: 1,
-              ),
-              const SizedBox(height: MivaltaSpace.x4),
-
-              Text(
-                'MODULES',
-                style: MivaltaType.label.copyWith(
-                  color: MivaltaColors.textMuted,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: MivaltaSpace.x2),
-
-              Text(
-                'Module visibility coming in a future release.',
-                style: MivaltaType.small.copyWith(
-                  color: MivaltaColors.textSoft45,
-                ),
-              ),
             ],
           ],
         ),
