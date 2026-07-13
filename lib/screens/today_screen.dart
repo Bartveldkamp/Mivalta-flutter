@@ -12,7 +12,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kDebugMode, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -509,7 +510,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
         // offers B5 calibration on a genuinely-empty history — Dart still only
         // couriers chips (none on this surface) and renders the options.
         final workoutJson = await binding.recommendWorkoutWithHistory(handle);
-        SeamLog.ok('recommendWorkoutWithHistory', swWorkout.elapsedMilliseconds);
+        SeamLog.ok(
+          'recommendWorkoutWithHistory',
+          swWorkout.elapsedMilliseconds,
+        );
         final decoded = jsonDecode(workoutJson);
         if (decoded is List && decoded.isNotEmpty) {
           final options = decoded
@@ -671,288 +675,297 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       );
     }
 
-    return CustomScrollView(
-      slivers: [
-        // Masthead — BS-002: two-tier brand header (wordmark + action row)
-        // W5: onTune opens "Make it yours" sheet; weather conditional on pref
-        SliverToBoxAdapter(
-          child: TodayMasthead(
-            onStartWorkout: _startWorkout,
-            weather: _showWeather ? _weather : null,
-            onTune: () => _showCustomizeSheet(),
+    return RefreshIndicator(
+      color: MivaltaColors.stateProductive,
+      backgroundColor: MivaltaColors.surface1,
+      // PR-C4: "sync any moment the user wants" — pull-to-refresh runs the
+      // SAME health-store sync the cold-start/resume paths use (courier only;
+      // outcome classification unchanged). No more backgrounding the app to
+      // force a sync.
+      onRefresh: _syncHealthInBackground,
+      child: CustomScrollView(
+        slivers: [
+          // Masthead — BS-002: two-tier brand header (wordmark + action row)
+          // W5: onTune opens "Make it yours" sheet; weather conditional on pref
+          SliverToBoxAdapter(
+            child: TodayMasthead(
+              onStartWorkout: _startWorkout,
+              weather: _showWeather ? _weather : null,
+              onTune: () => _showCustomizeSheet(),
+            ),
           ),
-        ),
 
-        // Content
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              // BS-002 Step 3: 24px from masthead micro-row to glow hero
-              const SizedBox(height: MivaltaSpace.x5), // 24px
-              // Glow hero
-              GlowHero(
-                score: _data.readinessScore,
-                fatigueState: _data.fatigueState,
-                insufficientData: _data.insufficientData,
-              ),
-
-              // Phase 3: benchmark-change notify ("your threshold improved").
-              // Only renders when the engine produced a card the athlete
-              // hasn't dismissed — honest absence otherwise.
-              ..._benchmarkNotifyCard(),
-
-              // D1: health-store connect affordance. Shows ONLY after a sync
-              // attempt landed nothing (permission denied, or granted-but-empty
-              // — indistinguishable on iOS). An opt-in, not a nag; never a
-              // fabricated reading.
-              if (_healthNeedsConnect) ...[
-                const SizedBox(height: MivaltaSpace.x3),
-                _HealthConnectCard(onConnect: _connectHealth),
-              ],
-
-              // BS-008 P-1: Calibrated-to-you line under hero
-              // Engine decides confidence bucket; Dart only renders.
-              if (_data.calibrationObservations != null) ...[
-                const SizedBox(height: MivaltaSpace.x2),
-                Center(
-                  child: Text(
-                    _data.isCalibrated
-                        ? 'From ${_data.calibrationObservations} days of your data'
-                        : 'Learning you · day ${_data.calibrationObservations}',
-                    style: MivaltaType.small.copyWith(
-                      color: MivaltaColors.textMuted,
-                    ),
-                  ),
+          // Content
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: MivaltaSpace.x4),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // BS-002 Step 3: 24px from masthead micro-row to glow hero
+                const SizedBox(height: MivaltaSpace.x5), // 24px
+                // Glow hero
+                GlowHero(
+                  score: _data.readinessScore,
+                  fatigueState: _data.fatigueState,
+                  insufficientData: _data.insufficientData,
                 ),
-              ],
 
-              // BS-007: Josi card — primary from realizedLine, fallback to stateRecommendation
-              // BS-001 Step 6: collapse hero void when absent
-              if (_hasJosiLine()) ...[
-                const SizedBox(height: MivaltaSpace.x3),
-                JosiCard(
-                  realizedLine: _data.realizedLine,
-                  fallbackLine: _data.stateRecommendation,
-                  confidenceAdvisory: _data.confidenceAdvisory,
-                  showNumbers: _showNumbers,
-                ),
-                // BS-007 Step 2: Why? unfold — evidence layer under Josi.
-                // Collapses when contributions[] is empty (honest absence).
-                WhyUnfold(
-                  contributions: _data.contributions,
-                  confidenceText: _data.confidenceAdvisory,
-                ),
-              ],
+                // Phase 3: benchmark-change notify ("your threshold improved").
+                // Only renders when the engine produced a card the athlete
+                // hasn't dismissed — honest absence otherwise.
+                ..._benchmarkNotifyCard(),
 
-              // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
-              // DR-012 + DR-023 T1: Z8 is the ceiling (no restriction) — must NOT render.
-              // The chip is a DECISION only when the engine RESTRICTS (Z1–Z7, REST).
-              // A healthy day (Z8) with a session suggestion shows the zone on the
-              // workout card — under the hero it read as "MiValta tells you what to do."
-              () {
-                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
-                final showChip = !_data.insufficientData && restrictiveCap;
-                return showChip
-                    ? Column(
-                        children: [
-                          const SizedBox(height: MivaltaSpace.x3),
-                          _DecisionChip(zoneCap: _data.zoneCap),
-                        ],
-                      )
-                    : const SizedBox.shrink();
-              }(),
+                // D1: health-store connect affordance. Shows ONLY after a sync
+                // attempt landed nothing (permission denied, or granted-but-empty
+                // — indistinguishable on iOS). An opt-in, not a nag; never a
+                // fabricated reading.
+                if (_healthNeedsConnect) ...[
+                  const SizedBox(height: MivaltaSpace.x3),
+                  _HealthConnectCard(onConnect: _connectHealth),
+                ],
 
-              // Spacing before cards: reduced when Josi + chip both absent
-              // DR-012 + DR-023 T1: use same restrictive-cap logic for spacer
-              () {
-                final hasJosi = _hasJosiLine();
-                final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
-                final showChip = !_data.insufficientData && restrictiveCap;
-                return SizedBox(
-                  height: (!hasJosi && !showChip)
-                      ? MivaltaSpace.x2
-                      : MivaltaSpace.x4,
-                );
-              }(),
-
-              // "Your day" section eyebrow — DR-023 T3: token sweep (was 10px, below floor)
-              Padding(
-                padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
-                child: Text(
-                  'YOUR DAY',
-                  style: MivaltaType.label.copyWith(
-                    color: MivaltaColors.textSoft45,
-                  ),
-                ),
-              ),
-
-              // Module cards (I2 fix: honest-absence pattern, never blank)
-              // DR-024 W6: Load vessel — replaces flat MetricBar with capsule
-              ModuleCard(
-                title: 'Load today',
-                icon: Icons.trending_up,
-                // Rule 3 (no fabricated defaults): the vessel only renders
-                // when the engine has provided a real load ceiling (chronic-load
-                // baseline from ACWR). Before that exists we do NOT invent a
-                // "600" range — we show honest absence of the range.
-                child: (_data.todayLoad != null && _data.loadCeiling != null)
-                    ? LoadVessel(
-                        value: _data.todayLoad!,
-                        ceiling: _data.loadCeiling!,
-                        acwrZone: _data.acwrZone ?? 'optimal',
-                        caption: _buildLoadCaption(),
-                      )
-                    : _data.todayLoad != null
-                    ? const _HonestAbsence(
-                        label: 'Load range still building',
-                        unlock: 'A few more logged days set your baseline',
-                      )
-                    : const _HonestAbsence(
-                        label: 'No activity recorded',
-                        unlock: 'Log a workout to see your load',
-                      ),
-              ),
-
-              const SizedBox(height: MivaltaSpace.x3),
-
-              // Daily activity card
-              ModuleCard(
-                title: 'Daily activity',
-                icon: Icons.directions_walk,
-                child: const _HonestAbsence(
-                  label: 'No activity data',
-                  unlock: 'Connect a health source for steps & movement',
-                ),
-              ),
-
-              const SizedBox(height: MivaltaSpace.x3),
-
-              // BS-016 S1: Recent workout with coach reflection (today only).
-              // Shows the latest workout + Josi's post-workout reaction.
-              ..._recentWorkoutCard(),
-
-              // BS-006: Sleep stage ring (full 360° donut sliced into stages).
-              // Engine doesn't provide per-stage minutes yet — placeholder ⚠
-              // Shows honest-absent variant until stage data is available.
-              ModuleCard(
-                title: 'Sleep',
-                icon: Icons.bedtime,
-                child: SleepStageRing(
-                  stages: null, // Engine lacks stage data — honest-absent
-                  needMinutes: _data.sleepNeedHours != null
-                      ? (_data.sleepNeedHours! * 60).round()
-                      : null,
-                  sourceTier: _data.sourceTierLabel,
-                ),
-              ),
-
-              const SizedBox(height: MivaltaSpace.x3),
-
-              // BS-016 B3: Evening state swaps workout card for day summary.
-              if (_isEvening) ...[
-                // "CLOSING THE DAY" eyebrow + JosiCard with day summary
-                Text(
-                  'CLOSING THE DAY',
-                  style: MivaltaType.label.copyWith(
-                    color: MivaltaColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: MivaltaSpace.x2),
-                JosiCard(
-                  realizedLine: _data.daySummary,
-                  fallbackLine: 'Your day is winding down.',
-                ),
-              ] else ...[
-                // Suggested workout card — BS-003: tappable → Advisor screen
-                ModuleCard(
-                  title: 'Suggested workout',
-                  icon: Icons.fitness_center,
-                  onTap: _data.workoutOptions.isNotEmpty
-                      ? () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => AdvisorScreen(
-                              options: _data.workoutOptions,
-                              binding: _binding!,
-                              handle: _handle!,
-                              readinessLevel: _data.level, // BS-016 S3
-                            ),
-                          ),
-                        )
-                      : null,
-                  trailing: _data.workoutOptions.isNotEmpty
-                      ? const Icon(
-                          Icons.chevron_right,
-                          size: 20,
-                          color: MivaltaColors.textSecondary,
-                        )
-                      : null,
-                  child: _data.workoutTitle != null
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // BS-003: Zone chip (energy name first — LOCKED voice rule)
-                            if (_data.sessionZone != null) ...[
-                              _ZoneChip(zone: _data.sessionZone!),
-                              const SizedBox(height: 6),
-                            ],
-                            Text(
-                              _data.workoutTitle!,
-                              style: MivaltaType.cardTitle.copyWith(
-                                color: MivaltaColors.textPrimary,
-                              ),
-                            ),
-                            // BS-003: Duration + focusCue preview
-                            if (_data.durationMin != null ||
-                                _data.focusCue != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                _buildWorkoutSubtitle(),
-                                style: MivaltaType.small.copyWith(
-                                  color: MivaltaColors.textSecondary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        )
-                      : const _HonestAbsence(
-                          label: 'No suggestion yet',
-                          // BS-003: Updated copy (no gamification)
-                          unlock:
-                              'MiValta suggests sessions once it\'s read a few of your days.',
-                        ),
-                ),
-              ],
-
-              const SizedBox(height: MivaltaSpace.x6),
-
-              // D6: kDebugMode-only build stamp for screenshot SHA verification.
-              // Pass SHA at build time: --dart-define=BUILD_SHA=$(git rev-parse --short HEAD)
-              // Compiled out of release builds.
-              if (kDebugMode)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
+                // BS-008 P-1: Calibrated-to-you line under hero
+                // Engine decides confidence bucket; Dart only renders.
+                if (_data.calibrationObservations != null) ...[
+                  const SizedBox(height: MivaltaSpace.x2),
+                  Center(
                     child: Text(
-                      'build ${const String.fromEnvironment('BUILD_SHA', defaultValue: 'dev')}',
+                      _data.isCalibrated
+                          ? 'From ${_data.calibrationObservations} days of your data'
+                          : 'Learning you · day ${_data.calibrationObservations}',
                       style: MivaltaType.small.copyWith(
-                        fontSize: 10,
                         color: MivaltaColors.textMuted,
                       ),
                     ),
                   ),
+                ],
+
+                // BS-007: Josi card — primary from realizedLine, fallback to stateRecommendation
+                // BS-001 Step 6: collapse hero void when absent
+                if (_hasJosiLine()) ...[
+                  const SizedBox(height: MivaltaSpace.x3),
+                  JosiCard(
+                    realizedLine: _data.realizedLine,
+                    fallbackLine: _data.stateRecommendation,
+                    confidenceAdvisory: _data.confidenceAdvisory,
+                    showNumbers: _showNumbers,
+                  ),
+                  // BS-007 Step 2: Why? unfold — evidence layer under Josi.
+                  // Collapses when contributions[] is empty (honest absence).
+                  WhyUnfold(
+                    contributions: _data.contributions,
+                    confidenceText: _data.confidenceAdvisory,
+                  ),
+                ],
+
+                // Decision chip — BS-001 Step 7: honest-absent (hidden, collapse)
+                // DR-012 + DR-023 T1: Z8 is the ceiling (no restriction) — must NOT render.
+                // The chip is a DECISION only when the engine RESTRICTS (Z1–Z7, REST).
+                // A healthy day (Z8) with a session suggestion shows the zone on the
+                // workout card — under the hero it read as "MiValta tells you what to do."
+                () {
+                  final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                  final showChip = !_data.insufficientData && restrictiveCap;
+                  return showChip
+                      ? Column(
+                          children: [
+                            const SizedBox(height: MivaltaSpace.x3),
+                            _DecisionChip(zoneCap: _data.zoneCap),
+                          ],
+                        )
+                      : const SizedBox.shrink();
+                }(),
+
+                // Spacing before cards: reduced when Josi + chip both absent
+                // DR-012 + DR-023 T1: use same restrictive-cap logic for spacer
+                () {
+                  final hasJosi = _hasJosiLine();
+                  final restrictiveCap = _isRestrictiveCap(_data.zoneCap);
+                  final showChip = !_data.insufficientData && restrictiveCap;
+                  return SizedBox(
+                    height: (!hasJosi && !showChip)
+                        ? MivaltaSpace.x2
+                        : MivaltaSpace.x4,
+                  );
+                }(),
+
+                // "Your day" section eyebrow — DR-023 T3: token sweep (was 10px, below floor)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MivaltaSpace.x3),
+                  child: Text(
+                    'YOUR DAY',
+                    style: MivaltaType.label.copyWith(
+                      color: MivaltaColors.textSoft45,
+                    ),
+                  ),
                 ),
 
-              // BS-018: kDebugMode-only wiring stamp — seam health panel.
-              // Shows ok/error/not-called status for each FFI seam.
-              if (kDebugMode) _WiringStamp(),
-            ]),
+                // Module cards (I2 fix: honest-absence pattern, never blank)
+                // DR-024 W6: Load vessel — replaces flat MetricBar with capsule
+                ModuleCard(
+                  title: 'Load today',
+                  icon: Icons.trending_up,
+                  // Rule 3 (no fabricated defaults): the vessel only renders
+                  // when the engine has provided a real load ceiling (chronic-load
+                  // baseline from ACWR). Before that exists we do NOT invent a
+                  // "600" range — we show honest absence of the range.
+                  child: (_data.todayLoad != null && _data.loadCeiling != null)
+                      ? LoadVessel(
+                          value: _data.todayLoad!,
+                          ceiling: _data.loadCeiling!,
+                          acwrZone: _data.acwrZone ?? 'optimal',
+                          caption: _buildLoadCaption(),
+                        )
+                      : _data.todayLoad != null
+                      ? const _HonestAbsence(
+                          label: 'Load range still building',
+                          unlock: 'A few more logged days set your baseline',
+                        )
+                      : const _HonestAbsence(
+                          label: 'No activity recorded',
+                          unlock: 'Log a workout to see your load',
+                        ),
+                ),
+
+                const SizedBox(height: MivaltaSpace.x3),
+
+                // Daily activity card
+                ModuleCard(
+                  title: 'Daily activity',
+                  icon: Icons.directions_walk,
+                  child: const _HonestAbsence(
+                    label: 'No activity data',
+                    unlock: 'Connect a health source for steps & movement',
+                  ),
+                ),
+
+                const SizedBox(height: MivaltaSpace.x3),
+
+                // BS-016 S1: Recent workout with coach reflection (today only).
+                // Shows the latest workout + Josi's post-workout reaction.
+                ..._recentWorkoutCard(),
+
+                // BS-006: Sleep stage ring (full 360° donut sliced into stages).
+                // Engine doesn't provide per-stage minutes yet — placeholder ⚠
+                // Shows honest-absent variant until stage data is available.
+                ModuleCard(
+                  title: 'Sleep',
+                  icon: Icons.bedtime,
+                  child: SleepStageRing(
+                    stages: null, // Engine lacks stage data — honest-absent
+                    needMinutes: _data.sleepNeedHours != null
+                        ? (_data.sleepNeedHours! * 60).round()
+                        : null,
+                    sourceTier: _data.sourceTierLabel,
+                  ),
+                ),
+
+                const SizedBox(height: MivaltaSpace.x3),
+
+                // BS-016 B3: Evening state swaps workout card for day summary.
+                if (_isEvening) ...[
+                  // "CLOSING THE DAY" eyebrow + JosiCard with day summary
+                  Text(
+                    'CLOSING THE DAY',
+                    style: MivaltaType.label.copyWith(
+                      color: MivaltaColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: MivaltaSpace.x2),
+                  JosiCard(
+                    realizedLine: _data.daySummary,
+                    fallbackLine: 'Your day is winding down.',
+                  ),
+                ] else ...[
+                  // Suggested workout card — BS-003: tappable → Advisor screen
+                  ModuleCard(
+                    title: 'Suggested workout',
+                    icon: Icons.fitness_center,
+                    onTap: _data.workoutOptions.isNotEmpty
+                        ? () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => AdvisorScreen(
+                                options: _data.workoutOptions,
+                                binding: _binding!,
+                                handle: _handle!,
+                                readinessLevel: _data.level, // BS-016 S3
+                              ),
+                            ),
+                          )
+                        : null,
+                    trailing: _data.workoutOptions.isNotEmpty
+                        ? const Icon(
+                            Icons.chevron_right,
+                            size: 20,
+                            color: MivaltaColors.textSecondary,
+                          )
+                        : null,
+                    child: _data.workoutTitle != null
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // BS-003: Zone chip (energy name first — LOCKED voice rule)
+                              if (_data.sessionZone != null) ...[
+                                _ZoneChip(zone: _data.sessionZone!),
+                                const SizedBox(height: 6),
+                              ],
+                              Text(
+                                _data.workoutTitle!,
+                                style: MivaltaType.cardTitle.copyWith(
+                                  color: MivaltaColors.textPrimary,
+                                ),
+                              ),
+                              // BS-003: Duration + focusCue preview
+                              if (_data.durationMin != null ||
+                                  _data.focusCue != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  _buildWorkoutSubtitle(),
+                                  style: MivaltaType.small.copyWith(
+                                    color: MivaltaColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          )
+                        : const _HonestAbsence(
+                            label: 'No suggestion yet',
+                            // BS-003: Updated copy (no gamification)
+                            unlock:
+                                'MiValta suggests sessions once it\'s read a few of your days.',
+                          ),
+                  ),
+                ],
+
+                const SizedBox(height: MivaltaSpace.x6),
+
+                // D6: kDebugMode-only build stamp for screenshot SHA verification.
+                // Pass SHA at build time: --dart-define=BUILD_SHA=$(git rev-parse --short HEAD)
+                // Compiled out of release builds.
+                if (kDebugMode)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: MivaltaSpace.x4),
+                      child: Text(
+                        'build ${const String.fromEnvironment('BUILD_SHA', defaultValue: 'dev')}',
+                        style: MivaltaType.small.copyWith(
+                          fontSize: 10,
+                          color: MivaltaColors.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // BS-018: kDebugMode-only wiring stamp — seam health panel.
+                // Shows ok/error/not-called status for each FFI seam.
+                if (kDebugMode) _WiringStamp(),
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
