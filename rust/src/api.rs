@@ -951,6 +951,17 @@ pub fn read_daily_loads(handle: &EnginesHandle, days: i32) -> Result<String, Bri
     handle.vault.read_daily_loads(days).map_err(Into::into)
 }
 
+/// `VaultEngine::list_data_sources()` — every distinct data source present in
+/// the vault with per-source metric capabilities and counts, JSON
+/// `[{source, has_hrv, has_sleep, has_resting_hr, has_activity,
+///    biometric_count, activity_count, first_seen, last_seen}, ...]`.
+/// The designed input seam for `build_source_overview` and the You screen's
+/// provenance panel (PR-C3 — closes the hardcoded-'[]' placeholder). Pure
+/// pass-through.
+pub fn list_data_sources(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.vault.list_data_sources().map_err(Into::into)
+}
+
 /// `VaultEngine::read_activities_in_range(start, end)` — every stored activity
 /// in the closed date window (`yyyy-MM-dd`), JSON array, pageable arbitrarily
 /// far back. Drives the Journey history list ("open ANY past workout" — PR-B).

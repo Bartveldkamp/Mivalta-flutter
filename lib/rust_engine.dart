@@ -392,6 +392,12 @@ class RustEngineBinding {
   Future<String> readDailyLoads(EnginesHandle handle, {required int days}) =>
       rust_api.readDailyLoads(handle: handle, days: days);
 
+  /// `VaultEngine::list_data_sources` — distinct vault data sources with
+  /// per-source metric capabilities/counts. Feeds the You provenance panel
+  /// and is the designed input for [buildSourceOverview] (PR-C3).
+  Future<String> listDataSources(EnginesHandle handle) =>
+      rust_api.listDataSources(handle: handle);
+
   /// `VaultEngine::read_activities_in_range` — every stored activity in the
   /// closed `yyyy-MM-dd` window, pageable arbitrarily far back. Journey
   /// history list ("open ANY past workout" — PR-B; screen lands in PR-C).
