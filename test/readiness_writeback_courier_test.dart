@@ -22,6 +22,11 @@ class _FakeHandle implements EnginesHandle {
 }
 
 class _RecordingBinding implements RustEngineBinding {
+  _RecordingBinding({this.writeBackResult = true});
+
+  /// What writeReadinessAssessment reports: true = row written,
+  /// false = the shim's honest-absence skip.
+  final bool writeBackResult;
   final List<String> calls = [];
   final List<String> writeBackDates = [];
 
@@ -42,7 +47,7 @@ class _RecordingBinding implements RustEngineBinding {
       {required String date}) async {
     calls.add('writeReadinessAssessment');
     writeBackDates.add(date);
-    return true;
+    return writeBackResult;
   }
 
   @override
@@ -91,6 +96,21 @@ void main() {
 
     expect(binding.calls, isEmpty,
         reason: 'an unadvanced engine has nothing to persist or write back');
+  });
+
+  test('an honest-absence skip (shim returns false) is not an error', () async {
+    // The shim reporting "nothing written" is a valid outcome (engine has no
+    // readiness yet), never an exception — the courier completes normally and
+    // the state persist still happened.
+    final binding = _RecordingBinding(writeBackResult: false);
+    await service(binding).persistBatchState(
+      mutated: 2,
+      latestProcessedDate: '2026-07-12',
+    );
+
+    expect(binding.calls,
+        ['saveState', 'writeViterbiState', 'writeReadinessAssessment']);
+    expect(binding.writeBackDates, ['2026-07-12']);
   });
 
   test('maxIsoDate picks the lexical max, robust to out-of-order ingest', () {

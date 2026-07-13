@@ -320,8 +320,17 @@ class HealthIngestService {
       final stateJson = await binding.saveState(handle);
       await binding.writeViterbiState(handle, stateJson: stateJson);
       if (latestProcessedDate != null) {
-        await binding.writeReadinessAssessment(handle,
+        // false = the shim's honest-absence skip (engine has no readiness
+        // yet). Not an error — but surface it in debug so a systemic
+        // "every sync skips" pattern is diagnosable, same as the
+        // skipped/firstSkipReason investment above.
+        final wrote = await binding.writeReadinessAssessment(handle,
             date: latestProcessedDate);
+        if (kDebugMode && !wrote) {
+          // ignore: avoid_print
+          print('readiness write-back: honest-absence skip '
+              'for $latestProcessedDate');
+        }
       }
     }
   }
