@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../copy/level_labels.dart';
 import '../models/realized_line.dart';
 import '../models/workout_detail.dart';
 import '../rust_engine.dart';
@@ -266,16 +267,8 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   /// engine already summed the seconds; Dart only formats minutes and the
   /// relative bar width — no thresholds or re-derivation.
   Widget _metabolicSection(Map<String, double> metabolic) {
-    const order = [
-      ('aerobic_base', 'Aerobic base'),
-      ('aerobic_endurance', 'Aerobic endurance'),
-      ('tempo', 'Tempo'),
-      ('threshold', 'Threshold'),
-      ('vo2max', 'VO₂max'),
-      ('anaerobic_neuro', 'Anaerobic / neuro'),
-    ];
     final present = [
-      for (final (key, label) in order)
+      for (final (key, label) in kMetabolicLevelLabels)
         if ((metabolic[key] ?? 0) > 0) (label, metabolic[key]!),
     ];
     if (present.isEmpty) return const SizedBox.shrink();
