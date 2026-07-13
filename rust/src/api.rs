@@ -819,9 +819,13 @@ fn readiness_assessment_fields(
     //
     // The exact-equality compare is the CONTRACT, not a float smell: the
     // engine's no-data branch returns a literal `score: 0.0` with
-    // `contributions: Vec::new()` (gatc-viterbi/src/lib.rs,
-    // `readiness_indicator` no-data guard, "defect D") — it is constructed,
-    // never computed, so no near-zero drift exists on this path. Any COMPUTED
+    // `contributions: Vec::new()` AND `confidence: 0.0` (gatc-viterbi/src/lib.rs,
+    // `readiness_indicator` no-data guard, "defect D" — grep that phrase; line
+    // numbers rot). The whole result is constructed as literals, never
+    // computed, so no near-zero drift exists on this path; the no-data literal
+    // is also the ONLY producer of an empty contributions array, so the
+    // score+contributions conjunction is the full discriminator — confidence
+    // adds no information to the guard (it is 0.0 there too). Any COMPUTED
     // low score flows through the normal blend and carries contributions, so
     // the conjunction below correctly writes it (genuine low readiness is real
     // data). `-0.0 == 0.0` is true in IEEE-754, covering that edge too.
