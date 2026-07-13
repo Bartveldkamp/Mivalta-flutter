@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
+import 'package:file_selector/file_selector.dart' show XTypeGroup, openFile;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,6 +23,7 @@ import '../rust_engine.dart';
 import '../services/morning_read_gate.dart' show CoachPresence, MorningReadGate;
 import '../services/notification_service.dart';
 import '../services/profile_service.dart';
+import '../services/unit_prefs.dart';
 import '../services/weather_location.dart';
 import '../theme/source_tier.dart';
 import '../theme/tokens.dart';
@@ -32,6 +34,31 @@ import '../widgets/mivalta_bottom_nav.dart';
 enum DetailPreference { wordsFirst, numbersFirst }
 
 /// You tab — profile, sources, sovereignty.
+/// PR-C3: metric labels a census row provides, in the ENGINE's own metric
+/// vocabulary (hrv / sleep / resting_hr / activity — the exact labels
+/// `build_source_overview` documents). A projection of engine booleans into
+/// engine words: courier marshaling, no derivation.
+List<String> metricLabelsFor(Map row) => [
+      if (row['has_hrv'] == true) 'hrv',
+      if (row['has_sleep'] == true) 'sleep',
+      if (row['has_resting_hr'] == true) 'resting_hr',
+      if (row['has_activity'] == true) 'activity',
+    ];
+
+/// PR-C3: `build_source_overview` input from the `list_data_sources` census —
+/// the engine's documented `{source: [metric, ...]}` map, built purely from
+/// the engine's own fields. Sources with no metrics are omitted (an empty
+/// capability list is absence, not a claim).
+Map<String, List<String>> sourceOverviewInput(List<dynamic> census) {
+  final out = <String, List<String>>{};
+  for (final e in census.whereType<Map>()) {
+    final name = e['source']?.toString() ?? '';
+    final metrics = metricLabelsFor(e);
+    if (name.isNotEmpty && metrics.isNotEmpty) out[name] = metrics;
+  }
+  return out;
+}
+
 class YouScreen extends StatefulWidget {
   const YouScreen({super.key});
 
@@ -52,8 +79,14 @@ class _YouScreenState extends State<YouScreen> {
   // Source overview from engine.
   List<Map<String, dynamic>> _sources = [];
 
+  /// Engine-decided primary source per metric (build_source_overview).
+  Map<String, dynamic> _primarySources = const {};
+
   // Pause state.
   bool _isLearningPaused = false;
+
+  /// PR-C3: persisted display-unit preference (engine values stay SI).
+  UnitSystem _unitSystem = UnitSystem.metric;
 
   // Coach presence and detail preference (local prefs, BS-012 reads presence).
   CoachPresence _coachPresence = CoachPresence.moderate;
@@ -172,20 +205,57 @@ class _YouScreenState extends State<YouScreen> {
       // Default to false.
     }
 
-    // Source overview.
+    // PR-C3: persisted unit preference (display-only; engine stays SI).
     try {
-      // Build sources JSON from HealthKit-style data.
-      // For now, show honest absence until we have real source data.
-      final sourcesJson = await binding.buildSourceOverview(
-        handle,
-        sourcesJson: '[]',
-      );
-      final decoded = jsonDecode(sourcesJson);
-      if (decoded is List) {
-        _sources = decoded.cast<Map<String, dynamic>>();
+      _unitSystem = await UnitPrefs().load();
+    } catch (_) {
+      // Metric default.
+    }
+
+    // Source overview — PR-C3: fed by the vault's REAL source census
+    // (list_data_sources), not the old hardcoded '[]' placeholder. Each row:
+    // the source name, its engine-classified tier, which metrics it has
+    // provided, and when it was last seen. The engine's primary-per-metric
+    // pick (build_source_overview) renders as the summary line.
+    try {
+      final census =
+          jsonDecode(await binding.listDataSources(handle)) as List<dynamic>;
+      final rows = <Map<String, dynamic>>[];
+      for (final e in census.whereType<Map>()) {
+        final name = e['source']?.toString() ?? '';
+        if (name.isEmpty) continue;
+        String tier = 'partial';
+        try {
+          final cls =
+              jsonDecode(await binding.classifySource(handle, source: name));
+          if (cls is Map && cls['tier'] != null) {
+            tier = cls['tier'].toString().toLowerCase();
+          }
+        } catch (_) {
+          // Tier stays the conservative default on classification failure.
+        }
+        rows.add({
+          'name': name,
+          'tier': tier,
+          'metrics': metricLabelsFor(e),
+          'last_seen': e['last_seen']?.toString(),
+        });
+      }
+      _sources = rows;
+
+      if (census.isNotEmpty) {
+        final overview = await binding.buildSourceOverview(
+          handle,
+          sourcesJson: jsonEncode(sourceOverviewInput(census)),
+        );
+        final decoded = jsonDecode(overview);
+        if (decoded is Map && decoded['primary_sources'] is Map) {
+          _primarySources =
+              (decoded['primary_sources'] as Map).cast<String, dynamic>();
+        }
       }
     } catch (_) {
-      // No sources yet.
+      // No sources yet — honest absence.
     }
 
     // Engine hello (debug).
@@ -476,6 +546,20 @@ class _YouScreenState extends State<YouScreen> {
           )
         else ...[
           for (final source in _sources) _buildSourceRow(source),
+          if (_primarySources.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MivaltaSpace.x4,
+                vertical: MivaltaSpace.x2,
+              ),
+              child: Text(
+                // The engine's pick, verbatim: which source wins each metric.
+                'Primary: ${_primarySources.entries.map((e) => '${e.key} ← ${e.value}').join(' · ')}',
+                style: MivaltaType.small.copyWith(
+                  color: MivaltaColors.textMuted,
+                ),
+              ),
+            ),
           _SettingsRow(
             label: 'Add another source',
             onTap: _showConnectSourcesStub,
@@ -488,9 +572,16 @@ class _YouScreenState extends State<YouScreen> {
   Widget _buildSourceRow(Map<String, dynamic> source) {
     final name = source['name'] as String? ?? 'Unknown source';
     final tier = source['tier'] as String? ?? 'partial';
+    final metrics = (source['metrics'] as List?)?.cast<String>() ?? const [];
+    final lastSeen = source['last_seen'] as String?;
+    final detail = [
+      if (metrics.isNotEmpty) metrics.join(' · '),
+      if (lastSeen != null && lastSeen.isNotEmpty) 'last $lastSeen',
+    ].join('  —  ');
 
     return _SettingsRow(
       label: name,
+      value: detail.isEmpty ? null : detail,
       trailing: _TierChip(tier: tier),
     );
   }
@@ -574,6 +665,10 @@ class _YouScreenState extends State<YouScreen> {
         _SettingsRow(
           label: 'Export readings as CSV',
           onTap: _exportData,
+        ),
+        _SettingsRow(
+          label: 'Restore a backup',
+          onTap: _restoreEncryptedVault,
         ),
 
         // Erase row — red text, no box-in-box.
@@ -665,8 +760,8 @@ class _YouScreenState extends State<YouScreen> {
         ),
         _SettingsRow(
           label: 'Units',
-          value: 'Metric',
-          onTap: _showUnitsStub,
+          value: _unitSystem == UnitSystem.imperial ? 'Imperial' : 'Metric',
+          onTap: _toggleUnits,
         ),
       ],
     );
@@ -1165,11 +1260,174 @@ class _YouScreenState extends State<YouScreen> {
     );
   }
 
-  void _showUnitsStub() {
-    _showStubSheet(
-      'Units',
-      'Metric / Imperial.\n\n'
-          'Future: toggle for display units (engine stays SI).',
+  /// PR-C3: the Units row is REAL — toggles and persists the display-unit
+  /// preference (UnitPrefs). Engine values stay SI; unit-bearing display
+  /// surfaces read this preference as they land.
+  Future<void> _toggleUnits() async {
+    final next = _unitSystem == UnitSystem.metric
+        ? UnitSystem.imperial
+        : UnitSystem.metric;
+    try {
+      await UnitPrefs().save(next);
+      if (mounted) setState(() => _unitSystem = next);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save units: $e')),
+        );
+      }
+    }
+  }
+
+  /// PR-C3: restore an encrypted `.mvbackup` — the export's inverse. The
+  /// ENGINE owns decryption, validation, and the overwrite decision; a wrong
+  /// passphrase fails loud (surfaced verbatim), never a partial import. On
+  /// an existing-vault refusal the user explicitly confirms overwrite.
+  Future<void> _restoreEncryptedVault() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+
+    final athleteId = _profile?['athlete_id'] as String?;
+    if (athleteId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No profile — finish onboarding first')),
+        );
+      }
+      return;
+    }
+
+    const group = XTypeGroup(label: 'MiValta backup', extensions: ['mvbackup']);
+    final picked = await openFile(acceptedTypeGroups: const [group]);
+    if (picked == null) return;
+    final blob = await picked.readAsBytes();
+
+    final passphrase = await _promptRestorePassphrase();
+    if (passphrase == null || passphrase.isEmpty) return;
+
+    Future<String> attempt(bool overwrite) => binding.importEncryptedVault(
+          handle,
+          athleteId: athleteId,
+          passphrase: passphrase,
+          blob: blob,
+          overwrite: overwrite,
+        );
+
+    try {
+      String result;
+      try {
+        result = await attempt(false);
+      } on BridgeError catch (first) {
+        // The engine refuses to clobber an existing vault without an explicit
+        // overwrite. Ask, then retry — the DECISION stays with the user, the
+        // enforcement with the engine.
+        final confirmed = await _confirmOverwrite();
+        if (confirmed != true) return;
+        try {
+          result = await attempt(true);
+        } on BridgeError {
+          // Overwrite retry failed too (e.g. wrong passphrase) — surface the
+          // ORIGINAL engine error verbatim if the retry adds nothing new.
+          rethrow;
+        }
+        debugPrint('restore: first attempt refused: $first');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Backup restored ($result). Restart MiValta to load it.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restore failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _promptRestorePassphrase() {
+    String passphrase = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MivaltaColors.surface1,
+        title: Text(
+          'Backup passphrase',
+          style: MivaltaType.cardTitle.copyWith(
+            color: MivaltaColors.textPrimary,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter the passphrase you created when exporting this backup.',
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: MivaltaSpace.x3),
+            TextField(
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Passphrase'),
+              onChanged: (v) => passphrase = v,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, passphrase),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _confirmOverwrite() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MivaltaColors.surface1,
+        title: Text(
+          'Replace current data?',
+          style: MivaltaType.cardTitle.copyWith(
+            color: MivaltaColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'This device already has MiValta data. Restoring will replace it '
+          'with the backup. This cannot be undone.',
+          style: MivaltaType.small.copyWith(
+            color: MivaltaColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep current data'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Replace',
+              style: TextStyle(color: MivaltaColors.levelRed),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

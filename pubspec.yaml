@@ -61,6 +61,8 @@ dependencies:
 
   # PR-G: Share exported files via platform share sheet.
   share_plus: ^10.0.0
+  # PR-C3: vault-restore file picking (open the .mvbackup the user exported).
+  file_selector: ^1.0.3
 
   # BS-002 v2: Local preferences storage (detail/gear, NOT engine payload).
   shared_preferences: ^2.2.3
