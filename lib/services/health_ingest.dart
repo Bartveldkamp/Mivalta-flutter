@@ -40,7 +40,7 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:health/health.dart';
 
 import '../models/time_in_zone.dart';
@@ -285,6 +285,56 @@ class HealthIngestService {
   final EnginesHandle handle;
   final Health _health;
 
+  /// Lexical max of two ISO `yyyy-MM-dd` date strings (ISO dates sort
+  /// lexically). Pure — extracted so the #3 write-back's target-date selection
+  /// is unit-testable without the platform health store.
+  @visibleForTesting
+  static String maxIsoDate(String? current, String candidate) =>
+      (current == null || candidate.compareTo(current) > 0)
+          ? candidate
+          : current;
+
+  /// Post-batch persistence for the biometrics loop. FL-4: persist on ANY
+  /// state mutation, not just biometric-bearing days — process_observation
+  /// advances Viterbi's state for every observation and an unpersisted advance
+  /// is lost on the next restart (compounds engine A).
+  ///
+  /// #3 readiness write-back: after persisting engine state, courier the
+  /// engine's CURRENT 4-axis readiness indicator to the latest processed day's
+  /// biometrics row, so the Journey charts read it back. The shim owns the
+  /// honest-absence skip (no readiness yet → no row written, never a
+  /// fabricated 0); Dart only couriers the date. The write-back targets the
+  /// newest calendar day whose observation advanced Viterbi's state — the day
+  /// the current indicator is "as of". A no-op day (duplicate already
+  /// incorporated) is intentionally not a target: its row got the indicator
+  /// when its data actually landed.
+  ///
+  /// Extracted from [syncHealthData] so the courier decision (invoke on
+  /// `mutated > 0` + a known date; skip otherwise) is unit-testable.
+  @visibleForTesting
+  Future<void> persistBatchState({
+    required int mutated,
+    required String? latestProcessedDate,
+  }) async {
+    if (mutated > 0) {
+      final stateJson = await binding.saveState(handle);
+      await binding.writeViterbiState(handle, stateJson: stateJson);
+      if (latestProcessedDate != null) {
+        // false = the shim's honest-absence skip (engine has no readiness
+        // yet). Not an error — but surface it in debug so a systemic
+        // "every sync skips" pattern is diagnosable, same as the
+        // skipped/firstSkipReason investment above.
+        final wrote = await binding.writeReadinessAssessment(handle,
+            date: latestProcessedDate);
+        if (kDebugMode && !wrote) {
+          // ignore: avoid_print
+          print('readiness write-back: honest-absence skip '
+              'for $latestProcessedDate');
+        }
+      }
+    }
+  }
+
   /// The health data types we request read permission for.
   ///
   /// Platform-specific HRV:
@@ -412,6 +462,11 @@ class HealthIngestService {
       var processed = 0;
       var mutated = 0; // FL-4: any observation that advanced the HMM state
       var skipped = 0; // FL-4: days dropped by a per-observation failure
+      // #3 write-back: the latest date whose observation actually advanced
+      // Viterbi's state — the row the engine's current readiness gets written
+      // back to. ISO dates sort lexically, so max() is robust to byDate
+      // iteration order.
+      String? latestProcessedDate;
       // De-silence: the first per-day failure cause, surfaced in the result so
       // a SYSTEMIC failure (every day failing the same way) is diagnosable by
       // the caller, not just a kDebugMode print.
@@ -448,6 +503,7 @@ class HealthIngestService {
           // processObservation always advanced the HMM → persist after the batch.
           if (result.mutated) {
             mutated++;
+            latestProcessedDate = maxIsoDate(latestProcessedDate, date);
           }
           // Only count days that carried real biometric content (RHR/HRV/sleep).
           if (result.hadBiometrics) {
@@ -470,10 +526,10 @@ class HealthIngestService {
       // FL-4: persist on ANY state mutation, not just biometric-bearing days —
       // processObservation advances the HMM for every observation and an
       // unpersisted advance is lost on the next restart (compounds engine A).
-      if (mutated > 0) {
-        final stateJson = await binding.saveState(handle);
-        await binding.writeViterbiState(handle, stateJson: stateJson);
-      }
+      await persistBatchState(
+        mutated: mutated,
+        latestProcessedDate: latestProcessedDate,
+      );
 
       // ====================================================================
       // MAC_BRIEF_WORKOUT_INGEST: Process workouts into the vault.
