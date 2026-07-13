@@ -24,6 +24,31 @@ import '../services/profile_service.dart';
 import '../theme/tokens.dart';
 import 'today_screen.dart';
 
+/// W18 optional threshold anchors, marshaled under the ENGINE-CONTRACT keys.
+///
+/// The HR-threshold key is `threshold_hr` — the exact `OnboardingInputs` field
+/// in gatc-ffi (`build_onboarding_profile`, traced 2026-07-13). The screen
+/// previously sent `lthr_bpm`, which the engine's serde silently defaulted
+/// away: every athlete's typed HR threshold was DROPPED (charter law 3 — a
+/// silent loss masquerading as "didn't know"). Pure and top-level so the
+/// contract keys are pinned by test; `null` stays null (honest absence,
+/// never a stand-in).
+@visibleForTesting
+Map<String, dynamic> thresholdAnchorInputs({
+  required int? thresholdHr,
+  required Set<String> sports,
+  required int? ftpWatts,
+  required int? thresholdPaceSecKm,
+}) {
+  return <String, dynamic>{
+    // Heart-rate threshold for ALL athletes.
+    'threshold_hr': thresholdHr,
+    // Sport-specific anchors.
+    if (sports.contains('cycling')) 'ftp_watts': ftpWatts,
+    if (sports.contains('running')) 'threshold_pace_sec_km': thresholdPaceSecKm,
+  };
+}
+
 /// The 6-step onboarding intake flow (v3 — condensed, explain-why).
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -231,20 +256,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       inputs['sex'] = _sex;
     }
 
-    // W18: Optional anchors — null means "I don't know"
-    // Heart-rate threshold for ALL athletes
-    // ENGINE ASK: verify lthr_bpm exists in engine inputs contract.
-    // If absent, this value is persisted app-side and passed once the contract lands.
-    inputs['lthr_bpm'] = _lthrUnknown ? null : _lthr?.toInt();
-
-    // Sport-specific thresholds
-    if (_selectedSports.contains('cycling')) {
-      inputs['ftp_watts'] = _ftpUnknown ? null : _ftp?.toInt();
-    }
-    if (_selectedSports.contains('running')) {
-      final paceMinKm = _paceUnknown ? null : _thresholdPace;
-      inputs['threshold_pace_sec_km'] = paceMinKm != null ? (paceMinKm * 60).toInt() : null;
-    }
+    // W18: Optional anchors — null means "I don't know" (honest absence).
+    final paceMinKm = _paceUnknown ? null : _thresholdPace;
+    inputs.addAll(thresholdAnchorInputs(
+      thresholdHr: _lthrUnknown ? null : _lthr?.toInt(),
+      sports: _selectedSports,
+      ftpWatts: _ftpUnknown ? null : _ftp?.toInt(),
+      thresholdPaceSecKm: paceMinKm != null ? (paceMinKm * 60).toInt() : null,
+    ));
 
     return inputs;
   }
