@@ -33,6 +33,13 @@ class WorkoutOption {
   /// Card-sourced zone-purpose prose (`zone_purpose`), engine-owned (Phase 1).
   final String? zonePurpose;
 
+  /// The ENGINE-COMPOSED coach sentence (`coach_sentence`, engine #411 —
+  /// LEVELS LAW communication shape: level leads → purpose → nested code +
+  /// structure → real target ranges → card feel prose). Rendered VERBATIM;
+  /// the engine emits "" when there is no main set, which parses to null here
+  /// (honest absence — the display drops the sentence, it never authors one).
+  final String? coachSentence;
+
   /// The engine's OWN decoded option payload, held verbatim (every field,
   /// including ones this display model never reads: session_intent,
   /// ntiz_by_zone, the full structure…). `realize_advisory_offer` deserializes
@@ -55,6 +62,7 @@ class WorkoutOption {
     this.expression,
     this.focusCue,
     this.zonePurpose,
+    this.coachSentence,
     this.raw,
   });
 
@@ -99,6 +107,13 @@ class WorkoutOption {
       focusCue: cueStart,
       // zone_purpose: card-sourced prose now carried on the option (Phase 1).
       zonePurpose: json['zone_purpose']?.toString(),
+      // coach_sentence: engine-composed (#411). "" = engine's honest "no main
+      // set" → null so the render drops it (never fabricates a prescription).
+      coachSentence:
+          (json['coach_sentence'] is String &&
+              (json['coach_sentence'] as String).isNotEmpty)
+          ? json['coach_sentence'] as String
+          : null,
       // Engine emits `expression` as an ExpressionData STRUCT
       // (gatc-types WorkoutOptionData.expression: Option<ExpressionData>,
       // fields expression_id/title/…), NOT a string. The badge renders the
