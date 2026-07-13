@@ -201,10 +201,20 @@ flutter_rust_bridge = "=2.12.0"
 # import_encrypted_vault, hrv_trend, rhr_trend) -> FRB-regen REQUIRED (bindings
 # regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build
 # executor owes cargo update + xcframework rebuild.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8f506dabc3e768a209d7d42a1864644a46a194c1" }
+# Re-pinned 8f506da -> 5849920 (main after #411 — PR-D engine half). The range
+# is #409 (cards JSONL export: script + CI job, no engine code), #410 (REVIEWER.md
+# docs), #411 (the engine-composed coach sentence). #411 adds
+# WorkoutOptionData.coach_sentence — `#[serde(default)]`, wire-compatible,
+# riding INSIDE the existing suggest_workouts JSON payload — plus
+# MetabolicLevel::athlete_label and the leading-only levels guard. VERIFIED:
+# engine_registry.json and crates/gatc-ffi are byte-identical across
+# 8f506da..5849920 (git diff --stat empty), so NO new shim fn, NO FRB-regen;
+# Cargo.lock here is a pure rev-SHA replacement. Build executor owes cargo
+# update + the xcframework rebuild (still outstanding from the 8f506da bump).
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "5849920edfe58b58308d82712ffa6500aa2d2c7c" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8f506dabc3e768a209d7d42a1864644a46a194c1" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "5849920edfe58b58308d82712ffa6500aa2d2c7c" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
