@@ -37,7 +37,7 @@ void main() {
       expect(showChip, isFalse, reason: 'Healthy day should NOT show decision chip');
     });
 
-    test('capped day (Z2) → chip shows "Endurance · Z2"', () {
+    test('capped day (Z2) → chip shows "Endurance" (LEVELS LAW: no zone code)', () {
       final zoneCap = 'Z2';
 
       final restrictiveCap = isRestrictiveCap(zoneCap);
@@ -46,9 +46,9 @@ void main() {
       expect(restrictiveCap, isTrue, reason: 'Z2 is restrictive');
       expect(showChip, isTrue, reason: 'Capped day MUST show decision chip');
 
-      // Verify the label format (energy name first)
+      // LEVELS LAW (Entry AP, supersedes SR1-07): level name only, no "· Z2".
       final chipText = zoneDisplayLabel(zoneCap);
-      expect(chipText, equals('Endurance · Z2'));
+      expect(chipText, equals('Endurance'));
     });
 
     test('REST cap → chip shows', () {
