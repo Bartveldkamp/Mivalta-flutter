@@ -20,7 +20,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/activity_summary.dart';
+import '../models/metabolic_rollup.dart';
+import '../models/metric_trend.dart';
 import '../models/realized_line.dart';
+import '../models/sleep_trend.dart';
 import '../rust_engine.dart';
 import '../services/profile_service.dart';
 import '../theme/tokens.dart';
@@ -28,6 +32,7 @@ import '../widgets/today/josi_card.dart';
 import '../widgets/today/module_card.dart';
 import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
+import 'workout_detail_screen.dart';
 
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({super.key});
@@ -39,6 +44,29 @@ class JourneyScreen extends StatefulWidget {
 class _JourneyScreenState extends State<JourneyScreen> {
   bool _loading = true;
   String? _error;
+
+  // PR-C1: retained for the history list's detail-navigation and the
+  // "Show older" window refetch (couriers only; the engine owns the data).
+  RustEngineBinding? _binding;
+  EnginesHandle? _handle;
+
+  // HISTORY — every stored workout in the requested window, newest first.
+  // The window is a REQUEST parameter (how much to ask the engine for),
+  // not a computation; "Show older" widens it by 90 days per tap.
+  List<ActivitySummary> _history = const [];
+  int _historyDays = 90;
+  bool _historyLoading = false;
+
+  // RECALL — engine-summed time-in-metabolic-level rollups.
+  MetabolicRollup? _weekRollup;
+  MetabolicRollup? _monthRollup;
+
+  // TRENDS — engine-sloped HRV / RHR windows.
+  MetricTrend? _hrvTrend;
+  MetricTrend? _rhrTrend;
+
+  // SLEEP — recorded nights from biometric history (verbatim hours).
+  SleepTrend _sleep = const SleepTrend(nights: []);
 
   // Arc data (readiness history)
   List<_ReadinessPoint> _arcPoints = const [];
@@ -122,6 +150,49 @@ class _JourneyScreenState extends State<JourneyScreen> {
   }
 
   Future<void> _loadJourneyData(RustEngineBinding binding, EnginesHandle handle) async {
+    _binding = binding;
+    _handle = handle;
+
+    // PR-C1: HISTORY — ask the engine for the current window (newest first
+    // for display; the engine returns the stored rows verbatim).
+    await _fetchHistory(binding, handle);
+
+    // PR-C1: RECALL — engine-summed rollups for the last 7 / 28 days.
+    try {
+      final week = await binding.metabolicTimeInZoneRollup(handle,
+          start: _isoDaysAgo(7), end: _isoDaysAgo(0));
+      _weekRollup = MetabolicRollup.fromJson(jsonDecode(week));
+    } catch (e) {
+      debugPrint('metabolicTimeInZoneRollup(7d) failed: $e');
+    }
+    try {
+      final month = await binding.metabolicTimeInZoneRollup(handle,
+          start: _isoDaysAgo(28), end: _isoDaysAgo(0));
+      _monthRollup = MetabolicRollup.fromJson(jsonDecode(month));
+    } catch (e) {
+      debugPrint('metabolicTimeInZoneRollup(28d) failed: $e');
+    }
+
+    // PR-C1: TRENDS — the engine's sloped HRV / RHR windows, rendered verbatim.
+    try {
+      _hrvTrend = MetricTrend.fromJson(jsonDecode(await binding.hrvTrend(handle)));
+    } catch (e) {
+      debugPrint('hrvTrend failed: $e');
+    }
+    try {
+      _rhrTrend = MetricTrend.fromJson(jsonDecode(await binding.rhrTrend(handle)));
+    } catch (e) {
+      debugPrint('rhrTrend failed: $e');
+    }
+
+    // PR-C1: SLEEP — recorded nights (verbatim hours from biometric history).
+    try {
+      final bio = await binding.readBiometricHistory(handle, days: 28);
+      _sleep = SleepTrend.fromJson(jsonDecode(bio));
+    } catch (e) {
+      debugPrint('readBiometricHistory(sleep) failed: $e');
+    }
+
     // 1. Arc — readiness history (28 days)
     try {
       final historyJson = await binding.readReadinessHistory(handle, days: 28);
@@ -288,6 +359,27 @@ class _JourneyScreenState extends State<JourneyScreen> {
 
               const SizedBox(height: MivaltaSpace.x5),
 
+              // PR-C1: TRENDS — engine HRV/RHR windows
+              _buildSectionEyebrow('RECOVERY TRENDS'),
+              const SizedBox(height: MivaltaSpace.x3),
+              _buildTrendsCard(),
+
+              const SizedBox(height: MivaltaSpace.x5),
+
+              // PR-C1: SLEEP — recorded nights, verbatim
+              _buildSectionEyebrow('SLEEP'),
+              const SizedBox(height: MivaltaSpace.x3),
+              _buildSleepCard(),
+
+              const SizedBox(height: MivaltaSpace.x5),
+
+              // PR-C1: HISTORY — open any past workout
+              _buildSectionEyebrow('HISTORY'),
+              const SizedBox(height: MivaltaSpace.x3),
+              _buildHistoryCard(),
+
+              const SizedBox(height: MivaltaSpace.x5),
+
               // Section: AHEAD (honest-absent placeholder)
               _buildSectionEyebrow('AHEAD'),
               const SizedBox(height: MivaltaSpace.x3),
@@ -313,6 +405,273 @@ class _JourneyScreenState extends State<JourneyScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// `yyyy-MM-dd` for N days ago — a request parameter for engine reads
+  /// (window shaping, not computation).
+  String _isoDaysAgo(int days) {
+    final d = DateTime.now().subtract(Duration(days: days));
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _fetchHistory(RustEngineBinding binding, EnginesHandle handle) async {
+    try {
+      final json = await binding.readActivitiesInRange(handle,
+          start: _isoDaysAgo(_historyDays), end: _isoDaysAgo(0));
+      final rows = ActivitySummary.listFromJson(jsonDecode(json));
+      // Newest first for display (ISO dates sort lexically). Ordering is
+      // presentation; the engine returned the rows verbatim.
+      rows.sort((a, b) => b.date.compareTo(a.date));
+      _history = rows;
+    } catch (e) {
+      debugPrint('readActivitiesInRange failed: $e');
+    }
+  }
+
+  Future<void> _showOlder() async {
+    final binding = _binding;
+    final handle = _handle;
+    if (binding == null || handle == null) return;
+    setState(() {
+      _historyDays += 90;
+      _historyLoading = true;
+    });
+    await _fetchHistory(binding, handle);
+    if (mounted) setState(() => _historyLoading = false);
+  }
+
+  /// HISTORY — every stored workout, tappable into the full detail. The
+  /// engine pages arbitrarily far back; "Show older" widens the request.
+  Widget _buildHistoryCard() {
+    if (_history.isEmpty) {
+      return const ModuleCard(
+        title: 'Workout history',
+        icon: Icons.history,
+        child: _HonestAbsence(
+          label: 'No workouts recorded yet',
+          unlock: 'Finished workouts appear here, as far back as you train',
+        ),
+      );
+    }
+    return ModuleCard(
+      title: 'Workout history',
+      icon: Icons.history,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final a in _history) _historyRow(a),
+          const SizedBox(height: MivaltaSpace.x2),
+          Center(
+            child: _historyLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(MivaltaSpace.x2),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _showOlder,
+                    child: Text(
+                      'Show older · past $_historyDays days shown',
+                      style: MivaltaType.small
+                          .copyWith(color: MivaltaColors.textSecondary),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _historyRow(ActivitySummary a) {
+    final binding = _binding;
+    final handle = _handle;
+    return InkWell(
+      onTap: (binding != null && handle != null)
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => WorkoutDetailScreen(
+                    binding: binding,
+                    handle: handle,
+                    date: a.date,
+                    activityId: a.id,
+                    sportLabel: _formatSportLabel(a.sport),
+                  ),
+                ),
+              )
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_formatSportLabel(a.sport), style: MivaltaType.body),
+                  Text(a.date,
+                      style: MivaltaType.small
+                          .copyWith(color: MivaltaColors.textMuted)),
+                ],
+              ),
+            ),
+            if (a.durationMin != null)
+              Text('${a.durationMin} min',
+                  style: MivaltaType.small
+                      .copyWith(color: MivaltaColors.textSecondary)),
+            const SizedBox(width: MivaltaSpace.x2),
+            const Icon(Icons.chevron_right,
+                size: 16, color: MivaltaColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Display capitalisation only — the engine's sport id is the value.
+  String _formatSportLabel(String sport) =>
+      sport.isEmpty ? sport : sport[0].toUpperCase() + sport.substring(1);
+
+  Widget _rollupColumn(String heading, MetabolicRollup? rollup) {
+    final rows = rollup?.nonZeroMinuteRows ?? const [];
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(heading,
+              style:
+                  MivaltaType.small.copyWith(color: MivaltaColors.textMuted)),
+          const SizedBox(height: MivaltaSpace.x2),
+          if (rollup == null || rollup.isEmpty)
+            Text('No recorded training',
+                style: MivaltaType.small
+                    .copyWith(color: MivaltaColors.textMuted))
+          else
+            for (final (label, minutes) in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(label, style: MivaltaType.small),
+                    Text('$minutes min',
+                        style: MivaltaType.small
+                            .copyWith(color: MivaltaColors.textSecondary)),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trendRow(String label, MetricTrend? trend) {
+    if (trend == null || trend.isInsufficient) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x1),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: MivaltaType.body),
+            Text('Not enough data yet',
+                style:
+                    MivaltaType.small.copyWith(color: MivaltaColors.textMuted)),
+          ],
+        ),
+      );
+    }
+    // Render the engine's own direction words (underscores humanised — a
+    // formatting courtesy, not a re-derivation) for each honest window.
+    String directionOf(WindowTrend w) =>
+        w.available ? w.direction.replaceAll('_', ' ') : '—';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MivaltaSpace.x1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: MivaltaType.body),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              for (final (name, w) in [
+                ('7d', trend.short),
+                ('28d', trend.mid),
+                ('90d', trend.long)
+              ]) ...[
+                Text('$name: ${directionOf(w)}',
+                    style: MivaltaType.small
+                        .copyWith(color: MivaltaColors.textSecondary)),
+                const SizedBox(width: MivaltaSpace.x3),
+              ],
+              if (trend.short.draft || trend.mid.draft || trend.long.draft)
+                Text('DRAFT bands',
+                    style: MivaltaType.small
+                        .copyWith(fontSize: 10, color: MivaltaColors.textMuted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// TRENDS — the engine's sloped HRV / RHR windows, verbatim directions.
+  Widget _buildTrendsCard() {
+    return ModuleCard(
+      title: 'Recovery trends',
+      icon: Icons.monitor_heart_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _trendRow('HRV', _hrvTrend),
+          _trendRow('Resting HR', _rhrTrend),
+        ],
+      ),
+    );
+  }
+
+  /// SLEEP — recorded nights, verbatim hours (no score is fabricated; a
+  /// sleep *score* concept does not exist in the engine yet).
+  Widget _buildSleepCard() {
+    if (_sleep.isEmpty) {
+      return const ModuleCard(
+        title: 'Sleep',
+        icon: Icons.bedtime_outlined,
+        child: _HonestAbsence(
+          label: 'No sleep data yet',
+          unlock: 'Nights sync from your health sources',
+        ),
+      );
+    }
+    final recent = _sleep.nights.length <= 7
+        ? _sleep.nights
+        : _sleep.nights.sublist(_sleep.nights.length - 7);
+    return ModuleCard(
+      title: 'Sleep',
+      icon: Icons.bedtime_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final n in recent.reversed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(n.date,
+                      style: MivaltaType.small
+                          .copyWith(color: MivaltaColors.textMuted)),
+                  Text('${n.hours.toStringAsFixed(1)} h',
+                      style: MivaltaType.small
+                          .copyWith(color: MivaltaColors.textSecondary)),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -475,15 +834,30 @@ class _JourneyScreenState extends State<JourneyScreen> {
 
   /// TIME IN ZONE — honest-absent (aggregate API not yet available).
   Widget _buildTimeInZoneCard() {
-    // BS-015: honest-absent until we have aggregate time-in-zone API.
-    // computeTimeInZone is per-activity; aggregation would violate
-    // "engine computes" if done client-side.
-    return const ModuleCard(
-      title: 'Zone distribution',
+    // PR-C1: the engine aggregate landed (metabolic_time_in_zone_rollup —
+    // summed engine-side from stored per-workout atoms; Law 2 intact).
+    final bothEmpty = (_weekRollup == null || _weekRollup!.isEmpty) &&
+        (_monthRollup == null || _monthRollup!.isEmpty);
+    if (bothEmpty) {
+      return const ModuleCard(
+        title: 'Trained time by level',
+        icon: Icons.stacked_bar_chart,
+        child: _HonestAbsence(
+          label: 'No recorded training in the last month',
+          unlock: 'Workouts with sensor streams fill this in',
+        ),
+      );
+    }
+    return ModuleCard(
+      title: 'Trained time by level',
       icon: Icons.stacked_bar_chart,
-      child: _HonestAbsence(
-        label: 'Zone breakdown coming soon',
-        unlock: 'Engine aggregate API pending',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _rollupColumn('THIS WEEK', _weekRollup),
+          const SizedBox(width: MivaltaSpace.x4),
+          _rollupColumn('LAST 28 DAYS', _monthRollup),
+        ],
       ),
     );
   }
