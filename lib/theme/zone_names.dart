@@ -11,7 +11,12 @@ import 'package:flutter/material.dart';
 import 'tokens.dart';
 
 /// Returns (energyName, color) for a zone code.
-/// Energy name comes first per SR1-07 ruling ("Tempo · Z3", never bare "Z3").
+///
+/// LEVELS LAW (founder 2026-07-10, DECISIONS Entry AP): athlete-facing surfaces
+/// speak the level name only, never the raw zone code. This SUPERSEDES the
+/// older SR1-07 "Tempo · Z3" ruling — the code suffix is gone (see
+/// [zoneDisplayLabel]). The engine mapping stays the same; only what the
+/// athlete sees changes.
 (String, Color) zoneDisplayNameAndColor(String zone) {
   return switch (zone.toUpperCase()) {
     'Z1' => ('Recovery', MivaltaColors.stateProductive),
@@ -27,12 +32,15 @@ import 'tokens.dart';
   };
 }
 
-/// Formats zone for full display: "Tempo · Z3" (energy name first).
+/// Formats a zone for athlete display: the level name only ("Tempo").
+///
+/// LEVELS LAW (Entry AP, supersedes SR1-07): NO raw zone-code suffix. The zone
+/// code stays internal; the athlete sees only what the work is.
 String zoneDisplayLabel(String zone) {
   final upperZone = zone.toUpperCase();
   if (upperZone == 'REST') return 'Rest day';
   final (name, _) = zoneDisplayNameAndColor(zone);
-  // If unknown zone, just return as-is
-  if (name == zone) return zone;
-  return '$name · $upperZone';
+  // Unknown zone → fail-visible (return the raw code) rather than a fabricated
+  // level name; the engine only emits canonical zones on this path.
+  return name;
 }
