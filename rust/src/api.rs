@@ -276,6 +276,22 @@ pub fn state_advisory(handle: &EnginesHandle) -> Result<String, BridgeError> {
     handle.viterbi.state_advisory().map_err(Into::into)
 }
 
+/// `ViterbiEngine::hrv_trend()` — HRV trend over short/mid/long windows
+/// (descriptive direction + honest-absence; engine bands are DRAFT pending
+/// ratification). Drives the Journey HRV trend surface (PR-B). Pure
+/// pass-through.
+pub fn hrv_trend(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.hrv_trend().map_err(Into::into)
+}
+
+/// `ViterbiEngine::rhr_trend()` — Resting-HR trend over short/mid/long windows
+/// (descriptive direction + honest-absence; engine bands are DRAFT pending
+/// ratification). Drives the Journey RHR trend surface (PR-B). Pure
+/// pass-through.
+pub fn rhr_trend(handle: &EnginesHandle) -> Result<String, BridgeError> {
+    handle.viterbi.rhr_trend().map_err(Into::into)
+}
+
 /// `gatc_ffi::realize_advisor_line(viterbi, narrative, advisor, athlete_id, date)`
 /// — the deterministic Josi ADVISOR line (Brief #6 seam). The engine assembles
 /// the CommunicationPlan (viterbi) + Facts (narrative→vault) + AdvisorLines
@@ -933,6 +949,55 @@ pub fn read_readiness_history(handle: &EnginesHandle, days: i32) -> Result<Strin
 /// Monitor training-load surface. Pure pass-through.
 pub fn read_daily_loads(handle: &EnginesHandle, days: i32) -> Result<String, BridgeError> {
     handle.vault.read_daily_loads(days).map_err(Into::into)
+}
+
+/// `VaultEngine::read_activities_in_range(start, end)` — every stored activity
+/// in the closed date window (`yyyy-MM-dd`), JSON array, pageable arbitrarily
+/// far back. Drives the Journey history list ("open ANY past workout" — PR-B).
+/// Pure pass-through; the engine parses and validates the dates.
+pub fn read_activities_in_range(
+    handle: &EnginesHandle,
+    start: String,
+    end: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .read_activities_in_range(start, end)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::metabolic_time_in_zone_rollup(start, end)` — the per-window
+/// time-in-metabolic-level rollup (week/meso recall), summed by the ENGINE
+/// from stored per-workout atoms. JSON per the progression data-model
+/// contract. Drives the Journey energy-recall surface (PR-B). Pure
+/// pass-through — the sum happens engine-side, never in Dart (Law 2).
+pub fn metabolic_time_in_zone_rollup(
+    handle: &EnginesHandle,
+    start: String,
+    end: String,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .metabolic_time_in_zone_rollup(start, end)
+        .map_err(Into::into)
+}
+
+/// `VaultEngine::import_encrypted_vault(...)` — restore a `.mvbackup` blob
+/// (V5 encrypted export's inverse). The engine owns decryption, validation,
+/// and the overwrite decision; a wrong passphrase fails loud, never a partial
+/// import. Closes the export-without-import half-truth (PR-B). Pure
+/// pass-through.
+pub fn import_encrypted_vault(
+    handle: &EnginesHandle,
+    athlete_id: String,
+    passphrase: String,
+    blob: Vec<u8>,
+    overwrite: bool,
+) -> Result<String, BridgeError> {
+    handle
+        .vault
+        .import_encrypted_vault(athlete_id, passphrase, blob, overwrite)
+        .map_err(Into::into)
 }
 
 /// `VaultEngine::read_mmp_history(athlete_id)` — the rolling mean-maximal power
