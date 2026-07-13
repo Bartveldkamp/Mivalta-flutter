@@ -354,7 +354,7 @@ class RustEngineBinding {
       );
 
   /// `VaultEngine::write_assessment(...)` — the #3 readiness write-back. Persists
-  /// the engine's CURRENT 4-axis readiness indicator (+ HMM fatigue state) to
+  /// the engine's CURRENT 4-axis readiness indicator (+ Viterbi fatigue state) to
   /// `date`'s biometrics readiness columns, so the Journey charts read it back.
   /// The shim owns the honest-absence skip (no readiness yet → nothing written);
   /// Dart only couriers the date. Returns `true` if a row was written, `false`

@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -299899399;
+  int get rustContentHash => 917857954;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -434,6 +434,11 @@ abstract class RustLibApi extends BaseApi {
   Future<PlatformInt64> crateApiWriteRawObservation({
     required EnginesHandle handle,
     required String json,
+  });
+
+  Future<bool> crateApiWriteReadinessAssessment({
+    required EnginesHandle handle,
+    required String date,
   });
 
   Future<void> crateApiWriteViterbiState({
@@ -3419,6 +3424,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiWriteReadinessAssessment({
+    required EnginesHandle handle,
+    required String date,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEnginesHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(date, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 81,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiWriteReadinessAssessmentConstMeta,
+        argValues: [handle, date],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWriteReadinessAssessmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "write_readiness_assessment",
+        argNames: ["handle", "date"],
+      );
+
+  @override
   Future<void> crateApiWriteViterbiState({
     required EnginesHandle handle,
     required String stateJson,
@@ -3435,7 +3478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 82,
             port: port_,
           );
         },
@@ -3470,7 +3513,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 83,
             port: port_,
           );
         },

@@ -1020,6 +1020,7 @@ dependencies = [
  "gatc-cp",
  "gatc-decoupling",
  "gatc-mmp",
+ "gatc-types",
  "gatc-wbal",
  "serde",
  "serde_json",

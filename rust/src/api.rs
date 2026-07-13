@@ -816,6 +816,15 @@ fn readiness_assessment_fields(
         .unwrap_or(true);
 
     // HONEST-ABSENCE GUARD: no readiness yet → write nothing.
+    //
+    // The exact-equality compare is the CONTRACT, not a float smell: the
+    // engine's no-data branch returns a literal `score: 0.0` with
+    // `contributions: Vec::new()` (gatc-viterbi/src/lib.rs,
+    // `readiness_indicator` no-data guard, "defect D") — it is constructed,
+    // never computed, so no near-zero drift exists on this path. Any COMPUTED
+    // low score flows through the normal blend and carries contributions, so
+    // the conjunction below correctly writes it (genuine low readiness is real
+    // data). `-0.0 == 0.0` is true in IEEE-754, covering that edge too.
     if score_f == 0.0 && contributions_empty {
         return Ok(None);
     }
@@ -834,7 +843,9 @@ fn readiness_assessment_fields(
     })?;
 
     Ok(Some(AssessmentFields {
-        score: score_f as i32,
+        // Nearest-integer, not truncation: the blend is fractional f64 and the
+        // vault column is INTEGER; 72.6 must persist as 73, not 72.
+        score: score_f.round() as i32,
         level: level.to_string(),
         state: state.to_string(),
         confidence,
@@ -843,7 +854,7 @@ fn readiness_assessment_fields(
 
 /// `VaultEngine::write_assessment(...)` — the #3 readiness write-back (go-live).
 ///
-/// Persists the engine's CURRENT 4-axis readiness indicator (+ HMM fatigue state)
+/// Persists the engine's CURRENT 4-axis readiness indicator (+ Viterbi fatigue state)
 /// to `date`'s biometrics readiness columns, so the Journey charts read it back
 /// (`read_readiness_history`, filtered `WHERE readiness_score IS NOT NULL`).
 /// `write_assessment` is the SINGLE writer of those columns (#298), so this no
@@ -2967,16 +2978,35 @@ mod tests {
     #[test]
     fn write_back_extracts_real_values() {
         // A real indicator → the exact 4 fields, ready to write (score is the
-        // i32 of the f64 blend; level/state/confidence pass through verbatim).
-        let indicator = r#"{"score":72.0,"level":"green","contributions":[{"axis":"hmm","value":0.4}],"confidence":0.81}"#;
+        // NEAREST integer of the fractional f64 blend — 72.6 persists as 73,
+        // never truncated to 72; level/state/confidence pass through verbatim).
+        let indicator = r#"{"score":72.6,"level":"green","contributions":[{"axis":"hmm","value":0.4}],"confidence":0.81}"#;
         let readiness = r#"{"state":"Productive"}"#;
         let f = readiness_assessment_fields(indicator, readiness)
             .expect("parse")
             .expect("real data must produce fields to write");
-        assert_eq!(f.score, 72);
+        assert_eq!(f.score, 73, "fractional blend rounds to nearest, not toward zero");
         assert_eq!(f.level, "green");
         assert_eq!(f.state, "Productive");
         assert!((f.confidence - 0.81).abs() < 1e-9);
+    }
+
+    #[test]
+    fn write_back_rejects_non_finite_score_at_parse() {
+        // A non-finite score CANNOT cross this seam: serde_json's Number type
+        // has no NaN/inf representation, so `1e999` fails the parse itself
+        // (verified this session: Err("number out of range")) and a bare NaN
+        // token is invalid JSON. `score_f.round() as i32` therefore only ever
+        // sees finite values — no separate finite guard exists because it
+        // would be unreachable. This test pins the rejection so a future
+        // json-layer change that relaxes it fails loud here.
+        let indicator = r#"{"score":1e999,"level":"green","contributions":[{"axis":"hmm","value":0.4}],"confidence":0.81}"#;
+        let readiness = r#"{"state":"Productive"}"#;
+        let got = readiness_assessment_fields(indicator, readiness);
+        assert!(
+            got.is_err(),
+            "non-finite score must be rejected, never silently cast: {got:?}"
+        );
     }
 
     #[test]
