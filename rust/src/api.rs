@@ -821,7 +821,11 @@ fn readiness_assessment_fields(
     // engine's no-data branch returns a literal `score: 0.0` with
     // `contributions: Vec::new()` AND `confidence: 0.0` (gatc-viterbi/src/lib.rs,
     // `readiness_indicator` no-data guard, "defect D" — grep that phrase; line
-    // numbers rot). The whole result is constructed as literals, never
+    // numbers rot). This shape is pinned MECHANICALLY engine-side by the FFI
+    // seam test `readiness_indicator_seam_honest_absence_then_traces_to_source`
+    // (gatc-ffi) — an engine change that altered the no-data literal would fail
+    // that test before any pin bump could carry it here.
+    // The whole result is constructed as literals, never
     // computed, so no near-zero drift exists on this path; the no-data literal
     // is also the ONLY producer of an empty contributions array, so the
     // score+contributions conjunction is the full discriminator — confidence

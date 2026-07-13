@@ -16,6 +16,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mivalta_flutter/rust_engine.dart';
 import 'package:mivalta_flutter/services/health_ingest.dart';
 
+// Fake seam rationale (established repo pattern — advisor_history_wire_test,
+// benchmark_sync_test, benchmark_notify_test): the HANDLE fake may return null
+// because couriers never introspect the opaque handle, they only pass it; the
+// BINDING fake throws UnimplementedError on any unfaked method, so the moment
+// the code path under test grows a new engine call, the test fails loud at the
+// seam rather than silently stubbing to null.
 class _FakeHandle implements EnginesHandle {
   @override
   Object? noSuchMethod(Invocation invocation) => null;
