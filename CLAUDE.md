@@ -135,12 +135,21 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`a510184`**
-(rust-engine `main` after #398 — the benchmark-persist fix; engine_registry
-**v2.43** per `engine_registry.json` at that rev). The `rev = "a510184…"` line in
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`8f506da`**
+(rust-engine `main` after #408 — the G1 gate fix; engine_registry **v2.44**, 15
+engines, per `engine_registry.json` at that rev). The `rev = "8f506da…"` line in
 `rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
-the full re-pin history (`…63d8744 → 16dbf7d → 29c4b1b → a510184`); this section
-only summarizes. **#398** fixes the silent-loss persistence bug — a benchmark
+the full re-pin history (`…16dbf7d → 29c4b1b → a510184 → 8f506da`); this section
+only summarizes. **The 8f506da bump (PR-B)** carries #402 (Q5 frequency
+allocation), #404/#406 (LEVELS LAW + communication shape), #405/#408 (G1 safety
+red-test → gate honors `recovery_pool` `floor_exempt`; matrix G1 3456/3456 with
+emissions armed), #407 (review-gate none-parser); one absorbed signature delta
+(`get_zone_definitions` + `age` — not bound in the shim). FIVE new shim fns
+(`read_activities_in_range`, `metabolic_time_in_zone_rollup`,
+`import_encrypted_vault`, `hrv_trend`, `rhr_trend`) — FRB bindings regenerated
+IN the PR (host codegen, frb 2.12.0 / Flutter 3.44.0); their screens land in
+PR-C (transiently caller-less per the UI-rebuild note). Build executor owes
+`cargo update` + the **xcframework rebuild**. **#398** fixes the silent-loss persistence bug — a benchmark
 promotion was saved via `writeProfile(postprocessProfile())`, a bare
 `AthleteProfile` (no `athlete_id`) the `VaultProfile` writer serde-rejected, so
 an improved FTP/pace/power-profile never reached the vault and was lost on

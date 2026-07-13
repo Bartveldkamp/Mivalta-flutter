@@ -392,6 +392,57 @@ class RustEngineBinding {
   Future<String> readDailyLoads(EnginesHandle handle, {required int days}) =>
       rust_api.readDailyLoads(handle: handle, days: days);
 
+  /// `VaultEngine::read_activities_in_range` — every stored activity in the
+  /// closed `yyyy-MM-dd` window, pageable arbitrarily far back. Journey
+  /// history list ("open ANY past workout" — PR-B; screen lands in PR-C).
+  Future<String> readActivitiesInRange(
+    EnginesHandle handle, {
+    required String start,
+    required String end,
+  }) =>
+      rust_api.readActivitiesInRange(handle: handle, start: start, end: end);
+
+  /// `VaultEngine::metabolic_time_in_zone_rollup` — engine-summed
+  /// time-in-metabolic-level over the window (week/meso recall). The sum is
+  /// the ENGINE's; Dart displays (PR-B; screen lands in PR-C).
+  Future<String> metabolicTimeInZoneRollup(
+    EnginesHandle handle, {
+    required String start,
+    required String end,
+  }) =>
+      rust_api.metabolicTimeInZoneRollup(
+          handle: handle, start: start, end: end);
+
+  /// `VaultEngine::import_encrypted_vault` — restore a `.mvbackup` blob (the
+  /// V5 export's inverse). Engine owns decryption/validation/overwrite; wrong
+  /// passphrase fails loud, never a partial import (PR-B; restore UI in PR-C).
+  Future<String> importEncryptedVault(
+    EnginesHandle handle, {
+    required String athleteId,
+    required String passphrase,
+    required List<int> blob,
+    required bool overwrite,
+  }) =>
+      rust_api.importEncryptedVault(
+        handle: handle,
+        athleteId: athleteId,
+        passphrase: passphrase,
+        blob: blob,
+        overwrite: overwrite,
+      );
+
+  /// `ViterbiEngine::hrv_trend` — HRV trend over short/mid/long windows
+  /// (descriptive, honest-absent; engine bands DRAFT). Journey trend surface
+  /// (PR-B; screen lands in PR-C).
+  Future<String> hrvTrend(EnginesHandle handle) =>
+      rust_api.hrvTrend(handle: handle);
+
+  /// `ViterbiEngine::rhr_trend` — Resting-HR trend over short/mid/long windows
+  /// (descriptive, honest-absent; engine bands DRAFT). Journey trend surface
+  /// (PR-B; screen lands in PR-C).
+  Future<String> rhrTrend(EnginesHandle handle) =>
+      rust_api.rhrTrend(handle: handle);
+
   /// `VaultEngine::read_mmp_history` — rolling mean-maximal power curve JSON
   /// (`{"points":[...]}` or `null`). Monitor power-profile surface.
   Future<String> readMmpHistory(EnginesHandle handle) =>

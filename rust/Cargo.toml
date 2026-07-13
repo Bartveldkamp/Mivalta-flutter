@@ -189,10 +189,22 @@ flutter_rust_bridge = "=2.12.0"
 # adds ONE shim fn (merge_profile_benchmarks), so FRB-regen is REQUIRED (bindings
 # regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build executor owes
 # cargo update + xcframework rebuild.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a510184016567dae03d7452b011e0f8a90d5600f" }
+# Re-pinned a510184 -> 8f506da (main after #408, engine_registry v2.44 / 15
+# engines). PR-B of the Code-first finish line: the range carries #402 (Q5
+# largest-remainder frequency allocation), #404 (LEVELS LAW: level-vocabulary
+# render strings + levels-guard CI), #405/#408 (G1 safety: red-test reproducer,
+# then the gate honors recovery_policy:recovery_pool floor_exempt — matrix G1
+# 3456/3456 with emissions armed), #406 (communication-shape law), #407 (review
+# gate none-parser). One absorbed signature delta: get_zone_definitions gained
+# `age` — NOT bound in this shim, so no caller changes. This bump adds FIVE shim
+# fns (read_activities_in_range, metabolic_time_in_zone_rollup,
+# import_encrypted_vault, hrv_trend, rhr_trend) -> FRB-regen REQUIRED (bindings
+# regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build
+# executor owes cargo update + xcframework rebuild.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8f506dabc3e768a209d7d42a1864644a46a194c1" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "a510184016567dae03d7452b011e0f8a90d5600f" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "8f506dabc3e768a209d7d42a1864644a46a194c1" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

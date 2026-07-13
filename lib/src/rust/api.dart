@@ -83,6 +83,20 @@ Future<String> readinessIndicator({required EnginesHandle handle}) =>
 Future<String> stateAdvisory({required EnginesHandle handle}) =>
     RustLib.instance.api.crateApiStateAdvisory(handle: handle);
 
+/// `ViterbiEngine::hrv_trend()` — HRV trend over short/mid/long windows
+/// (descriptive direction + honest-absence; engine bands are DRAFT pending
+/// ratification). Drives the Journey HRV trend surface (PR-B). Pure
+/// pass-through.
+Future<String> hrvTrend({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiHrvTrend(handle: handle);
+
+/// `ViterbiEngine::rhr_trend()` — Resting-HR trend over short/mid/long windows
+/// (descriptive direction + honest-absence; engine bands are DRAFT pending
+/// ratification). Drives the Journey RHR trend surface (PR-B). Pure
+/// pass-through.
+Future<String> rhrTrend({required EnginesHandle handle}) =>
+    RustLib.instance.api.crateApiRhrTrend(handle: handle);
+
 /// `gatc_ffi::realize_advisor_line(viterbi, narrative, advisor, athlete_id, date)`
 /// — the deterministic Josi ADVISOR line (Brief #6 seam). The engine assembles
 /// the CommunicationPlan (viterbi) + Facts (narrative→vault) + AdvisorLines
@@ -392,6 +406,54 @@ Future<String> readDailyLoads({
   required EnginesHandle handle,
   required int days,
 }) => RustLib.instance.api.crateApiReadDailyLoads(handle: handle, days: days);
+
+/// `VaultEngine::read_activities_in_range(start, end)` — every stored activity
+/// in the closed date window (`yyyy-MM-dd`), JSON array, pageable arbitrarily
+/// far back. Drives the Journey history list ("open ANY past workout" — PR-B).
+/// Pure pass-through; the engine parses and validates the dates.
+Future<String> readActivitiesInRange({
+  required EnginesHandle handle,
+  required String start,
+  required String end,
+}) => RustLib.instance.api.crateApiReadActivitiesInRange(
+  handle: handle,
+  start: start,
+  end: end,
+);
+
+/// `VaultEngine::metabolic_time_in_zone_rollup(start, end)` — the per-window
+/// time-in-metabolic-level rollup (week/meso recall), summed by the ENGINE
+/// from stored per-workout atoms. JSON per the progression data-model
+/// contract. Drives the Journey energy-recall surface (PR-B). Pure
+/// pass-through — the sum happens engine-side, never in Dart (Law 2).
+Future<String> metabolicTimeInZoneRollup({
+  required EnginesHandle handle,
+  required String start,
+  required String end,
+}) => RustLib.instance.api.crateApiMetabolicTimeInZoneRollup(
+  handle: handle,
+  start: start,
+  end: end,
+);
+
+/// `VaultEngine::import_encrypted_vault(...)` — restore a `.mvbackup` blob
+/// (V5 encrypted export's inverse). The engine owns decryption, validation,
+/// and the overwrite decision; a wrong passphrase fails loud, never a partial
+/// import. Closes the export-without-import half-truth (PR-B). Pure
+/// pass-through.
+Future<String> importEncryptedVault({
+  required EnginesHandle handle,
+  required String athleteId,
+  required String passphrase,
+  required List<int> blob,
+  required bool overwrite,
+}) => RustLib.instance.api.crateApiImportEncryptedVault(
+  handle: handle,
+  athleteId: athleteId,
+  passphrase: passphrase,
+  blob: blob,
+  overwrite: overwrite,
+);
 
 /// `VaultEngine::read_mmp_history(athlete_id)` — the rolling mean-maximal power
 /// curve, JSON `{"points":[{"duration_seconds","max_power_watts"}...]}` or
