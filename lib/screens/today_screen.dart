@@ -54,7 +54,11 @@ import '../widgets/today/benchmark_notify_card.dart';
 const int kEveningThresholdHour = 19;
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({super.key});
+  const TodayScreen({super.key, this.now});
+
+  /// Injectable clock for testing. Defaults to [DateTime.now].
+  /// F2: allows widget tests to control the time for evening-swap assertions.
+  final DateTime Function()? now;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -83,7 +87,10 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
 
   /// BS-016 B3: Evening state — when true, the advisor slot shows day summary
   /// instead of workout suggestions. Rule: now >= 19:00 local.
-  bool get _isEvening => DateTime.now().hour >= kEveningThresholdHour;
+  /// F2: Uses injected clock if provided (for testing), otherwise DateTime.now.
+  /// NOTE: The spec also mentions "30 min after last ingest" — currently
+  /// unimplemented; tracked as explicit deviation in DR-026 report.
+  bool get _isEvening => (widget.now ?? DateTime.now)().hour >= kEveningThresholdHour;
 
   @override
   void initState() {

@@ -67,3 +67,35 @@ jobs:
             exit 1
           fi
           echo "Fabrication lint: OK"
+
+  # F5: Integration test — runs corridor_guard_test on macOS with iOS simulator.
+  # Root cause of #175 miss: a guard that never runs isn't a guard.
+  integration-test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Boot iOS simulator
+        run: |
+          # List available simulators and boot iPhone 15
+          xcrun simctl list devices available
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15" | head -1 | grep -oE '[A-F0-9-]{36}')
+          if [ -z "$DEVICE_ID" ]; then
+            # Fallback: create a new simulator
+            DEVICE_ID=$(xcrun simctl create "CI iPhone" "iPhone 15" "iOS17.5")
+          fi
+          xcrun simctl boot "$DEVICE_ID" || true
+          echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
+
+      - name: Run integration tests
+        run: flutter test integration_test/corridor_guard_test.dart --timeout 180s
