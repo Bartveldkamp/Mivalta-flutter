@@ -36,8 +36,9 @@ The full engine-side data flow lives in the rust-engine's
 
 ## What MiValta is
 
-> *Folded in 2026-06-20 from the former `docs/MIVALTA_OVERVIEW.md` (archived). A
-> single-page picture of what MiValta is, how it's built, and what exists today.*
+> *Folded in 2026-06-20 from the former `docs/MIVALTA_OVERVIEW.md` (since removed
+> in the 2026-07 docs cleanup). A single-page picture of what MiValta is, how it's
+> built, and what exists today.*
 
 **A privacy-first AI fitness coach that runs entirely on the device.** It ingests
 a user's biometrics (heart rate, HRV, sleep, etc.) and tells them how recovered
@@ -79,7 +80,7 @@ all surfaces open).
    │   mivalta-rust-engine   │ ◄──────────────────────────────────────┐
    │   (core IP — Rust)      │                                         │
    │                         │   • Viterbi monitor (readiness/fatigue) │
-   │   • 16 engines          │   • Advisor (A/B/C workouts)            │
+   │   • 15 engines          │   • Advisor (A/B/C workouts)            │
    │   • SQLCipher vault     │   • SQLCipher-encrypted on-device vault │
    │   • Health normalizers  │                                         │
    └─────────────────────────┘                                         │
@@ -149,24 +150,28 @@ outstanding work.
 
 ## Current milestone
 
-**MVP-1** — see `docs/MVP1_BUILD_BRIEF.md` for the full scope.
+**MVP-1** — the UI layer was stripped to a blank shell (#123) and is being rebuilt
+fresh. **Current wired screens: `splash_screen` → `today_screen`, plus the rebuilt
+`journey` and `you` screens** (PR-C). The pre-strip MVP scope brief is archived at
+`docs/archive/MVP1_BUILD_BRIEF.md` for provenance.
 
 - Engine DECIDES, Flutter DISPLAYS. No thresholds/math/fallback in Dart.
-- Default home: `ReadinessScreen` (three-zone PULL layout, dark-first).
+- Default home: `TodayScreen` (reached via `SplashScreen`; the pre-strip
+  `ReadinessScreen` was removed in #123).
 - Headline: `readiness_indicator()` — the 4-axis readiness blend.
 - Continuity: persisted ViterbiEngine state survives app restarts.
-- LLM layer: fully deferred to the grounded-Josi phase (PR-F). The V10.1
-  spike was purged (PR-J); the shipped build contains no native LLM stack.
+- LLM layer: none in the current build. The V10.1 spike was purged (PR-J); the
+  on-device messenger (model W) is deferred to the grounded-Josi phase.
 - No cloud round-trips; on-device only.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `3db58f2`
-(rust-engine `main`, engine_registry v2.24). The `rev = "..."` line in
-`rust/Cargo.toml` is the source of truth; see `CLAUDE.md` → "Engine pin" for the
-full re-pin history. This rev builds `gatc-vault`'s SQLCipher with **vendored
-OpenSSL** so the Android cross-compile resolves — the Flutter `smoke` CI job is
-green end-to-end on it.
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision `5849920`
+(rust-engine `main` after #411, engine_registry v2.44 / 15 engines). The
+`rev = "..."` line in `rust/Cargo.toml` is the source of truth; see `CLAUDE.md` →
+"Engine pin" for the full re-pin history. This rev builds `gatc-vault`'s SQLCipher
+with **vendored OpenSSL** so the Android cross-compile resolves — the Flutter
+`smoke` CI job is green end-to-end on it.
 
 ## Quick start (Hetzner / founder laptop)
 
@@ -245,13 +250,12 @@ Steps performed:
    which was purged in PR-J and is no longer part of the shipped build;
    those stale assertions in `smoke-build.yml` are pending removal.)
 
-## MVP-1 build sequence
+## MVP-1 status
 
-| PR | Scope |
-|---|---|
-| **PR-A** | Re-pin shim, regenerate FRB, bind no-LLM surface, wire continuity |
-| **PR-B** | Theme + three-zone home |
-| **PR-C** | Readiness detail (4 axes, trend, source tier, altitude/travel) |
-| **PR-D** | Advisor surface + SuggesterContext picker |
-| **PR-E** | Connectivity: BLE + Garmin + Polar transport |
-| **PR-F** | Grounded Josi + on-device LLM messenger (later step) |
+The original MVP-1 PR-A..F build sequence completed, then the UI layer was
+stripped to a blank shell (#123) and is being rebuilt fresh (#124…). Current
+wired screens are `splash_screen` → `today_screen`, plus the rebuilt `journey`
+and `you` screens. Several `rust_engine.dart` facade methods and `models/` files
+are intentionally retained for the rebuild and are transiently without a call
+site until their screen returns. The on-device LLM messenger (grounded Josi,
+model W) remains a later phase — no native LLM stack ships in the current build.

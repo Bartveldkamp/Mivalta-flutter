@@ -181,9 +181,8 @@ pattern-memory seams (`write`/`read_benchmark_history`).
 `write_benchmark_event`, `write_benchmark_history`, `read_benchmark_history`,
 `postprocess_profile`) — FRB bindings were regenerated IN the same PR (host
 codegen, frb 2.12.0 / Flutter 3.44.0, matching the drift-guard pins). The
-build executor owes `cargo update` + the **xcframework rebuild** — see
-`docs/mac/MAC_BRIEF_BENCHMARK_LOOP.md`. The Dart courier chain is
-`lib/services/benchmark_sync.dart` (canonical order: read history → ONE sync
+build executor owes `cargo update` + the **xcframework rebuild**. The Dart
+courier chain is `lib/services/benchmark_sync.dart` (canonical order: read history → ONE sync
 call → store history → on apply: persist the LIVE engine profile + re-bind +
 file the ledger event), called from the ingest post-workout path and the
 kDebugMode seeder witness.
