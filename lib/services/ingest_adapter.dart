@@ -25,12 +25,15 @@ import '../rust_engine.dart';
 /// Engine schema (VaultRawObservation):
 ///   date, timestamp, source, vendor, data_type, vendor_json
 /// `timestamp` is anchored to the date (noon UTC), matching the manual-entry
-/// anchoring logic in api.rs (FL-9). `vendor` = `source` (normalizer dispatch).
+/// anchoring logic in api.rs (FL-9). `vendor` is the normalizer dispatch key;
+/// it defaults to `source` and diverges only when the device-specific source
+/// id is NOT a dispatch token (BLE: source 'polar_h10', vendor 'ble_hr').
 String buildRawObservationJson({
   required String date,
   required String source,
   required String dataType,
   required String payload,
+  String? vendor,
 }) {
   // Anchor timestamp to noon UTC on the given date (FL-9 alignment)
   final parsed = DateTime.parse('${date}T12:00:00Z');
@@ -38,7 +41,7 @@ String buildRawObservationJson({
     'date': date,
     'timestamp': parsed.toUtc().toIso8601String(),
     'source': source,
-    'vendor': source, // same as source — the normalizer dispatch key
+    'vendor': vendor ?? source, // the normalizer dispatch key
     'data_type': dataType,
     'vendor_json': payload, // the raw vendor payload
   });
@@ -193,10 +196,16 @@ class IngestAdapter {
 
   /// Run the five-step vault-first ingest for ONE vendor observation.
   ///
-  /// [source] is the vendor id the engine normalizer dispatches on (e.g.
-  /// `apple`, `health_connect`, `polar`, `ble_hr`/`polar_h10`). [vendorJson] is
-  /// the raw vendor payload. [hasBiometrics] gates the biometric-row write (a
-  /// pure activity observation skips step 3 but still advances the HMM).
+  /// [source] is the observation's source id, stored on the raw row for audit
+  /// (device-specific for BLE, e.g. `polar_h10`). [vendor] is the engine
+  /// normalizer DISPATCH token; when null it defaults to [source]. The only
+  /// tokens the app ever dispatches are `apple`, `health_connect`, and
+  /// `ble_hr` (pinned by test/vendor_contract_test.dart) — a device-specific
+  /// id is NEVER a dispatch token (the engine rejects it: "Unknown vendor"),
+  /// it travels inside the payload, which ble.rs reads (ble.rs:44).
+  /// [vendorJson] is the raw vendor payload. [hasBiometrics] gates the
+  /// biometric-row write (a pure activity observation skips step 3 but still
+  /// advances the HMM).
   ///
   /// Throws if any engine step fails — the caller catches and counts the
   /// observation as skipped (fail loud, never silently drop — Law 6).
@@ -206,13 +215,19 @@ class IngestAdapter {
     required String vendorJson,
     required bool hasBiometrics,
     String dataType = 'biometric',
+    String? vendor,
   }) async {
+    // The normalizer dispatch token — defaults to the source id for sources
+    // whose id IS a dispatch token (apple / health_connect).
+    final dispatchVendor = vendor ?? source;
+
     // Step 1: persist the raw vendor payload BEFORE any processing.
     final rawObsJson = buildRawObservationJson(
       date: date,
       source: source,
       dataType: dataType,
       payload: vendorJson,
+      vendor: dispatchVendor,
     );
     final rawId = await binding.writeRawObservation(handle, json: rawObsJson);
 
@@ -220,7 +235,7 @@ class IngestAdapter {
     // sleep aggregation — all engine-side).
     final normalizedJson = await binding.normalizeObservation(
       handle,
-      vendor: source,
+      vendor: dispatchVendor,
       json: vendorJson,
     );
 

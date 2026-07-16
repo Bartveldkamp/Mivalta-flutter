@@ -44,6 +44,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../rust_engine.dart';
@@ -86,8 +87,10 @@ class DemoSeeder {
   static const String _assetPath = 'assets/debug/demo_season.json';
 
   /// Vendor key for the Apple HealthKit normalizer — identical to the iOS auto
-  /// sync (`HealthIngestService` uses `'apple'`).
-  static const String _vendor = 'apple';
+  /// sync (`HealthIngestService.appleVendor`). Test-visible so
+  /// test/vendor_contract_test.dart pins it into the app's dispatch set.
+  @visibleForTesting
+  static const String vendor = 'apple';
 
   Future<List<Map<String, dynamic>>> _loadSeason() =>
       (seasonLoader ?? _loadFromAsset)();
@@ -174,7 +177,7 @@ class DemoSeeder {
       date: dateStr,
       activityType: w['activity_type'] as String,
       durationMinutes: (w['duration_min'] as num).toDouble(),
-      source: _vendor,
+      source: vendor,
       start: start,
       avgHr: (w['avg_hr'] as num?)?.toInt(),
       maxHr: (w['max_hr'] as num?)?.toInt(),
@@ -213,7 +216,7 @@ class DemoSeeder {
       final wire = _toHealthKitJson(row, today);
       await adapter.ingestObservation(
         date: wire['date'] as String,
-        source: _vendor,
+        source: vendor,
         vendorJson: jsonEncode(wire),
         hasBiometrics: true,
       );
