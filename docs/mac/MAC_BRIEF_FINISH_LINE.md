@@ -56,6 +56,32 @@ be reported "OK" from memory; look at the running app.
 6. **Cold restart** — kill and relaunch: readiness and history survive
    (persisted Viterbi state restored, no re-onboarding).
 
+## Pre-witnessed headless (2026-07-16 final integration audit — read before the witnesses)
+
+The coding seat executed the WHOLE app life headless against the REAL engine
+(host-built FRB shim `libmivalta_rust_bridge.so`, pin 622f523, real SQLCipher
+vault on disk, the app's exact call order) and pumped the REAL screens via the
+BS-017 seam. Already witnessed in execution — the Mac does NOT need to
+re-prove these, only confirm them visually on hardware:
+
+- Onboarding inputs → engine-built profile → fresh construction → 12 ingest
+  days → readiness 84/Green with all four axes named — **and TodayScreen
+  rendered the 84 + state word from the live engine.**
+- An HR-streamed workout → **non-zero recorded load (67.9)** → TIZ receipt
+  `{"tiz":"stored"}` → metabolic rollup non-zero with every second classified.
+- AdvisorScreen rendered the engine's LEVELS-LAW coach sentence **verbatim**;
+  JourneyScreen rendered the real history row.
+- Restart continuity: `constructEnginesFromState` reproduced readiness
+  **bit-identically**; export→import round-tripped; wrong passphrase failed
+  loud with no partial import.
+- Three RenderFlex overflows that only real engine payloads trigger were
+  found and FIXED (advisor specs row, advisor zone-chip row, journey rollup
+  labels) — pinned by `test/overflow_regression_test.dart` at phone width.
+
+What remains below is ONLY what this environment structurally cannot witness:
+platform channels (HealthKit/Health Connect/BLE/WeatherKit), the iOS build
+chain, real-hardware rendering, and app-process lifecycle.
+
 ## LAST-INCH train witnesses (2026-07-16 — the trip waits on these)
 
 The fix train (engine #417/#418, Flutter #194/#195 + the T5 consumer) changed

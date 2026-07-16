@@ -582,7 +582,15 @@ class _JourneyScreenState extends State<JourneyScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(label, style: MivaltaType.small),
+                    // Real engine level labels ("Aerobic endurance") are long
+                    // for a half-width column — ellipsize the LABEL, never
+                    // the engine's minutes value.
+                    Expanded(
+                      child: Text(label,
+                          style: MivaltaType.small,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
                     Text('$minutes min',
                         style: MivaltaType.small
                             .copyWith(color: MivaltaColors.textSecondary)),
