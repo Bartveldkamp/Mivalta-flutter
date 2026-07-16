@@ -1,5 +1,7 @@
 # REVIEW-LOG — MiValta Flutter Design Review Ledger
 
+> Superseded BUILD-REPORTs + old witness shots live in [`_history/`](_history/README.md) (same subpaths). Live tree = specs + the active gate.
+
 **Owner:** Claude Code
 **Last updated:** 2026-07-04
 
