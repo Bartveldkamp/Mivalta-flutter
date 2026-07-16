@@ -87,15 +87,23 @@ jobs:
 
       - name: Boot iOS simulator
         run: |
-          # List available simulators and boot iPhone 15
+          # Pick the first AVAILABLE iPhone simulator on whatever macos-latest
+          # image we get. Device types + runtimes drift across runner-image
+          # updates: hardcoding "iPhone 15"/"iOS17.5" broke once the image moved
+          # to iPhone 17 / iOS 26 — the create-fallback then failed on the missing
+          # devicetype+runtime and the job aborted BEFORE the tests ran. This is
+          # version-agnostic; it fails loud only if the image truly has no iPhone.
           xcrun simctl list devices available
-          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15" | head -1 | grep -oE '[A-F0-9-]{36}')
+          DEVICE_ID=$(xcrun simctl list devices available \
+            | grep -E '[[:space:]]iPhone' \
+            | grep -oiE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' \
+            | head -1)
           if [ -z "$DEVICE_ID" ]; then
-            # Fallback: create a new simulator
-            DEVICE_ID=$(xcrun simctl create "CI iPhone" "iPhone 15" "iOS17.5")
+            echo "::error::No available iPhone simulator on this runner image"; exit 1
           fi
+          echo "Booting iPhone simulator $DEVICE_ID"
           xcrun simctl boot "$DEVICE_ID" || true
-          echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
 
       - name: Run integration tests
         run: flutter test integration_test/corridor_guard_test.dart --timeout 180s
