@@ -285,6 +285,18 @@ class HealthIngestService {
   final EnginesHandle handle;
   final Health _health;
 
+  /// The only two vendor tokens this service ever passes as the engine
+  /// normalizer's FFI dispatch argument (Source strings header above). Named
+  /// constants so test/vendor_contract_test.dart pins them into the app-wide
+  /// dispatch set alongside the BLE token.
+  static const String appleVendor = 'apple';
+  static const String healthConnectVendor = 'health_connect';
+
+  /// The running platform's dispatch token — the single expression both the
+  /// biometric loop and the workout ingest use (no per-call-site literals).
+  static String get platformVendor =>
+      Platform.isAndroid ? healthConnectVendor : appleVendor;
+
   /// Lexical max of two ISO `yyyy-MM-dd` date strings (ISO dates sort
   /// lexically). Pure — extracted so the #3 write-back's target-date selection
   /// is unit-testable without the platform health store.
@@ -481,8 +493,8 @@ class HealthIngestService {
 
         final (vendorJson, hasBiometrics) = result;
 
-        // Source string per platform
-        final source = Platform.isAndroid ? 'health_connect' : 'apple';
+        // Source string per platform (also the dispatch token for these two)
+        final source = platformVendor;
 
         try {
           // ================================================================
@@ -709,7 +721,7 @@ class HealthIngestService {
     // is the simpler producer (HR-quadratic / cal÷10 / duration-based), NOT the
     // full Banister TRIMP in gatc-viterbi load.rs. Upgrading the HR→load
     // fidelity to full TRIMP is a tracked engine-side Line-2 item.
-    final source = Platform.isAndroid ? 'health_connect' : 'apple';
+    final source = platformVendor;
     await ingest.IngestAdapter(binding: binding, handle: handle).ingestWorkout(
       activityId: activityId,
       date: _formatDate(workout.dateFrom),

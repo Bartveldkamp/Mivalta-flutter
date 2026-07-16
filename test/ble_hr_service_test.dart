@@ -2,9 +2,11 @@
 //
 // Proves the session packs decoded readings into the ble.rs vendor-JSON
 // contract, and that the service couriers a captured session through the shared
-// Task-0 IngestAdapter (normalize → process → mark) with the BLE source — no
-// fabricated values, empty sessions ingest nothing. Transport + FFI are faked
-// (headless); live pairing is device-lab verified.
+// Task-0 IngestAdapter (normalize → process → mark) with the FFI vendor arg
+// PINNED to 'ble_hr' (BleHrService.bleVendor) while the device-specific id
+// rides in the payload's `source` (ble.rs:44) — no fabricated values, empty
+// sessions ingest nothing. Transport + FFI are faked (headless); live pairing
+// is device-lab verified.
 
 import 'dart:async';
 import 'dart:convert';
@@ -21,13 +23,17 @@ class _FakeHandle implements EnginesHandle {
 }
 
 class _RecordingBinding implements RustEngineBinding {
+  String? rawJson;
   ({String vendor, String json})? normalizeArgs;
   String? processedJson;
   bool biometricWritten = false;
 
   @override
   Future<int> writeRawObservation(EnginesHandle handle,
-      {required String json}) async => 7;
+      {required String json}) async {
+    rawJson = json;
+    return 7;
+  }
 
   @override
   Future<String> normalizeObservation(EnginesHandle handle,
@@ -143,9 +149,20 @@ void main() {
       expect(result, isNotNull);
       expect(result!.hadBiometrics, isFalse); // workout obs, not a daily pillar
       expect(binding.biometricWritten, isFalse);
-      // Normalized via the BLE source, carrying the packaged readings.
-      expect(binding.normalizeArgs!.vendor, 'polar_h10');
-      expect(jsonDecode(binding.normalizeArgs!.json)['readings'], isNotEmpty);
+      // THE T3 VENDOR PIN: the FFI dispatch token is 'ble_hr' for EVERY
+      // BLE-recorded observation (the engine dispatcher, T2 contract, accepts
+      // "ble"|"ble_hr" — never a strap model id). The device-specific id
+      // stays inside the payload's `source`, which ble.rs reads (ble.rs:44).
+      expect(binding.normalizeArgs!.vendor, BleHrService.bleVendor);
+      final sentPayload =
+          jsonDecode(binding.normalizeArgs!.json) as Map<String, dynamic>;
+      expect(sentPayload['source'], 'polar_h10');
+      expect(sentPayload['readings'], isNotEmpty);
+      // The stored raw-observation envelope splits the same way: audit keeps
+      // the device id on `source`, the dispatch token on `vendor`.
+      final rawEnvelope = jsonDecode(binding.rawJson!) as Map<String, dynamic>;
+      expect(rawEnvelope['source'], 'polar_h10');
+      expect(rawEnvelope['vendor'], BleHrService.bleVendor);
       // Engine's normalized output is what gets processed (courier check).
       expect(binding.processedJson, 'NORMALIZED');
     });

@@ -105,6 +105,21 @@ void main() {
       expect(decoded['data_type'], 'biometric');
       expect(decoded['vendor_json'], '{"hrv":55}'); // raw vendor payload
     });
+
+    test('vendor override: dispatch token diverges from the stored source', () {
+      // The BLE split (T3/A5): audit keeps the device-specific id on `source`;
+      // `vendor` carries the normalizer dispatch token.
+      final out = buildRawObservationJson(
+        date: '2026-06-23',
+        source: 'polar_h10',
+        dataType: 'activity',
+        payload: '{"readings":[{"hr":60}]}',
+        vendor: 'ble_hr',
+      );
+      final decoded = jsonDecode(out) as Map<String, dynamic>;
+      expect(decoded['source'], 'polar_h10'); // device id, audit-preserved
+      expect(decoded['vendor'], 'ble_hr'); // the dispatch key
+    });
   });
 
   group('IngestAdapter.ingestObservation', () {
@@ -159,6 +174,28 @@ void main() {
       expect(binding.biometricJson, isNull);
       expect(result.mutated, isTrue);
       expect(result.hadBiometrics, isFalse);
+    });
+
+    test('vendor override dispatches the token; source keeps the device id',
+        () async {
+      final binding = _RecordingBinding();
+      await IngestAdapter(binding: binding, handle: _FakeHandle())
+          .ingestObservation(
+        date: '2026-06-23',
+        source: 'polar_h10',
+        vendor: 'ble_hr',
+        vendorJson: '{"source":"polar_h10","readings":[{"hr":60}]}',
+        hasBiometrics: false,
+        dataType: 'activity',
+      );
+
+      // The FFI dispatch arg is the TOKEN, never the strap model id (the
+      // engine dispatcher would reject it: "Unknown vendor: polar_h10").
+      expect(binding.normalizeArgs!.vendor, 'ble_hr');
+      // The stored envelope splits the same way.
+      final raw = jsonDecode(binding.rawJson!) as Map<String, dynamic>;
+      expect(raw['source'], 'polar_h10');
+      expect(raw['vendor'], 'ble_hr');
     });
   });
 
