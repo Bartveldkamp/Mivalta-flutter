@@ -13,7 +13,7 @@ or fallback in Dart.
 ```mermaid
 flowchart LR
   subgraph ENGINE["Rust engine — DECIDES"]
-    E["gatc-* crates<br/>physics · Viterbi (HMM) · plan · encrypted vault"]
+    E["gatc-* crates<br/>physics · Viterbi · plan · encrypted vault"]
   end
   subgraph APP["Flutter — DISPLAYS"]
     UI["screens · widgets"]

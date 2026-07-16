@@ -50,7 +50,7 @@ ingestion fills the vault. Journey ships honest-empty first.
 
 ## TIER 2 — small engine additions (data EXISTS, needs exposure/persistence)
 - **sRPE-vs-engine-EXPECTATION pattern**: engine computes `rpe_hr_drift_pct`
-  but does NOT persist it per session (HMM-input only). Fix: store it on
+  but does NOT persist it per session (Viterbi-input only). Fix: store it on
   VaultActivity (one column). Then the *disagreement* (not just reported RPE)
   trends. Small, high-value.
 - **Monotony/strain TREND series**: today point-in-time only
@@ -96,7 +96,7 @@ ingestion fills the vault. Journey ships honest-empty first.
   / illness-type / nutrition do NOT exist as observation fields, and there's NO
   per-day annotation vault table (only activity-scoped `user_note`). Capture-
   only tagging could ship as honest INERT notes earlier; making tags feed the
-  HMM = new input fields + new emissions = real engine work.
+  Viterbi = new input fields + new emissions = real engine work.
 
 ## Keep OFF Journey (design discipline, no code): GPS map as hero, social
 ## comparison, raw splits-as-default, achievements/streaks.
@@ -228,7 +228,7 @@ absence), never faked.
   new `get_state_history`; the Recovered→IllnessRisk ribbon over time.
 - **W′-balance trace + time-to-failure** — `WbalEngine`; per-session anaerobic
   depletion (cycling depth).
-- **HMM posteriors** — `get_posteriors`: probability across the 5 states (a
+- **State posteriors** — `get_posteriors`: probability across the 5 states (a
   power-user / "nerd mode" panel).
 
 ### 🔴 Not-stored (as before): steps, sleep stages, pace bests, per-day new-model z-scores.
@@ -251,7 +251,7 @@ Apple Health, Garmin…), NOT engine-derived. Verified path:
   in-sleep HR/HRV the source syncs) **directly from the platform health store
   for DISPLAY** — no engine change, no vault persistence needed for live view.
 - The engine KEEPS using its aggregated `sleep_hours` for readiness (unchanged,
-  HMM undisturbed). Two clean lanes: engine uses hours for the decision; Journey
+  Viterbi undisturbed). Two clean lanes: engine uses hours for the decision; Journey
   shows the vendor's rich view as-is.
 - Architecture note: this is the ONE Journey overview sourced from the health
   store rather than the engine vault — label it honestly ("from Apple Health /

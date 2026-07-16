@@ -74,7 +74,7 @@ Two design decisions you must build to (founder, 2026-06-11):
    `test/advisor_options_test.dart`.
 3. **Manual entry covers 4 fields** (RHR/HRV/sleep/RPE). Engine-supported
    optional inputs — mental-state VAS, sick flag, cycle day, wellness, body
-   temp — have no UI yet; the related HMM emissions run silent until supplied.
+   temp — have no UI yet; the related Viterbi emissions run silent until supplied.
 
 ## Build & test (quickstart)
 
