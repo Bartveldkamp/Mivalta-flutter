@@ -1,7 +1,19 @@
 // Corridor Guard Integration Test — BS-008 Wave 1 + BS-015 Journey
 //
 // Drives Splash → Auth → Onboarding (full intake) → Today → Journey.
-// This test is the CI corridor guard — any break in the flow fails the build.
+//
+// RUN LAYER: this is the MAC / iOS-SIMULATOR **final-acceptance** witness — it
+// boots the REAL app (`app.main()`), which lazily constructs the native Rust
+// engine (FRB `.so`/xcframework). It therefore requires a built app on a real
+// device/simulator and CANNOT run in cloud CI (no engine build; `ensureRustInit`
+// throws off-device). Per the Working Discipline layer split, the simulator is
+// final acceptance, never the inner loop — run this on the Mac sim-witness pass.
+//
+// The INNER-LOOP (cloud-CI) coverage of the flow's invariants lives in the
+// headless widget tests under `test/` (evening-swap, score-guard, etc.), which
+// run under `flutter test` on ubuntu with a fake `RustEngineBinding`. Guarding
+// the You-screen eyebrow headless needs a binding-injection seam on YouScreen
+// (it self-bootstraps the engine in initState today) — tracked as a follow-up.
 //
 // NOTE: Uses `pump()` with durations instead of `pumpAndSettle()` for screens
 // with infinite animations (splash breathe, auth breathe). `pumpAndSettle()`
@@ -18,6 +30,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mivalta_flutter/main.dart' as app;
 import 'package:mivalta_flutter/services/profile_service.dart';
+import 'package:mivalta_flutter/widgets/mivalta_bottom_nav.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -248,27 +261,32 @@ void main() {
         checkpoint('corridor_06_you');
 
         // Verify You screen elements
-        // W4 You page uses section eyebrows — "YOUR BODY" is unique to You
-        expect(find.text('YOUR BODY'), findsOneWidget);
+        // F3: You page section eyebrow is "WHO YOU ARE" (you_screen.dart:447)
+        expect(find.text('WHO YOU ARE'), findsOneWidget);
 
         // Verify bottom nav is present on all three tabs (W8 shared MivaltaBottomNav)
         expect(find.text('Today'), findsOneWidget);
         expect(find.text('Journey'), findsOneWidget);
-        // "You" appears in multiple places on You screen — just verify nav exists
-        expect(find.byType(BottomNavigationBar), findsOneWidget);
+        // F3: Use MivaltaBottomNav, not raw BottomNavigationBar
+        expect(find.byType(MivaltaBottomNav), findsOneWidget);
 
-        // W9: Assert model score never exceeds 100
-        // The readiness score (if displayed) should be ≤100
-        final scoreTexts = find.textContaining(RegExp(r'^\d{1,3}$'));
-        for (final element in scoreTexts.evaluate()) {
+        // F4: Score guard — assert no score exceeds 100.
+        // Scores render as "53%" (percentage format). Match both bare integers
+        // and percentage format to catch any score-like value.
+        final scorePattern = RegExp(r'(\d+)\s*%?');
+        final allText = find.byType(Text);
+        for (final element in allText.evaluate()) {
           final widget = element.widget;
           if (widget is Text) {
             final text = widget.data ?? '';
-            final match = RegExp(r'^(\d+)$').firstMatch(text);
+            // Check for percentage scores (e.g., "53%")
+            final match = scorePattern.firstMatch(text);
             if (match != null) {
               final score = int.tryParse(match.group(1)!);
-              if (score != null && score > 100) {
-                fail('Found score >100: $score');
+              // Only fail on values that look like percentage scores (≤3 digits)
+              // and exceed 100 — this catches "101%" but not timestamps "2026"
+              if (score != null && score > 100 && score < 1000) {
+                fail('Found score >100: $score in text "$text"');
               }
             }
           }
