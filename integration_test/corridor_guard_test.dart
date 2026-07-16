@@ -1,7 +1,19 @@
 // Corridor Guard Integration Test — BS-008 Wave 1 + BS-015 Journey
 //
 // Drives Splash → Auth → Onboarding (full intake) → Today → Journey.
-// This test is the CI corridor guard — any break in the flow fails the build.
+//
+// RUN LAYER: this is the MAC / iOS-SIMULATOR **final-acceptance** witness — it
+// boots the REAL app (`app.main()`), which lazily constructs the native Rust
+// engine (FRB `.so`/xcframework). It therefore requires a built app on a real
+// device/simulator and CANNOT run in cloud CI (no engine build; `ensureRustInit`
+// throws off-device). Per the Working Discipline layer split, the simulator is
+// final acceptance, never the inner loop — run this on the Mac sim-witness pass.
+//
+// The INNER-LOOP (cloud-CI) coverage of the flow's invariants lives in the
+// headless widget tests under `test/` (evening-swap, score-guard, etc.), which
+// run under `flutter test` on ubuntu with a fake `RustEngineBinding`. Guarding
+// the You-screen eyebrow headless needs a binding-injection seam on YouScreen
+// (it self-bootstraps the engine in initState today) — tracked as a follow-up.
 //
 // NOTE: Uses `pump()` with durations instead of `pumpAndSettle()` for screens
 // with infinite animations (splash breathe, auth breathe). `pumpAndSettle()`
