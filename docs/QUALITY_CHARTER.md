@@ -23,7 +23,7 @@ NEVER a stand-in. Honest absence always beats a plausible lie.
 
 CANONICAL VIOLATION (the reason this charter exists): a workout's training load
 was recorded as `value: durationMinutes` ("1 ULS per minute placeholder") and
-fed to the fatigue HMM — a fabricated load silently corrupting ACWR/monotony/
+fed to Viterbi — a fabricated load silently corrupting ACWR/monotony/
 fitness. It passed CI. CI green did not make it true. THIS is what we never do.
 
 ## THE LAWS (mechanical, non-negotiable)

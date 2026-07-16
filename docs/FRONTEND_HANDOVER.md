@@ -224,8 +224,8 @@ DecouplingEngine, PulseEngine) are not all bound in this frontend yet.
 
 Key payloads the frontend consumes:
 
-- **`readiness_indicator`** — the headline 4-axis readiness blend (HMM posteriors
-  + Banister + physio + psychological): `{score, level, confidence, …}`.
+- **`readiness_indicator`** — the headline 4-axis readiness blend (the Viterbi
+  state posterior + Banister + physio + psychological): `{score, level, confidence, …}`.
 - **Home zones** — the three home surfaces read the live engine's own accessors
   directly (readiness/state, today's session, ACWR/monotony/strain + alerts).
   (The former `get_*_widget` / `get_dashboard` composite was removed with the
@@ -275,7 +275,7 @@ binding and no UI.
 | Advisor A/B/C (no history) | `recommendWorkout` | **Bound, no UI** — superseded by the history variant in the screen |
 | Post-workout report | `completedWorkoutFacts` + `buildPostWorkoutReport` | **Wired** — AdvisorScreen card |
 | Manual biometric entry | `processManualObservation` | **Wired** — ManualEntryScreen (FAB) |
-| Vendor normalize → HMM | `normalizeObservation` + `processObservation` | **Partial** — wired via `health_ingest.dart` (Android Health auto-sync); per-vendor OAuth/BLE transport still to build out |
+| Vendor normalize → Viterbi | `normalizeObservation` + `processObservation` | **Partial** — wired via `health_ingest.dart` (Android Health auto-sync); per-vendor OAuth/BLE transport still to build out |
 | Data-sources overview | `buildSourceOverview` | **Wired** — SettingsScreen |
 | Classify a single source | `classifySource` | **Bound, no UI** |
 | Daily training load | `readDailyLoads` | **Wired** — detail + explore (load/strain card) |
@@ -309,7 +309,7 @@ production surface.
 
 ## 6. Continuity & state
 
-ViterbiEngine state must survive app restarts (the learned HMM, ceiling
+ViterbiEngine state must survive app restarts (the learned Viterbi state, ceiling
 intelligence, OutcomeTracker, etc.). The pattern, all driven from
 `ReadinessScreen._fetch()`:
 
@@ -383,7 +383,7 @@ In the **rust-engine** repo (<https://github.com/Bartveldkamp/mivalta-rust-engin
 - `docs/frontend/FRONTEND.md` — the client builder's guide (value dictionary + UI
   rules); `docs/frontend/DATA_CATALOG.md` — the signal→method inventory.
 - `docs/ARCHITECTURE.md` — engine architecture (the two engines: GATC + Viterbi).
-- `docs/VITERBI.md` — the fatigue-monitoring HMM and personalization/safety model.
+- `docs/VITERBI.md` — the Viterbi fatigue-monitoring + personalization/safety model.
 - `docs/engine/GATC.md` — the GATC planning engine (5-axis pipeline).
 - `docs/UI_UX_DIRECTION.md` — the canonical UI/UX direction (three-zone PULL,
   dark-first, calm/honest/agency).
