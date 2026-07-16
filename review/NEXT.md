@@ -1,52 +1,96 @@
 # NEXT — the one active gate
 
-## → ACTIVE: NIGHT BATCH 2026-07-06→7 (Bart asleep — STRICTLY SERIAL, top to
-bottom, don't stop to ask, NO merges)
-Standing rules: ALL work lands on ONE batch branch `feature/dr024-night-batch`
-(continue from the W8/W9 branch — merge policy: one PR per round, merges cost
-45 min) · push after EVERY gate · build-report line 1 = spec+SHA · blocked →
-write the blocker in the report, push, move ON · never claim a gate without a
-pushed SHA.
+## → ACTIVE: BS-017 — headless engine seam + test-tier policy
+Read `review/arch/BS-017-test-seam.md`. The decision the DR-026 CI burn
+exposed: make the display layer testable in the inner loop (headless CI, no
+native engine) as ONE pattern.
+SEAM = optional constructor injection with real default — the same idiom as
+DR-026's `DateTime Function()? now` clock seam and the binding/handle fields
+AdvisorScreen/WorkoutDetailScreen + all services already use. NOT a provider,
+NOT an `overrideForTest` global (Rule-9 smell). Seam the 7 self-bootstrapping
+screens (Today/You/Journey/Splash/SessionReveal/SensorCheck/Onboarding) with
+optional `binding`/`handle`; prod bootstraps as today, tests pump a
+`_RecordingBinding` fake headless.
+TIERS: renders engine JSON → Tier-1 headless widget test (ubuntu CI, fake
+engine). Requires real compute or device → Tier-3 Mac sim-witness (final
+acceptance, never inner loop). Full-app real-engine corridor STAYS out of
+cloud CI (DR-026 job stays removed); its invariants move DOWN to Tier-1.
+GOLDEN INVARIANTS → one headless test each: bottom-nav type · You eyebrows
+exact (the F3 contract) · no fabricated values + score clamp ≤100 (F4) ·
+Josi verbatim/honest-fallback/degraded==normal · evening swap · Journey day.
+DoD: staged refactor, prod path byte-identical (prove with one sim witness),
+invariants #1–#6 landed headless, PR open per stage — no merge without
+Design source-verify.
 
-### GATE 1 — W4: You page minimal restyle · spec: review/today/DR-024-beta-walk.md §W4
-Kill per-row leading icons · card titles → uppercase eyebrows
-(MivaltaType.label, textMuted) over flat row groups · hairline separators, one
-surface (no border-box per card) · rows 44px min, label left / value+chevron
-right · sovereignty banner stays the ONE colored moment · erase keeps red but
-drops box-in-box.
+## → CLOSED (fix round done @ a1e6afd, then CI job correctly reverted): DR-026 POST-MERGE AUDIT
+Read `review/today/DR-026-post-merge-audit.md`. Outcome: F1–F4 fixed on
+`fix/dr026-verify-layer` @ a1e6afd (corridor assert WHO YOU ARE + bottom-nav
+type ✓, score regex ✓, clock seam ✓, evening JosiCard tests ✓; last-ingest
++30min deviation logged). F5 (wire integration_test into CI) was tried and
+CORRECTLY REVERTED — cloud CI builds no engine, so the full-app corridor
+timed out at 30min. That burn produced BS-017 above: the corridor is now a
+Mac sim-witness, its invariants become headless Tier-1 tests. Superseded by
+BS-017; nothing further here.
 
-### GATE 2 — W5: per-screen customize · spec §W5
-`Icons.tune` 20px textSecondary, far right of the masthead action row on
-Today AND Journey (You gets none). Tap → bottom sheet "Make it yours ·
-<screen>": Show-weather toggle (W2 module, default OFF, manual-place picker
-first, honest subtitle) · Words/Numbers first · the screen's module list with
-show/hide switches persisted in SharedPreferences (registry pattern from
-`show_weather`). Reorder is post-beta — don't build it.
+(DR-025 was the pre-merge version of this and never reached the repo — the
+bridge was down. DR-026 supersedes it against actual main state.)
 
-### GATE 3 — BS-016 B1–B3: mount JosiCard on the remaining voice surfaces
-· spec: review/voice/BS-016-josi-voice.md §Build
-B1: reflection = Reveal position 2 (under session header, above TIZ) via
-`realize_workout_reflection`, replaces any composed line; same card on workout
-detail. B2: offer line ABOVE advisor options via `realize_advisory_offer`
-(delete static header); red-day = offer line + rest state (third state).
-B3: Today evening swap (≥19:00 local or last-ingest+30min, ONE named
-constant) with eyebrow CLOSING THE DAY; same line as Journey day record.
-DoD: widget tests incl. degraded==normal on each mount.
+## → DONE @ 6943738 (build gates ✓, verification gates → DR-025): DAY BATCH 2026-07-10 (STRICTLY SERIAL, top to bottom, NO merges)
+Standing rules: ALL work lands on ONE batch branch
+`feature/dr024-day-batch-0710` (cut from current origin/main — fetch first;
+local main was seen stale at dca5dd1) · push after
+EVERY gate · build-report line 1 = spec+SHA · blocked → write the blocker in
+the report, push, move ON · never claim a gate without a pushed SHA · every
+value token-named (`MivaltaType/Colors/Space/Radii.*`) — a raw `Colors.*` or
+magic number is a defect even if the render looks right.
 
-### GATE 4 — W9 witness prep + corridor extension
-Add You leg to corridor_guard_test (tab bar present — W8's shared
-MivaltaBottomNav asserted on all three tabs) · assert model-score text never
-contains a value >100 · run full analyze+test.
+### GATE 0 — round-3 paper trail (RESOLVED in part — finish it)
+Code reports `feat/dr024-walk-round3` was merged via **PR #168** (hence the
+404 on the branch ref). Remaining: delete the stale local branch · write the
+PR #168 merge SHA + the list of W-items it carried (W13/W14/W16–W20 — which
+of these actually landed?) into the batch build report. NOTE: that merge ran
+WITHOUT Design source-verify — Design will re-verify round-3 content on main
+in the next DR pass; the report's honest item list is what makes that
+possible.
 
-### GATE 5 — REPO-SYNC + housekeeping
-Mirror current Design files into repo `review/` (DR-024, WIRE-001, BETA-001,
-BS-001a/002a/002b, BS-016 — so specs are readable even when the bridge is
-down) · one-line summary per gate atop the batch build report · delete stale
-local branches · leave the batch branch pushed, PR OPEN but unmerged.
+### GATE 1 — BS-016 B3, Today half: evening swap · spec: review/voice/BS-016-josi-voice.md §Build S4
+Journey half already landed on main ✓ (`_buildDaySummaryCard`). Now Today:
+after the evening threshold — ≥19:00 local OR last-ingest+30min, ONE named
+constant shared by both checks — the Today Josi slot swaps to
+`JosiCard(realizeDaySummary)` with eyebrow **CLOSING THE DAY**
+(MivaltaType.label, textMuted). Same RealizedLine contract as the Journey
+day record — verbatim engine text, never composed in Dart. Engine failure ⇒
+honest absence (slot keeps its pre-evening content; no fabricated line).
+DoD: widget tests — before/after threshold swap, degraded==normal render,
+engine-failure absence. Screenshot the evening state if drivable
+(DemoSeeder + device clock); if not drivable, say so in the report — never
+fake the state.
 
-**Morning:** Design verifies the whole batch in source → Bart merges ONE PR →
-sim rebuild → walk continues (Advisor → Session/Reveal → Journey) + W6 vessel
-& W9 ~53% device witness.
+### GATE 2 — corridor_guard_test: You leg + score guard · DR-024 W8/W9 carry-over
+Create `test/corridor_guard_test.dart` (it does not exist — Design verified):
+fresh-corridor walk asserting the shared MivaltaBottomNav mounts on ALL
+three tabs (reuse mivalta_bottom_nav_test patterns, don't duplicate) · assert
+rendered model-score text never contains a value >100 (source may exceed —
+display must clamp; the you_screen clamp is the unit, this is the corridor
+tripwire) · run FULL `flutter analyze` + `flutter test`, paste the tails into
+the report.
+
+### GATE 3 — W15: splash privacy line token fix · spec: DR-024 §W15
+`_buildPrivacyLine`: replace generic `Icons.lock` 13px with 14px
+`assets/mivalta-logo.svg` · raw TextStyle fontSize 11 → `MivaltaType.small`
++ `textMuted` (11 is below the 12 floor and off-token). Copy unchanged
+("Computed on your phone · never on a server"). Tiny — no own PR.
+
+### GATE 4 — batch report + close
+`review/today/BUILD-REPORT-day-batch-0710.md`: line 1 = spec+SHA · one-line
+summary per gate (incl. Gate 0's paper trail) · analyze+test tails · mirror
+the fresh design-project `review/NEXT.md` + DR-024 into repo `review/`
+(the stale mirror caused today's wrong-batch read) · list
+any undriveable screenshot state honestly. Leave the batch branch pushed,
+PR OPEN but unmerged — nothing merges without Design source-verify.
+
+**Then:** Design verifies in source → Bart merges ONE PR → sim rebuild →
+the round-2 walk rulings (W16–W20 in DR-024) become the next batch.
 
 **Governing plan: `review/_system/BETA-001-roadmap.md` (P1→P5 to TestFlight).**
 Current phase: **P2 — beta walk running.** Rolling review:
@@ -110,6 +154,11 @@ regen lands (BS-016 D1–D9 are the contract).
 ---
 
 ## Done log (details live in the DR/BS files + REVIEW-LOG.md)
+- **2026-07-06→7 night batch (PR #165 @ c85a314, merged; re-verified on main
+  @ 75dbd15):** W4 You restyle ✓ · W5 customize sheet + round-2 fixes ✓ ·
+  BS-016 B1 reveal + B2 advisor offer ✓ · B3 Journey half ✓ (landed post-#165)
+  · repo-sync ✓. Carried open → day batch 0710: B3 Today evening swap ·
+  corridor You leg · round-3 branch accountability.
 - **2026-07-06:** merge window 2 (post-merge-stitch · bs017-backup-sovereignty
   · bs016-josi-voice prep) — verified on main @ bf8c2cf. DR-022 closed @
   8bf7ea2 (3 rounds). DR-021 closed (N1 locked vocab, N2 engine-verbatim,
