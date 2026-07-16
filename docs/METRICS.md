@@ -2,7 +2,7 @@
 
 How we measure the business **without** surveilling the user inside the app.
 Companion to [`TIERS.md`](TIERS.md) (which folded in the former
-`DISTRIBUTION_AND_TIERS.md` — distribution, PAD, entitlement, privacy boundary).
+the former `DISTRIBUTION_AND_TIERS.md`, since removed — distribution, PAD, entitlement, privacy boundary).
 
 > **Principle:** "No harvesting" does **not** mean "no metrics." It means our
 > numbers come from the **app stores**, our **own billing**, and our **own

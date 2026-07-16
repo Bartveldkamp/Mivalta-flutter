@@ -257,7 +257,7 @@ lead-A** restyle, and the **manual-entry optional inputs** (sick flag etc.).
 
 ## 6. Platform surfaces — iOS & Android (ambient / post-MVP)
 
-> *Folded in 2026-06-20 from the former `UI_UX_DESIGN_IOS_ANDROID.md` (archived).
+> *Folded in 2026-06-20 from the former `UI_UX_DESIGN_IOS_ANDROID.md` (since removed).
 > This is the **platform** layer — how the calm-PULL, ambient-first design is built
 > on each OS, and which parts are one shared Flutter codebase vs. a small native
 > surface. Reconciles to `UI_UX_DIRECTION.md` §17 (rust-engine, v1.5 — "Material &
@@ -282,8 +282,8 @@ platform-specific; everything else is shared.
 `[LOCKED]` palette**. Okapion anchors `[DIRECTION — not locked]` (direction
 §5.1): tertiary teal `rgba(32,183,186,0.38)`, yellow `#FFCE2E` are brand-direction
 references, not locked tokens. ⚠️ **Primary green `#1DBF60` and glass focus teal
-`#007166` are explicitly REJECTED for beta** (old Okapion token set — see
-`briefs/NEXT_BUILD_BRIEF.md §F`, the canonical record; use ours, do not hardcode them).
+`#007166` are explicitly REJECTED for beta** (old Okapion token set; use
+ours, do not hardcode them).
 Never hardcode hex in widgets — use the token; if a needed semantic colour is
 missing, surface it, don't invent one.
 

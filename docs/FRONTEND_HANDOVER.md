@@ -1,11 +1,16 @@
 # FRONTEND_HANDOVER.md — MiValta Flutter
 
-> **Developer handover, not a spec.** Read this first if you are new to this repo.
-> It describes the code as it actually is on this branch (verified against source,
-> not the build briefs). For the canonical product destination see the rust-engine
-> docs linked in the last section. Where this doc and `CLAUDE.md`/`README.md`
-> disagree, the disagreements are called out explicitly in §10 — trust the source,
-> not the older prose.
+> **Canonical FE↔engine reference** (supersedes the archived
+> `ENGINE_SURFACE_AND_FRONTEND_MAP.md` + `FRONTEND_FLOW_AND_STORIES.md`).
+> Read this first if you are new to this repo.
+>
+> **Current state (2026-07-15):** engine pin `rev 5849920` (registry **v2.44,
+> 15 engines**). The UI was stripped to a shell (#123) and is being **rebuilt**;
+> the wired screens today are `splash → today` plus the rebuilt `journey` / `you`
+> and the `session_*` flow (see the real `lib/screens/` list in §2). The durable
+> parts of this doc — the FRB call chain (§3), continuity (§6), tokens (§7),
+> build (§8) — hold; §4–§5 are being re-verified against the rebuilt screens.
+> Where this doc and `CLAUDE.md`/`README.md` disagree, trust source + `CLAUDE.md`.
 
 ---
 
@@ -25,7 +30,7 @@ fallback logic in Dart**. When the engine has no answer, the UI shows the
 engine's own "honest empty" signal (e.g. the locked F1 no-data copy), never a
 fabricated value.
 
-**Current milestone — MVP-1** (`docs/MVP1_BUILD_BRIEF.md`). Scope: **Monitor +
+**Current milestone — MVP-1** (scope below; the old `MVP1_BUILD_BRIEF` is archived — it predates the #123 rebuild). Scope: **Monitor +
 Advisory (workout suggestions only) + multi-vendor data ingest**, dark-first,
 three-zone PULL home. The conversational AI / on-device LLM ("model W") is
 **deferred to a later phase** and is not present in the production UI on this
@@ -43,9 +48,10 @@ MVP-1.
    Partial `#E6872F`, Manual `#878C8C`. Use the token; never hardcode hex.
 5. **F1 no-data copy is LOCKED verbatim:** "We need more data to predict
    recovery." Do not paraphrase or soften.
-6. **No cloud round-trips in the LLM path.** On-device only. The only network I/O
-   is pulling the user's own wearable data and (deferred phase) a first-launch
-   model download.
+6. **No cloud round-trips.** On-device only. (No LLM/model-download path exists —
+   the on-device LLM spike was purged in PR-J; the messenger ships later via Play Asset
+   Delivery. The one sanctioned network call is the OS-level Apple WeatherKit
+   channel.)
 7. **No dead code.** Every new public Dart symbol has a production call site
    within one PR.
 8. **New behaviour needs a test** with a concrete-value assertion (`flutter test`
@@ -58,7 +64,7 @@ MVP-1.
 ```
 Mivalta-flutter/
 ├── lib/                      # Dart source
-│   ├── main.dart             # Entry point → first-launch check → ReadinessScreen
+│   ├── main.dart             # Entry point → SplashScreen → TodayScreen
 │   ├── rust_engine.dart      # Dart facade over the FRB bindings (the API you call)
 │   ├── canonical_seed.dart   # A canonical seed profile (debug/test scaffolding)
 │   ├── copy/f1.dart          # LOCKED F1 no-data copy string
@@ -93,16 +99,25 @@ Mivalta-flutter/
 
 ### Screens (actual files in `lib/screens/`)
 
+The rebuilt set actually present in `lib/screens/` today (post-#123):
+
 | Screen | Role |
 |---|---|
-| `readiness_screen.dart` | **Default home.** Three-zone PULL layout (State / Today / Context). AppBar routes to Explore, health sync, Settings, and (debug) the swatch exerciser. FAB opens manual entry. |
-| `readiness_detail_screen.dart` | Deep-dive: axis breakdown, trend, coach note, source+confidence, plus the analytics surfaces (load, sleep, MMP/CP, workout detail, decoupling, fitness trend). |
-| `advisor_screen.dart` | A/B/C workout options + mood/equipment/terrain picker, and the post-workout report card when a recent activity exists. |
-| `explore_screen.dart` | On-request "dig in": biometrics by metric/range + recent workouts (tap for detail) + load/strain rollup. |
-| `manual_entry_screen.dart` | Form to log daily biometrics (RHR/HRV/sleep/RPE) → process observation → persist. |
-| `onboarding_screen.dart` | First-launch wizard collecting RAW profile inputs; the engine completes them into a full `AthleteProfile`. |
-| `settings_screen.dart` | Profile view/edit, data-sources overview, encrypted export, biometrics CSV export, full crypto-erase. |
-| `debug_swatch_exerciser.dart` | `kDebugMode`-only SourceTier/time-in-zone hardware-verification harness (opened from the home AppBar bug-report button). |
+| `splash_screen.dart` | Launch → continuity check → routes to onboarding or `TodayScreen`. |
+| `today_screen.dart` | **Default home.** Glow-hero readiness + Josi line + decision chip + module cards; pull-to-refresh sync. |
+| `onboarding_screen.dart` | First-launch intake collecting RAW profile inputs; the engine completes them into a full `AthleteProfile`. |
+| `auth_screen.dart` | Sovereignty/auth entry ("Your body. Your data."). |
+| `journey_screen.dart` | History list, trained-time-by-level, recovery/sleep trends. |
+| `you_screen.dart` | Profile, data-source provenance, vault restore/export, units, crypto-erase. |
+| `advisor_screen.dart` | A/B/C workout options + mood/equipment/terrain picker; renders the engine-composed coach sentence verbatim. |
+| `session_start_screen.dart` / `session_live_screen.dart` / `session_reveal_screen.dart` | The live-session flow (start → record → reveal). |
+| `workout_detail_screen.dart` | Stored activity detail (opened from history). |
+| `sensor_check_screen.dart` | BLE/sensor verification. |
+
+> The pre-#123 set (`readiness_screen`, `readiness_detail`, `explore`,
+> `manual_entry`, `settings`, `debug_swatch_exerciser`) is gone; its
+> responsibilities were folded into `today`/`journey`/`you`. The kDebugMode
+> helper that exists is `lib/debug/demo_seeder.dart` (not a screen).
 
 ### Facade methods (`lib/rust_engine.dart` → `RustEngineBinding`)
 
@@ -118,8 +133,9 @@ Viterbi / readiness: `readinessScore`, `readinessIndicator`, `viterbiFatigueStat
 Advisor: `recommendWorkout`, `recommendWorkoutWithHistory`,
 `completedWorkoutFacts`, `buildPostWorkoutReport`.
 
-Dashboard widgets: `getDashboard`, `getStateWidget`, `getSessionWidget`,
-`getContextWidget`.
+(The `getDashboard` / `get*Widget` facade group was **removed** with the
+DashboardEngine deletion — Rule 9, one engine of record. The three home zones now
+read the live engine's own accessors directly.)
 
 Vault / analytics: `vaultSnapshot`, `lastObservationSourceTier`,
 `readReadinessHistory`, `readDailyLoads`, `readMmpHistory`, `fitCp`,
@@ -168,13 +184,11 @@ Widget (lib/screens/*)
 - **The engine pin.** `rust/Cargo.toml` pins `gatc-ffi` (and `gatc-viterbi`, for
   the `UniversalObservation` type used by `process_manual_observation`) to a
   specific `mivalta-rust-engine` git revision over SSH (private repo; CI uses the
-  `RUST_ENGINE_DEPLOY_KEY` deploy key). The pin is **`79b7c93`** (the
+  `RUST_ENGINE_DEPLOY_KEY` deploy key). The pin is **`5849920`** (the
   authoritative `rev =` line in `rust/Cargo.toml`; see `CLAUDE.md` → "Engine pin"
-  for provenance), and the rust-engine `engine_registry.json` at that point is
-  **v2.24**. A bump to current rust-engine `main` (`73e17b1` — A3 recarve + Task C
-  dedup) is pending and **Mac-gated** (`.so`/xcframework rebuild + `Cargo.lock`
-  refresh). Local-dev can override the SSH pin with a path patch in
-  `.cargo/config.toml` (see `README.md`).
+  for the full re-pin history), and the rust-engine `engine_registry.json` at
+  that point is **v2.44 (15 engines)**. Local-dev can override the SSH pin with a
+  path patch in `.cargo/config.toml` (see `README.md`).
 
 ### Adding a new engine method end-to-end
 
@@ -199,20 +213,23 @@ proposed change** before editing `rust/src/api.rs` or `lib/rust_engine.dart`.
 
 ## 4. What the engine provides today
 
-The shim bundles **7 of the 16 rust-engine FFI engines** into `EnginesHandle`:
-`ViterbiEngine`, `AdvisorEngine`, `VaultEngine`, `DashboardEngine`,
-`NormalizerEngine`, `CpEngine`, `PostProcessEngine`. (The rust-engine also exposes
-TablesEngine, PlanEngine, ChatEngine, GuardrailsEngine, ReplanEngine, MmpEngine,
-WbalEngine, DecouplingEngine — none are bound in this frontend on this branch.)
+The rust-engine exposes **15 FFI engines** (registry v2.44). The shim binds the
+subset the UI needs into `EnginesHandle`: `ViterbiEngine`, `AdvisorEngine`,
+`VaultEngine`, `NormalizerEngine`, `CpEngine`, `PostProcessEngine` (plus the
+producer/analytics engines it reaches for charts). **`DashboardEngine` and
+`ChatEngine` no longer exist** — DashboardEngine was deleted (Rule 9, one engine
+of record; #356) and the chat product was removed (#358). The remaining engines
+(TablesEngine, PlanEngine, GuardrailsEngine, ReplanEngine, MmpEngine, WbalEngine,
+DecouplingEngine, PulseEngine) are not all bound in this frontend yet.
 
 Key payloads the frontend consumes:
 
 - **`readiness_indicator`** — the headline 4-axis readiness blend (HMM posteriors
   + Banister + physio + psychological): `{score, level, confidence, …}`.
-- **Dashboard widgets** — `get_state_widget` / `get_session_widget` /
-  `get_context_widget` drive the three home zones (state recommendation,
-  today's session, ACWR/monotony/strain + alerts). `get_dashboard` is the
-  composite version.
+- **Home zones** — the three home surfaces read the live engine's own accessors
+  directly (readiness/state, today's session, ACWR/monotony/strain + alerts).
+  (The former `get_*_widget` / `get_dashboard` composite was removed with the
+  DashboardEngine deletion — no second-engine assembler.)
 - **Advisor A/B/C** — `recommend_workout` / `recommend_workout_with_history`
   return three equal-weight options (no ranking; the athlete chooses).
 - **Analytics** — `read_readiness_history`, `read_daily_loads`,
@@ -231,6 +248,13 @@ Key payloads the frontend consumes:
 ---
 
 ## 5. What is wired vs. what still needs building (gap analysis)
+
+> **Scope note (2026-07-15):** the table below was authored against the pre-#123
+> screen set (ReadinessScreen zones, dashboard widgets). The *engine capabilities*
+> and *facade methods* it lists are still real, but the "Flutter status" column
+> maps to screens that were folded into `today`/`journey`/`you` during the
+> rebuild — treat status as directional pending a row-by-row re-verification.
+> The dashboard-widget rows are obsolete (that engine is deleted).
 
 Status legend: **Wired** = bound in the shim **and** displayed in a production
 screen. **Partial** = bound + displayed but with caveats. **Bound, no UI** =
@@ -356,8 +380,8 @@ In the **rust-engine** repo (<https://github.com/Bartveldkamp/mivalta-rust-engin
 
 - `docs/frontend/FFI_API_CONTRACT.md` — **the** source of truth for FFI method
   signatures and JSON schemas. Start here for any payload question.
-- `docs/frontend/FRONTEND_API_GUIDE.md`, `docs/frontend/FRONTEND_TIERS.md` — the
-  frontend-facing API guide and tier model.
+- `docs/frontend/FRONTEND.md` — the client builder's guide (value dictionary + UI
+  rules); `docs/frontend/DATA_CATALOG.md` — the signal→method inventory.
 - `docs/ARCHITECTURE.md` — engine architecture (the two engines: GATC + Viterbi).
 - `docs/VITERBI.md` — the fatigue-monitoring HMM and personalization/safety model.
 - `docs/engine/GATC.md` — the GATC planning engine (5-axis pipeline).
@@ -366,11 +390,12 @@ In the **rust-engine** repo (<https://github.com/Bartveldkamp/mivalta-rust-engin
 - `docs/MIVALTA_FINAL_SPEC.md` — the canonical product spec ("honest, not
   omniscient").
 
-In **this** repo's `docs/`: `MVP1_BUILD_BRIEF.md` (current milestone), `TIERS.md`
-(tier model — now incl. the folded distribution/PAD/entitlement content),
-`FRONTEND_FLOW_AND_STORIES.md`, `DESIGN_BUILD_SPEC.md` (platform design §7, folded
-in the former `UI_UX_DESIGN_IOS_ANDROID.md`), `METRICS.md`, `mac/IOS_BRINGUP_BRIEF.md`,
-`mac/MAC_BRIEF_BETA_BATCH.md`, `RELEASE_CHECKLIST.md`.
+In **this** repo's `docs/`: `READING_ORDER.md` (start-here), `TIERS.md`
+(tier model — incl. the folded distribution/PAD/entitlement content),
+`DESIGN_BUILD_SPEC.md` (screen-by-screen + platform design §7), `METRICS.md`,
+`RELEASE_CHECKLIST.md`, and `briefs/SIMULATOR_DEMO_DATA.md` (the demo seeder).
+(Spent Mac/ops build briefs and the superseded flow/surface maps were removed or
+moved to `archive/` in the 2026-07-15 docs cleanup — see `ARCHIVE_INDEX.md`.)
 
 ---
 
@@ -380,11 +405,11 @@ Writing this handover surfaced stale prose in the repo's older docs. The
 `CLAUDE.md` / `README.md` items below were **fixed on this branch** (commit
 `58d9256`); the rest remain open and are flagged so a new dev isn't misled:
 
-- **Engine pin (fixed).** `rust/Cargo.toml` pins `gatc-ffi`/`gatc-viterbi` to
-  **`b603b5e`** (registry **v2.24**). `CLAUDE.md` and `README.md` previously
-  named two different older revs; both now state the real pin. The Cargo.toml's
-  own comment header still narrates an earlier re-pin — **the `rev =` line is
-  authoritative**.
+- **Engine pin.** `rust/Cargo.toml` pins `gatc-ffi`/`gatc-viterbi` to
+  **`5849920`** (registry **v2.44, 15 engines**). The Cargo.toml comment header
+  narrates the full re-pin history — **the `rev =` line is authoritative**.
+  (This §10 is a historical drift log from an earlier pass; the pin/screen facts
+  above in §2–§4 are the current ones.)
 - **Purged legacy LLM spike (fixed).** Older prose listed a `kDebugMode`-only
   LLM spike screen as a key entry point. That spike was purged (PR-J, enforced
   by `.github/workflows/lineage-guard.yml`); `main.dart` routes only to

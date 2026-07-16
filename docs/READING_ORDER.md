@@ -38,7 +38,7 @@ Two design decisions you must build to (founder, 2026-06-11):
 | # | Read | Why | Where |
 |---|---|---|---|
 | 1 | **`FRONTEND_HANDOVER.md`** (this repo) | The repo tour: structure, the Dart↔Rust path, what's wired vs. not-built, build/test. Your map. | `docs/` here |
-| 2 | **`MVP1_BUILD_BRIEF.md`** (this repo) | The exact MVP scope + screens to build. | `docs/` here |
+| 2 | **`DESIGN_BUILD_SPEC.md`** (this repo) | Screen-by-screen design spec + north star. (The old `MVP1_BUILD_BRIEF` is archived — it predates the #123 UI rebuild.) | `docs/` here |
 | 3 | **Engine FFI contract** | Every engine method, its JSON shape, and errors — the authoritative API surface. **If any doc disagrees with this, this wins.** | rust-engine `docs/frontend/FFI_API_CONTRACT.md` |
 | 4 | **The client builder's guide** | Plain-English meaning of every value the athlete sees + how to render it; the UI rules. | rust-engine `docs/frontend/FRONTEND.md` |
 | 5 | **UI/UX direction** | The design language, tone, three-zone home, locked tokens. Read §0–§16 as MVP; **Section 17 is a forward-looking "north star," not the MVP build.** | rust-engine `docs/UI_UX_DIRECTION.md` (v1.6) |
@@ -63,13 +63,11 @@ Two design decisions you must build to (founder, 2026-06-11):
 
 ## Known gaps to be aware of
 
-1. **Workout ingestion is not wired yet (the big one).** No completed workout is
-   ever written to the vault (`write_activity` is not in the shim). The workout
-   *display* side IS wired — post-workout report, history-aware advisor
-   rotation, MMP/CP charts — but it reads from a table nothing fills, so those
-   features show empty until this lands. The executable fix is
-   `mac/MAC_BRIEF_WORKOUT_INGEST.md`. Don't debug "report never appears" — it's
-   this.
+1. **Workout ingestion is wired (D1).** Completed workouts flow through the
+   ingest layer into the vault, and the display side (post-workout report,
+   history-aware advisor rotation, MMP/CP charts) reads real data. Remaining
+   input gaps are narrower — see #3 (manual-entry coverage) and the demo seeder's
+   vault-write scope note in `briefs/SIMULATOR_DEMO_DATA.md`.
 2. ~~Advisor screen still equal-weight~~ **RESOLVED (2026-06-12):**
    `AdvisorOptionsList` now leads with A ("Recommended for today"), offers C
    as "or take it easy", and tucks B behind "More options" — pinned by
@@ -104,8 +102,7 @@ sufficient** — analyze must be clean too.
 The persona doors above are all at `docs/` top level. The rest is grouped so
 `ls docs/` is navigable, not a wall — nothing hidden, nothing archived here:
 
-- **`docs/mac/`** — Mac/iOS executor briefs (`MAC_BRIEF_BETA_BATCH`,
-  `MAC_BRIEF_WORKOUT_INGEST`, `IOS_BRINGUP_BRIEF`, the N1-beta + daily-notification briefs).
-- **`docs/briefs/`** — engine/feature briefs & plans (`ENGINE_BRIEF_WORKOUT_LOAD`,
-  `NEXT_BUILD_BRIEF`, `HOME_REDESIGN_BRIEF`, `SIMULATOR_DEMO_DATA`, founder-feedback log).
+- **`docs/briefs/`** — the one live dev doc: `SIMULATOR_DEMO_DATA.md` (the
+  kDebugMode demo seeder). (Spent one-time Mac/ops build briefs were removed in
+  the 2026-07-15 docs cleanup; provenance briefs moved to `archive/`.)
 - **`docs/archive/`** — superseded/shipped, indexed in [`ARCHIVE_INDEX.md`](ARCHIVE_INDEX.md).
