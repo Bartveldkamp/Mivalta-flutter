@@ -22,6 +22,29 @@ import '../theme/tokens.dart';
 import '../theme/zone_names.dart';
 import 'today_screen.dart';
 
+/// Build the `compute_time_in_zone` activity wire JSON for a completed session.
+///
+/// Wire contract — engine `ActivityWire`, gatc-ffi/src/lib.rs:4553-4567
+/// (pinned by test/activity_wire_contract_test.dart):
+///   * `completed_at` deserializes as chrono `DateTime<Utc>`: a LOCAL ISO
+///     string without the trailing `Z` fails the engine parse ("premature end
+///     of input"), so the timestamp MUST be `.toUtc()` before encoding.
+///   * `power_samples` is serde-REQUIRED (no `#[serde(default)]`): recorded
+///     watts are couriered verbatim when the session captured them (real data
+///     beats parity); otherwise the honest empty list — absence is an empty
+///     stream, never an omitted field that fails the whole wire.
+///   * `hr_samples` / `sample_rate_hz` are optional/defaulted engine-side.
+///
+/// Pure courier (Law 2): no math, only the recorder's samples re-encoded.
+String buildRevealActivityJson(CompletedSession session) {
+  return jsonEncode({
+    'completed_at': session.endTime.toUtc().toIso8601String(),
+    'power_samples': session.powerSamples ?? const <double>[],
+    if (session.hrSamples != null) 'hr_samples': session.hrSamples,
+    'sample_rate_hz': 1,
+  });
+}
+
 /// Post-workout reveal — shows what the session did.
 class SessionRevealScreen extends StatefulWidget {
   const SessionRevealScreen({
@@ -175,11 +198,7 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
       if (widget.session.hrSamples != null &&
           widget.session.hrSamples!.isNotEmpty) {
         try {
-          final activityJson = jsonEncode({
-            'completed_at': widget.session.endTime.toIso8601String(),
-            'hr_samples': widget.session.hrSamples,
-            'sample_rate_hz': 1,
-          });
+          final activityJson = buildRevealActivityJson(widget.session);
 
           final tizJson = await binding.computeTimeInZone(
             handle,

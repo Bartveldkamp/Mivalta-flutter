@@ -164,10 +164,14 @@ void useTallTestViewport(WidgetTester tester,
 //   morning_read_verdict → lib/services/morning_read_gate.dart parseVerdict
 //                          (fire is REQUIRED — parse fails loud without it)
 
+// Axis names are the engine's EXACT literals (gatc-viterbi
+// readiness_blend.rs:498-503: "hmm_posteriors", "banister", "physio_zscore",
+// "psychological") — a fixture with invented names would render honest-absent
+// on any surface keyed to the real rows.
 const String kCannedIndicatorHealthy =
     '{"score":87.0,"level":"green","confidence":0.82,"contributions":['
-    '{"name":"viterbi_state","raw_score":90.0,"weight":0.5,"weighted":45.0},'
-    '{"name":"physiological","raw_score":82.0,"weight":0.35,"weighted":28.7},'
+    '{"name":"hmm_posteriors","raw_score":90.0,"weight":0.5,"weighted":45.0},'
+    '{"name":"physio_zscore","raw_score":82.0,"weight":0.35,"weighted":28.7},'
     '{"name":"psychological","raw_score":88.0,"weight":0.15,"weighted":13.2}]}';
 
 /// The engine's explicit no-data verdict (readiness_indicator on cold start):

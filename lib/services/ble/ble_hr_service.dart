@@ -28,8 +28,10 @@ class BleHrSession {
   BleHrSession({required this.source, DateTime? startedAt})
       : startedAt = startedAt ?? DateTime.now();
 
-  /// Vendor/device source id the engine dispatches on (e.g. "ble_hr",
-  /// "polar_h10"). Standard HR-profile straps all normalize via `ble.rs`.
+  /// Device-specific source id carried INSIDE the payload (e.g. "ble_hr",
+  /// "polar_h10") — `ble.rs` reads it from the payload's `source` field
+  /// (ble.rs:44). It is NOT the FFI dispatch token: every BLE observation
+  /// dispatches as [BleHrService.bleVendor], whatever strap recorded it.
   final String source;
   final DateTime startedAt;
 
@@ -77,6 +79,14 @@ class BleHrSession {
 class BleHrService {
   BleHrService({required this.transport, required this.adapter});
 
+  /// The engine normalizer dispatch token for ALL BLE-recorded observations —
+  /// gatc-ffi routes it to `ble.rs`, which reads the device-specific id from
+  /// the payload's `source` field (ble.rs:44). Device ids ("polar_h10", …)
+  /// are NEVER legal dispatch tokens (the engine rejects them: "Unknown
+  /// vendor"); they travel only inside the payload. Pinned by
+  /// test/vendor_contract_test.dart + test/ble_hr_service_test.dart.
+  static const String bleVendor = 'ble_hr';
+
   final BleTransport transport;
   final IngestAdapter adapter;
 
@@ -88,10 +98,11 @@ class BleHrService {
   Stream<BleDevice> scan() => transport.scanForHeartRate();
 
   /// Connect to a chosen strap and begin buffering a live session. `source` is
-  /// the device id the engine normalizes on (default "ble_hr").
+  /// the device-specific id carried in the payload (default [bleVendor]); the
+  /// FFI dispatch token is always [bleVendor] regardless of `source`.
   Future<void> startSession(
     String deviceId, {
-    String source = 'ble_hr',
+    String source = bleVendor,
     DateTime? startedAt,
   }) async {
     await transport.connect(deviceId);
@@ -125,9 +136,16 @@ class BleHrService {
     // recovery from HR/RR); it is not a daily resting biometric, so the Journey
     // biometric-pillar write is skipped (hasBiometrics:false) — the HMM still
     // advances on the workout observation.
+    //
+    // Vendor is PINNED to [bleVendor]: the dispatch token is a property of the
+    // transport (this IS a BLE observation), not of the strap model. The
+    // device-specific id ('polar_h10', …) stays on `source` and inside the
+    // payload, where ble.rs reads it (ble.rs:44) — dispatching it instead
+    // would be rejected engine-side ("Unknown vendor: polar_h10").
     return adapter.ingestObservation(
       date: date,
       source: session.source,
+      vendor: bleVendor,
       vendorJson: session.toVendorJson(date: date),
       hasBiometrics: false,
       dataType: 'activity',
