@@ -10,11 +10,16 @@ Check every change against:
 3. FFI boundary safety.
    - flutter_rust_bridge: flag every type crossing the Dart↔Rust boundary
      without serde derives on Rust side AND code-gen on Dart side.
-   - llama.cpp via Dart FFI: flag every native pointer that escapes a binding
-     scope without an explicit ownership comment.
-4. No cloud round-trips in the V10.1 LLM path. The on-device-first
-   architecture is the moat. Flag every HTTP call from Dart talking to anything
-   other than the model-download endpoint (http://144.76.62.249/models/*).
+   (There is no LLM/native-model FFI in the current build — the V10.1/llama.cpp
+   layer was purged in PR-J. The messenger is deferred to the grounded-Josi
+   phase and will ship via Play Asset Delivery, not a Dart FFI binding.)
+4. No cloud round-trips. On-device-first is the moat, and there is no LLM
+   model-download endpoint any more (the V10.1 HTTP path was removed with the
+   PR-J purge). Flag EVERY MiValta-originated HTTP call from Dart. The only
+   sanctioned network is the OS-level Apple WeatherKit fetch over the
+   `mivalta/weather` platform channel (performed by Apple's frame, not MiValta
+   servers); a failure there must render honest absence, never fabricated
+   conditions.
 5. No engine logic in Dart. Computation stays in Rust. Flag any client-side
    readiness math, zone math, ACWR, monotony, or HMM-equivalent logic in Dart.
 6. Display-only UI. Flag every threshold or business-rule constant inlined in

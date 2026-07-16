@@ -1,5 +1,5 @@
 STATUS: READY TO BUILD (2026-07-06) — seams LIVE on main (rust-engine #388, Flutter #153). Decisions D1–D9 final; build layout in §Build below.
-Source brief: Mivalta-flutter `docs/briefs/DESIGN_BRIEF_2026-07-06_VOICE_AND_BACKUP.md` Part 1.
+Source brief: `docs/briefs/DESIGN_BRIEF_2026-07-06_VOICE_AND_BACKUP.md` Part 1 (removed in the 2026-07-15 docs cleanup; the decisions shipped — this file is kept only as the locked-copy record).
 Seams verified against rust-engine `docs/frontend/FFI_API_CONTRACT.md` §7.1 / §4.2.
 
 # BS-016-josi-voice — the four voice surfaces: design decisions + copy rules

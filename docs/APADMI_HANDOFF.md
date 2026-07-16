@@ -23,7 +23,7 @@ references is in the repos; nothing here is verbal-only.
   Josi free-chat screen, that file is SUPERSEDED.** The beta has no chatbot, no
   open Q&A. The on-device conversational layer is a *later* phase.
 - **Platforms: iOS + Android** (that's why it's Flutter). iOS bring-up needs
-  finishing — see `docs/mac/IOS_BRINGUP_BRIEF.md`.
+  finishing — see `README.md` → Quick start for the xcframework build.
 
 ## 2. The design north star — a next-generation **"training buddy," not a dashboard**
 
@@ -70,18 +70,16 @@ Okapion Figma. `DESIGN_BUILD_SPEC.md` is the screen-by-screen execution brief
 
 ## 5. What's wired vs. what to build
 
-The engine is complete; the app already renders real engine output on every core
-screen (verified by a bidirectional wiring audit). The build work — each with a
-brief in this repo's `docs/`:
+The engine is complete; the app renders real engine output on the rebuilt core
+screens (`today`/`journey`/`you`/`advisor`). Remaining build work:
 
-- **`mac/MAC_BRIEF_WORKOUT_INGEST.md`** — *the #1 task.* Completed workouts aren't yet
-  written to the vault, which starves five wired features (post-workout report,
-  advisor rotation, power charts, the decoupling signal, workout RPE).
-- Advisor lead-with-A / offer-C restyle — **done** (`AdvisorOptionsList`, pinned by
-  `test/advisor_options_test.dart`; brief archived at
-  `docs/archive/MAC_BRIEF_ADVISOR_LEAD_A.md`).
-- Privacy "pause learning" toggle (bound, no UI); manual-entry optional inputs
-  (illness flag etc.); finish iOS bring-up.
+- **Workout ingest is wired (D1)** — completed workouts flow into the vault and
+  the display side (post-workout report, advisor rotation, power/decoupling
+  charts) reads real data. (This was the old "#1 task"; it landed.)
+- Advisor lead-with-A / offer-C — **done** (pinned by advisor tests).
+- Broader vendor connectivity (per-vendor OAuth/BLE); the privacy
+  "pause learning" toggle surface; manual-entry optional inputs (illness flag,
+  cycle day, wellness); finish iOS bring-up.
 
 ## 6. Repos & access
 
