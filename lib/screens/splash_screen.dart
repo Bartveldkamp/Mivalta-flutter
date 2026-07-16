@@ -25,7 +25,15 @@ import 'today_screen.dart';
 
 /// The splash screen — vault open + model warm, then hand-off.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.binding, this.handle});
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → warm-up
+  /// constructs the engines itself (this screen keeps no handle — the
+  /// construction is a side-effect warm; an injected handle skips it).
+  final EnginesHandle? handle;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -225,10 +233,12 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Warm-up: bootstrap engine + open vault
     try {
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       final profileJson = await ProfileService.loadProfile();
 
-      if (profileJson != null) {
+      // An injected handle (test) skips the self-construction warm entirely;
+      // in prod widget.handle is null → construct exactly as before.
+      if (profileJson != null && widget.handle == null) {
         final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
         final vaultPath = await ProfileService.getVaultPath();
 

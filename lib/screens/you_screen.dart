@@ -60,7 +60,13 @@ Map<String, List<String>> sourceOverviewInput(List<dynamic> census) {
 }
 
 class YouScreen extends StatefulWidget {
-  const YouScreen({super.key});
+  const YouScreen({super.key, this.binding, this.handle});
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct below.
+  final EnginesHandle? handle;
 
   @override
   State<YouScreen> createState() => _YouScreenState();
@@ -113,7 +119,7 @@ class _YouScreenState extends State<YouScreen> {
   Future<void> _initEngineAndLoadData() async {
     try {
       // Bootstrap FRB.
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       _binding = binding;
 
       // Load profile.
@@ -141,7 +147,9 @@ class _YouScreenState extends State<YouScreen> {
       );
 
       EnginesHandle handle;
-      if (hasState) {
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else if (hasState) {
         final stateJson = await binding.readPersistedState(
           athleteProfileJson: profileJson,
           vaultPath: vaultPath,

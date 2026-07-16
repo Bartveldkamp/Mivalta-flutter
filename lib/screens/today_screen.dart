@@ -54,11 +54,17 @@ import '../widgets/today/benchmark_notify_card.dart';
 const int kEveningThresholdHour = 19;
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({super.key, this.now});
+  const TodayScreen({super.key, this.now, this.binding, this.handle});
 
   /// Injectable clock for testing. Defaults to [DateTime.now].
   /// F2: allows widget tests to control the time for evening-swap assertions.
   final DateTime Function()? now;
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct below.
+  final EnginesHandle? handle;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -206,7 +212,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
   Future<void> _initEngine() async {
     try {
       // Bootstrap FRB
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
 
       // Load profile
       final profileJson = await ProfileService.loadProfile();
@@ -232,7 +238,9 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
       );
 
       EnginesHandle handle;
-      if (hasState) {
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else if (hasState) {
         final stateJson = await binding.readPersistedState(
           athleteProfileJson: profileJson,
           vaultPath: vaultPath,

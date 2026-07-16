@@ -35,7 +35,13 @@ import '../widgets/mivalta_bottom_nav.dart';
 import 'workout_detail_screen.dart';
 
 class JourneyScreen extends StatefulWidget {
-  const JourneyScreen({super.key});
+  const JourneyScreen({super.key, this.binding, this.handle});
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct below.
+  final EnginesHandle? handle;
 
   @override
   State<JourneyScreen> createState() => _JourneyScreenState();
@@ -93,7 +99,7 @@ class _JourneyScreenState extends State<JourneyScreen> {
 
   Future<void> _initEngine() async {
     try {
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       final profileJson = await ProfileService.loadProfile();
 
       if (profileJson == null) {
@@ -113,7 +119,9 @@ class _JourneyScreenState extends State<JourneyScreen> {
       );
 
       EnginesHandle handle;
-      if (hasState) {
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else if (hasState) {
         final stateJson = await binding.readPersistedState(
           athleteProfileJson: profileJson,
           vaultPath: vaultPath,
