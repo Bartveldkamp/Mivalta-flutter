@@ -1,6 +1,6 @@
-# MiValta — Project Handoff to Apadmi
+# MiValta — Frontend Development Handoff
 
-**This is the hand-in document.** MiValta engages Apadmi to build the production
+**This is the hand-in document.** MiValta engages a frontend-development partner to build the production
 **Flutter** app (iOS **and** Android) for the **beta**. This one page is the front
 door, the scope statement, and the "read these, in this order" map. Everything it
 references is in the repos; nothing here is verbal-only.
@@ -83,7 +83,7 @@ screens (`today`/`journey`/`you`/`advisor`). Remaining build work:
 
 ## 6. Repos & access
 
-| Repo | Role | Apadmi needs |
+| Repo | Role | Frontend team needs |
 |---|---|---|
 | **Mivalta-flutter** (this) | The app | write |
 | **mivalta-rust-engine** | The engine + the FFI contract + the design direction | **read** (the git-pinned `gatc-ffi` is fetched from here on build) |

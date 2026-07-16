@@ -1,7 +1,7 @@
 # START HERE — Reading Order for External Frontend Developers
 
-> **Agency / Apadmi:** the project hand-in + scope statement is
-> [`APADMI_HANDOFF.md`](APADMI_HANDOFF.md) — read it first. It states the beta
+> **Frontend development partner:** the project hand-in + scope statement is
+> [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md) — read it first. It states the beta
 > scope (MONITOR + ADVISOR, **no Josi chat**), the design north star (the
 > next-gen "training buddy", not a dashboard — and that the **canonical design is
 > the docs, not the older Okapion Figma**), and the read-in-order map.

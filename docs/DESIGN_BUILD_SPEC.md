@@ -2,7 +2,7 @@
 
 **Purpose.** The bridge from `UI_UX_DIRECTION.md` (the *direction* — philosophy,
 tone, material language, locked tokens) to **"design exactly this screen, showing
-exactly this real data."** For **Okapion** (visual design) and **Apadmi** (build).
+exactly this real data."** For **Okapion** (visual design) and the **frontend-development team** (build).
 This is what makes a designer fast and on-direction instead of guessing at content.
 
 > **Read alongside:** `UI_UX_DIRECTION.md` (parent direction, in mivalta-rust-engine)
