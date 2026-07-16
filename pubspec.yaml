@@ -102,6 +102,11 @@ dev_dependencies:
   # 1 Hz sensor timer) — test-only, already resolved transitively.
   fake_async: ^1.3.3
 
+  # BS-017 stage 2: the headless corridor tests override the path_provider
+  # platform so ProfileService reads a per-test temp dir instead of a real
+  # device path. Already resolved transitively via path_provider.
+  path_provider_platform_interface: ^2.1.2
+
   # FRB codegen emits freezed-style sealed classes for BridgeError
   # variants. Generation-time only.
   freezed: ^2.5.0
