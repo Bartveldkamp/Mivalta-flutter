@@ -135,12 +135,21 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`8f506da`**
-(rust-engine `main` after #408 — the G1 gate fix; engine_registry **v2.44**, 15
-engines, per `engine_registry.json` at that rev). The `rev = "8f506da…"` line in
-`rust/Cargo.toml` is **authoritative**, and the comment block above it narrates
-the full re-pin history (`…16dbf7d → 29c4b1b → a510184 → 8f506da`); this section
-only summarizes. **The 8f506da bump (PR-B)** carries #402 (Q5 frequency
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`5849920`**
+(rust-engine `main` after #411 — the engine-composed coach sentence;
+engine_registry **v2.44**, 15 engines, unchanged across the range). The
+`rev = "5849920…"` line in `rust/Cargo.toml` is **authoritative**, and the
+comment block above it narrates the full re-pin history (`…29c4b1b → a510184 →
+8f506da → 5849920`); this section only summarizes. **The 5849920 bump (PR-D2)**
+carries #409 (cards JSONL CI export — no engine code), #410 (REVIEWER.md), and
+#411: `WorkoutOptionData.coach_sentence` (`#[serde(default)]`, wire-compatible,
+rides inside the existing `suggest_workouts` payload — rendered VERBATIM in the
+advisor detail), `MetabolicLevel::athlete_label`, and the leading-only levels
+guard. VERIFIED: `engine_registry.json` and `crates/gatc-ffi` are byte-identical
+across `8f506da..5849920`, so **no new shim fn and no FRB regen**; the
+`Cargo.lock` update is a pure rev-SHA replacement. The build executor still owes
+`cargo update` + the **xcframework rebuild** (outstanding since the 8f506da
+bump). **The earlier 8f506da bump (PR-B)** carries #402 (Q5 frequency
 allocation), #404/#406 (LEVELS LAW + communication shape), #405/#408 (G1 safety
 red-test → gate honors `recovery_pool` `floor_exempt`; matrix G1 3456/3456 with
 emissions armed), #407 (review-gate none-parser); one absorbed signature delta

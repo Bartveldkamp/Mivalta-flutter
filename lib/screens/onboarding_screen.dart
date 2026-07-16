@@ -12,6 +12,8 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
@@ -1296,11 +1298,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           const SizedBox(height: MivaltaSpace.x5),
 
-          // Apple Health row (actionable)
+          // Platform health-store row (actionable). One row, one plugin: the
+          // `health` package reads Apple Health on iOS and Health Connect on
+          // Android — the title names the store the athlete actually has.
           _buildDataSourceRow(
             icon: Icons.favorite,
             iconColor: MivaltaColors.levelRed,
-            title: 'Apple Health',
+            title: defaultTargetPlatform == TargetPlatform.android
+                ? 'Health Connect'
+                : 'Apple Health',
             status: _healthConnected
                 ? 'Connected ✓'
                 : _healthDenied
@@ -1372,7 +1378,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           style: MivaltaType.cardTitle.copyWith(color: MivaltaColors.textPrimary),
         ),
         content: Text(
-          "Platform sync is on the roadmap — your watch's data already arrives via Apple Health.",
+          defaultTargetPlatform == TargetPlatform.android
+              ? "Platform sync is on the roadmap — your watch's data already arrives via Health Connect."
+              : "Platform sync is on the roadmap — your watch's data already arrives via Apple Health.",
           style: MivaltaType.body.copyWith(color: MivaltaColors.textSecondary),
         ),
         actions: [

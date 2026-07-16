@@ -12,11 +12,11 @@ import 'tokens.dart';
 
 /// Returns (energyName, color) for a zone code.
 ///
-/// LEVELS LAW (founder 2026-07-10, DECISIONS Entry AP): athlete-facing surfaces
-/// speak the level name only, never the raw zone code. This SUPERSEDES the
-/// older SR1-07 "Tempo · Z3" ruling — the code suffix is gone (see
-/// [zoneDisplayLabel]). The engine mapping stays the same; only what the
-/// athlete sees changes.
+/// LEVELS LAW (founder 2026-07-10, DECISIONS Entry AP; communication shape
+/// amended by the founder exemplar 2026-07-13 — engine #406/#411): the level
+/// LEADS; the zone code may ride NESTED behind it ("Endurance · Z2") but never
+/// travels alone or in front. See [zoneDisplayLabel]. The engine mapping stays
+/// the same; only what the athlete sees changes.
 (String, Color) zoneDisplayNameAndColor(String zone) {
   return switch (zone.toUpperCase()) {
     'Z1' => ('Recovery', MivaltaColors.stateProductive),
@@ -32,15 +32,20 @@ import 'tokens.dart';
   };
 }
 
-/// Formats a zone for athlete display: the level name only ("Tempo").
+/// Formats a zone for athlete display: level leading, code nested
+/// ("Endurance · Z2").
 ///
-/// LEVELS LAW (Entry AP, supersedes SR1-07): NO raw zone-code suffix. The zone
-/// code stays internal; the athlete sees only what the work is.
+/// LEVELS LAW communication shape (Entry AP as amended by the 2026-07-13
+/// founder exemplar, engine docs/LEVELS_LAW.md): the level name LEADS and the
+/// zone code follows as a secondary detail — legal because it is nested, never
+/// alone. (The bare-name form shipped in #180 predates the amendment; #406
+/// made nested-code the canonical shape.) REST has no code to nest.
 String zoneDisplayLabel(String zone) {
   final upperZone = zone.toUpperCase();
   if (upperZone == 'REST') return 'Rest day';
   final (name, _) = zoneDisplayNameAndColor(zone);
-  // Unknown zone → fail-visible (return the raw code) rather than a fabricated
-  // level name; the engine only emits canonical zones on this path.
-  return name;
+  // Unknown zone → fail-visible: the raw code once, never a fabricated
+  // "CODE · CODE" pair; the engine only emits canonical zones on this path.
+  if (name == zone) return zone;
+  return '$name · $upperZone';
 }

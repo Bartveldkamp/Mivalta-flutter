@@ -566,44 +566,51 @@ class _AdvisorScreenState extends State<AdvisorScreen> {
             _ExpandableZonePurpose(text: displayPurpose),
             const SizedBox(height: MivaltaSpace.x4),
           ],
-          // Structure preview (TODO: full structure renderer)
-          Container(
-            padding: const EdgeInsets.all(MivaltaSpace.x3),
-            decoration: BoxDecoration(
-              color: MivaltaColors.surface1,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Session structure',
-                  style: MivaltaType.cardTitle.copyWith(
-                    color: MivaltaColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: MivaltaSpace.x2),
-                // Placeholder for full structure renderer
-                Text(
-                  'Warmup → Main set → Cooldown',
-                  style: MivaltaType.body.copyWith(
-                    color: MivaltaColors.textSecondary,
-                  ),
-                ),
-                if (option.focusCue != null) ...[
-                  const SizedBox(height: MivaltaSpace.x2),
+          // The workout, in the coach's words — the ENGINE-COMPOSED sentence
+          // (engine #411, LEVELS LAW communication shape), rendered VERBATIM.
+          // No sentence (engine emitted "" — no main set) → the card drops;
+          // this replaced the hardcoded "Warmup → Main set → Cooldown"
+          // placeholder, which was a fabricated structure line (audit defect).
+          if (option.coachSentence != null || option.focusCue != null) ...[
+            Container(
+              padding: const EdgeInsets.all(MivaltaSpace.x3),
+              decoration: BoxDecoration(
+                color: MivaltaColors.surface1,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    option.focusCue!,
-                    style: MivaltaType.small.copyWith(
-                      color: MivaltaColors.stateProductive,
-                      fontStyle: FontStyle.italic,
+                    'Your session',
+                    style: MivaltaType.cardTitle.copyWith(
+                      color: MivaltaColors.textPrimary,
                     ),
                   ),
+                  if (option.coachSentence != null) ...[
+                    const SizedBox(height: MivaltaSpace.x2),
+                    Text(
+                      option.coachSentence!,
+                      style: MivaltaType.body.copyWith(
+                        color: MivaltaColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (option.focusCue != null) ...[
+                    const SizedBox(height: MivaltaSpace.x2),
+                    Text(
+                      option.focusCue!,
+                      style: MivaltaType.small.copyWith(
+                        color: MivaltaColors.stateProductive,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: MivaltaSpace.x6),
+            const SizedBox(height: MivaltaSpace.x6),
+          ],
           // "This one today" button
           SizedBox(
             width: double.infinity,

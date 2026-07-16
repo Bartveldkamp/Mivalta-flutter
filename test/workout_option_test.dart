@@ -114,6 +114,66 @@ void main() {
     });
   });
 
+  // Engine #411: WorkoutOptionData.coach_sentence — the ENGINE-COMPOSED
+  // sentence (LEVELS LAW communication shape), rendered verbatim. The engine
+  // emits "" when the option has no main set; the parser maps that honest
+  // absence to null so the render DROPS the sentence, never authors one.
+  group('coach_sentence (engine #411, LEVELS LAW shape)', () {
+    const sentence = "Today your workout is aerobic endurance, training your "
+        "base, a Z1 workout in 2 x 30' at HR 145, or 260 W. Should feel easy "
+        "to do, breathing calm and try through nose. you should be able to "
+        "talk during these intervals.";
+
+    test('present sentence parses VERBATIM — no edit, no truncation', () {
+      final opt = WorkoutOption.fromJson({
+        'option_id': 'A',
+        'title': 'Endurance Ride',
+        'zone': 'Z1',
+        'why': '',
+        'tags': <String>[],
+        'coach_sentence': sentence,
+      });
+      expect(opt.coachSentence, equals(sentence));
+    });
+
+    test('engine "" (no main set) → null: honest absence, sentence drops', () {
+      final opt = WorkoutOption.fromJson({
+        'option_id': 'C',
+        'title': 'Rest',
+        'zone': 'REST',
+        'why': '',
+        'tags': <String>[],
+        'coach_sentence': '',
+      });
+      expect(opt.coachSentence, isNull);
+    });
+
+    test('field absent (pre-#411 payload) → null, no crash', () {
+      final opt = WorkoutOption.fromJson({
+        'option_id': 'A',
+        'title': 'X',
+        'zone': 'Z2',
+        'why': '',
+        'tags': <String>[],
+      });
+      expect(opt.coachSentence, isNull);
+    });
+
+    test('sentence survives the raw courier verbatim (offer-line seam)', () {
+      final opt = WorkoutOption.fromJson({
+        'option_id': 'A',
+        'title': 'Endurance Ride',
+        'zone': 'Z1',
+        'why': '',
+        'tags': <String>[],
+        'coach_sentence': sentence,
+      });
+      final roundTripped =
+          jsonDecode(opt.rawOptionJson()!) as Map<String, dynamic>;
+      expect(roundTripped['coach_sentence'], equals(sentence));
+    });
+  });
+
   // Drift guard: the engine field names the parser depends on, from
   // gatc-types::WorkoutOptionData. Documents the contract explicitly so a
   // rename on the engine side is caught here, not in the field.

@@ -37,7 +37,7 @@ void main() {
       expect(showChip, isFalse, reason: 'Healthy day should NOT show decision chip');
     });
 
-    test('capped day (Z2) → chip shows "Endurance" (LEVELS LAW: no zone code)', () {
+    test('capped day (Z2) → chip shows "Endurance · Z2" (level leads, code nested)', () {
       final zoneCap = 'Z2';
 
       final restrictiveCap = isRestrictiveCap(zoneCap);
@@ -46,9 +46,22 @@ void main() {
       expect(restrictiveCap, isTrue, reason: 'Z2 is restrictive');
       expect(showChip, isTrue, reason: 'Capped day MUST show decision chip');
 
-      // LEVELS LAW (Entry AP, supersedes SR1-07): level name only, no "· Z2".
+      // LEVELS LAW communication shape (Entry AP as amended by the founder
+      // exemplar 2026-07-13, engine #406/#411): the level LEADS, the code
+      // rides NESTED behind it. Bare "Z2" alone stays banned; "Endurance"
+      // alone was the interim #180 form, superseded by the amendment.
       final chipText = zoneDisplayLabel(zoneCap);
-      expect(chipText, equals('Endurance'));
+      expect(chipText, equals('Endurance · Z2'));
+      expect(chipText.startsWith('Endurance'), isTrue,
+          reason: 'the level name must LEAD — the code never fronts the chip');
+    });
+
+    test('REST cap → "Rest day", no code to nest', () {
+      expect(zoneDisplayLabel('REST'), equals('Rest day'));
+    });
+
+    test('unknown zone → raw code once, never a fabricated "CODE · CODE" pair', () {
+      expect(zoneDisplayLabel('Z9'), equals('Z9'));
     });
 
     test('REST cap → chip shows', () {
