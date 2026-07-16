@@ -39,10 +39,18 @@ class SensorCheckScreen extends StatefulWidget {
     super.key,
     this.serviceBuilder,
     this.skipPermissionRequest = false,
+    this.binding,
+    this.handle,
   });
 
   /// Test seam: when non-null, used instead of self-bootstrapping the engine.
   final BleServiceBuilder? serviceBuilder;
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct below.
+  final EnginesHandle? handle;
 
   /// Test seam: skip the runtime Bluetooth permission request (which needs a
   /// platform channel unavailable in a headless widget test). Production leaves
@@ -91,7 +99,7 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
         await _requestAndScan();
         return;
       }
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       final profileJson = await ProfileService.loadProfile();
       if (profileJson == null) {
         setState(() => _message = 'Finish setup before pairing a strap.');
@@ -106,7 +114,9 @@ class _SensorCheckScreenState extends State<SensorCheckScreen> {
         vaultPath: vaultPath,
       );
       EnginesHandle handle;
-      if (hasState) {
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else if (hasState) {
         final stateJson = await binding.readPersistedState(
           athleteProfileJson: profileJson,
           vaultPath: vaultPath,

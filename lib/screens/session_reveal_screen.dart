@@ -24,9 +24,20 @@ import 'today_screen.dart';
 
 /// Post-workout reveal — shows what the session did.
 class SessionRevealScreen extends StatefulWidget {
-  const SessionRevealScreen({super.key, required this.session});
+  const SessionRevealScreen({
+    super.key,
+    required this.session,
+    this.binding,
+    this.handle,
+  });
 
   final CompletedSession session;
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct below.
+  final EnginesHandle? handle;
 
   @override
   State<SessionRevealScreen> createState() => _SessionRevealScreenState();
@@ -50,7 +61,7 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
   Future<void> _initEngineAndLoadData() async {
     try {
       // Bootstrap FRB.
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       // binding available for this session.
 
       // Load profile.
@@ -74,7 +85,9 @@ class _SessionRevealScreenState extends State<SessionRevealScreen> {
       );
 
       EnginesHandle handle;
-      if (hasState) {
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else if (hasState) {
         final stateJson = await binding.readPersistedState(
           athleteProfileJson: profileJson,
           vaultPath: vaultPath,

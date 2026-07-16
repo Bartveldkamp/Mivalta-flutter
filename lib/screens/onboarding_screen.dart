@@ -53,7 +53,13 @@ Map<String, dynamic> thresholdAnchorInputs({
 
 /// The 6-step onboarding intake flow (v3 — condensed, explain-why).
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.binding, this.handle});
+
+  /// BS-017 test seam: injected engine binding. Null in prod → bootstrap().
+  final RustEngineBinding? binding;
+
+  /// BS-017 test seam: injected engine handle. Null in prod → construct fresh.
+  final EnginesHandle? handle;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -300,7 +306,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
       // 2. Write profile to vault
       final vaultPath = await ProfileService.getVaultPath();
-      final binding = await RustEngineBinding.bootstrap();
+      final binding = widget.binding ?? await RustEngineBinding.bootstrap();
       await binding.writeProfileToVault(
         athleteProfileJson: profileJson,
         vaultPath: vaultPath,
@@ -311,11 +317,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
       // 4. Construct engines fresh
       final tablesJson = await rootBundle.loadString('assets/compiled_tables.json');
-      final handle = await binding.constructEnginesFresh(
-        athleteProfileJson: profileJson,
-        tablesJson: tablesJson,
-        vaultPath: vaultPath,
-      );
+      final EnginesHandle handle;
+      if (widget.handle != null) {
+        handle = widget.handle!;
+      } else {
+        handle = await binding.constructEnginesFresh(
+          athleteProfileJson: profileJson,
+          tablesJson: tablesJson,
+          vaultPath: vaultPath,
+        );
+      }
       debugPrint('Onboarding: Engines constructed, handle=$handle');
 
       // 5. Route to Today
