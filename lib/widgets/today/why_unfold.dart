@@ -1,8 +1,9 @@
 // Why? unfold — the evidence layer under Josi.
 //
 // BS-007 Step 2: A "Why?" affordance that reveals readiness_indicator.contributions[].
-// Each row: label (left) · value (right, tabular) · direction glyph (▲/▼/—).
-// Labels go through a fixed dictionary (today_facts_labels.dart).
+// Each row: label (left) · value (right, tabular) · direction glyph ('—'
+// until the engine emits a direction field — cross-repo, Law 8).
+// Labels go through a fixed dictionary (axis_labels.dart).
 // Absent/zero-weight signal → "—  · pulls nothing".
 // Empty contributions → Why? affordance does not render at all.
 //
@@ -11,6 +12,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../copy/axis_labels.dart';
 import '../../copy/today_facts_labels.dart';
 import '../../theme/tokens.dart';
 
@@ -22,7 +24,9 @@ class WhyUnfold extends StatefulWidget {
     this.confidenceText,
   });
 
-  /// Readiness contributions from the engine — list of {key, value, weight, direction}.
+  /// Readiness contributions from the engine — list of
+  /// {name, raw_score, weight, weighted}: serde-serialized `AxisContribution`
+  /// (gatc-viterbi/src/readiness_blend.rs), couriered verbatim.
   final List<Map<String, dynamic>> contributions;
 
   /// Optional confidence sentence to show below the rows.
@@ -239,22 +243,18 @@ class _ContributionRowState extends State<_ContributionRow>
 
   @override
   Widget build(BuildContext context) {
-    final key = widget.contribution['key'] as String?;
-    final value = widget.contribution['value'];
+    final name = widget.contribution['name'] as String?;
+    final rawScore = widget.contribution['raw_score'];
     final weight = widget.contribution['weight'];
-    final direction = widget.contribution['direction'] as String?;
 
     // Label from dictionary — unknown → null
-    final label = contributionLabel(key);
+    final label = humanizeAxisName(name);
 
     // Determine if this is an absent/zero-weight signal
     final isAbsent = label == null || weight == 0 || weight == null;
 
     // Format the value
-    final valueStr = _formatValue(value, isAbsent);
-
-    // Direction glyph
-    final (glyph, glyphColor) = _directionGlyph(direction, isAbsent);
+    final valueStr = _formatValue(rawScore, isAbsent);
 
     return AnimatedBuilder(
       animation: _controller,
@@ -300,10 +300,14 @@ class _ContributionRowState extends State<_ContributionRow>
                 ),
               ),
               const SizedBox(width: 8),
+              // Direction glyph: the engine's AxisContribution carries no
+              // direction field — honest '—' until an engine-emitted
+              // direction exists (cross-repo, Law 8); Dart derives nothing
+              // (Law 2).
               Text(
-                glyph,
+                '—',
                 style: MivaltaType.small.copyWith(
-                  color: glyphColor,
+                  color: MivaltaColors.textMuted,
                 ),
               ),
             ],
@@ -323,15 +327,5 @@ class _ContributionRowState extends State<_ContributionRow>
       return value.toStringAsFixed(1);
     }
     return value.toString();
-  }
-
-  (String, Color) _directionGlyph(String? direction, bool isAbsent) {
-    if (isAbsent) return ('—', MivaltaColors.textMuted);
-
-    return switch ((direction ?? '').toLowerCase()) {
-      'up' || 'positive' || 'improving' => ('▲', MivaltaColors.stateRecovered),
-      'down' || 'negative' || 'declining' => ('▼', MivaltaColors.stateAccumulated),
-      _ => ('—', MivaltaColors.textMuted),
-    };
   }
 }

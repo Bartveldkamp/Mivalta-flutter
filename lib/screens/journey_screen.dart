@@ -14,7 +14,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
@@ -33,6 +33,22 @@ import '../widgets/today/module_card.dart';
 import '../widgets/make_it_yours_sheet.dart';
 import '../widgets/mivalta_bottom_nav.dart';
 import 'workout_detail_screen.dart';
+
+/// Parse one `read_readiness_history` row into the arc's (score, level) pair.
+///
+/// The rows are serde-serialized `VaultBiometric` (gatc-vault/src/models.rs:
+/// `readiness_score: Option<i32>`, `readiness_level: Option<String>` — no
+/// serde rename). `readiness_level` is NOT `level` — that key belongs to the
+/// readiness_indicator payload only. Pure and top-level so the contract keys
+/// are pinned by test (journey_history_row_contract_test.dart); absent fields
+/// stay null (honest absence, never a stand-in).
+@visibleForTesting
+({int? score, String? level}) parseReadinessHistoryRow(
+        Map<String, dynamic> row) =>
+    (
+      score: (row['readiness_score'] as num?)?.toInt(),
+      level: row['readiness_level'] as String?,
+    );
 
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({super.key, this.binding, this.handle});
@@ -208,9 +224,10 @@ class _JourneyScreenState extends State<JourneyScreen> {
       final points = <_ReadinessPoint>[];
       for (final entry in history) {
         if (entry is Map<String, dynamic>) {
+          final parsed = parseReadinessHistoryRow(entry);
           points.add(_ReadinessPoint(
-            score: (entry['readiness_score'] as num?)?.toInt(),
-            level: entry['level'] as String?,
+            score: parsed.score,
+            level: parsed.level,
           ));
         }
       }

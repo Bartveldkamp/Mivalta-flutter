@@ -69,25 +69,11 @@ String? trainingLoadLabel(String? acwrZone) =>
 bool loadContextAvailable(String? dataStatus) =>
     (dataStatus ?? '').toLowerCase() == 'ok';
 
-// ─── BS-007: Why? unfold contribution labels ───
-// Maps engine contribution keys to human-readable labels. Unknown keys → null
-// so the row renders "—  · pulls nothing" rather than a raw engine string.
-
-/// Engine contribution key → human-readable label.
-String? contributionLabel(String? key) =>
-    switch ((key ?? '').toLowerCase()) {
-      'hrv' || 'hrv_score' || 'hrv_zscore' => 'HRV',
-      'rhr' || 'resting_heart_rate' || 'rhr_zscore' => 'Resting HR',
-      'sleep' || 'sleep_hours' || 'sleep_zscore' => 'Sleep',
-      'load' || 'training_load' || 'acwr' => 'Training load',
-      'fatigue' || 'fatigue_score' => 'Fatigue',
-      'fitness' || 'fitness_score' => 'Fitness',
-      'form' || 'form_score' => 'Form',
-      'recovery' || 'recovery_score' => 'Recovery',
-      'stress' || 'stress_score' => 'Stress',
-      'readiness' || 'readiness_score' => 'Readiness',
-      _ => null, // Unknown → honest absence
-    };
+// ─── BS-007: Why? unfold copy ───
+// The contribution-row LABELS live in axis_labels.dart (humanizeAxisName —
+// keyed on the engine's real `AxisContribution.name` axis literals); only the
+// absence copy lives here. (The old `contributionLabel` dictionary keyed on
+// names the engine never emits was removed with the PR-T1 parse fix.)
 
 /// Honest-absence text for contributions with zero weight or absent signal.
 const kContributionAbsentCopy = 'pulls nothing';
