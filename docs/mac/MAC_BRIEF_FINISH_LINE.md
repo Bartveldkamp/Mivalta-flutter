@@ -1,4 +1,4 @@
-# MAC BRIEF — Code-first finish line (pin 5849920, registry v2.44)
+# MAC BRIEF — Code-first finish line (pin 622f523, registry v2.45)
 
 Scope: build/run only (Rule 1). All code is authored and pushed; this brief
 closes the PR-A → PR-D2 train (Flutter #182–#186 + engine #402–#411). FRB
@@ -55,6 +55,29 @@ be reported "OK" from memory; look at the running app.
    run.)
 6. **Cold restart** — kill and relaunch: readiness and history survive
    (persisted Viterbi state restored, no re-onboarding).
+
+## LAST-INCH train witnesses (2026-07-16 — the trip waits on these)
+
+The fix train (engine #417/#418, Flutter #194/#195 + the T5 consumer) changed
+what the witnesses MUST show. These four are the moments the trip exists for:
+
+A. **Strap session → non-zero load.** Record a live BLE strap workout; the
+   Journey row's `load_uls` must be non-zero. **This is the A6 reopen
+   trigger:** if it shows 0.0, report it verbatim — the wire-fields question
+   reopens automatically (see rust #417's PR body).
+B. **The why-unfold names real axes.** Open the readiness "why?" — rows must
+   read "Fatigue model / Fitness & freshness / Body signals / How you feel"
+   with real values, NEVER "— · pulls nothing" on a warmed athlete.
+C. **The Journey arc colors.** History dots carry readiness colors (green/
+   yellow/orange/red), not the uniform fallback.
+D. **Time-in-zone fills — on a REAL device workout.** A fresh health-ingest
+   workout WITH heart-rate samples (real watch/HealthKit data) must render a
+   filled time-in-zone panel in workout detail and move the Journey metabolic
+   rollup off zeros — the first real render of the metabolic heart.
+   HONEST SCOPE: the demo seeder carries no HR streams, so seeded workouts
+   correctly show NO time-in-zone section (that absence is right, not a bug);
+   pre-train activities also stay empty (no backfill — by design, stated in
+   rust #418). Only a fresh, sample-bearing device workout can witness D.
 
 ## Screenshots (Design handoff material — the finish-line deliverable)
 

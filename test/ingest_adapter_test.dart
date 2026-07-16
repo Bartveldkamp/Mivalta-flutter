@@ -83,6 +83,16 @@ class _RecordingBinding implements RustEngineBinding {
     activityWrites.add(activityJson);
   }
 
+  final List<({String activityJson, String streamsJson})> streamWrites = [];
+
+  @override
+  Future<String> writeActivityWithStreams(EnginesHandle handle,
+      {required String activityJson, required String streamsJson}) async {
+    calls.add('writeActivityWithStreams');
+    streamWrites.add((activityJson: activityJson, streamsJson: streamsJson));
+    return '{"tiz":"stored"}';
+  }
+
   @override
   Object? noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName} not faked');
@@ -320,6 +330,99 @@ void main() {
       final act = jsonDecode(binding.activityWrites.single) as Map<String, dynamic>;
       expect(act.containsKey('load_uls'), isFalse);
       expect(act['activity_type'], 'ride');
+    });
+  });
+
+  // T5 (engine #418): the one-call TIZ write. A workout with a REAL
+  // timestamped HR stream takes writeActivityWithStreams (engine computes +
+  // persists the atom); without timestamps it stays on writeActivity — the
+  // atom is honestly absent, never derived from an assumed cadence.
+  group('IngestAdapter.ingestWorkout — one-call TIZ write (T5)', () {
+    test('timestamped stream → writeActivityWithStreams, wire complete', () async {
+      final binding = _RecordingBinding()
+        ..assessmentReturn = '{"recorded_load": 55.5}';
+      final start = DateTime.utc(2026, 7, 16, 17);
+      final result = await IngestAdapter(binding: binding, handle: _FakeHandle())
+          .ingestWorkout(
+        activityId: 'hk_1',
+        date: '2026-07-16',
+        activityType: 'cycling',
+        durationMinutes: 60,
+        source: 'apple',
+        start: start,
+        hrSamples: const [120.0, 135.0, 150.0],
+        hrTimestamps: [
+          start,
+          start.add(const Duration(seconds: 5)),
+          start.add(const Duration(seconds: 12)),
+        ],
+      );
+
+      expect(binding.calls, ['normalize', 'process', 'writeActivityWithStreams']);
+      expect(binding.activityWrites, isEmpty,
+          reason: 'the plain write must NOT also run (one write, not two)');
+      final wire =
+          jsonDecode(binding.streamWrites.single.streamsJson) as Map<String, dynamic>;
+      // The serde-required ActivityWire fields (gatc-ffi):
+      expect(wire['completed_at'], endsWith('Z'));
+      expect(DateTime.parse(wire['completed_at'] as String).toUtc(),
+          start.add(const Duration(minutes: 60)));
+      expect(wire['power_samples'], isA<List<dynamic>>());
+      // True-dwell inputs: parallel samples + REAL epoch-second timestamps.
+      expect(wire['hr_samples'], [120.0, 135.0, 150.0]);
+      final ts = (wire['hr_timestamps'] as List).cast<num>();
+      expect(ts.length, 3);
+      expect(ts[1] - ts[0], 5.0);
+      expect(ts[2] - ts[1], 7.0);
+      // Receipt couriered up verbatim, row json intact.
+      expect(result.tizReceipt, '{"tiz":"stored"}');
+      final row = jsonDecode(binding.streamWrites.single.activityJson)
+          as Map<String, dynamic>;
+      expect(row['load_uls'], 55.5);
+    });
+
+    test('samples WITHOUT timestamps → plain writeActivity (honest absence)',
+        () async {
+      final binding = _RecordingBinding()..assessmentReturn = '{}';
+      final result = await IngestAdapter(binding: binding, handle: _FakeHandle())
+          .ingestWorkout(
+        activityId: 'hk_2',
+        date: '2026-07-16',
+        activityType: 'running',
+        durationMinutes: 30,
+        source: 'apple',
+        start: DateTime.utc(2026, 7, 16, 8),
+        hrSamples: const [110.0, 118.0],
+        // hrTimestamps deliberately absent — the engine's no-timestamp path
+        // assumes 1 Hz, which would fabricate dwell for irregular cadence.
+      );
+      expect(binding.calls, ['normalize', 'process', 'writeActivity']);
+      expect(binding.streamWrites, isEmpty);
+      expect(result.tizReceipt, isNull);
+    });
+
+    test('process failure with a timestamped stream still rides the one-call '
+        'write (streams exist only at ingest time), then rethrows', () async {
+      final binding = _RecordingBinding()..failProcess = true;
+      final start = DateTime.utc(2026, 7, 16, 17);
+      await expectLater(
+        IngestAdapter(binding: binding, handle: _FakeHandle()).ingestWorkout(
+          activityId: 'hk_3',
+          date: '2026-07-16',
+          activityType: 'cycling',
+          durationMinutes: 45,
+          source: 'apple',
+          start: start,
+          hrSamples: const [100.0, 140.0],
+          hrTimestamps: [start, start.add(const Duration(seconds: 4))],
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(binding.calls, ['normalize', 'process', 'writeActivityWithStreams']);
+      final row = jsonDecode(binding.streamWrites.single.activityJson)
+          as Map<String, dynamic>;
+      expect(row.containsKey('load_uls'), isFalse,
+          reason: 'load-absent row on the failure path');
     });
   });
 }

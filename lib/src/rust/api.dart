@@ -521,6 +521,24 @@ Future<void> writeActivity({
   activityJson: activityJson,
 );
 
+/// `VaultEngine::write_activity_with_streams(activity_json, streams_json)` —
+/// persist a completed activity AND its engine-computed time-in-zone atom in
+/// ONE call (the production TIZ writer, engine #418 / registry v2.45). The
+/// ENGINE computes TIZ from the bound profile + the couriered streams
+/// (`ActivityWire` shape: `completed_at` UTC + `power_samples` required;
+/// `hr_samples`/`hr_timestamps` for true dwell); on refusal the row persists
+/// with the atom honestly absent. Returns the engine's receipt JSON
+/// (`{"tiz":"stored"}` / `{"tiz":"absent","reason":…}`). Pure pass-through.
+Future<String> writeActivityWithStreams({
+  required EnginesHandle handle,
+  required String activityJson,
+  required String streamsJson,
+}) => RustLib.instance.api.crateApiWriteActivityWithStreams(
+  handle: handle,
+  activityJson: activityJson,
+  streamsJson: streamsJson,
+);
+
 /// `PostProcessEngine::process_activity(...)` — run the post-activity producer
 /// pipeline on a completed activity. Takes:
 /// - `activity_json`: `{"completed_at": "<rfc3339>", "power_samples": [..], "hr_samples": [..]?, "sample_rate_hz": 1.0}`

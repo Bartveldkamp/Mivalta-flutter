@@ -211,10 +211,19 @@ flutter_rust_bridge = "=2.12.0"
 # 8f506da..5849920 (git diff --stat empty), so NO new shim fn, NO FRB-regen;
 # Cargo.lock here is a pure rev-SHA replacement. Build executor owes cargo
 # update + the xcframework rebuild (still outstanding from the 8f506da bump).
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "5849920edfe58b58308d82712ffa6500aa2d2c7c" }
+# Re-pinned 5849920 -> 622f523 (main after #418 — the LAST-INCH fix train's engine
+# half). The range carries #412-#416 (docs/CI only), #417 (T2: normalize dispatch
+# accepts "ble"|"ble_hr" — closes the BLE seam with Flutter T3), and #418 (T4:
+# VaultEngine::write_activity_with_streams — the production time-in-zone writer,
+# registry v2.44 -> v2.45, engine_count 15). VERIFIED: zero crate Cargo.toml
+# changes in the range, so Cargo.lock is a pure rev-SHA replacement. This bump
+# adds ONE shim fn (write_activity_with_streams) -> FRB-regen REQUIRED (bindings
+# regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build
+# executor owes cargo update + the xcframework rebuild.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "622f523c3886711f17c784428c78af72abf06a39" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "5849920edfe58b58308d82712ffa6500aa2d2c7c" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "622f523c3886711f17c784428c78af72abf06a39" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that

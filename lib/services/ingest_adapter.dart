@@ -16,6 +16,8 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../rust_engine.dart';
 
 /// Build the raw-observation JSON envelope persisted by `writeRawObservation`
@@ -140,6 +142,34 @@ String buildWorkoutActivityJson({
   });
 }
 
+/// Build the `ActivityWire` streams JSON for the one-call TIZ write
+/// (`write_activity_with_streams`, engine #418). COURIER ONLY: the raw HR
+/// stream + its real per-sample timestamps ride untransformed; the ENGINE
+/// derives dwell from the timestamps (true dwell with gap clamping — a bare
+/// 1 Hz assumption would fabricate dwell for the health store's irregular
+/// cadence, so streams WITHOUT timestamps never take this path).
+/// `power_samples` and `completed_at` (UTC) are the wire's serde-required
+/// fields (gatc-ffi ActivityWire) — watts ride verbatim when a meter recorded
+/// them, else honest-empty.
+@visibleForTesting
+String buildActivityStreamsJson({
+  required DateTime completedAt,
+  required List<double> hrSamples,
+  required List<DateTime> hrTimestamps,
+  List<int>? powerSamples,
+}) {
+  return jsonEncode({
+    'completed_at': completedAt.toUtc().toIso8601String(),
+    'power_samples': powerSamples == null
+        ? const <double>[]
+        : powerSamples.map((w) => w.toDouble()).toList(growable: false),
+    'hr_samples': hrSamples,
+    'hr_timestamps': hrTimestamps
+        .map((t) => t.toUtc().millisecondsSinceEpoch / 1000.0)
+        .toList(growable: false),
+  });
+}
+
 /// Extract the engine-computed Universal Load Score from a `DailyAssessment`
 /// JSON (A5 load half). Returns the `recorded_load` value the ENGINE computed
 /// and recorded for this workout, or `null` for honest absence — the field is
@@ -174,6 +204,7 @@ class WorkoutIngestResult {
   const WorkoutIngestResult({
     required this.activityId,
     required this.recordedLoad,
+    this.tizReceipt,
   });
 
   /// The vault activity id the row was written under.
@@ -182,6 +213,13 @@ class WorkoutIngestResult {
   /// The ENGINE's computed Universal Load Score couriered onto the row, or null
   /// for honest absence (engine recorded no load / pin predates recorded_load).
   final double? recordedLoad;
+
+  /// The engine's time-in-zone receipt from the one-call write
+  /// (`{"tiz":"stored"}` / `{"tiz":"absent","reason":…}`), or null when the
+  /// workout carried no timestamped streams and rode the plain `writeActivity`
+  /// path (the atom is honestly absent — never fabricated from an assumed
+  /// cadence).
+  final String? tizReceipt;
 }
 
 /// The shared vault-first ingest adapter. Construct with the engine binding +
@@ -292,8 +330,27 @@ class IngestAdapter {
     int? avgHr,
     int? maxHr,
     List<double>? hrSamples,
+    List<DateTime>? hrTimestamps,
     int? calories,
   }) async {
+    // One-call TIZ write eligibility (engine #418): only a REAL timestamped
+    // stream takes the with-streams path — the engine derives true dwell from
+    // the timestamps. Samples without timestamps ride the plain write (the
+    // engine's no-timestamp fallback assumes 1 Hz, which would FABRICATE dwell
+    // for the health store's irregular cadence — honest absence beats that).
+    final streamsEligible = hrSamples != null &&
+        hrSamples.isNotEmpty &&
+        hrTimestamps != null &&
+        hrTimestamps.length == hrSamples.length &&
+        start != null;
+    final streamsJson = streamsEligible
+        ? buildActivityStreamsJson(
+            completedAt: start.add(
+                Duration(milliseconds: (durationMinutes * 60000).round())),
+            hrSamples: hrSamples,
+            hrTimestamps: hrTimestamps,
+          )
+        : null;
     final workoutObsJson = buildWorkoutObservationJson(
       date: date,
       source: source,
@@ -323,29 +380,11 @@ class IngestAdapter {
     } catch (_) {
       // Engine could not process — still persist the journey row (load-absent),
       // preserving the activity log, then re-raise for the caller's skip count.
-      await binding.writeActivity(
-        handle,
-        activityJson: buildWorkoutActivityJson(
-          id: activityId,
-          date: date,
-          activityType: activityType,
-          durationMinutes: durationMinutes,
-          distanceKm: distanceKm,
-          avgHr: avgHr,
-          maxHr: maxHr,
-          calories: calories,
-          source: source,
-          recordedLoad: null,
-        ),
-      );
-      rethrow;
-    }
-
-    // Persist to the vault (journey list). `load_uls` carries the ENGINE's
-    // computed load when present — couriered, not computed in Dart.
-    await binding.writeActivity(
-      handle,
-      activityJson: buildWorkoutActivityJson(
+      // The TIZ compute is INDEPENDENT of normalize/process, so a timestamped
+      // stream still rides the one-call write here — real streams exist only
+      // at ingest time (no vault stream columns); dropping them now would lose
+      // the atom forever.
+      final failRowJson = buildWorkoutActivityJson(
         id: activityId,
         date: date,
         activityType: activityType,
@@ -355,10 +394,51 @@ class IngestAdapter {
         maxHr: maxHr,
         calories: calories,
         source: source,
-        recordedLoad: recordedLoad,
-      ),
-    );
+        recordedLoad: null,
+      );
+      if (streamsJson != null) {
+        await binding.writeActivityWithStreams(
+          handle,
+          activityJson: failRowJson,
+          streamsJson: streamsJson,
+        );
+      } else {
+        await binding.writeActivity(handle, activityJson: failRowJson);
+      }
+      rethrow;
+    }
 
-    return WorkoutIngestResult(activityId: activityId, recordedLoad: recordedLoad);
+    // Persist to the vault (journey list). `load_uls` carries the ENGINE's
+    // computed load when present — couriered, not computed in Dart. A
+    // timestamped stream takes the ONE-CALL write (engine computes + persists
+    // the time-in-zone atom, #398 pattern); the receipt is couriered up,
+    // never interpreted here.
+    final rowJson = buildWorkoutActivityJson(
+      id: activityId,
+      date: date,
+      activityType: activityType,
+      durationMinutes: durationMinutes,
+      distanceKm: distanceKm,
+      avgHr: avgHr,
+      maxHr: maxHr,
+      calories: calories,
+      source: source,
+      recordedLoad: recordedLoad,
+    );
+    String? tizReceipt;
+    if (streamsJson != null) {
+      tizReceipt = await binding.writeActivityWithStreams(
+        handle,
+        activityJson: rowJson,
+        streamsJson: streamsJson,
+      );
+    } else {
+      await binding.writeActivity(handle, activityJson: rowJson);
+    }
+
+    return WorkoutIngestResult(
+        activityId: activityId,
+        recordedLoad: recordedLoad,
+        tizReceipt: tizReceipt);
   }
 }
