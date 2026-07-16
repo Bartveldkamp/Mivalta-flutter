@@ -67,3 +67,6 @@ jobs:
             exit 1
           fi
           echo "Fabrication lint: OK"
+
+  # F5: Integration test — runs corridor_guard_test on macOS with iOS simulator.
+  # Root cause of #175 miss: a guard that never runs isn't a guard.
