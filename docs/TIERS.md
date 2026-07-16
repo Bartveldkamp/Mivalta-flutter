@@ -26,7 +26,7 @@ Josi switches on at Advisory and stays through Coach.
 
 ## Distribution, the privacy boundary & entitlement
 
-> *Folded in 2026-06-20 from the former `DISTRIBUTION_AND_TIERS.md` (archived). How
+> *Folded in 2026-06-20 from the former `DISTRIBUTION_AND_TIERS.md` (since removed). How
 > MiValta reaches users, how Josi is unlocked, and exactly where the on-device /
 > no-harvesting line sits.*
 
