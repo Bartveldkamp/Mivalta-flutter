@@ -10,11 +10,11 @@ Check every change against:
 3. FFI boundary safety.
    - flutter_rust_bridge: flag every type crossing the Dart↔Rust boundary
      without serde derives on Rust side AND code-gen on Dart side.
-   (There is no LLM/native-model FFI in the current build — the V10.1/llama.cpp
+   (There is no LLM/native-model FFI in the current build — the on-device LLM/model
    layer was purged in PR-J. The messenger is deferred to the grounded-Josi
    phase and will ship via Play Asset Delivery, not a Dart FFI binding.)
 4. No cloud round-trips. On-device-first is the moat, and there is no LLM
-   model-download endpoint any more (the V10.1 HTTP path was removed with the
+   model-download endpoint any more (the model-download HTTP path was removed with the
    PR-J purge). Flag EVERY MiValta-originated HTTP call from Dart. The only
    sanctioned network is the OS-level Apple WeatherKit fetch over the
    `mivalta/weather` platform channel (performed by Apple's frame, not MiValta

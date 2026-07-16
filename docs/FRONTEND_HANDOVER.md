@@ -49,7 +49,7 @@ MVP-1.
 5. **F1 no-data copy is LOCKED verbatim:** "We need more data to predict
    recovery." Do not paraphrase or soften.
 6. **No cloud round-trips.** On-device only. (No LLM/model-download path exists —
-   the V10.1 spike was purged in PR-J; the messenger ships later via Play Asset
+   the on-device LLM spike was purged in PR-J; the messenger ships later via Play Asset
    Delivery. The one sanctioned network call is the OS-level Apple WeatherKit
    channel.)
 7. **No dead code.** Every new public Dart symbol has a production call site
