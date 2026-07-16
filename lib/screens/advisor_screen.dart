@@ -775,10 +775,13 @@ class _OptionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Zone chip + recommended/chosen badges
+              // Zone chip + recommended/chosen badges. The chip carries the
+              // nested "Level · Zone" label, which can be long at phone
+              // width — let it shrink (ellipsized) rather than overflow;
+              // badges keep their natural size.
               Row(
                 children: [
-                  _ZoneChip(zone: option.zone),
+                  Flexible(child: _ZoneChip(zone: option.zone)),
                   const Spacer(),
                   if (isChosen)
                     Container(
@@ -883,6 +886,10 @@ class _OptionCard extends StatelessWidget {
 
     if (specs.isEmpty) return const SizedBox.shrink();
 
+    // Real engine payloads carry long tag lists ("aerobic endurance ·
+    // aerobic efficiency …") — constrain both texts so the row never
+    // overflows on a phone. The numbers (specs) keep priority; tags
+    // ellipsize first.
     return Row(
       children: [
         Text(
@@ -890,13 +897,19 @@ class _OptionCard extends StatelessWidget {
           style: MivaltaType.small.copyWith(
             color: MivaltaColors.textSecondary,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         if (option.tags.isNotEmpty) ...[
           const SizedBox(width: MivaltaSpace.x2),
-          Text(
-            option.tags.join(' · '),
-            style: MivaltaType.small.copyWith(
-              color: MivaltaColors.textSecondary.withValues(alpha: 0.6),
+          Flexible(
+            child: Text(
+              option.tags.join(' · '),
+              style: MivaltaType.small.copyWith(
+                color: MivaltaColors.textSecondary.withValues(alpha: 0.6),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -923,6 +936,8 @@ class _ZoneChip extends StatelessWidget {
       ),
       child: Text(
         '$name · $zone', // ENERGY NAME FIRST
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 12,
