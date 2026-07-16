@@ -465,6 +465,18 @@ class RustEngineBinding {
           {required String activityJson}) =>
       rust_api.writeActivity(handle: handle, activityJson: activityJson);
 
+  /// `VaultEngine::write_activity_with_streams` — persist a completed activity
+  /// AND its engine-computed time-in-zone atom in ONE call (the production TIZ
+  /// writer, engine #418 / registry v2.45). [streamsJson] is the ActivityWire
+  /// shape (`completed_at` UTC + `power_samples` required; `hr_samples` +
+  /// `hr_timestamps` give the engine true per-sample dwell). Returns the
+  /// engine's receipt (`{"tiz":"stored"}` / `{"tiz":"absent","reason":…}`) —
+  /// the atom is honestly absent on refusal, the row persists either way.
+  Future<String> writeActivityWithStreams(EnginesHandle handle,
+          {required String activityJson, required String streamsJson}) =>
+      rust_api.writeActivityWithStreams(
+          handle: handle, activityJson: activityJson, streamsJson: streamsJson);
+
   /// `PostProcessEngine::process_activity` — run the post-activity producer
   /// pipeline. Takes the activity wire + prior MMP + prior CP fit + policy.
   /// Returns PostProcessResult JSON with updated MMP, power_profile_update,

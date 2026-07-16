@@ -135,7 +135,14 @@ Play Asset Delivery with a clean-slate architecture.
 
 ### Engine pin
 
-`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`5849920`**
+`rust/Cargo.toml` pins `gatc-ffi` and `gatc-viterbi` to revision **`622f523`**
+(rust-engine `main` after #418 — the LAST-INCH train's engine half: #417 BLE
+dispatch `"ble"|"ble_hr"` + #418 `write_activity_with_streams`, the production
+time-in-zone writer; engine_registry **v2.45**, 15 engines). ONE new shim fn
+(`write_activity_with_streams`) — FRB bindings regenerated IN the PR (host
+codegen, frb 2.12.0 / Flutter 3.44.0); build executor owes `cargo update` + the
+**xcframework rebuild**. The previous pin narrative follows.
+**The earlier 5849920 pin**
 (rust-engine `main` after #411 — the engine-composed coach sentence;
 engine_registry **v2.44**, 15 engines, unchanged across the range). The
 `rev = "5849920…"` line in `rust/Cargo.toml` is **authoritative**, and the

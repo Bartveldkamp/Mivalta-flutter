@@ -683,16 +683,26 @@ class HealthIngestService {
     int? avgHr;
     int? maxHr;
     List<double>? hrSamples;
+    List<DateTime>? hrTimestamps;
     if (hrPoints.isNotEmpty) {
-      final hrValues = hrPoints
-          .map((p) => _extractNumericValue(p))
-          .whereType<double>()
-          .toList();
+      // Courier the RAW samples WITH their real per-sample timestamps
+      // (Charter Law 2 — the engine computes the mean for the load path and
+      // derives true time-in-zone dwell from the timestamps; the health
+      // store's HR cadence is irregular, so the timestamps ARE the data).
+      final hrValues = <double>[];
+      final hrTimes = <DateTime>[];
+      for (final p in hrPoints) {
+        final v = _extractNumericValue(p);
+        if (v is double) {
+          hrValues.add(v);
+          hrTimes.add(p.dateFrom);
+        }
+      }
       if (hrValues.isNotEmpty) {
-        // Courier the RAW samples to the engine (Charter Law 2 — the engine
-        // computes the mean for the load path). avgHr/maxHr remain a Dart
-        // summary ONLY for the display activity row, never the load-path input.
         hrSamples = hrValues;
+        hrTimestamps = hrTimes;
+        // avgHr/maxHr remain a Dart summary ONLY for the display activity
+        // row, never the load-path input.
         avgHr = (hrValues.reduce((a, b) => a + b) / hrValues.length).round();
         maxHr = hrValues.reduce((a, b) => a > b ? a : b).round();
       }
@@ -733,6 +743,7 @@ class HealthIngestService {
       avgHr: avgHr,
       maxHr: maxHr,
       hrSamples: hrSamples,
+      hrTimestamps: hrTimestamps,
       calories: caloriesRounded,
     );
 
