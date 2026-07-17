@@ -148,11 +148,16 @@ crossfade, #426 item 4 cross-season arc memory (`ViterbiEngine::seed_load_histor
 ADDITIVE (only `seed_load_history`; every other bound signature byte-identical —
 items 1/2/3/5 are engine-internal, armed through existing bound calls). This
 slice consumes `seed_load_history` **INTERNALLY** inside
-`construct_engines_{fresh,from_state}` (not as a new bound Dart fn), so
-`lib/src/rust` is UNCHANGED → **NO FRB-regen** (confirmed: `git status lib/src/rust`
-clean after the pin bump + wiring). Build executor owes `cargo update` (done in
-PR) + the **xcframework rebuild** + the on-device seed witness. The previous pin
-narrative follows.
+`construct_engines_{fresh,from_state}` (not as a new bound Dart fn), so the
+BOUND surface is unchanged — no new Dart binding, no signature change, no
+facade edit. One generated line did change: frb's `api.dart` skip-header
+enumerates non-`pub` shim fns (alphabetically sorted — traced in
+flutter_rust_bridge_codegen-2.12.0 `text_generator.rs:136-148`), and the new
+private `seed_arc_memory` helper belongs in it; the line was hand-applied to
+the exact emitted form (dart toolchain absent in the coding env) and the CI
+**drift-guard is the byte-level verifier** that it matches codegen. Build
+executor owes `cargo update` (done in PR) + the **xcframework rebuild** + the
+on-device seed witness. The previous pin narrative follows.
 **The earlier 5849920 pin**
 (rust-engine `main` after #411 — the engine-composed coach sentence;
 engine_registry **v2.44**, 15 engines, unchanged across the range). The
