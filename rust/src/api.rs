@@ -106,12 +106,6 @@ pub fn engine_hello() -> String {
 // CONSTRUCTION — two paths: fresh (first run) vs restore (subsequent launches)
 // =============================================================================
 
-/// Construct all engines for a FIRST RUN (no persisted state exists).
-///
-/// After calling this, the Dart side MUST immediately call `save_state()`
-/// and persist the returned JSON so subsequent launches can restore via
-/// `construct_engines_from_state()`. The plain `new()` seed constructor is
-/// only reachable here — the restore path uses `from_persisted_state()`.
 /// Item 4 (cross-season arc memory) — seed the ViterbiEngine's long-horizon
 /// load memory from the vault's FULL retained activity arc, so the fitness
 /// trend surfaces (`fitness_series`/`fitness_trend`) see every season instead
@@ -144,6 +138,12 @@ fn seed_arc_memory(
     Ok(())
 }
 
+/// Construct all engines for a FIRST RUN (no persisted state exists).
+///
+/// After calling this, the Dart side MUST immediately call `save_state()`
+/// and persist the returned JSON so subsequent launches can restore via
+/// `construct_engines_from_state()`. The plain `new()` seed constructor is
+/// only reachable here — the restore path uses `from_persisted_state()`.
 pub fn construct_engines_fresh(
     athlete_profile_json: String,
     tables_json: String,
