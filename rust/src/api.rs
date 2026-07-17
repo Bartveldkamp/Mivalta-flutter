@@ -156,6 +156,25 @@ pub fn construct_engines_fresh(
     let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
 
+    // Item 4 (cross-season arc memory) — seed the ViterbiEngine's long-horizon
+    // load memory from the vault's FULL retained activity arc, so the fitness
+    // trend surfaces (fitness_series/fitness_trend) see every season instead of
+    // only the persisted ~90-day live window. Pure transport (Law 2): read the
+    // vault, hand the raw JSON to the engine — ALL fold/dedup/window logic lives
+    // in ViterbiEngine::seed_load_history (idempotent replace-the-arc-segment;
+    // the live window is never touched). `0` = no LIMIT clause = every stored
+    // activity (gatc-vault read_recent_activities). On a fresh vault this folds
+    // nothing (no-op); on the restore path it fills the arc older than the blob's
+    // live window; on a corrupted-state fresh fallback it recovers the arc (the
+    // recent 90-day window re-populates via the normal health re-ingest, not the
+    // seed). Fail-loud, consistent with every construction step above.
+    let arc_json = vault
+        .read_recent_activities(0)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed read: {e}")))?;
+    viterbi
+        .seed_load_history(arc_json)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed: {e}")))?;
+
     Ok(EnginesHandle {
         viterbi,
         advisor,
@@ -218,6 +237,25 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
     let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
+
+    // Item 4 (cross-season arc memory) — seed the ViterbiEngine's long-horizon
+    // load memory from the vault's FULL retained activity arc, so the fitness
+    // trend surfaces (fitness_series/fitness_trend) see every season instead of
+    // only the persisted ~90-day live window. Pure transport (Law 2): read the
+    // vault, hand the raw JSON to the engine — ALL fold/dedup/window logic lives
+    // in ViterbiEngine::seed_load_history (idempotent replace-the-arc-segment;
+    // the live window is never touched). `0` = no LIMIT clause = every stored
+    // activity (gatc-vault read_recent_activities). On a fresh vault this folds
+    // nothing (no-op); on the restore path it fills the arc older than the blob's
+    // live window; on a corrupted-state fresh fallback it recovers the arc (the
+    // recent 90-day window re-populates via the normal health re-ingest, not the
+    // seed). Fail-loud, consistent with every construction step above.
+    let arc_json = vault
+        .read_recent_activities(0)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed read: {e}")))?;
+    viterbi
+        .seed_load_history(arc_json)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed: {e}")))?;
 
     Ok(EnginesHandle {
         viterbi,
