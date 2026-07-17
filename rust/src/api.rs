@@ -106,6 +106,38 @@ pub fn engine_hello() -> String {
 // CONSTRUCTION — two paths: fresh (first run) vs restore (subsequent launches)
 // =============================================================================
 
+/// Item 4 (cross-season arc memory) — seed the ViterbiEngine's long-horizon
+/// load memory from the vault's FULL retained activity arc, so the fitness
+/// trend surfaces (`fitness_series`/`fitness_trend`) see every season instead
+/// of only the persisted ~90-day live window.
+///
+/// Pure transport (Law 2): read the vault, hand the raw JSON to the engine —
+/// ALL fold/dedup/window logic lives in `ViterbiEngine::seed_load_history`
+/// (idempotent replace-the-arc-segment; the live window is never touched).
+/// `0` = no LIMIT clause = every stored activity (gatc-vault
+/// `read_recent_activities`); the read is bounded only by the athlete's own
+/// stored history (a local SQLite read, done once per construction).
+///
+/// Called from BOTH `construct_engines_fresh` and `construct_engines_from_state`
+/// so the two paths cannot drift. Behaviour by path: fresh vault → folds
+/// nothing (no-op); restore path → fills the arc older than the blob's live
+/// window; corrupted-state fresh fallback → recovers the arc (the recent
+/// 90-day window re-populates via the normal health re-ingest, not the seed).
+/// Fail-loud (never silently degrades the fitness-trend surface), consistent
+/// with every construction step.
+fn seed_arc_memory(
+    viterbi: &gatc_ffi::ViterbiEngine,
+    vault: &gatc_ffi::VaultEngine,
+) -> Result<(), BridgeError> {
+    let arc_json = vault
+        .read_recent_activities(0)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed read: {e}")))?;
+    viterbi
+        .seed_load_history(arc_json)
+        .map_err(|e| BridgeError::EngineConstructionFailed(format!("seed: {e}")))?;
+    Ok(())
+}
+
 /// Construct all engines for a FIRST RUN (no persisted state exists).
 ///
 /// After calling this, the Dart side MUST immediately call `save_state()`
@@ -155,6 +187,10 @@ pub fn construct_engines_fresh(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
     let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
+
+    // Item 4 (cross-season arc memory) — shared by both construct paths so the
+    // seed can never drift between the fresh and restore flows (see fn docs).
+    seed_arc_memory(&viterbi, &vault)?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -218,6 +254,10 @@ pub fn construct_engines_from_state(
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("cp: {e}")))?;
     let postprocess = gatc_ffi::PostProcessEngine::new(athlete_profile_json.clone())
         .map_err(|e| BridgeError::EngineConstructionFailed(format!("postprocess: {e}")))?;
+
+    // Item 4 (cross-season arc memory) — shared by both construct paths so the
+    // seed can never drift between the fresh and restore flows (see fn docs).
+    seed_arc_memory(&viterbi, &vault)?;
 
     Ok(EnginesHandle {
         viterbi,
@@ -822,9 +862,12 @@ fn readiness_assessment_fields(
     let indicator: serde_json::Value = serde_json::from_str(indicator_json)
         .map_err(|e| BridgeError::RoundTripFailed(format!("readiness_indicator JSON: {e}")))?;
 
-    let score_f = indicator.get("score").and_then(|v| v.as_f64()).ok_or_else(|| {
-        BridgeError::RoundTripFailed("readiness_indicator missing 'score'".into())
-    })?;
+    let score_f = indicator
+        .get("score")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| {
+            BridgeError::RoundTripFailed("readiness_indicator missing 'score'".into())
+        })?;
     let contributions_empty = indicator
         .get("contributions")
         .and_then(|v| v.as_array())
@@ -853,18 +896,25 @@ fn readiness_assessment_fields(
         return Ok(None);
     }
 
-    let level = indicator.get("level").and_then(|v| v.as_str()).ok_or_else(|| {
-        BridgeError::RoundTripFailed("readiness_indicator missing 'level'".into())
-    })?;
-    let confidence = indicator.get("confidence").and_then(|v| v.as_f64()).ok_or_else(|| {
-        BridgeError::RoundTripFailed("readiness_indicator missing 'confidence'".into())
-    })?;
+    let level = indicator
+        .get("level")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            BridgeError::RoundTripFailed("readiness_indicator missing 'level'".into())
+        })?;
+    let confidence = indicator
+        .get("confidence")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| {
+            BridgeError::RoundTripFailed("readiness_indicator missing 'confidence'".into())
+        })?;
 
     let readiness: serde_json::Value = serde_json::from_str(readiness_json)
         .map_err(|e| BridgeError::RoundTripFailed(format!("get_readiness JSON: {e}")))?;
-    let state = readiness.get("state").and_then(|v| v.as_str()).ok_or_else(|| {
-        BridgeError::RoundTripFailed("get_readiness missing 'state'".into())
-    })?;
+    let state = readiness
+        .get("state")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| BridgeError::RoundTripFailed("get_readiness missing 'state'".into()))?;
 
     Ok(Some(AssessmentFields {
         // Nearest-integer, not truncation: the blend is fractional f64 and the
@@ -3088,7 +3138,10 @@ mod tests {
         let f = readiness_assessment_fields(indicator, readiness)
             .expect("parse")
             .expect("real data must produce fields to write");
-        assert_eq!(f.score, 73, "fractional blend rounds to nearest, not toward zero");
+        assert_eq!(
+            f.score, 73,
+            "fractional blend rounds to nearest, not toward zero"
+        );
         assert_eq!(f.level, "green");
         assert_eq!(f.state, "Productive");
         assert!((f.confidence - 0.81).abs() < 1e-9);
@@ -3123,5 +3176,102 @@ mod tests {
             .expect("score 0 WITH contributions is real data, must write");
         assert_eq!(f.score, 0);
         assert_eq!(f.state, "IllnessRisk");
+    }
+
+    /// Latest Banister fitness value from the engine's `fitness_series`.
+    fn fitness_now(viterbi: &gatc_ffi::ViterbiEngine) -> f64 {
+        let json = viterbi.fitness_series(1).expect("fitness_series");
+        let series: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        series
+            .as_array()
+            .and_then(|a| a.last())
+            .and_then(|p| p.get("fitness"))
+            .and_then(|f| f.as_f64())
+            .expect("fitness point")
+    }
+
+    /// Item 4 slice 2 — the construct-path seed wiring, end-to-end against a
+    /// real (temp) vault. Proves `seed_arc_memory` (the shared courier both
+    /// construct fns call) reads the vault's full arc and folds it into a
+    /// freshly-built ViterbiEngine, lifting the Banister fitness surface from
+    /// ~0 to real mass — i.e. the fitness trend sees seasons older than the
+    /// ~90-day live window. Also pins idempotence (re-seed does not
+    /// double-count) and covers the fresh-fallback shape the reviewer flagged
+    /// (vault has stale activities, engine state is fresh).
+    #[test]
+    fn construct_seed_wiring_folds_vault_arc_into_fresh_engine() {
+        use chrono::{Duration, Utc};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+        let vault =
+            gatc_ffi::VaultEngine::new(test_profile(), vault_path).expect("vault should construct");
+
+        // Five arc-aged workouts (100..140 days ago — older than the 90-day live
+        // window, so the seed folds them as arc), each carrying a real load_uls.
+        for i in 0..5 {
+            let date = (Utc::now() - Duration::days(100 + i * 10))
+                .date_naive()
+                .format("%Y-%m-%d")
+                .to_string();
+            let activity = serde_json::json!({
+                "id": format!("arc-{i}"),
+                "date": date,
+                "activity_type": "ride",
+                "duration_minutes": 60.0,
+                "source": "garmin",
+                "load_uls": 90.0,
+            })
+            .to_string();
+            vault.write_activity(activity).expect("write_activity");
+        }
+
+        let viterbi =
+            gatc_ffi::ViterbiEngine::new(test_profile()).expect("viterbi should construct");
+
+        // Fresh engine, nothing folded → ~zero fitness.
+        let before = fitness_now(&viterbi);
+        assert!(
+            before < 1.0,
+            "fresh engine should have ~0 fitness, got {before}"
+        );
+
+        // Act: the exact wiring both construct paths run.
+        seed_arc_memory(&viterbi, &vault).expect("seed should succeed");
+
+        // The seeded arc now carries real Banister fitness mass
+        // (Σ 90·e^(−Δ/42) over 100..140d ≈ 27).
+        let after = fitness_now(&viterbi);
+        assert!(
+            after > 5.0,
+            "seeded arc must lift fitness above baseline, got {after} (before {before})"
+        );
+
+        // Idempotent: the engine replaces the arc segment, so re-seeding the
+        // same vault does not double-count.
+        seed_arc_memory(&viterbi, &vault).expect("re-seed should succeed");
+        let reseed = fitness_now(&viterbi);
+        assert!(
+            (reseed - after).abs() < 1e-6,
+            "re-seed must be idempotent: {reseed} vs {after}"
+        );
+    }
+
+    /// A fresh engine + EMPTY vault: the seed is a harmless no-op (true first
+    /// run), never a fabricated value — fitness stays ~0.
+    #[test]
+    fn construct_seed_wiring_is_noop_on_empty_vault() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault_path = dir.path().to_str().unwrap().to_string();
+        let vault =
+            gatc_ffi::VaultEngine::new(test_profile(), vault_path).expect("vault should construct");
+        let viterbi =
+            gatc_ffi::ViterbiEngine::new(test_profile()).expect("viterbi should construct");
+
+        seed_arc_memory(&viterbi, &vault).expect("seed on empty vault must succeed (no-op)");
+        assert!(
+            fitness_now(&viterbi) < 1.0,
+            "empty vault seeds nothing — no fabricated fitness"
+        );
     }
 }

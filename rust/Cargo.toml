@@ -220,10 +220,25 @@ flutter_rust_bridge = "=2.12.0"
 # adds ONE shim fn (write_activity_with_streams) -> FRB-regen REQUIRED (bindings
 # regenerated in this PR, host codegen frb 2.12.0 / Flutter 3.44.0); build
 # executor owes cargo update + the xcframework rebuild.
-gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "622f523c3886711f17c784428c78af72abf06a39" }
+# Re-pinned 622f523 -> 7163843 (main after #427 — the MASTER_DIRECTION_BETA
+# finish line). The range carries the five gated beta items + one fix:
+# #421 (direction doc), #422 item 5 (persist-blob schema_version), #423 item 3
+# (phase-memory), #424 item 2 (load-tolerance fold), #425 item 1 (rpe_hr_drift
+# 4th card emission + chronotropic crossfade), #426 item 4 (cross-season arc
+# memory: ViterbiEngine::seed_load_history), #427 (item-4 re-seed-anchor fix).
+# registry v2.45 -> v2.46, engine_count 15 (unchanged). VERIFIED (Rule 4, zero
+# guessing): `git diff 622f523 7163843 -- engine_registry.json` shows the ONLY
+# method delta is +seed_load_history, and the gatc-ffi `pub fn` surface diff is
+# PURELY ADDITIVE (the single new `seed_load_history(&self, json) -> u32`; every
+# other bound signature byte-identical) — items 1/2/3/5 are engine-internal,
+# armed through existing bound calls. This slice consumes seed_load_history
+# INTERNALLY inside construct_engines_{fresh,from_state} (not as a new bound
+# Dart fn), so the FRB-generated bindings (lib/src/rust) are UNCHANGED -> NO
+# FRB-regen. Build executor owes cargo update + the xcframework rebuild only.
+gatc-ffi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "7163843a88e4e9305d3a71413bd4545b0688c454" }
 # PR-D: gatc-viterbi for UniversalObservation type (process_manual_observation helper)
 # PR-E: also needed for normalizer integration
-gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "622f523c3886711f17c784428c78af72abf06a39" }
+gatc-viterbi = { git = "ssh://git@github.com/Bartveldkamp/mivalta-rust-engine", rev = "7163843a88e4e9305d3a71413bd4545b0688c454" }
 
 # Day 3 needs JSON munging at the shim boundary (composing a
 # SuggesterContext from engine state) and a "today" date for that
