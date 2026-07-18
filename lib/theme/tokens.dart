@@ -333,9 +333,10 @@ Color readinessLevelColor(String? level) =>
 
 /// The ONE canonical zone → colour map (audit #8). Zone *colour* is the Viterbi
 /// state-scale palette used as an intensity ramp (recovered → illness) — it is
-/// NOT a separate energy-system palette. The energy system is the *label* (see
-/// copy/zone_labels.dart, e.g. "VO₂max / aerobic power"); the colour is the
-/// state scale. Engine decides the zone; Dart only renders its colour. Every
+/// NOT a separate energy-system palette. The intensity *label* is the engine's
+/// metabolic level (see theme/zone_names.dart + copy/level_labels.dart, the
+/// 6-level engine vocabulary); the colour is the state scale. Engine decides the
+/// zone; Dart only renders its colour. Every
 /// zone-colour call site (advisor screen, time-in-zone chart) routes here so the
 /// screens can never diverge. Unknown/empty → muted (never a raw code).
 Color zoneColor(String? zone) =>
