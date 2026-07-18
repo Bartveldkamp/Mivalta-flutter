@@ -121,15 +121,21 @@ class _WeatherSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     if (weather != null) {
       final tempC = weather!.temperatureC.round();
+      // The condition text is the OS-provided string, rendered VERBATIM — never
+      // re-derived from the symbol (which fabricated "Sunny" for any symbol
+      // outside a short dictionary). The icon is a best-effort glyph for a known
+      // symbol; an unrecognised symbol shows no icon (honest absence), never a
+      // fabricated sun. The real condition + temp still render.
       final icon = _iconForWeatherSymbol(weather!.symbol);
-      final condition = _conditionForSymbol(weather!.symbol);
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: MivaltaColors.textSecondary),
-          const SizedBox(width: 5),
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: MivaltaColors.textSecondary),
+            const SizedBox(width: 5),
+          ],
           Text(
-            '$condition $tempC°',
+            '${weather!.condition} $tempC°',
             style: MivaltaType.small.copyWith(color: MivaltaColors.textSecondary),
           ),
         ],
@@ -140,8 +146,10 @@ class _WeatherSlot extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  /// Map weather symbol to Material icon.
-  IconData _iconForWeatherSymbol(String symbol) {
+  /// Map a known WeatherKit symbol to a Material icon. An unrecognised symbol
+  /// returns null — the caller shows no icon (honest absence), never a
+  /// fabricated sun glyph. The OS condition text still renders alongside.
+  IconData? _iconForWeatherSymbol(String symbol) {
     return switch (symbol.toLowerCase()) {
       'sun.max' || 'sun.max.fill' => Icons.wb_sunny,
       'cloud.sun' || 'cloud.sun.fill' => Icons.wb_cloudy,
@@ -152,23 +160,7 @@ class _WeatherSlot extends StatelessWidget {
       'cloud.bolt' || 'cloud.bolt.fill' => Icons.bolt,
       'moon' || 'moon.fill' => Icons.nightlight,
       'cloud.moon' || 'cloud.moon.fill' => Icons.nights_stay,
-      _ => Icons.wb_sunny_outlined,
-    };
-  }
-
-  /// Map weather symbol to condition text.
-  String _conditionForSymbol(String symbol) {
-    return switch (symbol.toLowerCase()) {
-      'sun.max' || 'sun.max.fill' => 'Sunny',
-      'cloud.sun' || 'cloud.sun.fill' => 'Partly cloudy',
-      'cloud' || 'cloud.fill' => 'Cloudy',
-      'cloud.rain' || 'cloud.rain.fill' => 'Rain',
-      'cloud.heavyrain' || 'cloud.heavyrain.fill' => 'Heavy rain',
-      'cloud.snow' || 'cloud.snow.fill' => 'Snow',
-      'cloud.bolt' || 'cloud.bolt.fill' => 'Thunderstorm',
-      'moon' || 'moon.fill' => 'Clear',
-      'cloud.moon' || 'cloud.moon.fill' => 'Partly cloudy',
-      _ => 'Sunny',
+      _ => null,
     };
   }
 }

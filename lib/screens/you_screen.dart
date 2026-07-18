@@ -232,7 +232,10 @@ class _YouScreenState extends State<YouScreen> {
       for (final e in census.whereType<Map>()) {
         final name = e['source']?.toString() ?? '';
         if (name.isEmpty) continue;
-        String tier = 'partial';
+        // The tier is the ENGINE's classify_source verdict. On failure or a
+        // null verdict it stays null (honest absence) — never a fabricated
+        // 'partial' quality chip the engine did not assign.
+        String? tier;
         try {
           final cls =
               jsonDecode(await binding.classifySource(handle, source: name));
@@ -240,7 +243,7 @@ class _YouScreenState extends State<YouScreen> {
             tier = cls['tier'].toString().toLowerCase();
           }
         } catch (_) {
-          // Tier stays the conservative default on classification failure.
+          // Tier stays null (no chip) on classification failure.
         }
         rows.add({
           'name': name,
@@ -579,7 +582,8 @@ class _YouScreenState extends State<YouScreen> {
 
   Widget _buildSourceRow(Map<String, dynamic> source) {
     final name = source['name'] as String? ?? 'Unknown source';
-    final tier = source['tier'] as String? ?? 'partial';
+    // Honest absence: no engine tier verdict → no quality chip, never 'partial'.
+    final tier = source['tier'] as String?;
     final metrics = (source['metrics'] as List?)?.cast<String>() ?? const [];
     final lastSeen = source['last_seen'] as String?;
     final detail = [
@@ -590,7 +594,7 @@ class _YouScreenState extends State<YouScreen> {
     return _SettingsRow(
       label: name,
       value: detail.isEmpty ? null : detail,
-      trailing: _TierChip(tier: tier),
+      trailing: tier != null ? _TierChip(tier: tier) : null,
     );
   }
 

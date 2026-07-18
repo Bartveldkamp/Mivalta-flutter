@@ -821,13 +821,20 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                   icon: Icons.trending_up,
                   // Rule 3 (no fabricated defaults): the vessel only renders
                   // when the engine has provided a real load ceiling (chronic-load
-                  // baseline from ACWR). Before that exists we do NOT invent a
-                  // "600" range — we show honest absence of the range.
-                  child: (_data.todayLoad != null && _data.loadCeiling != null)
+                  // baseline from ACWR) AND a real ACWR zone. Before that exists
+                  // we do NOT invent a "600" range or default the zone to
+                  // 'optimal' (which would paint the vessel calm-safe on absent
+                  // data) — we show honest absence of the range. The zone travels
+                  // with the ceiling in the same get_acwr payload, so this gate
+                  // rarely changes what shows; it removes the last fabricated
+                  // default on this card.
+                  child: (_data.todayLoad != null &&
+                          _data.loadCeiling != null &&
+                          _data.acwrZone != null)
                       ? LoadVessel(
                           value: _data.todayLoad!,
                           ceiling: _data.loadCeiling!,
-                          acwrZone: _data.acwrZone ?? 'optimal',
+                          acwrZone: _data.acwrZone!,
                           caption: _buildLoadCaption(),
                         )
                       : _data.todayLoad != null
