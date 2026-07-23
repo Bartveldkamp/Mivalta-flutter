@@ -37,7 +37,7 @@ void main() {
       expect(showChip, isFalse, reason: 'Healthy day should NOT show decision chip');
     });
 
-    test('capped day (Z2) → chip shows "Endurance · Z2" (level leads, code nested)', () {
+    test('capped day (Z2) → chip shows "Aerobic endurance · Z2" (level leads, code nested)', () {
       final zoneCap = 'Z2';
 
       final restrictiveCap = isRestrictiveCap(zoneCap);
@@ -46,13 +46,15 @@ void main() {
       expect(restrictiveCap, isTrue, reason: 'Z2 is restrictive');
       expect(showChip, isTrue, reason: 'Capped day MUST show decision chip');
 
-      // LEVELS LAW communication shape (Entry AP as amended by the founder
-      // exemplar 2026-07-13, engine #406/#411): the level LEADS, the code
-      // rides NESTED behind it. Bare "Z2" alone stays banned; "Endurance"
-      // alone was the interim #180 form, superseded by the amendment.
+      // LEVELS LAW communication shape: the metabolic LEVEL leads, the zone code
+      // rides NESTED behind it. The canonical level word for Z2 is the 6-level
+      // vocabulary "Aerobic endurance" (gatc_types::METABOLIC_LEVEL_LABELS,
+      // mirrored by kMetabolicLevelLabels) — NOT the demoted per-zone word
+      // "Endurance" (removed with the divergent zone_labels file). Bare "Z2"
+      // stays banned; this matches test/zone_names_test.dart.
       final chipText = zoneDisplayLabel(zoneCap);
-      expect(chipText, equals('Endurance · Z2'));
-      expect(chipText.startsWith('Endurance'), isTrue,
+      expect(chipText, equals('Aerobic endurance · Z2'));
+      expect(chipText.startsWith('Aerobic endurance'), isTrue,
           reason: 'the level name must LEAD — the code never fronts the chip');
     });
 
