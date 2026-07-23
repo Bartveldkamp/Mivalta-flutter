@@ -11,9 +11,17 @@
 //
 // The zone→level correspondence below mirrors the engine's
 // `MetabolicLevel::classify` (R/Z1→base, Z2→endurance, Z3→tempo, Z4→threshold,
-// Z5→VO₂max, Z6/Z7/Z8→anaerobic/neuro) — a fixed structural map (the same one
-// the colour grouping already encodes), NOT a computation. Dart never authors a
-// level word; it looks the label up from the engine-owned list.
+// Z5→VO₂max, Z6/Z7/Z8→anaerobic/neuro) — a fixed structural map, NOT a
+// computation. Dart never authors a level word; it looks the label up from the
+// engine-owned list. This carving is the DRIFT GUARD's subject: every zone→level
+// pairing is pinned to the engine in test/zone_names_test.dart, so a Dart mirror
+// that diverges from `classify` fails CI.
+//
+// SINGLE SOURCE (universal-model alignment, 2026-07-23): this file is the ONE
+// Dart zone-display source — both the metabolic-level LABEL and the zone COLOUR.
+// The former divergent `zoneColor()` in theme/tokens.dart (dead, and disagreeing
+// on several bands) was removed; do not reintroduce a second zone→colour or
+// zone→level map anywhere in Dart.
 
 import 'package:flutter/material.dart';
 import '../copy/level_labels.dart';
