@@ -1,51 +1,77 @@
-// Zone display names — canonical mapping from engine zone codes to UI labels.
+// Zone display — the athlete-facing rendering of an engine zone code.
 //
-// Engine truth (gatc-advisor workout_suggester ZONE tags): Z1 Recovery,
-// Z2 Endurance, Z3 Tempo, Z4 Threshold, Z5 VO₂max, Z6 Anaerobic, Z7 Neuromuscular.
-// Z8 is used elsewhere but mapped to Max power. REST is a special case.
+// LEVELS LAW (founder 2026-07-18, Option 1): the athlete vocabulary is the
+// engine's SIX metabolic levels ONLY — the words come from
+// `kMetabolicLevelLabels` (lib/copy/level_labels.dart), the Dart render of the
+// engine's `gatc_types::METABOLIC_LEVEL_LABELS` single source of truth. The
+// level LEADS; the zone code rides NESTED behind it ("Aerobic endurance · Z2").
+// There is exactly ONE athlete vocabulary in the app now — the former per-zone
+// words (Recovery/Endurance/Anaerobic/Neuromuscular/Max power) and the divergent
+// copy/zone_labels.dart are removed. Z6/Z7/Z8 all read "Anaerobic / neuro".
 //
-// LOCKED (DR-018 A3): this is the SINGLE source of truth for zone→name mapping
-// in the app. Do not duplicate this mapping elsewhere.
+// The zone→level correspondence below mirrors the engine's
+// `MetabolicLevel::classify` (R/Z1→base, Z2→endurance, Z3→tempo, Z4→threshold,
+// Z5→VO₂max, Z6/Z7/Z8→anaerobic/neuro) — a fixed structural map, NOT a
+// computation. Dart never authors a level word; it looks the label up from the
+// engine-owned list. This carving is the DRIFT GUARD's subject: every zone→level
+// pairing is pinned to the engine in test/zone_names_test.dart, so a Dart mirror
+// that diverges from `classify` fails CI.
+//
+// SINGLE SOURCE (universal-model alignment, 2026-07-23): this file is the ONE
+// Dart zone-display source — both the metabolic-level LABEL and the zone COLOUR.
+// The former divergent `zoneColor()` in theme/tokens.dart (dead, and disagreeing
+// on several bands) was removed; do not reintroduce a second zone→colour or
+// zone→level map anywhere in Dart.
 
 import 'package:flutter/material.dart';
+import '../copy/level_labels.dart';
 import 'tokens.dart';
 
-/// Returns (energyName, color) for a zone code.
-///
-/// LEVELS LAW (founder 2026-07-10, DECISIONS Entry AP; communication shape
-/// amended by the founder exemplar 2026-07-13 — engine #406/#411): the level
-/// LEADS; the zone code may ride NESTED behind it ("Endurance · Z2") but never
-/// travels alone or in front. See [zoneDisplayLabel]. The engine mapping stays
-/// the same; only what the athlete sees changes.
-(String, Color) zoneDisplayNameAndColor(String zone) {
+/// Zone code → (engine metabolic-level id, colour). The colour is the state
+/// scale used as an intensity ramp (see tokens.dart), not a separate palette.
+(String, Color) _zoneLevelIdAndColor(String zone) {
   return switch (zone.toUpperCase()) {
-    'Z1' => ('Recovery', MivaltaColors.stateProductive),
-    'Z2' => ('Endurance', MivaltaColors.stateProductive),
-    'Z3' => ('Tempo', MivaltaColors.stateProductive),
-    'Z4' => ('Threshold', MivaltaColors.stateAccumulated),
-    'Z5' => ('VO₂max', MivaltaColors.stateAccumulated),
-    'Z6' => ('Anaerobic', MivaltaColors.levelRed),
-    'Z7' => ('Neuromuscular', MivaltaColors.levelRed),
-    'Z8' => ('Max power', MivaltaColors.levelRed),
-    'REST' => ('Rest day', MivaltaColors.textSecondary),
-    _ => (zone, MivaltaColors.textSecondary), // Unknown → show raw
+    'R' || 'Z1' => ('aerobic_base', MivaltaColors.stateProductive),
+    'Z2' => ('aerobic_endurance', MivaltaColors.stateProductive),
+    'Z3' => ('tempo', MivaltaColors.stateProductive),
+    'Z4' => ('threshold', MivaltaColors.stateAccumulated),
+    'Z5' => ('vo2max', MivaltaColors.stateAccumulated),
+    'Z6' || 'Z7' || 'Z8' => ('anaerobic_neuro', MivaltaColors.levelRed),
+    _ => ('', MivaltaColors.textSecondary),
   };
 }
 
-/// Formats a zone for athlete display: level leading, code nested
-/// ("Endurance · Z2").
-///
-/// LEVELS LAW communication shape (Entry AP as amended by the 2026-07-13
-/// founder exemplar, engine docs/LEVELS_LAW.md): the level name LEADS and the
-/// zone code follows as a secondary detail — legal because it is nested, never
-/// alone. (The bare-name form shipped in #180 predates the amendment; #406
-/// made nested-code the canonical shape.) REST has no code to nest.
+/// The athlete-facing label for an engine level id, from the single engine-owned
+/// list. Empty when the id is unknown (fail-visible, never a fabricated word).
+String _labelForLevelId(String id) {
+  for (final (levelId, label) in kMetabolicLevelLabels) {
+    if (levelId == id) return label;
+  }
+  return '';
+}
+
+/// Returns (metabolic-level label, colour) for a zone code — the 6-level
+/// vocabulary, engine-owned words. Rest days render a plain day word (not a
+/// training intensity); an unknown zone shows the raw code (fail-visible).
+(String, Color) zoneDisplayNameAndColor(String zone) {
+  final upperZone = zone.toUpperCase();
+  if (upperZone == 'REST' || upperZone == 'OFF') {
+    return ('Rest day', MivaltaColors.textSecondary);
+  }
+  final (levelId, color) = _zoneLevelIdAndColor(zone);
+  final label = _labelForLevelId(levelId);
+  if (label.isEmpty) return (zone, MivaltaColors.textSecondary); // unknown → raw
+  return (label, color);
+}
+
+/// Formats a zone for athlete display: the metabolic level LEADING, the zone
+/// code NESTED ("Aerobic endurance · Z2"). LEVELS LAW communication shape.
+/// REST/OFF have no code to nest; an unknown zone fails visible (raw code once,
+/// never a fabricated "CODE · CODE" pair).
 String zoneDisplayLabel(String zone) {
   final upperZone = zone.toUpperCase();
-  if (upperZone == 'REST') return 'Rest day';
+  if (upperZone == 'REST' || upperZone == 'OFF') return 'Rest day';
   final (name, _) = zoneDisplayNameAndColor(zone);
-  // Unknown zone → fail-visible: the raw code once, never a fabricated
-  // "CODE · CODE" pair; the engine only emits canonical zones on this path.
   if (name == zone) return zone;
   return '$name · $upperZone';
 }

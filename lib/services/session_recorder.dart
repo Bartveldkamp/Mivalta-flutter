@@ -115,20 +115,11 @@ class CompletedSession {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  /// Convert to JSON for vault persistence.
-  Map<String, dynamic> toJson() => {
-    'sport': sport,
-    'start_time': startTime.toIso8601String(),
-    'end_time': endTime.toIso8601String(),
-    'elapsed_seconds': elapsedSeconds,
-    if (distanceKm != null) 'distance_km': distanceKm,
-    if (avgHeartRate != null) 'avg_heart_rate': avgHeartRate,
-    if (maxHeartRate != null) 'max_heart_rate': maxHeartRate,
-    if (avgSpeedKmh != null) 'avg_speed_kmh': avgSpeedKmh,
-    if (hrSamples != null) 'hr_samples': hrSamples,
-    if (speedSamples != null) 'speed_samples': speedSamples,
-    if (powerSamples != null) 'power_samples': powerSamples,
-  };
+  // NOTE: the vault serialization of a completed session lives in
+  // `buildRevealActivityJson` (session_reveal_screen.dart) — the one real
+  // serializer. A duplicate `toJson()` here (zero callers) was removed in the
+  // dead-code sweep; do not reintroduce a second serialization of the same
+  // session shape.
 }
 
 /// Session recorder — Dart-side, no engine until session end.
